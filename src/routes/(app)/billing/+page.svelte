@@ -23,7 +23,8 @@
 		getPayments,
 		recordPayment,
 		getCurrency,
-		getInvoicePrefill
+		getInvoicePrefill,
+		emailInvoice
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getJobs } from '#lib/remote/jobs.remote.ts';
@@ -31,6 +32,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Ban from '@lucide/svelte/icons/ban';
+	import Send from '@lucide/svelte/icons/send';
 
 	const currency = await getCurrency();
 	const customers = await getCustomers();
@@ -102,6 +104,16 @@
 			toast.error(errMsg(err, 'Could not create invoice'));
 		}
 		invoicePending = false;
+	}
+
+	async function sendInvoice(id: string) {
+		try {
+			const { sent } = await emailInvoice(id);
+			if (sent) toast.success('Invoice emailed');
+			else toast.error('Already emailed, or the customer has no email');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not email invoice'));
+		}
 	}
 
 	async function voidInvoice(id: string) {
@@ -257,6 +269,16 @@
 									>
 									<Table.Cell class="text-right">
 										{#if inv.invoice.status === 'open'}
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-8"
+												title="Email invoice"
+												onclick={(e: MouseEvent) => {
+													e.stopPropagation();
+													sendInvoice(inv.invoice.id);
+												}}><Send class="size-4" /></Button
+											>
 											<Button
 												variant="ghost"
 												size="icon"

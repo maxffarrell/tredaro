@@ -4,6 +4,7 @@ import {
 	companySettings,
 	customer,
 	estimate,
+	invoice,
 	job,
 	jobType,
 	notificationLog,
@@ -12,6 +13,7 @@ import {
 import { appOrigin, sendEmail } from '#lib/server/email.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
 import { estimateUrl } from './estimates.ts';
+import { invoiceUrl } from './billing.ts';
 import { localDate, localTime } from '#lib/tz.ts';
 import { formatMoney } from '#lib/format.ts';
 
@@ -103,6 +105,42 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
 		})
 	});
+}
+
+/** "Your invoice is ready" with the public pay link. Returns whether an email was sent. */
+export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
+	const [row] = await db
+		.select({
+			email: customer.email,
+			customerName: customer.name,
+			number: invoice.number,
+			dueDate: invoice.dueDate,
+			status: invoice.status,
+			total:
+				sql`coalesce((select sum(i.qty * i.unit_price) from invoice_item i where i.invoice_id = ${invoice.id}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(invoice)
+		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.where(eq(invoice.id, invoiceId));
+	if (!row?.email || row.status !== 'open') return false;
+	if (!(await logOnce(orgId, 'invoice_sent', invoiceId, row.email))) return false;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: row.email,
+		subject: `Invoice INV-${row.number} from ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Invoice INV-${row.number} for ${formatMoney(row.total)}`,
+			lines: [
+				`${name} issued you an invoice for ${formatMoney(row.total)}, due ${row.dueDate}.`,
+				'Open it to review the charges and pay online.'
+			],
+			action: { label: 'View and pay invoice', url: invoiceUrl(invoiceId) }
+		})
+	});
+	return true;
 }
 
 /** "Your job is scheduled" once a job gets a start time. */

@@ -1,0 +1,152 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { toast } from 'svelte-sonner';
+	import { payPublicInvoice } from '#lib/remote/public.remote.ts';
+	import Logo from '#lib/components/app/logo.svelte';
+	import { errMsg, formatMoney } from '#lib/format.ts';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
+	const {
+		invoice: inv,
+		orgName,
+		customerName,
+		items,
+		total,
+		paid,
+		currency,
+		providers
+	} = $derived(data);
+	const balance = $derived(total - paid);
+	const paidOff = $derived(
+		inv.status === 'void' || balance <= 0 || page.url.searchParams.has('paid')
+	);
+
+	let paying = $state(false);
+	async function pay(provider: string) {
+		paying = true;
+		try {
+			const { url } = await payPublicInvoice({ token: page.params.token!, provider });
+			location.assign(url);
+		} catch (err) {
+			paying = false;
+			toast.error(errMsg(err, 'Could not start payment'));
+		}
+	}
+</script>
+
+<svelte:head>
+	<title>Invoice INV-{inv.number} — {orgName}</title>
+</svelte:head>
+
+<div class="min-h-svh bg-muted/30">
+	<header class="border-b bg-background">
+		<div class="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
+			<Logo />
+			<span class="truncate font-semibold">{orgName}</span>
+		</div>
+	</header>
+
+	<main class="mx-auto max-w-3xl space-y-6 p-4 py-8">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-semibold tracking-tight">Invoice INV-{inv.number}</h1>
+				<p class="text-sm text-muted-foreground">
+					For {customerName} · due {inv.dueDate}
+				</p>
+			</div>
+			<StatusBadge status={paidOff ? 'paid' : inv.status} />
+		</div>
+
+		<Card.Root>
+			<Card.Content class="px-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head class="pl-6">Item</Table.Head>
+							<Table.Head class="w-16 text-right">Qty</Table.Head>
+							<Table.Head class="w-28 text-right">Unit</Table.Head>
+							<Table.Head class="w-28 pr-6 text-right">Amount</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each items as i (i.id)}
+							<Table.Row>
+								<Table.Cell class="pl-6"
+									>{i.name}<span class="text-muted-foreground"> {i.description}</span></Table.Cell
+								>
+								<Table.Cell class="text-right">{i.qty}</Table.Cell>
+								<Table.Cell class="text-right tabular-nums"
+									>{formatMoney(i.unitPrice, currency)}</Table.Cell
+								>
+								<Table.Cell class="pr-6 text-right tabular-nums"
+									>{formatMoney(i.qty * i.unitPrice, currency)}</Table.Cell
+								>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+				<div class="space-y-1 border-t px-6 py-3 text-sm tabular-nums">
+					<div class="flex justify-between font-semibold">
+						<span>Total</span><span>{formatMoney(total, currency)}</span>
+					</div>
+					{#if paid > 0}
+						<div class="flex justify-between text-muted-foreground">
+							<span>Paid</span><span>-{formatMoney(paid, currency)}</span>
+						</div>
+					{/if}
+					<div class="flex justify-between font-semibold">
+						<span>Balance due</span><span>{formatMoney(balance, currency)}</span>
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
+
+		{#if inv.notes}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Notes</Card.Title></Card.Header>
+				<Card.Content class="px-6 text-sm whitespace-pre-wrap">{inv.notes}</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#if inv.status === 'void'}
+			<Card.Root>
+				<Card.Content class="py-6 text-center">
+					<p class="font-semibold">This invoice was voided</p>
+					<p class="mt-1 text-sm text-muted-foreground">Contact {orgName} with questions.</p>
+				</Card.Content>
+			</Card.Root>
+		{:else if balance <= 0}
+			<Card.Root class="border-emerald-500/50">
+				<Card.Content class="py-6 text-center">
+					<p class="font-semibold">Paid in full</p>
+					<p class="mt-1 text-sm text-muted-foreground">Thanks, {customerName}.</p>
+				</Card.Content>
+			</Card.Root>
+		{:else}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="text-base">Pay {formatMoney(balance, currency)}</Card.Title>
+					<Card.Description>Pay this invoice online — secure checkout.</Card.Description>
+				</Card.Header>
+				<Card.Content class="px-6">
+					{#if providers.length}
+						<div class="flex flex-wrap gap-2">
+							{#each providers as p (p.id)}
+								<Button onclick={() => pay(p.id)} disabled={paying}>{p.payLabel}</Button>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-sm text-muted-foreground">
+							{orgName} hasn't enabled online payment — contact them to pay.
+						</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+		{/if}
+	</main>
+</div>

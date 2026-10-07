@@ -1,4 +1,6 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
+import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { and, asc, desc, eq, getTableColumns, gte, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -13,6 +15,7 @@ import {
 	pricebookItem,
 	serviceAgreement,
 	serviceLocation,
+	organization,
 	estimateItem,
 	jobType,
 	outer
@@ -20,6 +23,9 @@ import {
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
 import { nextNumber } from './settings.ts';
+import { providers } from '#lib/server/payments/index.ts';
+import { providerRow } from '#lib/server/payments/settings.ts';
+import { appOrigin } from '#lib/server/email.ts';
 import { formatMoney, todayISO } from '#lib/format.ts';
 import { addDays } from '#lib/tz.ts';
 import type * as s from '#lib/schemas.ts';
@@ -549,6 +555,101 @@ export async function updateInvoice(ctx: OrgContext, input: v.InferOutput<typeof
 			);
 	}
 	return row;
+}
+
+// ---------- Public invoice link ----------
+
+function signInvoice(payload: string) {
+	return createHmac('sha256', BETTER_AUTH_SECRET).update(`invoice:${payload}`).digest('base64url');
+}
+
+/** Stateless signed link to the public invoice page (`/i/<id>.<sig>`). */
+export function invoiceToken(invoiceId: string) {
+	return `${invoiceId}.${signInvoice(invoiceId)}`;
+}
+
+export function verifyInvoiceToken(token: string) {
+	const m = /^([0-9a-f-]{36})\.([\w-]+)$/.exec(token.trim());
+	if (!m) return null;
+	const [, invoiceId, sig] = m;
+	const expected = Buffer.from(signInvoice(invoiceId!));
+	const got = Buffer.from(sig!);
+	return expected.length === got.length && timingSafeEqual(expected, got) ? invoiceId : null;
+}
+
+export function invoiceUrl(id: string) {
+	return `${appOrigin()}/i/${invoiceToken(id)}`;
+}
+
+/** What the public /i/[token] page shows. */
+export async function publicInvoice(id: string) {
+	const [row] = await db
+		.select({ invoice, customerName: customer.name, orgName: organization.name })
+		.from(invoice)
+		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(organization, eq(organization.id, invoice.organizationId))
+		.where(eq(invoice.id, id));
+	if (!row) error(404, 'Invoice not found');
+	const [items, [{ paid = 0 } = {}], [settings]] = await Promise.all([
+		db
+			.select()
+			.from(invoiceItem)
+			.where(eq(invoiceItem.invoiceId, id))
+			.orderBy(asc(invoiceItem.position)),
+		db
+			.select({ paid: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
+			.from(payment)
+			.innerJoin(charge, eq(charge.id, payment.chargeId))
+			.where(eq(charge.invoiceId, id)),
+		db
+			.select({ currency: companySettings.currency })
+			.from(companySettings)
+			.where(eq(companySettings.organizationId, row.invoice.organizationId))
+	]);
+	const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+	// Same availability rule as the portal's pay button.
+	const providers_ = [];
+	for (const p of providers) {
+		if (!p.configured() || !p.supportsCurrency(settings?.currency ?? 'usd')) continue;
+		const prow = await providerRow(row.invoice.organizationId, p.id);
+		if (p.ready(prow))
+			providers_.push({ id: p.id, name: p.name, payLabel: p.payLabel, newTab: p.newTab });
+	}
+	return {
+		...row,
+		items,
+		total,
+		paid,
+		currency: settings?.currency ?? 'usd',
+		providers: providers_
+	};
+}
+
+/**
+ * Starts a provider checkout for the invoice's remaining balance, straight off the
+ * public link — no portal login needed. Success/cancel return to the same link.
+ */
+export async function publicInvoiceCheckout(token: string, providerId: string) {
+	const id = verifyInvoiceToken(token);
+	if (!id) error(400, 'Invalid link');
+	const inv = await publicInvoice(id);
+	if (inv.invoice.status !== 'open') error(409, 'Invoice is no longer payable');
+	const balance = inv.total - inv.paid;
+	if (balance <= 0) error(400, 'Nothing to pay');
+	const provider = providers.find((p) => p.id === providerId);
+	if (!provider?.configured()) error(404, 'Unknown provider');
+	const row = await providerRow(inv.invoice.organizationId, providerId);
+	if (!provider.ready(row)) error(400, `${provider.name} is not available right now`);
+	return provider.checkout({
+		orgId: inv.invoice.organizationId,
+		customerId: inv.invoice.customerId,
+		email: null, // the payer types their email at checkout
+		amount: balance,
+		currency: inv.currency,
+		description: `Invoice INV-${inv.invoice.number} — ${inv.orgName}`,
+		row,
+		paths: { success: `/i/${token}?paid=1`, cancel: `/i/${token}` }
+	});
 }
 
 /** Prefills an invoice form from a job: approved estimate items when linked, else the job-type flat rate. */

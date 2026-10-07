@@ -8,6 +8,7 @@ import {
 	publicEstimate,
 	verifyEstimateToken
 } from '#lib/server/services/estimates.ts';
+import { publicInvoiceCheckout } from '#lib/server/services/billing.ts';
 import { error } from '@sveltejs/kit';
 
 function clientIp() {
@@ -43,4 +44,12 @@ export const getPublicEstimate = query(v.string(), async (token) => {
 /** Customer approves or declines an estimate on its public link. */
 export const decidePublicEstimate = command(estimateDecisionInput, async (input) =>
 	decideEstimate(input.token, clientIp(), input)
+);
+
+/** Starts provider checkout for an invoice's balance off the public /i/[token] page. */
+export const payPublicInvoice = command(
+	v.object({ token: v.string(), provider: v.string() }),
+	async ({ token, provider }) => ({
+		url: await publicInvoiceCheckout(token, provider)
+	})
 );

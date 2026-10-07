@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/billing.ts';
+import { notifyInvoiceSent } from '#lib/server/services/notifications.ts';
 import { getCustomer } from './customers.remote.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import {
@@ -91,6 +92,15 @@ export const updateInvoice = command(invoiceUpdate, async (input) => {
 	void getInvoice(inv!.id).refresh();
 	void getCharges().refresh();
 	return inv;
+});
+
+/** Emails the customer their invoice with the public pay link. `sent` is false without a customer email or if already sent. */
+export const emailInvoice = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	// Existence + org check before the notification path fires.
+	await svc.getInvoice(ctx.orgId, id);
+	const sent = await notifyInvoiceSent(ctx.orgId, id);
+	return { sent };
 });
 
 export const getCharges = query(
