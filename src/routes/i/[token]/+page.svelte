@@ -59,7 +59,7 @@
 					For {customerName} · due {inv.dueDate}
 				</p>
 			</div>
-			<StatusBadge status={paidOff ? 'paid' : inv.status} />
+			<StatusBadge status={inv.status === 'void' ? 'void' : paidOff ? 'paid' : inv.status} />
 		</div>
 
 		<Card.Root>

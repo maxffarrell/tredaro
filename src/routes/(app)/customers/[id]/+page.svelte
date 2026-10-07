@@ -479,9 +479,9 @@
 				<ul class="space-y-2 text-sm">
 					{#each [...c.charges
 							.filter((ch) => ch.charge.status === 'open')
-							.map( (ch) => ({ d: new Date(`${ch.charge.dueDate}T00:00:00Z`), label: ch.charge.description || 'Charge', status: ch.charge.status, cents: ch.charge.amount - ch.paid }) ), ...c.payments.map( (p) => ({ d: p.paidAt, label: `Payment — ${p.method}`, status: 'paid', cents: -p.amount }) )]
+							.map( (ch) => ({ key: `ch-${ch.charge.id}`, d: new Date(`${ch.charge.dueDate}T00:00:00Z`), label: ch.charge.description || 'Charge', status: ch.charge.status, cents: ch.charge.amount - ch.paid }) ), ...c.payments.map( (p) => ({ key: `p-${p.id}`, d: p.paidAt, label: `Payment — ${p.method}`, status: 'paid', cents: -p.amount }) )]
 						.sort((a, b) => b.d.getTime() - a.d.getTime())
-						.slice(0, 10) as row (row.label + row.d.getTime())}
+						.slice(0, 10) as row (row.key)}
 						<li class="flex items-center justify-between">
 							<span class="truncate"
 								>{row.label}
