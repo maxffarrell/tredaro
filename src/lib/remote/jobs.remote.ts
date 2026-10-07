@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/jobs.ts';
+import { notifyJobScheduled } from '#lib/server/services/notifications.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
 import {
@@ -73,14 +74,25 @@ export const getDispatchBoard = query(
 export const getTechnicians = query(async () => svc.listTechnicians((await requireOrg()).orgId));
 
 export const createJob = command(jobInput, async (input) => {
-	const j = await svc.createJob(await requireOrg(), await tz(), input);
+	const ctx = await requireOrg();
+	const j = await svc.createJob(ctx, await tz(), input);
+	if (j?.startsAt)
+		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
+			console.error('job scheduled email failed', err)
+		);
 	void getJobs().refresh();
 	void getDispatchBoard().refresh();
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
 export const updateJob = command(jobUpdate, async (input) => {
-	const j = await svc.updateJob(await requireOrg(), await tz(), input);
+	const ctx = await requireOrg();
+	const j = await svc.updateJob(ctx, await tz(), input);
+	// Deduped per job+recipient in notification_log — reschedules don't re-send.
+	if (j?.startsAt && j.status === 'scheduled')
+		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
+			console.error('job scheduled email failed', err)
+		);
 	void getJobs().refresh();
 	void getDispatchBoard().refresh();
 	void getJob(j!.id).refresh();

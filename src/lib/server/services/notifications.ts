@@ -74,6 +74,37 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 	});
 }
 
+/** "We got your request" after a public /book submission creates the job. */
+export async function notifyBookingReceived(orgId: string, jobId: string) {
+	const [row] = await db
+		.select({
+			email: customer.email,
+			customerName: customer.name,
+			summary: job.summary,
+			jobTypeName: jobType.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row?.email) return;
+	if (!(await logOnce(orgId, 'booking_received', jobId, row.email))) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: row.email,
+		subject: `Request received — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `We got your request, ${row.customerName}`,
+			lines: [
+				`Thanks for reaching out about ${row.jobTypeName ?? row.summary}.`,
+				'A dispatcher will contact you shortly to confirm a time.'
+			],
+			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+		})
+	});
+}
+
 /** "Your job is scheduled" once a job gets a start time. */
 export async function notifyJobScheduled(orgId: string, jobId: string) {
 	const [row] = await db
