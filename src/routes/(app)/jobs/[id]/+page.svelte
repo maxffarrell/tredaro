@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/app/page-header.svelte';
+	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
@@ -26,6 +27,12 @@
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
+	import {
+		getInventory,
+		getJobMaterials,
+		addJobMaterial,
+		removeJobMaterial
+	} from '#lib/remote/inventory.remote.ts';
 	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
@@ -35,6 +42,7 @@
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Ban from '@lucide/svelte/icons/ban';
 	import Timer from '@lucide/svelte/icons/timer';
+	import Package from '@lucide/svelte/icons/package';
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -159,6 +167,44 @@
 			await deleteTimeEntry({ id: entryId, jobId: id }).updates(getTimeEntries);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not delete'));
+		}
+	}
+
+	// ------- materials -------
+	const materials = $derived(await getJobMaterials({ jobId: id }));
+	const stock = $derived(await getInventory());
+	let addingMat = $state(false);
+	let matItem = $state('');
+	let matQty = $state(1);
+	let matPrice = $state<number | null>(null);
+	function pickMat(v: string) {
+		matItem = v;
+		matPrice = stock.find((s) => s.item.id === v)?.item.unitCost ?? 0;
+	}
+	async function logMaterial(e: SubmitEvent) {
+		e.preventDefault();
+		if (!matItem) return;
+		try {
+			await addJobMaterial({
+				jobId: id,
+				inventoryItemId: matItem,
+				qty: matQty,
+				unitPrice: matPrice ?? 0
+			}).updates(getJobMaterials);
+			addingMat = false;
+			matItem = '';
+			matQty = 1;
+			matPrice = null;
+			toast.success('Material logged');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not log material'));
+		}
+	}
+	async function removeMat(materialId: string) {
+		try {
+			await removeJobMaterial(materialId).updates(getJobMaterials);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not remove material'));
 		}
 	}
 
@@ -472,6 +518,104 @@
 					{:else}
 						<Button size="sm" variant="ghost" class="w-full" onclick={() => (addingTime = true)}>
 							<Plus /> Log time
+						</Button>
+					{/if}
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between space-y-0">
+				<Card.Title class="flex items-center gap-2 text-base"
+					><Package class="size-4" /> Materials</Card.Title
+				>
+				{#if materials.length}
+					<span class="text-sm text-muted-foreground tabular-nums">
+						{formatMoney(
+							materials.reduce((s, m) => s + m.material.qty * m.material.unitPrice, 0),
+							settings.currency
+						)}
+					</span>
+				{/if}
+			</Card.Header>
+			<Card.Content class="space-y-3 px-4">
+				<ul class="space-y-2">
+					{#each materials as m (m.material.id)}
+						<li class="flex items-start gap-2 text-sm">
+							<div class="min-w-0 flex-1">
+								<p>
+									{m.material.qty} × {m.itemName}
+									{#if m.material.unitPrice}
+										<span class="text-muted-foreground tabular-nums">
+											· {formatMoney(m.material.qty * m.material.unitPrice, settings.currency)}
+										</span>
+									{/if}
+								</p>
+								<p class="text-xs text-muted-foreground">
+									{#if m.memberName}{m.memberName} ·
+									{/if}{localDate(m.material.createdAt, tz)}
+								</p>
+							</div>
+							{#if !locked}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 shrink-0 text-muted-foreground"
+									onclick={() => removeMat(m.material.id)}
+								>
+									<Trash2 class="size-3.5" />
+								</Button>
+							{/if}
+						</li>
+					{:else}
+						<li class="text-sm text-muted-foreground">No materials used yet.</li>
+					{/each}
+				</ul>
+				{#if !locked}
+					{#if addingMat}
+						<form class="grid gap-2 border-t pt-3" onsubmit={logMaterial}>
+							<Select.Root type="single" value={matItem} onValueChange={pickMat}>
+								<Select.Trigger class="w-full"
+									>{stock.find((s) => s.item.id === matItem)?.item.name ??
+										'Pick an item…'}</Select.Trigger
+								>
+								<Select.Content>
+									{#each stock as s (s.item.id)}
+										<Select.Item value={s.item.id}
+											>{s.item.name}
+											<span class="text-muted-foreground">({s.item.qtyOnHand} {s.item.unit})</span
+											></Select.Item
+										>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+							<div class="grid grid-cols-2 gap-2">
+								<Input
+									type="number"
+									min={1}
+									placeholder="Qty"
+									aria-label="Quantity"
+									bind:value={matQty}
+								/>
+								<MoneyInput bind:value={matPrice} placeholder="Unit price" />
+							</div>
+							<div class="flex gap-2">
+								<Button type="submit" size="sm" disabled={!matItem || matQty < 1}>Log</Button>
+								<Button type="button" size="sm" variant="ghost" onclick={() => (addingMat = false)}
+									>Cancel</Button
+								>
+							</div>
+						</form>
+					{:else}
+						<Button
+							size="sm"
+							variant="ghost"
+							class="w-full"
+							disabled={!stock.length}
+							onclick={() => (addingMat = true)}
+						>
+							<Plus />
+							{stock.length ? 'Log material' : 'Add stock items in Inventory first'}
 						</Button>
 					{/if}
 				{/if}

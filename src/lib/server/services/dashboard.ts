@@ -8,6 +8,7 @@ import {
 	customer,
 	equipment,
 	estimate,
+	inventoryItem,
 	invoice,
 	job,
 	jobType,
@@ -208,6 +209,19 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(serviceAgreement.nextChargeAt))
 		.limit(4);
 
+	const lowStock = await db
+		.select()
+		.from(inventoryItem)
+		.where(
+			and(
+				eq(inventoryItem.organizationId, orgId),
+				sql`${inventoryItem.reorderPoint} is not null`,
+				sql`${inventoryItem.qtyOnHand} <= ${inventoryItem.reorderPoint}`
+			)
+		)
+		.orderBy(asc(inventoryItem.qtyOnHand))
+		.limit(4);
+
 	return {
 		timezone: tz,
 		currency: settings?.currency ?? 'usd',
@@ -251,6 +265,13 @@ export async function dashboard(orgId: string) {
 				text: `${a.customerName} · ${a.planName}`,
 				sub: `bills ${localDate(a.nextChargeAt!, tz)}`,
 				amountCents: a.amount
+			})),
+			...lowStock.map((i) => ({
+				tone: 'amber' as const,
+				href: '/inventory',
+				text: `Low stock · ${i.name}`,
+				sub: `${i.qtyOnHand} ${i.unit} on hand — reorder at ${i.reorderPoint}`,
+				amountCents: null as number | null
 			}))
 		]
 	};

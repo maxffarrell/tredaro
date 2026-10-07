@@ -626,3 +626,48 @@ export const activity = pgTable(
 		index('activity_entity_idx').on(t.entityType, t.entityId)
 	]
 );
+
+/** A stock item the shop carries — warehouse qty + reorder alert level. */
+export const inventoryItem = pgTable(
+	'inventory_item',
+	{
+		id: id(),
+		organizationId: orgId(),
+		name: text('name').notNull(),
+		sku: text('sku').notNull().default(''),
+		/** Freeform unit label, e.g. "each", "ft", "box". */
+		unit: text('unit').notNull().default('each'),
+		qtyOnHand: integer('qty_on_hand').notNull().default(0),
+		/** Attention-card alert when on-hand drops to this level; null = never alert. */
+		reorderPoint: integer('reorder_point'),
+		/** Cost per unit in minor units (cents). */
+		unitCost: integer('unit_cost').notNull().default(0),
+		notes: text('notes').notNull().default(''),
+		...timestamps
+	},
+	(t) => [index('inventory_item_org_idx').on(t.organizationId, t.name)]
+);
+
+/** Stock consumed on a job — decrements the item's on-hand when logged, restores when removed. */
+export const jobMaterial = pgTable(
+	'job_material',
+	{
+		id: id(),
+		organizationId: orgId(),
+		jobId: text('job_id')
+			.notNull()
+			.references(() => job.id, { onDelete: 'cascade' }),
+		inventoryItemId: text('inventory_item_id')
+			.notNull()
+			.references(() => inventoryItem.id, { onDelete: 'restrict' }),
+		qty: integer('qty').notNull().default(1),
+		/** Sell price per unit at the time it was logged, minor units. */
+		unitPrice: integer('unit_price').notNull().default(0),
+		memberId: text('member_id').references(() => member.id, { onDelete: 'set null' }),
+		...timestamps
+	},
+	(t) => [
+		index('job_material_job_idx').on(t.jobId),
+		index('job_material_item_idx').on(t.organizationId, t.inventoryItemId)
+	]
+);

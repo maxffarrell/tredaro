@@ -150,6 +150,30 @@ export const pricebookItemUpdate = v.object({
 	...v.partial(pricebookItemInput).entries
 });
 
+export const inventoryItemInput = v.object({
+	name: requiredText('Name'),
+	sku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
+	unit: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), 'each'),
+	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
+	reorderPoint: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+	unitCost: v.optional(cents, 0),
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), '')
+});
+export const inventoryItemUpdate = v.object({
+	id: idSchema,
+	...v.partial(inventoryItemInput).entries
+});
+export const inventoryAdjustInput = v.object({
+	id: idSchema,
+	delta: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000))
+});
+export const jobMaterialInput = v.object({
+	jobId: idSchema,
+	inventoryItemId: idSchema,
+	qty: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000)),
+	unitPrice: v.optional(cents, 0)
+});
+
 export const jobTypeInput = v.object({
 	name: requiredText('Name'),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),

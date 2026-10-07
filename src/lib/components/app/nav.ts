@@ -7,6 +7,7 @@ import FileText from '@lucide/svelte/icons/file-text';
 import Wallet from '@lucide/svelte/icons/wallet';
 import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 import BookOpen from '@lucide/svelte/icons/book-open';
+import Package from '@lucide/svelte/icons/package';
 import Settings from '@lucide/svelte/icons/settings';
 import ChartColumn from '@lucide/svelte/icons/chart-column';
 
@@ -21,6 +22,7 @@ export const mainNav = [
 	{ href: '/billing', label: 'Billing', icon: Wallet, key: 'b' },
 	{ href: '/agreements', label: 'Agreements', icon: RefreshCw, key: 'a' },
 	{ href: '/pricebook', label: 'Pricebook', icon: BookOpen, key: 'k' },
+	{ href: '/inventory', label: 'Inventory', icon: Package, key: 'i' },
 	{ href: '/reports', label: 'Reports', icon: ChartColumn, key: 'r' }
 ] as const;
 

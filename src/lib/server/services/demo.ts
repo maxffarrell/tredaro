@@ -5,6 +5,7 @@ import {
 	companySettings,
 	customer,
 	equipment,
+	inventoryItem,
 	estimate,
 	estimateItem,
 	invoice,
@@ -277,6 +278,57 @@ export async function loadDemoData(ctx: OrgContext) {
 		)
 		.returning();
 	const equipByCustomer = new Map(equipmentRows.map((e) => [e.customerId, e]));
+
+	// Truck/warehouse stock — the capacitor and contactor sit at/below reorder so the
+	// dashboard attention card has a low-stock row to show.
+	await db.insert(inventoryItem).values([
+		{
+			organizationId: ctx.orgId,
+			name: 'Capacitor 45/5 µF',
+			sku: 'CAP-45-5',
+			unit: 'each',
+			qtyOnHand: 3,
+			reorderPoint: 5,
+			unitCost: 1800
+		},
+		{
+			organizationId: ctx.orgId,
+			name: 'Condenser fan motor',
+			sku: 'MTR-CFM',
+			unit: 'each',
+			qtyOnHand: 7,
+			reorderPoint: 3,
+			unitCost: 14000
+		},
+		{
+			organizationId: ctx.orgId,
+			name: 'Refrigerant R-410A',
+			sku: 'REF-R410A',
+			unit: 'lb',
+			qtyOnHand: 22,
+			reorderPoint: 8,
+			unitCost: 900
+		},
+		{
+			organizationId: ctx.orgId,
+			name: 'Contactor 2-pole 40A',
+			sku: 'CON-2P40',
+			unit: 'each',
+			qtyOnHand: 0,
+			reorderPoint: 2,
+			unitCost: 1200,
+			notes: 'On backorder with supplier'
+		},
+		{
+			organizationId: ctx.orgId,
+			name: 'Smart thermostat',
+			sku: 'THM-SMT',
+			unit: 'each',
+			qtyOnHand: 6,
+			reorderPoint: null,
+			unitCost: 9500
+		}
+	]);
 
 	// Agreements + first charges + payments.
 	for (const [i, c] of customers.entries()) {
