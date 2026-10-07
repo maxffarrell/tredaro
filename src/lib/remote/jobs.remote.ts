@@ -3,7 +3,11 @@ import { command, query } from '$app/server';
 import { refreshQuery } from './_refresh.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/jobs.ts';
-import { notifyJobCompleted, notifyJobScheduled } from '#lib/server/services/notifications.ts';
+import {
+	notifyJobCompleted,
+	notifyJobEnRoute,
+	notifyJobScheduled
+} from '#lib/server/services/notifications.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
 import { getDashboard } from './workspace.remote.ts';
@@ -120,7 +124,11 @@ export const recordJobEvent = command(jobEventInput, async (input) => {
 	const e = await svc.recordJobEvent(ctx, input);
 	if (input.kind === 'completed')
 		void notifyJobCompleted(ctx.orgId, input.jobId).catch((err) =>
-			console.error('job completed email failed', err)
+			console.error('job completed notification failed', err)
+		);
+	if (input.kind === 'en_route')
+		void notifyJobEnRoute(ctx.orgId, input.jobId).catch((err) =>
+			console.error('en route sms failed', err)
 		);
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);

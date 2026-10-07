@@ -64,5 +64,24 @@ export const variables = defineEnvVars({
 	TREDARO_AI_MODEL: {
 		description: 'Chat model name the endpoint should run, e.g. `gpt-5-mini`.',
 		schema: (value) => value || undefined
+	},
+	TREDARO_TWILIO_ACCOUNT_SID: {
+		description:
+			'Twilio account SID for SMS notifications (job scheduled / tech en route / job completed). Bring-your-own-account; all three Twilio vars are required.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_TWILIO_AUTH_TOKEN: {
+		description: 'Auth token for the Twilio account.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_TWILIO_FROM: {
+		description:
+			'From number (E.164, e.g. `+15551234567`) or Messaging Service SID the texts are sent from.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_TWILIO_BASE_URL: {
+		description:
+			'API base for the SMS endpoint, e.g. a Twilio-compatible gateway. Defaults to `https://api.twilio.com/2010-04-01`.',
+		schema: (value) => value || undefined
 	}
 });

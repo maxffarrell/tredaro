@@ -10,7 +10,9 @@ import {
 	notificationLog,
 	organization
 } from '#lib/server/db/schema.ts';
+import { member, user } from '#lib/server/db/auth.schema.ts';
 import { appOrigin, sendEmail } from '#lib/server/email.ts';
+import { sendSms, smsProvider } from '#lib/server/sms.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
 import { estimateUrl } from './estimates.ts';
 import { invoiceUrl } from './billing.ts';
@@ -143,11 +145,12 @@ export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 	return true;
 }
 
-/** "Your job is scheduled" once a job gets a start time. */
+/** "Your job is scheduled" once a job gets a start time. Emails and/or texts the customer. */
 export async function notifyJobScheduled(orgId: string, jobId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
 			number: job.number,
@@ -158,21 +161,53 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
-	if (!row?.email || !row.startsAt) return;
-	if (!(await logOnce(orgId, 'job_scheduled', jobId, row.email))) return;
+	if (!row?.startsAt || (!row.email && !row.phone)) return;
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
-	await sendEmail({
-		to: row.email,
-		subject: `Job J-${row.number} scheduled — ${name}`,
-		...renderEmail({
-			orgName: name,
-			heading: `Your appointment is booked, ${row.customerName}`,
-			lines: [
-				`${row.jobTypeName ?? row.summary} is scheduled for ${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}.`,
-				'Reply to this email if you need to reschedule.'
-			],
-			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+	const what = row.jobTypeName ?? row.summary;
+	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	if (row.email && (await logOnce(orgId, 'job_scheduled', jobId, row.email)))
+		await sendEmail({
+			to: row.email,
+			subject: `Job J-${row.number} scheduled — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Your appointment is booked, ${row.customerName}`,
+				lines: [
+					`${what} is scheduled for ${when}.`,
+					'Reply to this email if you need to reschedule.'
+				],
+				action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			})
+		});
+	if (row.phone && smsProvider() && (await logOnce(orgId, 'job_scheduled_sms', jobId, row.phone)))
+		await sendSms({
+			to: row.phone,
+			body: `${name}: ${what} is scheduled for ${when}. Reply to reschedule.`
+		});
+}
+
+/** "Your technician is on the way" text when a job is marked en_route. SMS only. */
+export async function notifyJobEnRoute(orgId: string, jobId: string) {
+	if (!smsProvider()) return;
+	const [row] = await db
+		.select({
+			phone: customer.phone,
+			number: job.number,
+			jobTypeName: jobType.name,
+			technicianName: user.name
 		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(member, eq(job.technicianId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(eq(job.id, jobId));
+	if (!row?.phone) return;
+	if (!(await logOnce(orgId, 'job_en_route_sms', jobId, row.phone))) return;
+	const name = await orgName(orgId);
+	await sendSms({
+		to: row.phone,
+		body: `${name}: ${row.technicianName ?? 'Your technician'} is on the way for ${row.jobTypeName ?? `job J-${row.number}`}.`
 	});
 }
 
@@ -181,6 +216,7 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
 			number: job.number,
@@ -193,24 +229,31 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.innerJoin(companySettings, eq(companySettings.organizationId, job.organizationId))
 		.where(eq(job.id, jobId));
-	if (!row?.email || row.status !== 'done') return;
-	if (!(await logOnce(orgId, 'job_completed', jobId, row.email))) return;
+	if ((!row?.email && !row?.phone) || row?.status !== 'done') return;
 	const name = await orgName(orgId);
-	await sendEmail({
-		to: row.email,
-		subject: `Thanks for choosing ${name}`,
-		...renderEmail({
-			orgName: name,
-			heading: `All done, ${row.customerName}`,
-			lines: [
-				`${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}).`,
-				...(row.reviewUrl
-					? ['If we earned it, a quick review helps us a lot — it takes under a minute.']
-					: ['You can view this visit and your documents anytime in the customer portal.'])
-			],
-			action: row.reviewUrl
-				? { label: 'Leave a review', url: row.reviewUrl }
-				: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
-		})
-	});
+	if (row.email && (await logOnce(orgId, 'job_completed', jobId, row.email)))
+		await sendEmail({
+			to: row.email,
+			subject: `Thanks for choosing ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `All done, ${row.customerName}`,
+				lines: [
+					`${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}).`,
+					...(row.reviewUrl
+						? ['If we earned it, a quick review helps us a lot — it takes under a minute.']
+						: ['You can view this visit and your documents anytime in the customer portal.'])
+				],
+				action: row.reviewUrl
+					? { label: 'Leave a review', url: row.reviewUrl }
+					: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			})
+		});
+	if (row.phone && smsProvider() && (await logOnce(orgId, 'job_completed_sms', jobId, row.phone)))
+		await sendSms({
+			to: row.phone,
+			body: row.reviewUrl
+				? `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks! A quick review helps a lot: ${row.reviewUrl}`
+				: `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks for choosing us!`
+		});
 }
