@@ -108,6 +108,39 @@
 		</Card.Root>
 
 		<div class="space-y-6">
+			{#if d.attention.length}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="text-base">Needs attention</Card.Title>
+					</Card.Header>
+					<Card.Content class="px-4">
+						<ul class="space-y-2">
+							{#each d.attention as a (a.text + a.sub)}
+								<li>
+									<a href={a.href} class="flex items-start gap-2 text-sm hover:underline">
+										<span
+											class="mt-1.5 size-1.5 shrink-0 rounded-full"
+											class:bg-destructive={a.tone === 'red'}
+											class:bg-amber-500={a.tone === 'amber'}
+											class:bg-blue-500={a.tone === 'blue'}
+										></span>
+										<span class="min-w-0 flex-1">
+											<span class="block truncate">{a.text}</span>
+											<span class="block text-xs text-muted-foreground">{a.sub}</span>
+										</span>
+										{#if a.amountCents != null}
+											<span class="shrink-0 text-xs font-medium"
+												>{formatMoney(a.amountCents, d.currency)}</span
+											>
+										{/if}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent activity</Card.Title></Card.Header>
 				<Card.Content class="px-4">

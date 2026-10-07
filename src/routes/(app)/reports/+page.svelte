@@ -3,9 +3,11 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import { getReports } from '#lib/remote/workspace.remote.ts';
 	import { getCurrency } from '#lib/remote/billing.remote.ts';
 	import { formatDate, formatMoney } from '#lib/format.ts';
+	import Download from '@lucide/svelte/icons/download';
 
 	const r = await getReports();
 	const currency = await getCurrency();
@@ -35,7 +37,13 @@
 	const maxLabor = Math.max(1, ...r.labor.map((l) => l.minutes));
 </script>
 
-<PageHeader title="Reports" />
+<PageHeader title="Reports">
+	{#snippet actions()}
+		<Button size="sm" variant="outline" href="/api/export/time-entries.csv" download
+			><Download /> Time entries CSV</Button
+		>
+	{/snippet}
+</PageHeader>
 
 <div class="grid gap-6 p-4 md:p-6 lg:grid-cols-2">
 	<Card.Root class="lg:col-span-2">

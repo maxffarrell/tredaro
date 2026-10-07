@@ -36,6 +36,7 @@
 	import Ban from '@lucide/svelte/icons/ban';
 	import Send from '@lucide/svelte/icons/send';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Download from '@lucide/svelte/icons/download';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 
 	const currency = await getCurrency();
@@ -224,6 +225,9 @@
 			}}><Plus /> Post charge</Button
 		>
 		<Button size="sm" variant="outline" onclick={() => (payOpen = true)}>Record payment</Button>
+		<Button size="sm" variant="outline" href="/api/export/invoices.csv" download
+			><Download /> Export</Button
+		>
 		<Button size="sm" onclick={openInvoice}><Plus /> New invoice</Button>
 	{/snippet}
 </PageHeader>

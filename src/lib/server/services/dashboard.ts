@@ -1,10 +1,14 @@
-import { and, asc, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
+	agreementPlan,
 	charge,
 	companySettings,
 	customer,
+	equipment,
+	estimate,
+	invoice,
 	job,
 	jobType,
 	member,
@@ -120,6 +124,90 @@ export async function dashboard(orgId: string) {
 		.orderBy(desc(customer.createdAt))
 		.limit(6);
 
+	// "Needs attention": open receivables past due, sent estimates gone quiet,
+	// equipment warranties ending within a month, agreements billing within two weeks.
+	const weekAgo = new Date(Date.now() - 7 * 86400_000);
+	const twoWeeksOut = new Date(Date.now() + 14 * 86400_000);
+	const warrantyHorizon = `${localDate(new Date(Date.now() + 30 * 86400_000), tz)}`;
+
+	const overdueCharges = await db
+		.select({
+			description: charge.description,
+			dueDate: charge.dueDate,
+			customerName: customer.name,
+			invoiceNumber: invoice.number,
+			balance:
+				sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(charge)
+		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
+		.where(
+			and(eq(charge.organizationId, orgId), eq(charge.status, 'open'), lt(charge.dueDate, today))
+		)
+		.orderBy(asc(charge.dueDate))
+		.limit(4);
+
+	const agingEstimates = await db
+		.select({
+			number: estimate.number,
+			sentAt: estimate.sentAt,
+			customerName: customer.name
+		})
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.status, 'sent'),
+				lt(estimate.sentAt, weekAgo)
+			)
+		)
+		.orderBy(asc(estimate.sentAt))
+		.limit(4);
+
+	const expiringWarranties = await db
+		.select({
+			name: equipment.name,
+			warrantyUntil: equipment.warrantyUntil,
+			customerId: customer.id,
+			customerName: customer.name
+		})
+		.from(equipment)
+		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.where(
+			and(
+				eq(equipment.organizationId, orgId),
+				eq(equipment.active, true),
+				gte(equipment.warrantyUntil, today),
+				lte(equipment.warrantyUntil, warrantyHorizon)
+			)
+		)
+		.orderBy(asc(equipment.warrantyUntil))
+		.limit(4);
+
+	const renewingAgreements = await db
+		.select({
+			nextChargeAt: serviceAgreement.nextChargeAt,
+			customerName: customer.name,
+			planName: agreementPlan.name,
+			amount: agreementPlan.amount
+		})
+		.from(serviceAgreement)
+		.innerJoin(customer, eq(serviceAgreement.customerId, customer.id))
+		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
+		.where(
+			and(
+				eq(serviceAgreement.organizationId, orgId),
+				eq(serviceAgreement.status, 'active'),
+				lte(serviceAgreement.nextChargeAt, twoWeeksOut)
+			)
+		)
+		.orderBy(asc(serviceAgreement.nextChargeAt))
+		.limit(4);
+
 	return {
 		timezone: tz,
 		currency: settings?.currency ?? 'usd',
@@ -134,6 +222,36 @@ export async function dashboard(orgId: string) {
 		mrr,
 		todayJobs,
 		recentActivity,
-		recentCustomers
+		recentCustomers,
+		attention: [
+			...overdueCharges.map((c) => ({
+				tone: 'red' as const,
+				href: '/billing',
+				text: `${c.customerName} · ${c.description ?? (c.invoiceNumber ? `INV-${c.invoiceNumber}` : 'charge')}`,
+				sub: `due ${c.dueDate}`,
+				amountCents: c.balance
+			})),
+			...agingEstimates.map((e) => ({
+				tone: 'amber' as const,
+				href: '/estimates',
+				text: `${e.customerName} · estimate E-${e.number}`,
+				sub: `sent ${localDate(e.sentAt!, tz)} — no response yet`,
+				amountCents: null as number | null
+			})),
+			...expiringWarranties.map((w) => ({
+				tone: 'amber' as const,
+				href: `/customers/${w.customerId}`,
+				text: `${w.customerName} · ${w.name}`,
+				sub: `warranty ends ${w.warrantyUntil}`,
+				amountCents: null as number | null
+			})),
+			...renewingAgreements.map((a) => ({
+				tone: 'blue' as const,
+				href: '/agreements',
+				text: `${a.customerName} · ${a.planName}`,
+				sub: `bills ${localDate(a.nextChargeAt!, tz)}`,
+				amountCents: a.amount
+			}))
+		]
 	};
 }
