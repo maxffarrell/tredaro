@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { refreshQuery } from './_refresh.ts';
+import { getDashboard } from './workspace.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/customers.ts';
 import { portalToken } from '#lib/server/services/portal.ts';
@@ -26,11 +27,13 @@ export const getCustomer = query(idSchema, async (id) =>
 export const createCustomer = command(customerInput, async (input) => {
 	const c = await svc.createCustomer(await requireOrg(), input);
 	await refreshQuery(getCustomers, undefined);
+	await refreshQuery(getDashboard, undefined);
 	return c;
 });
 export const importCustomers = command(customerImportInput, async (rows) => {
 	const r = await svc.importCustomers(await requireOrg(), rows);
 	await refreshQuery(getCustomers, undefined);
+	await refreshQuery(getDashboard, undefined);
 	return r;
 });
 export const updateCustomer = command(customerUpdate, async (input) => {

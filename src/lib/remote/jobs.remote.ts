@@ -6,6 +6,7 @@ import * as svc from '#lib/server/services/jobs.ts';
 import { notifyJobScheduled } from '#lib/server/services/notifications.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
+import { getDashboard } from './workspace.remote.ts';
 import {
 	idSchema,
 	jobEventInput,
@@ -79,6 +80,7 @@ export const createJob = command(jobInput, async (input) => {
 		);
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);
+	await refreshQuery(getDashboard, undefined);
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
@@ -93,6 +95,7 @@ export const updateJob = command(jobUpdate, async (input) => {
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);
 	await refreshQuery(getJob, j!.id);
+	await refreshQuery(getDashboard, undefined);
 	void getCustomer(j!.customerId).refresh();
 	return j;
 });
@@ -102,6 +105,7 @@ export const recordJobEvent = command(jobEventInput, async (input) => {
 	await refreshQuery(getDispatchBoard, undefined);
 	await refreshQuery(getJob, input.jobId);
 	await refreshQuery(getTimeEntries, input.jobId);
+	await refreshQuery(getDashboard, undefined);
 	return e;
 });
 
