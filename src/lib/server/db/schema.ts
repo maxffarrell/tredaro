@@ -309,6 +309,28 @@ export const jobEvent = pgTable(
 	]
 );
 
+/** Clock-in/out or manually logged time a staff member spent on a job. */
+export const jobTimeEntry = pgTable(
+	'job_time_entry',
+	{
+		id: id(),
+		organizationId: orgId(),
+		jobId: text('job_id')
+			.notNull()
+			.references(() => job.id, { onDelete: 'cascade' }),
+		memberId: text('member_id').references(() => member.id, { onDelete: 'set null' }),
+		startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+		/** Null while the member is still clocked in. */
+		endedAt: timestamp('ended_at', { withTimezone: true }),
+		note: text('note').notNull().default(''),
+		...timestamps
+	},
+	(t) => [
+		index('job_time_entry_job_idx').on(t.jobId),
+		index('job_time_entry_member_idx').on(t.organizationId, t.memberId)
+	]
+);
+
 export const estimateStatus = pgEnum('estimate_status', [
 	'draft',
 	'sent',

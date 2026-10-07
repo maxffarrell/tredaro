@@ -10,7 +10,8 @@ import {
 	jobInput,
 	jobTypeInput,
 	jobTypeUpdate,
-	jobUpdate
+	jobUpdate,
+	timeEntryInput
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -91,5 +92,38 @@ export const recordJobEvent = command(jobEventInput, async (input) => {
 	void getJobs().refresh();
 	void getDispatchBoard().refresh();
 	void getJob(input.jobId).refresh();
+	void getTimeEntries(input.jobId).refresh();
 	return e;
 });
+
+// ---------- Time tracking ----------
+
+export const getTimeEntries = query(idSchema, async (jobId) =>
+	svc.listTimeEntries(await requireOrg(), jobId)
+);
+
+export const startTimer = command(idSchema, async (jobId) => {
+	const t = await svc.startTimer(await requireOrg(), jobId);
+	void getTimeEntries(jobId).refresh();
+	return t;
+});
+
+export const stopTimer = command(idSchema, async (jobId) => {
+	const t = await svc.stopTimer(await requireOrg(), jobId);
+	void getTimeEntries(jobId).refresh();
+	return t;
+});
+
+export const addTimeEntry = command(timeEntryInput, async (input) => {
+	const t = await svc.addTimeEntry(await requireOrg(), await tz(), input);
+	void getTimeEntries(input.jobId).refresh();
+	return t;
+});
+
+export const deleteTimeEntry = command(
+	v.object({ id: idSchema, jobId: idSchema }),
+	async ({ id, jobId }) => {
+		await svc.deleteTimeEntry(await requireOrg(), id);
+		void getTimeEntries(jobId).refresh();
+	}
+);

@@ -1,11 +1,12 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, getTableColumns, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gte, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	charge,
 	customer,
 	job,
 	jobEvent,
+	jobTimeEntry,
 	jobType,
 	member,
 	office,
@@ -271,6 +272,7 @@ export async function updateJob(
 		})
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)))
 		.returning();
+	if (set.cancelled === true) await stopOpenTimers(ctx.orgId, id);
 	return row;
 }
 
@@ -321,6 +323,9 @@ export async function recordJobEvent(
 			})
 			.where(eq(job.id, input.jobId));
 	}
+	if (input.kind === 'on_site' && memberRow?.id)
+		await startTimerFor(ctx.orgId, input.jobId, memberRow.id, ctx.userId);
+	if (input.kind === 'completed') await stopOpenTimers(ctx.orgId, input.jobId);
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId,
@@ -331,6 +336,175 @@ export async function recordJobEvent(
 		data: { kind: input.kind }
 	});
 	return row;
+}
+
+// ---------- Time tracking ----------
+
+const memberFor = async (ctx: OrgContext) =>
+	(
+		await db
+			.select({ id: member.id, name: user.name })
+			.from(member)
+			.innerJoin(user, eq(member.userId, user.id))
+			.where(and(eq(member.organizationId, ctx.orgId), eq(member.userId, ctx.userId)))
+	)[0];
+
+const requireJob = async (orgId: string, jobId: string) => {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, orgId), eq(job.id, jobId)));
+	if (!j) error(404, 'Job not found');
+	return j;
+};
+
+/** Entries for a job, newest first, plus the caller's own open entry if they have one. */
+export async function listTimeEntries(ctx: OrgContext, jobId: string) {
+	await requireJob(ctx.orgId, jobId);
+	const entries = await db
+		.select({ entry: jobTimeEntry, memberName: user.name })
+		.from(jobTimeEntry)
+		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(eq(jobTimeEntry.jobId, jobId))
+		.orderBy(desc(jobTimeEntry.startedAt));
+	const me = await memberFor(ctx);
+	return {
+		entries,
+		mine: entries.find((e) => !e.entry.endedAt && e.entry.memberId === me?.id)?.entry ?? null,
+		myMemberId: me?.id ?? null,
+		isAdmin: ctx.role !== 'member'
+	};
+}
+
+/**
+ * Opens a time entry for `memberId` on `jobId`, clocking the member out of any other job first.
+ * Idempotent: an already-open entry on the same job is returned as-is.
+ */
+async function startTimerFor(
+	orgId: string,
+	jobId: string,
+	memberId: string,
+	actorId?: string | null
+) {
+	const [open] = await db
+		.select()
+		.from(jobTimeEntry)
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, orgId),
+				eq(jobTimeEntry.memberId, memberId),
+				isNull(jobTimeEntry.endedAt)
+			)
+		);
+	if (open?.jobId === jobId) return open;
+	if (open)
+		await db.update(jobTimeEntry).set({ endedAt: new Date() }).where(eq(jobTimeEntry.id, open.id));
+	const [row] = await db
+		.insert(jobTimeEntry)
+		.values({ organizationId: orgId, jobId, memberId, startedAt: new Date() })
+		.returning();
+	const [j] = await db.select({ number: job.number }).from(job).where(eq(job.id, jobId));
+	await emit({
+		orgId,
+		actorId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'clocked_in',
+		summary: `Clocked in on J-${j?.number}`
+	});
+	return row;
+}
+
+/** Clocks in the calling staff member on a job. */
+export async function startTimer(ctx: OrgContext, jobId: string) {
+	const j = await requireJob(ctx.orgId, jobId);
+	if (j.status === 'done' || j.status === 'cancelled') error(409, `Job is ${j.status}`);
+	const me = await memberFor(ctx);
+	if (!me) error(403, 'Only staff members can track time');
+	return startTimerFor(ctx.orgId, jobId, me.id, ctx.userId);
+}
+
+/** Closes the caller's open entry on the job; returns the closed entry, or null if none. */
+export async function stopTimer(ctx: OrgContext, jobId: string) {
+	await requireJob(ctx.orgId, jobId);
+	const me = await memberFor(ctx);
+	if (!me) error(403, 'Only staff members can track time');
+	const [row] = await db
+		.update(jobTimeEntry)
+		.set({ endedAt: new Date() })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				eq(jobTimeEntry.jobId, jobId),
+				eq(jobTimeEntry.memberId, me.id),
+				isNull(jobTimeEntry.endedAt)
+			)
+		)
+		.returning();
+	return row ?? null;
+}
+
+/** Clocks out everyone still open on the job (completion, cancellation). */
+async function stopOpenTimers(orgId: string, jobId: string) {
+	await db
+		.update(jobTimeEntry)
+		.set({ endedAt: new Date() })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, orgId),
+				eq(jobTimeEntry.jobId, jobId),
+				isNull(jobTimeEntry.endedAt)
+			)
+		);
+}
+
+/** Manually logged time. Members log for themselves; admin/owner can log for anyone. */
+export async function addTimeEntry(
+	ctx: OrgContext,
+	tz: string,
+	input: v.InferOutput<typeof s.timeEntryInput>
+) {
+	const j = await requireJob(ctx.orgId, input.jobId);
+	if (j.status === 'cancelled') error(409, 'Job is cancelled');
+	const me = await memberFor(ctx);
+	const memberId = input.memberId ?? me?.id;
+	if (!memberId) error(400, 'Pick a member');
+	if (memberId !== me?.id && ctx.role === 'member') error(403, 'Admins only');
+	const [target] = await db
+		.select({ id: member.id })
+		.from(member)
+		.where(and(eq(member.organizationId, ctx.orgId), eq(member.id, memberId)));
+	if (!target) error(404, 'Member not found');
+
+	const startedAt = zonedToUtc(input.startedAt, tz);
+	const endedAt = input.endedAt ? zonedToUtc(input.endedAt, tz) : null;
+	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
+
+	const [row] = await db
+		.insert(jobTimeEntry)
+		.values({
+			organizationId: ctx.orgId,
+			jobId: input.jobId,
+			memberId,
+			startedAt,
+			endedAt,
+			note: input.note ?? ''
+		})
+		.returning();
+	return row;
+}
+
+/** Deletes an entry. Members can delete their own; admin/owner can delete anyone's. */
+export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
+	const [row] = await db
+		.select()
+		.from(jobTimeEntry)
+		.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)));
+	if (!row) error(404, 'Entry not found');
+	const me = await memberFor(ctx);
+	if (row.memberId !== me?.id && ctx.role === 'member') error(403, 'Admins only');
+	await db.delete(jobTimeEntry).where(eq(jobTimeEntry.id, row.id));
 }
 
 // ---------- Dispatch board ----------

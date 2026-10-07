@@ -9,6 +9,7 @@ import {
 	invoice,
 	invoiceItem,
 	job,
+	jobTimeEntry,
 	jobType,
 	member,
 	office,
@@ -313,11 +314,42 @@ export async function loadDemoData(ctx: OrgContext) {
 		status: 'unscheduled',
 		source: 'manual' as const
 	});
-	await db.insert(job).values(jobs);
+	const insertedJobs = await db.insert(job).values(jobs).returning();
 	await db
 		.update(companySettings)
 		.set({ nextJobNumber: n + 1 })
 		.where(eq(companySettings.organizationId, ctx.orgId));
+
+	// Time entries: completed work on today's finished jobs, plus one open timer.
+	const doneJobs = insertedJobs.filter((j) => j.status === 'done');
+	const liveJob = insertedJobs.find((j) => j.status === 'scheduled');
+	if (me?.id) {
+		if (doneJobs[0]?.startsAt && doneJobs[0].endsAt)
+			await db.insert(jobTimeEntry).values({
+				organizationId: ctx.orgId,
+				jobId: doneJobs[0].id,
+				memberId: me.id,
+				startedAt: doneJobs[0].startsAt,
+				endedAt: doneJobs[0].endsAt,
+				note: 'Checked refrigerant levels'
+			});
+		if (doneJobs[1]?.startsAt)
+			await db.insert(jobTimeEntry).values({
+				organizationId: ctx.orgId,
+				jobId: doneJobs[1].id,
+				memberId: me.id,
+				startedAt: doneJobs[1].startsAt,
+				endedAt: new Date(doneJobs[1].startsAt.getTime() + 45 * 60_000)
+			});
+		if (liveJob?.startsAt)
+			await db.insert(jobTimeEntry).values({
+				organizationId: ctx.orgId,
+				jobId: liveJob.id,
+				memberId: me.id,
+				startedAt: new Date(Math.min(liveJob.startsAt.getTime(), now.getTime())),
+				endedAt: null
+			});
+	}
 
 	// One sent estimate + one paid invoice.
 	const [est] = await db

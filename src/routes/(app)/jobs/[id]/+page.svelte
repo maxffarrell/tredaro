@@ -15,7 +15,12 @@
 		updateJob,
 		recordJobEvent,
 		getJobTypes,
-		getTechnicians
+		getTechnicians,
+		getTimeEntries,
+		startTimer,
+		stopTimer,
+		addTimeEntry,
+		deleteTimeEntry
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -27,6 +32,11 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Ban from '@lucide/svelte/icons/ban';
+	import Timer from '@lucide/svelte/icons/timer';
+	import Play from '@lucide/svelte/icons/play';
+	import Square from '@lucide/svelte/icons/square';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Plus from '@lucide/svelte/icons/plus';
 
 	const id = page.params.id!;
 	const j = $derived(await getJob(id));
@@ -97,6 +107,54 @@
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
+		}
+	}
+
+	// ------- time tracking -------
+	const time = $derived(await getTimeEntries(id));
+	const minutes = (e: { startedAt: Date; endedAt: Date | null }) =>
+		Math.max(0, Math.round(((e.endedAt ?? new Date()).getTime() - e.startedAt.getTime()) / 60000));
+	const fmtDur = (min: number) =>
+		min >= 60 ? `${Math.floor(min / 60)}h ${min % 60 ? `${min % 60}m` : ''}`.trim() : `${min}m`;
+	const totalMin = $derived(time.entries.reduce((s, e) => s + minutes(e.entry), 0));
+
+	async function toggleTimer() {
+		try {
+			if (time.mine) await stopTimer(id);
+			else await startTimer(id);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update timer'));
+		}
+	}
+
+	let addingTime = $state(false);
+	let teMember = $state('');
+	let teStart = $state('');
+	let teEnd = $state('');
+	let teNote = $state('');
+	async function logTime(e: SubmitEvent) {
+		e.preventDefault();
+		try {
+			await addTimeEntry({
+				jobId: id,
+				memberId: teMember || null,
+				startedAt: teStart,
+				endedAt: teEnd || null,
+				note: teNote
+			});
+			addingTime = false;
+			teStart = teEnd = teNote = '';
+			teMember = '';
+			toast.success('Time logged');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not log time'));
+		}
+	}
+	async function removeTime(entryId: string) {
+		try {
+			await deleteTimeEntry({ id: entryId, jobId: id });
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not delete'));
 		}
 	}
 
@@ -305,6 +363,95 @@
 					<div class="flex justify-between font-medium">
 						<span>Open balance</span><span class="tabular-nums">{formatMoney(j.openBalance)}</span>
 					</div>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between space-y-0">
+				<Card.Title class="flex items-center gap-2 text-base"
+					><Timer class="size-4" /> Time</Card.Title
+				>
+				<span class="text-sm text-muted-foreground tabular-nums">{fmtDur(totalMin)}</span>
+			</Card.Header>
+			<Card.Content class="space-y-3 px-4">
+				{#if !locked && time.myMemberId}
+					<Button
+						size="sm"
+						variant={time.mine ? 'destructive' : 'outline'}
+						class="w-full"
+						onclick={toggleTimer}
+					>
+						{#if time.mine}<Square /> Clock out{:else}<Play /> Clock in{/if}
+					</Button>
+				{/if}
+				<ul class="space-y-2">
+					{#each time.entries as e (e.entry.id)}
+						<li class="flex items-start gap-2 text-sm">
+							<div class="min-w-0 flex-1">
+								<p>
+									{e.memberName ?? 'Former member'}
+									<span class="text-muted-foreground tabular-nums">
+										· {e.entry.endedAt ? fmtDur(minutes(e.entry)) : 'Running'}
+									</span>
+								</p>
+								<p class="text-xs text-muted-foreground">
+									{localDate(e.entry.startedAt, tz)}
+									{localTime(e.entry.startedAt, tz)}
+									{#if e.entry.endedAt}– {localTime(e.entry.endedAt, tz)}{/if}
+									{#if e.entry.note}
+										· {e.entry.note}{/if}
+								</p>
+							</div>
+							{#if time.isAdmin || e.entry.memberId === time.myMemberId}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 shrink-0 text-muted-foreground"
+									onclick={() => removeTime(e.entry.id)}
+								>
+									<Trash2 class="size-3.5" />
+								</Button>
+							{/if}
+						</li>
+					{:else}
+						<li class="text-sm text-muted-foreground">No time logged yet.</li>
+					{/each}
+				</ul>
+				{#if !locked}
+					{#if addingTime}
+						<form class="grid gap-2 border-t pt-3" onsubmit={logTime}>
+							{#if time.isAdmin}
+								<Select.Root type="single" bind:value={teMember}>
+									<Select.Trigger class="w-full"
+										>{technicians.find((t) => t.id === teMember)?.name ?? 'Me'}</Select.Trigger
+									>
+									<Select.Content>
+										{#each technicians as t (t.id)}
+											<Select.Item value={t.id}>{t.name}</Select.Item>
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							{/if}
+							<Input type="datetime-local" bind:value={teStart} required aria-label="Start" />
+							<Input
+								type="datetime-local"
+								bind:value={teEnd}
+								aria-label="End (blank = still running)"
+							/>
+							<Input placeholder="Note (optional)" bind:value={teNote} />
+							<div class="flex gap-2">
+								<Button type="submit" size="sm" disabled={!teStart}>Save</Button>
+								<Button type="button" size="sm" variant="ghost" onclick={() => (addingTime = false)}
+									>Cancel</Button
+								>
+							</div>
+						</form>
+					{:else}
+						<Button size="sm" variant="ghost" class="w-full" onclick={() => (addingTime = true)}>
+							<Plus /> Log time
+						</Button>
+					{/if}
 				{/if}
 			</Card.Content>
 		</Card.Root>

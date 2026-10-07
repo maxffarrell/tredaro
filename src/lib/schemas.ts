@@ -179,6 +179,15 @@ export const jobEventInput = v.object({
 	note: optionalText
 });
 
+/** Manually logged time on a job (start/end are wall-clock in the workspace timezone). */
+export const timeEntryInput = v.object({
+	jobId: idSchema,
+	memberId: v.optional(v.nullable(idSchema)),
+	startedAt: localDateTime,
+	endedAt: v.optional(v.nullable(localDateTime)),
+	note: optionalText
+});
+
 const lineItem = v.object({
 	pricebookItemId: v.optional(v.nullable(idSchema)),
 	name: requiredText('Item'),
