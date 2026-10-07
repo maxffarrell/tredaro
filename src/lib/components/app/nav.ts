@@ -1,4 +1,5 @@
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+import CalendarCheck from '@lucide/svelte/icons/calendar-check';
 import Users from '@lucide/svelte/icons/users';
 import KanbanSquare from '@lucide/svelte/icons/kanban-square';
 import Wrench from '@lucide/svelte/icons/wrench';
@@ -12,6 +13,7 @@ import ChartColumn from '@lucide/svelte/icons/chart-column';
 /** `key` is the second key of the `g <key>` keyboard shortcut. */
 export const mainNav = [
 	{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, key: 'd' },
+	{ href: '/myday', label: 'My Day', icon: CalendarCheck, key: 'm' },
 	{ href: '/dispatch', label: 'Dispatch', icon: KanbanSquare, key: 'p' },
 	{ href: '/jobs', label: 'Jobs', icon: Wrench, key: 'j' },
 	{ href: '/customers', label: 'Customers', icon: Users, key: 'c' },

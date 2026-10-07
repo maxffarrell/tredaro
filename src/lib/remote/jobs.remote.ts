@@ -7,6 +7,7 @@ import { notifyJobCompleted, notifyJobScheduled } from '#lib/server/services/not
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
 import { getDashboard } from './workspace.remote.ts';
+import { addDays, localDate, zonedToUtc } from '#lib/tz.ts';
 import {
 	idSchema,
 	jobEventInput,
@@ -71,6 +72,19 @@ export const getDispatchBoard = query(
 
 export const getTechnicians = query(async () => svc.listTechnicians((await requireOrg()).orgId));
 
+/** The calling technician's My Day payload: today's jobs, unscheduled queue, open timer. */
+export const getMyDay = query(async () => {
+	const ctx = await requireOrg();
+	const tz = (await getSettings(ctx.orgId)).timezone;
+	const today = localDate(new Date(), tz);
+	const day = await svc.myDay(
+		ctx,
+		zonedToUtc(`${today}T00:00`, tz),
+		zonedToUtc(`${addDays(today, 1)}T00:00`, tz)
+	);
+	return { ...day, tz, today };
+});
+
 export const createJob = command(jobInput, async (input) => {
 	const ctx = await requireOrg();
 	const j = await svc.createJob(ctx, await tz(), input);
@@ -81,6 +95,7 @@ export const createJob = command(jobInput, async (input) => {
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);
 	await refreshQuery(getDashboard, undefined);
+	await refreshQuery(getMyDay, undefined);
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
@@ -96,6 +111,7 @@ export const updateJob = command(jobUpdate, async (input) => {
 	await refreshQuery(getDispatchBoard, undefined);
 	await refreshQuery(getJob, j!.id);
 	await refreshQuery(getDashboard, undefined);
+	await refreshQuery(getMyDay, undefined);
 	void getCustomer(j!.customerId).refresh();
 	return j;
 });
@@ -111,6 +127,7 @@ export const recordJobEvent = command(jobEventInput, async (input) => {
 	await refreshQuery(getJob, input.jobId);
 	await refreshQuery(getTimeEntries, input.jobId);
 	await refreshQuery(getDashboard, undefined);
+	await refreshQuery(getMyDay, undefined);
 	return e;
 });
 
@@ -123,12 +140,14 @@ export const getTimeEntries = query(idSchema, async (jobId) =>
 export const startTimer = command(idSchema, async (jobId) => {
 	const t = await svc.startTimer(await requireOrg(), jobId);
 	await refreshQuery(getTimeEntries, jobId);
+	await refreshQuery(getMyDay, undefined);
 	return t;
 });
 
 export const stopTimer = command(idSchema, async (jobId) => {
 	const t = await svc.stopTimer(await requireOrg(), jobId);
 	await refreshQuery(getTimeEntries, jobId);
+	await refreshQuery(getMyDay, undefined);
 	return t;
 });
 

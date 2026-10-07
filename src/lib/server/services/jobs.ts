@@ -540,4 +540,27 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 	return listJobs(orgId, { from, to, technicianId: memberId });
 }
 
+/** The calling technician's My Day payload: window jobs, their unscheduled queue, open timer. */
+export async function myDay(ctx: OrgContext, from: Date, to: Date) {
+	const me = await memberFor(ctx);
+	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
+	const [jobs, unscheduled, openEntries] = await Promise.all([
+		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
+		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
+		db
+			.select({ entry: jobTimeEntry, jobNumber: job.number })
+			.from(jobTimeEntry)
+			.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					eq(jobTimeEntry.memberId, me.id),
+					isNull(jobTimeEntry.endedAt)
+				)
+			)
+			.limit(1)
+	]);
+	return { member: me, jobs, unscheduled, openEntry: openEntries[0] ?? null };
+}
+
 export { addDays };

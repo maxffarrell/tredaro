@@ -22,6 +22,11 @@ export const TOUR_STEPS: TourStep[] = [
 		body: "Today's schedule, unbooked work and open balances at a glance."
 	},
 	{
+		target: 'nav-my day',
+		title: 'My Day',
+		body: "Technician view: today's assigned jobs with one-tap status updates and clock in/out."
+	},
+	{
 		target: 'nav-dispatch',
 		title: 'Dispatch',
 		body: 'The board: unscheduled jobs on the left, technician columns on the right. Assign times and techs here.'
