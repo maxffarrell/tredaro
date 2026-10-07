@@ -11,12 +11,14 @@
 	import { initials } from '#lib/format.ts';
 	import Logo from './logo.svelte';
 	import { mainNav, secondaryNav } from './nav.ts';
+	import { tour } from './tour.svelte.ts';
 	import Search from '@lucide/svelte/icons/search';
 	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Moon from '@lucide/svelte/icons/moon';
 	import Sun from '@lucide/svelte/icons/sun';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 
 	type Props = {
 		user: { name: string; email: string; image: string | null };
@@ -65,6 +67,7 @@
 					variant="outline"
 					onclick={onsearch}
 					tooltipContent="Search (⌘K)"
+					data-tour="search"
 					class="text-muted-foreground"
 				>
 					<Search />
@@ -84,7 +87,9 @@
 							tooltipContent={`${item.label}  G ${item.key.toUpperCase()}`}
 						>
 							{#snippet child({ props })}
-								<a href={item.href} {...props}><item.icon /><span>{item.label}</span></a>
+								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}"
+									><item.icon /><span>{item.label}</span></a
+								>
 							{/snippet}
 						</Sidebar.MenuButton>
 					</Sidebar.MenuItem>
@@ -96,7 +101,7 @@
 				<Sidebar.MenuItem>
 					<Sidebar.MenuButton tooltipContent="Member portal">
 						{#snippet child({ props })}
-							<a href="/portal" target="_blank" {...props}
+							<a href="/portal" target="_blank" {...props} data-tour="nav-portal"
 								><ExternalLink /><span>Member portal</span></a
 							>
 						{/snippet}
@@ -106,7 +111,9 @@
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton isActive={isActive(item.href)} tooltipContent={item.label}>
 							{#snippet child({ props })}
-								<a href={item.href} {...props}><item.icon /><span>{item.label}</span></a>
+								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}"
+									><item.icon /><span>{item.label}</span></a
+								>
 							{/snippet}
 						</Sidebar.MenuButton>
 					</Sidebar.MenuItem>
@@ -141,6 +148,9 @@
 						<DropdownMenu.Item onclick={toggleMode}>
 							{#if mode.current === 'dark'}<Sun /> Light mode{:else}<Moon /> Dark mode{/if}
 						</DropdownMenu.Item>
+						<DropdownMenu.Item onclick={() => tour.start()}
+							><GraduationCap /> Replay guided tour</DropdownMenu.Item
+						>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item onclick={signOut}><LogOut /> Sign out</DropdownMenu.Item>
 					</DropdownMenu.Content>

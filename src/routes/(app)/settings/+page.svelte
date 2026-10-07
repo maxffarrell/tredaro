@@ -37,11 +37,13 @@
 	import { getApiKeys, createApiKey, deleteApiKey } from '#lib/remote/api-keys.remote.ts';
 	import { API_RESOURCES } from '#lib/api-permissions.ts';
 	import { errMsg, formatDate } from '#lib/format.ts';
+	import { tour } from '#lib/components/app/tour.svelte.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Trash from '@lucide/svelte/icons/trash-2';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 
 	let settings = $state(await getSettings());
 	let offices = $state(await getOffices());
@@ -270,6 +272,26 @@
 						</div>
 						<Button type="submit" disabled={pending}>Save</Button>
 					</form>
+				</Card.Content>
+			</Card.Root>
+
+			<Card.Root class="mt-4 max-w-2xl">
+				<Card.Header>
+					<Card.Title class="text-base">Preferences</Card.Title>
+					<Card.Description>Saved to this browser, not your profile.</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
+						<div>
+							<p class="font-medium">Guided tour</p>
+							<p class="text-xs text-muted-foreground">
+								Walk through the main screens again — runs automatically on first login.
+							</p>
+						</div>
+						<Button size="sm" variant="outline" onclick={() => tour.start()}
+							><GraduationCap /> Replay tour</Button
+						>
+					</div>
 				</Card.Content>
 			</Card.Root>
 		</Tabs.Content>
