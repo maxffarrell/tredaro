@@ -5,6 +5,7 @@ import {
 	customer,
 	estimate,
 	job,
+	jobTimeEntry,
 	jobType,
 	member,
 	payment,
@@ -142,15 +143,42 @@ async function technicianLoad(orgId: string) {
 		.orderBy(desc(sql`count(*)`));
 }
 
+/** Hours logged per technician over the last 30 days (open timers count to now). */
+async function laborByTechnician(orgId: string) {
+	const minutes = sql`sum(extract(epoch from (coalesce(${jobTimeEntry.endedAt}, now()) - ${jobTimeEntry.startedAt})) / 60)`;
+	return db
+		.select({
+			memberId: member.id,
+			name: user.name,
+			jobs: sql<number>`count(distinct ${jobTimeEntry.jobId})`.mapWith(Number),
+			entries: sql<number>`count(*)`.mapWith(Number),
+			minutes: sql<number>`${minutes}`.mapWith(Number),
+			open: sql<number>`count(*) filter (where ${jobTimeEntry.endedAt} is null)`.mapWith(Number)
+		})
+		.from(jobTimeEntry)
+		.innerJoin(member, eq(jobTimeEntry.memberId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, orgId),
+				gte(jobTimeEntry.startedAt, new Date(Date.now() - 30 * 86400_000))
+			)
+		)
+		.groupBy(member.id, user.name)
+		.orderBy(desc(minutes));
+}
+
 export async function getReports(orgId: string) {
-	const [completedJobs, customers, revenue, plans, byType, estimates, techs] = await Promise.all([
-		jobsByDay(orgId),
-		newCustomersByMonth(orgId),
-		revenueByMonth(orgId),
-		agreementsByPlan(orgId),
-		jobsByType(orgId),
-		estimateFunnel(orgId),
-		technicianLoad(orgId)
-	]);
-	return { completedJobs, customers, revenue, plans, byType, estimates, techs };
+	const [completedJobs, customers, revenue, plans, byType, estimates, techs, labor] =
+		await Promise.all([
+			jobsByDay(orgId),
+			newCustomersByMonth(orgId),
+			revenueByMonth(orgId),
+			agreementsByPlan(orgId),
+			jobsByType(orgId),
+			estimateFunnel(orgId),
+			technicianLoad(orgId),
+			laborByTechnician(orgId)
+		]);
+	return { completedJobs, customers, revenue, plans, byType, estimates, techs, labor };
 }

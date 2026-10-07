@@ -27,6 +27,12 @@
 	function monthLabel(ym: string) {
 		return new Date(`${ym}-02T00:00:00Z`).toLocaleString('en', { month: 'short', year: '2-digit' });
 	}
+
+	const fmtHours = (min: number) =>
+		min >= 60
+			? `${Math.floor(min / 60)}h${min % 60 ? ` ${Math.round(min % 60)}m` : ''}`
+			: `${Math.round(min)}m`;
+	const maxLabor = Math.max(1, ...r.labor.map((l) => l.minutes));
 </script>
 
 <PageHeader title="Reports" />
@@ -207,6 +213,30 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Labor by technician</Card.Title>
+			<Card.Description>Logged time, last 30 days — open timers count to now</Card.Description>
+		</Card.Header>
+		<Card.Content class="space-y-1.5">
+			{#each r.labor as t (t.memberId)}
+				<div class="flex items-center gap-2 text-sm">
+					<span class="w-32 shrink-0 truncate">{t.name}</span>
+					<div
+						class="h-4 rounded bg-primary/70"
+						style="width: {(t.minutes / maxLabor) * 70}%"
+					></div>
+					<span class="tabular-nums"
+						>{fmtHours(t.minutes)}{#if t.open}
+							<span class="text-muted-foreground"> + running</span>{/if}</span
+					>
+				</div>
+			{:else}
+				<p class="text-sm text-muted-foreground">No time logged in the last 30 days.</p>
+			{/each}
 		</Card.Content>
 	</Card.Root>
 </div>
