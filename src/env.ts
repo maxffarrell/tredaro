@@ -1,0 +1,55 @@
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	DATABASE_URL: { description: 'Postgres connection string.' },
+	BETTER_AUTH_SECRET: {
+		description: 'Secret used to sign sessions. Use 32+ random characters in production.'
+	},
+	ORIGIN: {
+		description:
+			'Public origin, e.g. `https://dispatch.acme-hvac.com`. Optional; derived from the request when unset.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_ENTERPRISE_KEY: {
+		description:
+			'Enterprise license key. Unlocks SAML/OIDC SSO and passkeys on self-hosted installs.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_DEMO: {
+		description:
+			'Set to `true` for a public demo: visitors get a throwaway sample workspace (deleted after 24h), and sign-up, API access, webhooks, invites and uploads are disabled.',
+		schema: (value) => value === 'true'
+	},
+	EMAIL_FROM: {
+		description: 'Sender for notification emails, e.g. `Tredaro <no-reply@acme-hvac.com>`.',
+		schema: (value) => value || undefined
+	},
+	RESEND_API_KEY: {
+		description: 'Send email through Resend. Takes precedence over `SMTP_URL`.',
+		schema: (value) => value || undefined
+	},
+	SMTP_URL: {
+		description: 'Send email through SMTP, e.g. `smtps://user:pass@smtp.example.com:465`.',
+		schema: (value) => value || undefined
+	},
+	STRIPE_SECRET_KEY: {
+		description:
+			'Stripe secret key. Lets customers pay online with Stripe Checkout; money goes straight to Stripe, never through Tredaro.',
+		schema: (value) => value || undefined
+	},
+	STRIPE_WEBHOOK_SECRET: {
+		description:
+			'Signing secret(s) for `/api/payments/stripe/webhook`. Comma-separate several (e.g. account and Connect endpoints).',
+		schema: (value) => value || undefined
+	},
+	CRON_SECRET: {
+		description:
+			'Bearer token for `/api/cron`, which posts service-agreement charges for every workspace. Vercel Cron sends it automatically.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_CLOUD: {
+		description:
+			'Set to `true` on Tredaro Cloud. Enables enterprise features and cloud-only behaviour.',
+		schema: (value) => value === 'true'
+	}
+});

@@ -1,0 +1,232 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import PageHeader from '#lib/components/app/page-header.svelte';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import MoneyInput from '#lib/components/app/money-input.svelte';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import { toast } from 'svelte-sonner';
+	import { getEstimate, updateEstimate, sendEstimate } from '#lib/remote/estimates.remote.ts';
+	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
+	import Send from '@lucide/svelte/icons/send';
+	import Link2 from '@lucide/svelte/icons/link-2';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+
+	const id = page.params.id!;
+	const est = $derived(await getEstimate(id));
+	const settings = await getSettings();
+	const currency = settings.currency;
+
+	const draft = $derived(est.estimate.status === 'draft');
+	const linkedJob = $derived(est.linkedJob ?? null);
+
+	let notes = $state(est.estimate.notes);
+	let items = $state(
+		est.items.map((i) => ({
+			pricebookItemId: i.item.pricebookItemId,
+			name: i.item.name,
+			qty: i.item.qty,
+			unitPrice: i.item.unitPrice
+		}))
+	);
+	let pending = $state(false);
+	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+
+	async function save(e: SubmitEvent) {
+		e.preventDefault();
+		pending = true;
+		try {
+			await updateEstimate({
+				id,
+				notes,
+				items: items
+					.filter((i) => i.name.trim())
+					.map((i) => ({
+						pricebookItemId: i.pricebookItemId,
+						name: i.name,
+						qty: i.qty,
+						unitPrice: i.unitPrice
+					}))
+			});
+			toast.success('Estimate saved');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+		pending = false;
+	}
+
+	let sending = $state(false);
+	let shareUrl = $state(est.token ? `${location.origin}/e/${est.token}` : '');
+
+	async function send() {
+		sending = true;
+		try {
+			const r = await sendEstimate(id);
+			shareUrl = r!.url;
+			await navigator.clipboard.writeText(r!.url);
+			toast.success('Estimate sent — share link copied');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send'));
+		}
+		sending = false;
+	}
+
+	async function copyLink() {
+		await navigator.clipboard.writeText(shareUrl);
+		toast.success('Link copied');
+	}
+</script>
+
+<PageHeader title="E-{est.estimate.number}" crumbs={[{ label: 'Estimates', href: '/estimates' }]}>
+	{#snippet actions()}
+		<StatusBadge status={est.estimate.status} />
+		{#if draft}
+			<Button size="sm" onclick={send} disabled={sending}
+				><Send /> {sending ? 'Sending…' : 'Send'}</Button
+			>
+		{:else if shareUrl}
+			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
+		{/if}
+	{/snippet}
+</PageHeader>
+
+<div class="grid gap-6 p-4 md:p-6 lg:grid-cols-3">
+	<Card.Root class="lg:col-span-2">
+		<Card.Header><Card.Title class="text-base">Items</Card.Title></Card.Header>
+		<Card.Content>
+			{#if draft}
+				<form class="space-y-4" onsubmit={save}>
+					{#each items as item, i (i)}
+						<div class="grid grid-cols-[1fr_70px_120px_32px] items-center gap-2">
+							<Input placeholder="Description" bind:value={item.name} />
+							<Input type="number" min={1} max={9999} bind:value={item.qty} />
+							<MoneyInput bind:value={item.unitPrice} />
+							<Button
+								variant="ghost"
+								size="icon"
+								class="size-8"
+								disabled={items.length === 1}
+								onclick={() => items.splice(i, 1) && (items = items)}
+								><Trash2 class="size-4" /></Button
+							>
+						</div>
+					{/each}
+					<div class="flex items-center justify-between">
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() =>
+								(items = [...items, { pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }])}
+							><Plus /> Add item</Button
+						>
+						<span class="font-medium tabular-nums">Total {formatMoney(totalCents, currency)}</span>
+					</div>
+					<Field.Field>
+						<Field.Label for="ed-notes">Notes</Field.Label>
+						<Textarea id="ed-notes" rows={3} bind:value={notes} />
+					</Field.Field>
+					<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
+				</form>
+			{:else}
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>Item</Table.Head>
+							<Table.Head class="w-16 text-right">Qty</Table.Head>
+							<Table.Head class="w-28 text-right">Unit</Table.Head>
+							<Table.Head class="w-28 text-right">Amount</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each est.items as i (i.item.id)}
+							<Table.Row>
+								<Table.Cell
+									>{i.item.name}<span class="text-muted-foreground">
+										{i.item.description}</span
+									></Table.Cell
+								>
+								<Table.Cell class="text-right">{i.item.qty}</Table.Cell>
+								<Table.Cell class="text-right tabular-nums"
+									>{formatMoney(i.item.unitPrice, currency)}</Table.Cell
+								>
+								<Table.Cell class="text-right tabular-nums"
+									>{formatMoney(i.item.qty * i.item.unitPrice, currency)}</Table.Cell
+								>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+				<Separator class="my-3" />
+				<div class="flex justify-end text-sm font-medium tabular-nums">
+					Total {formatMoney(
+						est.items.reduce((s, i) => s + i.item.qty * i.item.unitPrice, 0),
+						currency
+					)}
+				</div>
+				{#if est.estimate.notes}<p class="mt-3 text-sm text-muted-foreground">
+						{est.estimate.notes}
+					</p>{/if}
+			{/if}
+		</Card.Content>
+	</Card.Root>
+
+	<div class="space-y-6">
+		<Card.Root>
+			<Card.Header><Card.Title class="text-base">Status</Card.Title></Card.Header>
+			<Card.Content class="space-y-2 px-4 text-sm">
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Customer</span>
+					<a href="/customers/{est.estimate.customerId}" class="font-medium hover:underline"
+						>{est.customer.name}</a
+					>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Status</span><StatusBadge
+						status={est.estimate.status}
+					/>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Created</span><span
+						>{formatDate(est.estimate.createdAt)}</span
+					>
+				</div>
+				{#if est.estimate.sentAt}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">Sent</span><span
+							>{formatDate(est.estimate.sentAt)}</span
+						>
+					</div>
+				{/if}
+				{#if est.estimate.respondedAt}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">Decided</span><span
+							>{formatDate(est.estimate.respondedAt)}</span
+						>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">By</span><span
+							>{est.estimate.decisionName || '—'}</span
+						>
+					</div>
+				{/if}
+				{#if linkedJob}
+					<Separator />
+					<div class="flex items-center justify-between">
+						<span class="text-muted-foreground">Job</span>
+						<a href="/jobs/{linkedJob.id}" class="flex items-center gap-1 hover:underline"
+							><CircleCheck class="size-4 text-emerald-600" /> J-{linkedJob.number}</a
+						>
+					</div>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	</div>
+</div>

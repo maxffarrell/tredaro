@@ -1,0 +1,141 @@
+import { error } from '@sveltejs/kit';
+import { and, asc, eq } from 'drizzle-orm';
+import { db } from '#lib/server/db/index.ts';
+import {
+	agreementPlan,
+	companySettings,
+	customer,
+	jobType,
+	office,
+	organization,
+	serviceLocation
+} from '#lib/server/db/schema.ts';
+import { emit } from './events.ts';
+import { createJob } from './jobs.ts';
+import type * as s from '#lib/schemas.ts';
+import type * as v from 'valibot';
+
+/** Public booking page at /book/[slug]: identity, listed agreement plans, job types and offices. */
+export async function getPublicCompany(slug: string) {
+	const [org] = await db.select().from(organization).where(eq(organization.slug, slug));
+	if (!org) error(404, 'Not found');
+	const [settings] = await db
+		.select()
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, org.id));
+	if (!settings?.publicPage) error(404, 'Not found');
+
+	const plans = await db
+		.select()
+		.from(agreementPlan)
+		.where(
+			and(
+				eq(agreementPlan.organizationId, org.id),
+				eq(agreementPlan.active, true),
+				eq(agreementPlan.listed, true)
+			)
+		)
+		.orderBy(asc(agreementPlan.amount));
+
+	const jobTypes = await db
+		.select({ id: jobType.id, name: jobType.name, description: jobType.description })
+		.from(jobType)
+		.where(and(eq(jobType.organizationId, org.id), eq(jobType.active, true)))
+		.orderBy(asc(jobType.name));
+
+	const offices = await db
+		.select({ name: office.name, address: office.address })
+		.from(office)
+		.where(eq(office.organizationId, org.id))
+		.orderBy(asc(office.name));
+
+	return { org, settings, plans, jobTypes, offices };
+}
+
+const bookRate = new Map<string, number[]>();
+
+/**
+ * Public booking form → customer (+ service location) and an unscheduled job the
+ * dispatcher picks up. Rate-limited per IP and honeypot-guarded.
+ */
+export async function requestBooking(
+	slug: string,
+	ip: string,
+	input: v.InferOutput<typeof s.bookingInput>
+) {
+	if (input.website) error(400, 'Invalid form'); // honeypot
+	const now = Date.now();
+	const hits = (bookRate.get(ip) ?? []).filter((t) => now - t < 3600_000);
+	if (hits.length >= 10) error(429, 'Too many attempts — try again later');
+	bookRate.set(ip, [...hits, now]);
+
+	const { org, settings } = await getPublicCompany(slug);
+
+	// Reuse an existing customer with the same email rather than duplicating.
+	const [existing] = await db
+		.select()
+		.from(customer)
+		.where(and(eq(customer.organizationId, org.id), eq(customer.email, input.email)))
+		.limit(1);
+
+	const c =
+		existing ??
+		(
+			await db
+				.insert(customer)
+				.values({
+					organizationId: org.id,
+					name: input.name,
+					email: input.email,
+					phone: input.phone
+				})
+				.returning()
+		)[0]!;
+
+	let locationId: string | null = null;
+	if (input.address1) {
+		const [loc] = await db
+			.insert(serviceLocation)
+			.values({
+				organizationId: org.id,
+				customerId: c.id,
+				address1: input.address1,
+				city: input.city,
+				state: input.state,
+				zip: input.zip,
+				isPrimary: !existing
+			})
+			.returning();
+		locationId = loc!.id;
+	} else if (existing) {
+		const [primary] = await db
+			.select({ id: serviceLocation.id })
+			.from(serviceLocation)
+			.where(and(eq(serviceLocation.customerId, c.id), eq(serviceLocation.isPrimary, true)))
+			.limit(1);
+		locationId = primary?.id ?? null;
+	}
+
+	const j = await createJob(
+		{ orgId: org.id, userId: null },
+		settings?.timezone ?? 'UTC',
+		{
+			customerId: c.id,
+			serviceLocationId: locationId,
+			jobTypeId: input.jobTypeId ?? null,
+			summary: 'Website booking request',
+			description: input.description,
+			priority: 'normal'
+		},
+		{ source: 'booking' }
+	);
+
+	await emit({
+		orgId: org.id,
+		entityType: 'customer',
+		entityId: c.id,
+		action: 'booking-requested',
+		summary: `${input.name} requested service via /book/${slug}`
+	});
+	return { job: j, customer: c };
+}

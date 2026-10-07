@@ -1,0 +1,16 @@
+{
+	"name": "@tredaro/sdk",
+	"version": "0.1.0",
+	"description": "TypeScript client for the Tredaro REST API.",
+	"license": "MIT",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"files": [
+		"src"
+	]
+}

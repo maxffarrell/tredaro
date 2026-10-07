@@ -1,0 +1,290 @@
+import * as v from 'valibot';
+
+const optionalText = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(5000))));
+const requiredText = (label: string) =>
+	v.pipe(v.string(), v.trim(), v.nonEmpty(`${label} is required`), v.maxLength(200));
+const isoDate = v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD'));
+/** Money is sent in cents. */
+const cents = v.pipe(v.number(), v.integer(), v.minValue(0));
+const emailField = v.optional(
+	v.nullable(v.union([v.literal(''), v.pipe(v.string(), v.trim(), v.email('Invalid email'))]))
+);
+
+export const idSchema = v.pipe(v.string(), v.nonEmpty());
+
+export const customerStatuses = ['active', 'inactive'] as const;
+export const customerTypes = ['residential', 'commercial'] as const;
+export const agreementIntervals = ['month', 'year'] as const;
+export const agreementStatuses = ['active', 'paused', 'cancelled'] as const;
+export const pricebookKinds = ['service', 'material'] as const;
+export const jobStatuses = [
+	'unscheduled',
+	'scheduled',
+	'dispatched',
+	'in_progress',
+	'done',
+	'cancelled'
+] as const;
+export const jobPriorities = ['low', 'normal', 'high', 'urgent'] as const;
+export const jobEventKinds = [
+	'scheduled',
+	'dispatched',
+	'en_route',
+	'on_site',
+	'completed',
+	'note'
+] as const;
+export const estimateStatuses = ['draft', 'sent', 'approved', 'declined', 'converted'] as const;
+export const invoiceStatuses = ['open', 'void'] as const;
+export const chargeKinds = ['job', 'agreement', 'initial', 'other'] as const;
+export const chargeStatuses = ['open', 'paid', 'void'] as const;
+export const paymentMethods = ['card', 'cash', 'check', 'bank', 'stripe', 'other'] as const;
+
+export const customerInput = v.object({
+	type: v.optional(v.picklist(customerTypes), 'residential'),
+	companyName: optionalText,
+	name: requiredText('Name'),
+	email: emailField,
+	phone: optionalText,
+	officeId: v.optional(v.nullable(idSchema)),
+	status: v.optional(v.picklist(customerStatuses), 'active'),
+	notes: optionalText,
+	since: v.optional(v.nullable(isoDate))
+});
+export const customerImportRow = v.object({
+	name: requiredText('Name'),
+	email: emailField,
+	phone: optionalText
+});
+export const customerImportInput = v.pipe(
+	v.array(customerImportRow),
+	v.minLength(1),
+	v.maxLength(2000)
+);
+
+export const customerUpdate = v.object({ id: idSchema, ...v.partial(customerInput).entries });
+
+export const serviceLocationInput = v.object({
+	customerId: idSchema,
+	label: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	address1: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)), ''),
+	city: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	state: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50)), ''),
+	zip: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), ''),
+	accessNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	isPrimary: v.optional(v.boolean(), false)
+});
+export const serviceLocationUpdate = v.object({
+	id: idSchema,
+	...v.partial(v.omit(serviceLocationInput, ['customerId'])).entries
+});
+
+export const agreementPlanInput = v.object({
+	name: requiredText('Name'),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	amount: cents,
+	interval: v.optional(v.picklist(agreementIntervals), 'month'),
+	initialFee: v.optional(cents, 0),
+	includedVisits: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+	listed: v.optional(v.boolean(), true),
+	active: v.optional(v.boolean(), true)
+});
+export const agreementPlanUpdate = v.object({
+	id: idSchema,
+	...v.partial(agreementPlanInput).entries
+});
+
+export const agreementInput = v.object({
+	customerId: idSchema,
+	planId: idSchema,
+	startsAt: v.optional(isoDate)
+});
+export const agreementUpdate = v.object({
+	id: idSchema,
+	status: v.optional(v.picklist(agreementStatuses))
+});
+
+export const officeInput = v.object({
+	name: requiredText('Name'),
+	address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)), '')
+});
+export const officeUpdate = v.object({
+	id: idSchema,
+	...v.partial(officeInput).entries,
+	archived: v.optional(v.boolean())
+});
+
+export const pricebookItemInput = v.object({
+	kind: v.optional(v.picklist(pricebookKinds), 'service'),
+	category: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	name: requiredText('Name'),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	price: cents,
+	durationMin: v.optional(
+		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)))
+	),
+	active: v.optional(v.boolean(), true)
+});
+export const pricebookItemUpdate = v.object({
+	id: idSchema,
+	...v.partial(pricebookItemInput).entries
+});
+
+export const jobTypeInput = v.object({
+	name: requiredText('Name'),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	color: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), ''),
+	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)), 60),
+	defaultAmount: v.optional(v.nullable(cents)),
+	officeId: v.optional(v.nullable(idSchema)),
+	technicianId: v.optional(v.nullable(idSchema)),
+	active: v.optional(v.boolean(), true)
+});
+export const jobTypeUpdate = v.object({ id: idSchema, ...v.partial(jobTypeInput).entries });
+
+/** Local wall-clock time (`YYYY-MM-DDTHH:mm`) in the workspace timezone. */
+const localDateTime = v.pipe(v.string(), v.isoDateTime('Use YYYY-MM-DDTHH:mm'));
+
+export const jobInput = v.object({
+	jobTypeId: v.optional(v.nullable(idSchema)),
+	customerId: idSchema,
+	serviceLocationId: v.optional(v.nullable(idSchema)),
+	officeId: v.optional(v.nullable(idSchema)),
+	technicianId: v.optional(v.nullable(idSchema)),
+	summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)), ''),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000)), ''),
+	priority: v.optional(v.picklist(jobPriorities), 'normal'),
+	/** Omit for an unscheduled job. */
+	startsAt: v.optional(v.nullable(localDateTime))
+});
+export const jobUpdate = v.object({
+	id: idSchema,
+	jobTypeId: v.optional(v.nullable(idSchema)),
+	serviceLocationId: v.optional(v.nullable(idSchema)),
+	officeId: v.optional(v.nullable(idSchema)),
+	technicianId: v.optional(v.nullable(idSchema)),
+	summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000))),
+	priority: v.optional(v.picklist(jobPriorities)),
+	/** Set to schedule; null unschedules. */
+	startsAt: v.optional(v.nullable(localDateTime)),
+	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440))),
+	cancelled: v.optional(v.boolean())
+});
+
+/** Technician or dispatcher status ping on a job. */
+export const jobEventInput = v.object({
+	jobId: idSchema,
+	kind: v.picklist(['dispatched', 'en_route', 'on_site', 'completed', 'note']),
+	note: optionalText
+});
+
+const lineItem = v.object({
+	pricebookItemId: v.optional(v.nullable(idSchema)),
+	name: requiredText('Item'),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	qty: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+	unitPrice: cents
+});
+
+export const estimateInput = v.object({
+	customerId: idSchema,
+	serviceLocationId: v.optional(v.nullable(idSchema)),
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	items: v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item'))
+});
+export const estimateUpdate = v.object({
+	id: idSchema,
+	serviceLocationId: v.optional(v.nullable(idSchema)),
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	items: v.optional(v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item')))
+});
+
+/** Public estimate decision: approve (typed name) or decline (optional reason). */
+export const estimateDecisionInput = v.object({
+	token: requiredText('Token'),
+	approve: v.boolean(),
+	name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ''),
+	note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), '')
+});
+
+export const invoiceInput = v.object({
+	customerId: idSchema,
+	jobId: v.optional(v.nullable(idSchema)),
+	dueDate: isoDate,
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	items: v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item'))
+});
+export const invoiceUpdate = v.object({
+	id: idSchema,
+	status: v.optional(v.picklist(invoiceStatuses)),
+	dueDate: v.optional(isoDate),
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)))
+});
+
+export const chargeInput = v.object({
+	customerId: idSchema,
+	jobId: v.optional(v.nullable(idSchema)),
+	kind: v.optional(v.picklist(chargeKinds), 'other'),
+	description: optionalText,
+	amount: cents,
+	dueDate: isoDate
+});
+export const chargeUpdate = v.object({
+	id: idSchema,
+	status: v.optional(v.picklist(chargeStatuses)),
+	description: optionalText,
+	amount: v.optional(cents),
+	dueDate: v.optional(isoDate)
+});
+
+export const paymentInput = v.object({
+	customerId: idSchema,
+	chargeId: v.optional(v.nullable(idSchema)),
+	amount: v.pipe(v.number(), v.integer(), v.minValue(1)),
+	method: v.optional(v.picklist(paymentMethods), 'card'),
+	reference: optionalText,
+	notes: optionalText
+});
+
+export const settingsInput = v.object({
+	timezone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60))),
+	currency: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase(), v.length(3))),
+	publicPage: v.optional(v.boolean()),
+	tagline: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50))),
+	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
+});
+
+export const webhookInput = v.object({
+	url: v.pipe(v.string(), v.trim(), v.url('Use a full https:// URL')),
+	events: v.array(v.pipe(v.string(), v.trim(), v.maxLength(60)))
+});
+
+/** Public booking-page form: request a service call. */
+export const bookingInput = v.object({
+	name: requiredText('Name'),
+	email: v.pipe(v.string(), v.trim(), v.email('Invalid email')),
+	phone: requiredText('Phone'),
+	jobTypeId: v.optional(v.nullable(idSchema)),
+	/** Address of the work site. */
+	address1: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)), ''),
+	city: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	state: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50)), ''),
+	zip: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), ''),
+	/** Preferred day/time, free text ("weekday mornings"). */
+	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ''),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	/** Honeypot: must stay empty. */
+	website: v.optional(v.string(), '')
+});
+
+/** Portal customers requesting work on an existing location. */
+export const portalRequestInput = v.object({
+	customerId: idSchema,
+	serviceLocationId: v.optional(v.nullable(idSchema)),
+	jobTypeId: v.optional(v.nullable(idSchema)),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
+});

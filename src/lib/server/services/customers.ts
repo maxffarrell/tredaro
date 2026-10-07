@@ -1,0 +1,287 @@
+import { error } from '@sveltejs/kit';
+import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { db } from '#lib/server/db/index.ts';
+import {
+	agreementPlan,
+	charge,
+	customer,
+	job,
+	jobType,
+	office,
+	organization,
+	payment,
+	serviceAgreement,
+	serviceLocation,
+	estimate,
+	outer
+} from '#lib/server/db/schema.ts';
+import type { OrgContext } from '#lib/server/context.ts';
+import { emit } from './events.ts';
+import type * as s from '#lib/schemas.ts';
+import type * as v from 'valibot';
+
+export async function listCustomers(orgId: string, q?: string) {
+	const term = q?.trim();
+	return db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			companyName: customer.companyName,
+			type: customer.type,
+			email: customer.email,
+			phone: customer.phone,
+			status: customer.status,
+			since: customer.since,
+			officeName: office.name,
+			openBalance:
+				sql<number>`coalesce((select sum(c.amount - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0)) from ${charge} c where c.customer_id = ${outer(customer.id)} and c.status = 'open'), 0)`.mapWith(
+					Number
+				),
+			planName: sql<
+				string | null
+			>`(select p2.name from ${serviceAgreement} a2 join ${agreementPlan} p2 on p2.id = a2.plan_id where a2.customer_id = ${outer(customer.id)} and a2.status = 'active' order by a2.created_at desc limit 1)`
+		})
+		.from(customer)
+		.leftJoin(office, eq(customer.officeId, office.id))
+		.where(
+			and(
+				eq(customer.organizationId, orgId),
+				term
+					? or(
+							ilike(customer.name, `%${term}%`),
+							ilike(customer.companyName, `%${term}%`),
+							ilike(customer.email, `%${term}%`),
+							ilike(customer.phone, `%${term}%`)
+						)
+					: undefined
+			)
+		)
+		.orderBy(asc(customer.name));
+}
+
+export async function getCustomer(orgId: string, id: string) {
+	const [row] = await db
+		.select({ customer, officeName: office.name })
+		.from(customer)
+		.leftJoin(office, eq(customer.officeId, office.id))
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, id)));
+	if (!row) error(404, 'Customer not found');
+
+	const locations = await db
+		.select()
+		.from(serviceLocation)
+		.where(and(eq(serviceLocation.organizationId, orgId), eq(serviceLocation.customerId, id)))
+		.orderBy(desc(serviceLocation.isPrimary), asc(serviceLocation.label));
+
+	const agreements = await db
+		.select({
+			agreement: serviceAgreement,
+			planName: agreementPlan.name,
+			amount: agreementPlan.amount,
+			interval: agreementPlan.interval
+		})
+		.from(serviceAgreement)
+		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
+		.where(and(eq(serviceAgreement.organizationId, orgId), eq(serviceAgreement.customerId, id)))
+		.orderBy(desc(serviceAgreement.createdAt));
+
+	const jobs = await db
+		.select({ job, jobTypeName: jobType.name, color: jobType.color })
+		.from(job)
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(and(eq(job.organizationId, orgId), eq(job.customerId, id)))
+		.orderBy(desc(job.createdAt))
+		.limit(50);
+
+	const estimates = await db
+		.select()
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, orgId), eq(estimate.customerId, id)))
+		.orderBy(desc(estimate.createdAt))
+		.limit(50);
+
+	const charges = await db
+		.select({
+			charge,
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(charge)
+		.where(and(eq(charge.organizationId, orgId), eq(charge.customerId, id)))
+		.orderBy(desc(charge.dueDate))
+		.limit(50);
+
+	const payments = await db
+		.select()
+		.from(payment)
+		.where(and(eq(payment.organizationId, orgId), eq(payment.customerId, id)))
+		.orderBy(desc(payment.paidAt))
+		.limit(50);
+
+	return { ...row, locations, agreements, jobs, estimates, charges, payments };
+}
+
+export async function createCustomer(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.customerInput>
+) {
+	const [row] = await db
+		.insert(customer)
+		.values({
+			organizationId: ctx.orgId,
+			type: input.type,
+			companyName: input.companyName ?? null,
+			name: input.name,
+			email: input.email || null,
+			phone: input.phone ?? null,
+			officeId: input.officeId ?? null,
+			status: input.status,
+			notes: input.notes ?? null,
+			since: input.since ?? null
+		})
+		.returning();
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'customer',
+		entityId: row!.id,
+		action: 'created',
+		summary: `${input.name} added as a customer`
+	});
+	return row;
+}
+
+/** Bulk-creates customers from CSV rows; skips rows whose email already belongs to a customer (or is repeated). */
+export async function importCustomers(
+	ctx: OrgContext,
+	rows: v.InferOutput<typeof s.customerImportInput>
+) {
+	const emails = rows.map((r) => r.email?.toLowerCase()).filter((e): e is string => !!e);
+	const taken = new Set(
+		emails.length
+			? (
+					await db
+						.select({ email: sql<string>`lower(${customer.email})` })
+						.from(customer)
+						.where(
+							and(
+								eq(customer.organizationId, ctx.orgId),
+								inArray(sql`lower(${customer.email})`, emails)
+							)
+						)
+				).map((r) => r.email)
+			: []
+	);
+	const seen = new Set<string>();
+	const toInsert = rows.filter((r) => {
+		const e = r.email?.toLowerCase();
+		if (!e) return true;
+		if (taken.has(e) || seen.has(e)) return false;
+		seen.add(e);
+		return true;
+	});
+	if (toInsert.length)
+		await db.insert(customer).values(
+			toInsert.map((r) => ({
+				organizationId: ctx.orgId,
+				name: r.name,
+				email: r.email || null,
+				phone: r.phone ?? null
+			}))
+		);
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'customer',
+		entityId: 'csv-import',
+		action: 'imported',
+		summary: `Imported ${toInsert.length} customer${toInsert.length === 1 ? '' : 's'}`,
+		data: { skipped: rows.length - toInsert.length }
+	});
+	return { created: toInsert.length, skipped: rows.length - toInsert.length };
+}
+
+export async function updateCustomer(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.customerUpdate>
+) {
+	const { id, ...set } = input;
+	const [row] = await db
+		.update(customer)
+		.set({
+			type: set.type,
+			companyName: set.companyName,
+			name: set.name,
+			email: set.email === undefined ? undefined : set.email || null,
+			phone: set.phone,
+			officeId: set.officeId,
+			status: set.status,
+			notes: set.notes,
+			since: set.since
+		})
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, id)))
+		.returning();
+	if (!row) error(404, 'Customer not found');
+	return row;
+}
+
+// ---------- Service locations ----------
+
+export async function addServiceLocation(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.serviceLocationInput>
+) {
+	const [c] = await db
+		.select({ id: customer.id })
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
+	if (!c) error(404, 'Customer not found');
+	const [{ count }] = await db
+		.select({ count: sql<number>`count(*)`.mapWith(Number) })
+		.from(serviceLocation)
+		.where(
+			and(
+				eq(serviceLocation.organizationId, ctx.orgId),
+				eq(serviceLocation.customerId, input.customerId)
+			)
+		);
+	const [row] = await db
+		.insert(serviceLocation)
+		.values({
+			organizationId: ctx.orgId,
+			customerId: input.customerId,
+			label: input.label,
+			address1: input.address1,
+			city: input.city,
+			state: input.state,
+			zip: input.zip,
+			accessNotes: input.accessNotes,
+			isPrimary: input.isPrimary || count === 0
+		})
+		.returning();
+	return row;
+}
+
+export async function updateServiceLocation(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.serviceLocationUpdate>
+) {
+	const { id, ...set } = input;
+	const [row] = await db
+		.update(serviceLocation)
+		.set(set)
+		.where(and(eq(serviceLocation.organizationId, ctx.orgId), eq(serviceLocation.id, id)))
+		.returning();
+	if (!row) error(404, 'Service location not found');
+	return row;
+}
+
+/** Customers whose portal login is this user — one user can belong to several companies. */
+export async function portalCustomers(userId: string) {
+	return db
+		.select({ customer, orgName: organization.name, orgSlug: organization.slug })
+		.from(customer)
+		.innerJoin(organization, eq(organization.id, customer.organizationId))
+		.where(eq(customer.portalUserId, userId));
+}

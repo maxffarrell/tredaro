@@ -1,0 +1,273 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import PageHeader from '#lib/components/app/page-header.svelte';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import { toast } from 'svelte-sonner';
+	import { getCustomers, createCustomer, importCustomers } from '#lib/remote/customers.remote.ts';
+	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
+	import { parseCsv, toCsv } from '#lib/csv.ts';
+	import { getCurrency } from '#lib/remote/billing.remote.ts';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Users from '@lucide/svelte/icons/users';
+	import Search from '@lucide/svelte/icons/search';
+	import Download from '@lucide/svelte/icons/download';
+	import Upload from '@lucide/svelte/icons/upload';
+
+	const currency = await getCurrency();
+	let q = $state('');
+	let customers = $state(await getCustomers());
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	function search() {
+		clearTimeout(timer);
+		timer = setTimeout(async () => (customers = await getCustomers({ q })), 150);
+	}
+
+	let open = $state(page.url.searchParams.get('new') === '1');
+	let pending = $state(false);
+	let type = $state<'residential' | 'commercial'>('residential');
+	let companyName = $state('');
+	let name = $state('');
+	let email = $state('');
+	let phone = $state('');
+
+	// ------- csv import -------
+	let importOpen = $state(false);
+	let importText = $state('');
+	let importPending = $state(false);
+	/** Parsed rows — a leading header row (name,email,phone,…) is dropped, blank names skipped. */
+	const importRows = $derived.by(() => {
+		let rows = parseCsv(importText).map((r) => ({
+			name: r[0]?.trim() ?? '',
+			email: r[1]?.trim() ?? '',
+			phone: r[2]?.trim() ?? ''
+		}));
+		if (rows.length && rows[0]!.name.toLowerCase() === 'name') rows = rows.slice(1);
+		return rows.filter((r) => r.name);
+	});
+
+	function onImportFile(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		file?.text().then((t) => (importText = t));
+	}
+
+	async function runImport() {
+		importPending = true;
+		try {
+			const r = await importCustomers(
+				importRows.map((row) => ({ name: row.name, email: row.email, phone: row.phone || null }))
+			);
+			toast.success(
+				`Imported ${r.created} customer${r.created === 1 ? '' : 's'}${r.skipped ? ` — skipped ${r.skipped} duplicate${r.skipped === 1 ? '' : 's'}` : ''}`
+			);
+			importOpen = false;
+			importText = '';
+			customers = await getCustomers({ q });
+		} catch (err) {
+			toast.error(errMsg(err, 'Import failed'));
+		}
+		importPending = false;
+	}
+
+	function exportCsv() {
+		const csv = toCsv([
+			['Name', 'Company', 'Email', 'Phone', 'Status', 'Plan', 'Open balance', 'Since'],
+			...customers.map((c) => [
+				c.name,
+				c.companyName,
+				c.email,
+				c.phone,
+				c.status,
+				c.planName,
+				(c.openBalance / 100).toFixed(2),
+				c.since ? formatDate(c.since) : ''
+			])
+		]);
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+		a.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
+		a.click();
+		URL.revokeObjectURL(a.href);
+	}
+
+	async function submit(e: SubmitEvent) {
+		e.preventDefault();
+		pending = true;
+		try {
+			await createCustomer({
+				type,
+				companyName: companyName || undefined,
+				name,
+				email: email || undefined,
+				phone: phone || undefined
+			});
+			toast.success('Customer added');
+			open = false;
+			companyName = name = email = phone = '';
+			customers = await getCustomers({ q });
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add customer'));
+		}
+		pending = false;
+	}
+</script>
+
+<PageHeader title="Customers">
+	{#snippet actions()}
+		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
+			><Upload /> Import</Button
+		>
+		<Button size="sm" variant="outline" onclick={exportCsv}><Download /> Export</Button>
+		<Button size="sm" onclick={() => (open = true)}><Plus /> Add customer</Button>
+	{/snippet}
+</PageHeader>
+
+<div class="space-y-4 p-4 md:p-6">
+	<div class="relative max-w-sm">
+		<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+		<Input
+			placeholder="Search name, company, email, phone…"
+			class="pl-9"
+			bind:value={q}
+			oninput={search}
+		/>
+	</div>
+
+	<Card.Root class="py-0">
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Name</Table.Head>
+						<Table.Head class="hidden md:table-cell">Contact</Table.Head>
+						<Table.Head>Agreement</Table.Head>
+						<Table.Head>Status</Table.Head>
+						<Table.Head class="text-right">Open balance</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each customers as c (c.id)}
+						<Table.Row class="cursor-pointer" onclick={() => goto(`/customers/${c.id}`)}>
+							<Table.Cell class="font-medium">
+								{c.name}
+								{#if c.companyName}<span class="text-muted-foreground">
+										· {c.companyName}</span
+									>{/if}
+							</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{c.email ?? c.phone ?? '—'}
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground">{c.planName ?? '—'}</Table.Cell>
+							<Table.Cell><StatusBadge status={c.status} /></Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{c.openBalance > 0 ? formatMoney(c.openBalance, currency) : '—'}
+							</Table.Cell>
+						</Table.Row>
+					{:else}
+						<Table.Row>
+							<Table.Cell colspan={5}>
+								<Empty.Root class="border-0">
+									<Empty.Header>
+										<Empty.Media><Users /></Empty.Media>
+										<Empty.Title>No customers yet</Empty.Title>
+										<Empty.Description
+											>Add your first customer, or load the demo data to look around.</Empty.Description
+										>
+									</Empty.Header>
+									<Empty.Content
+										><Button onclick={() => (open = true)}>Add customer</Button></Empty.Content
+									>
+								</Empty.Root>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+</div>
+
+<Dialog.Root bind:open>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Add customer</Dialog.Title>
+			<Dialog.Description
+				>A name is enough to start — contact details are optional.</Dialog.Description
+			>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={submit}>
+			<Field.Field>
+				<Field.Label>Type</Field.Label>
+				<Select.Root type="single" bind:value={type}>
+					<Select.Trigger class="w-full">{type}</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="residential">residential</Select.Item>
+						<Select.Item value="commercial">commercial</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
+			{#if type === 'commercial'}
+				<Field.Field>
+					<Field.Label for="c-company">Company</Field.Label>
+					<Input id="c-company" bind:value={companyName} />
+				</Field.Field>
+			{/if}
+			<Field.Field>
+				<Field.Label for="c-name">Name</Field.Label>
+				<Input id="c-name" required bind:value={name} autofocus />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="c-email">Email</Field.Label>
+				<Input id="c-email" type="email" bind:value={email} />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="c-phone">Phone</Field.Label>
+				<Input id="c-phone" bind:value={phone} />
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={pending}>{pending ? 'Adding…' : 'Add customer'}</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={importOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Import customers</Dialog.Title>
+			<Dialog.Description>
+				Paste CSV or pick a file — columns: name, email, phone (header row optional). Customers
+				whose email is already in use are skipped.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<Input type="file" accept=".csv,text/csv,text/plain" onchange={onImportFile} />
+			<Textarea
+				rows={6}
+				class="font-mono text-xs"
+				placeholder="name,email,phone&#10;Jane Doe,jane@example.com,555-1234"
+				bind:value={importText}
+			/>
+			{#if importText.trim()}
+				<p class="text-xs text-muted-foreground">
+					{importRows.length} customer{importRows.length === 1 ? '' : 's'} ready to import
+				</p>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (importOpen = false)}>Cancel</Button>
+			<Button onclick={runImport} disabled={importPending || !importRows.length}>
+				{importPending ? 'Importing…' : `Import ${importRows.length || ''}`}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
