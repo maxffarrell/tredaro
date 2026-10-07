@@ -150,6 +150,8 @@ export const agreementPlan = pgTable(
 		initialFee: integer('initial_fee').notNull().default(0),
 		/** Included maintenance visits per interval; null = none tracked. */
 		includedVisits: integer('included_visits'),
+		/** Job type generated visits use (defaults duration/assignee/office); null = untyped. */
+		jobTypeId: text('job_type_id'),
 		/** Shown on the public booking page. */
 		listed: boolean('listed').notNull().default(true),
 		active: boolean('active').notNull().default(true),
@@ -266,6 +268,11 @@ export const job = pgTable(
 		endsAt: timestamp('ends_at', { withTimezone: true }),
 		source: jobSource('source').notNull().default('manual'),
 		estimateId: text('estimate_id'),
+		/** For agreement-generated visits: the agreement + which visit of the billed period. */
+		serviceAgreementId: text('service_agreement_id'),
+		/** Billed period start (`YYYY-MM-DD`) the visit belongs to. */
+		agreementPeriod: text('agreement_period'),
+		agreementVisitNo: integer('agreement_visit_no'),
 		cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
 		...timestamps
@@ -275,7 +282,12 @@ export const job = pgTable(
 		index('job_org_status_idx').on(t.organizationId, t.status),
 		index('job_customer_idx').on(t.customerId),
 		index('job_technician_idx').on(t.technicianId),
-		uniqueIndex('job_org_number_idx').on(t.organizationId, t.number)
+		uniqueIndex('job_org_number_idx').on(t.organizationId, t.number),
+		uniqueIndex('job_agreement_visit_idx').on(
+			t.serviceAgreementId,
+			t.agreementPeriod,
+			t.agreementVisitNo
+		)
 	]
 );
 

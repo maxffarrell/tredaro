@@ -12,6 +12,7 @@ import {
 	payment,
 	pricebookItem,
 	serviceAgreement,
+	serviceLocation,
 	estimateItem,
 	jobType,
 	outer
@@ -63,6 +64,7 @@ export async function createPlan(
 			interval: input.interval,
 			initialFee: input.initialFee,
 			includedVisits: input.includedVisits ?? null,
+			jobTypeId: input.jobTypeId ?? null,
 			listed: input.listed,
 			active: input.active
 		})
@@ -173,6 +175,7 @@ export async function createAgreement(
 	if (p.amount > 0) {
 		await postAgreementCharge(ctx.orgId, row!.id, start, p);
 	}
+	await generateAgreementVisits(ctx.orgId, row!, start, p);
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId ?? null,
@@ -240,8 +243,72 @@ export async function updateAgreement(
 }
 
 /**
- * Posts agreement charges that have come due and rolls `nextChargeAt` forward.
- * Runs from /api/cron and opportunistically when staff open the app.
+ * Creates a plan's included visits for one billed period as unscheduled jobs
+ * (`source: 'agreement'`), ready for a dispatcher to assign. Idempotent via the
+ * (serviceAgreementId, agreementPeriod, agreementVisitNo) unique index.
+ */
+async function generateAgreementVisits(
+	orgId: string,
+	agreement: typeof serviceAgreement.$inferSelect,
+	periodStart: string,
+	p: typeof agreementPlan.$inferSelect
+) {
+	const visits = p.includedVisits ?? 0;
+	if (visits <= 0) return 0;
+	const jt = p.jobTypeId
+		? (
+				await db
+					.select()
+					.from(jobType)
+					.where(and(eq(jobType.organizationId, orgId), eq(jobType.id, p.jobTypeId)))
+			)[0]
+		: null;
+	const [loc] = await db
+		.select()
+		.from(serviceLocation)
+		.where(
+			and(eq(serviceLocation.customerId, agreement.customerId), eq(serviceLocation.isPrimary, true))
+		);
+	let created = 0;
+	for (let i = 1; i <= visits; i++) {
+		const [row] = await db
+			.insert(job)
+			.values({
+				organizationId: orgId,
+				number: await nextNumber(orgId, 'job'),
+				jobTypeId: jt?.id ?? null,
+				customerId: agreement.customerId,
+				serviceLocationId: loc?.id ?? null,
+				officeId: jt?.officeId ?? null,
+				technicianId: jt?.technicianId ?? null,
+				summary: `${p.name} visit${visits > 1 ? ` ${i} of ${visits}` : ''}`,
+				status: 'unscheduled',
+				source: 'agreement',
+				serviceAgreementId: agreement.id,
+				agreementPeriod: periodStart,
+				agreementVisitNo: i
+			})
+			.onConflictDoNothing({
+				target: [job.serviceAgreementId, job.agreementPeriod, job.agreementVisitNo]
+			})
+			.returning({ id: job.id });
+		if (row) created++;
+	}
+	if (created)
+		await emit({
+			orgId,
+			entityType: 'service_agreement',
+			entityId: agreement.id,
+			action: 'visits_created',
+			summary: `${created} ${p.name} visit${created === 1 ? '' : 's'} added to the unscheduled queue`
+		});
+	return created;
+}
+
+/**
+ * Posts agreement charges that have come due, rolls `nextChargeAt` forward and
+ * generates the current period's included visits. Runs from /api/cron and
+ * opportunistically when staff open the app.
  */
 export async function runBilling(orgId: string) {
 	const now = new Date();
@@ -260,9 +327,11 @@ export async function runBilling(orgId: string) {
 	for (const { agreement: m, plan: p } of due) {
 		if (!m.nextChargeAt) continue;
 		let period = m.nextChargeAt.toISOString().slice(0, 10);
+		let lastPosted: string | null = null;
 		// Catch up on any missed periods (install was offline).
 		while (new Date(`${period}T00:00:00Z`) < now) {
 			if (p.amount > 0) await postAgreementCharge(orgId, m.id, period, p);
+			lastPosted = period;
 			posted++;
 			period = nextPeriod(period, p.interval);
 		}
@@ -270,6 +339,9 @@ export async function runBilling(orgId: string) {
 			.update(serviceAgreement)
 			.set({ nextChargeAt: new Date(`${period}T00:00:00Z`) })
 			.where(eq(serviceAgreement.id, m.id));
+		// The last posted period is the current one — that is the only period whose
+		// visits should appear on the dispatch board now.
+		if (lastPosted) await generateAgreementVisits(orgId, m, lastPosted, p);
 	}
 	return posted;
 }

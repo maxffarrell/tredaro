@@ -149,6 +149,7 @@ export async function loadDemoData(ctx: OrgContext) {
 				interval: 'month',
 				initialFee: 4900,
 				includedVisits: 2,
+				jobTypeId: maintenance!.id,
 				listed: true
 			},
 			{
@@ -159,6 +160,7 @@ export async function loadDemoData(ctx: OrgContext) {
 				interval: 'month',
 				initialFee: 0,
 				includedVisits: 4,
+				jobTypeId: maintenance!.id,
 				listed: true
 			}
 		])

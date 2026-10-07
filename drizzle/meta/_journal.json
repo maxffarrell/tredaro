@@ -15,6 +15,13 @@
       "when": 1791348820310,
       "tag": "0001_time_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791349359282,
+      "tag": "0002_agreement_visits",
+      "breakpoints": true
     }
   ]
 }

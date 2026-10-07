@@ -23,6 +23,7 @@
 		getCurrency
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
+	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Pause from '@lucide/svelte/icons/pause';
@@ -32,6 +33,7 @@
 	const currency = await getCurrency();
 	const customers = await getCustomers();
 	const plans = $derived(await getPlans());
+	const jobTypes = $derived(await getJobTypes());
 	const agreements = $derived(await getAgreements());
 
 	// ------- plan dialog -------
@@ -43,6 +45,8 @@
 	let planInterval = $state<'month' | 'year'>('month');
 	let planPrice = $state(0);
 	let planInitial = $state(0);
+	let planVisits = $state(0);
+	let planJobTypeId = $state('');
 
 	function openPlan(p?: (typeof plans)[number]) {
 		planId = p?.id ?? null;
@@ -51,6 +55,8 @@
 		planInterval = p?.interval ?? 'month';
 		planPrice = p?.amount ?? 0;
 		planInitial = p?.initialFee ?? 0;
+		planVisits = p?.includedVisits ?? 0;
+		planJobTypeId = p?.jobTypeId ?? '';
 		planOpen = true;
 	}
 
@@ -63,7 +69,9 @@
 				description: planDesc,
 				interval: planInterval,
 				amount: planPrice,
-				initialFee: planInitial
+				initialFee: planInitial,
+				includedVisits: planVisits || null,
+				jobTypeId: planJobTypeId || null
 			};
 			if (planId) {
 				await updatePlan({ id: planId, ...input });
@@ -231,7 +239,9 @@
 								{/if}
 								<p class="mt-2 text-xs text-muted-foreground">
 									{p.activeCustomers} active customer{p.activeCustomers === 1 ? '' : 's'}
-									{#if p.includedVisits}· {p.includedVisits} visits/yr{/if}
+									{#if p.includedVisits}· {p.includedVisits} visit{p.includedVisits > 1
+											? 's'
+											: ''}/{p.interval === 'month' ? 'mo' : 'yr'}{/if}
 								</p>
 							</Card.Content>
 						</Card.Root>
@@ -278,9 +288,31 @@
 					<MoneyInput bind:value={planPrice} />
 				</Field.Field>
 			</div>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label>Initial fee (one-time)</Field.Label>
+					<MoneyInput bind:value={planInitial} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="pl-visits">Included visits / period</Field.Label>
+					<Input id="pl-visits" type="number" min={0} max={50} bind:value={planVisits} />
+				</Field.Field>
+			</div>
 			<Field.Field>
-				<Field.Label>Initial fee (one-time)</Field.Label>
-				<MoneyInput bind:value={planInitial} />
+				<Field.Label>Visit job type</Field.Label>
+				<Select.Root type="single" bind:value={planJobTypeId}>
+					<Select.Trigger class="w-full"
+						>{jobTypes.find((t) => t.id === planJobTypeId)?.name ?? 'None'}</Select.Trigger
+					>
+					<Select.Content>
+						{#each jobTypes.filter((t) => t.active) as t (t.id)}
+							<Select.Item value={t.id}>{t.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<Field.Description
+					>Each billing period auto-creates this many unscheduled jobs of this type for dispatch.</Field.Description
+				>
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={planPending}>{planPending ? 'Saving…' : 'Save plan'}</Button

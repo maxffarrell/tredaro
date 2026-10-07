@@ -86,6 +86,8 @@ export const agreementPlanInput = v.object({
 	interval: v.optional(v.picklist(agreementIntervals), 'month'),
 	initialFee: v.optional(cents, 0),
 	includedVisits: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+	/** Job type generated visits default to; null = untyped. */
+	jobTypeId: v.optional(v.nullable(idSchema)),
 	listed: v.optional(v.boolean(), true),
 	active: v.optional(v.boolean(), true)
 });
