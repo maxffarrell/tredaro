@@ -12,6 +12,8 @@
 	import { toast } from 'svelte-sonner';
 	import {
 		getJob,
+		getJobs,
+		getDispatchBoard,
 		updateJob,
 		recordJobEvent,
 		getJobTypes,
@@ -86,7 +88,7 @@
 				priority,
 				startsAt: startsAt || null,
 				durationMin
-			});
+			}).updates(getJob, getJobs, getDispatchBoard);
 			toast.success('Job saved');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
@@ -96,7 +98,7 @@
 
 	async function cancel() {
 		try {
-			await updateJob({ id, cancelled: true });
+			await updateJob({ id, cancelled: true }).updates(getJob, getJobs, getDispatchBoard);
 			toast.success('Job cancelled');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not cancel'));
@@ -105,7 +107,7 @@
 
 	async function event(kind: 'dispatched' | 'en_route' | 'on_site' | 'completed') {
 		try {
-			await recordJobEvent({ jobId: id, kind });
+			await recordJobEvent({ jobId: id, kind }).updates(getJob, getJobs, getDispatchBoard);
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -122,8 +124,8 @@
 
 	async function toggleTimer() {
 		try {
-			if (time.mine) await stopTimer(id);
-			else await startTimer(id);
+			if (time.mine) await stopTimer(id).updates(getTimeEntries);
+			else await startTimer(id).updates(getTimeEntries);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update timer'));
 		}
@@ -143,7 +145,7 @@
 				startedAt: teStart,
 				endedAt: teEnd || null,
 				note: teNote
-			});
+			}).updates(getTimeEntries);
 			addingTime = false;
 			teStart = teEnd = teNote = '';
 			teMember = '';
@@ -154,7 +156,7 @@
 	}
 	async function removeTime(entryId: string) {
 		try {
-			await deleteTimeEntry({ id: entryId, jobId: id });
+			await deleteTimeEntry({ id: entryId, jobId: id }).updates(getTimeEntries);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not delete'));
 		}
@@ -165,7 +167,7 @@
 		e.preventDefault();
 		if (!note.trim()) return;
 		try {
-			await recordJobEvent({ jobId: id, kind: 'note', note });
+			await recordJobEvent({ jobId: id, kind: 'note', note }).updates(getJob);
 			note = '';
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not add note'));

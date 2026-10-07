@@ -62,7 +62,7 @@
 				description,
 				priority,
 				startsAt: startsAt || null
-			});
+			}).updates(getJobs);
 			toast.success(`Job J-${j!.number} created`);
 			open = false;
 			await goto(`/jobs/${j!.id}`);

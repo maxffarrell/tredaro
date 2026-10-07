@@ -11,7 +11,12 @@
 	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { toast } from 'svelte-sonner';
-	import { getEstimate, updateEstimate, sendEstimate } from '#lib/remote/estimates.remote.ts';
+	import {
+		getEstimate,
+		getEstimates,
+		updateEstimate,
+		sendEstimate
+	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Send from '@lucide/svelte/icons/send';
@@ -55,7 +60,7 @@
 						qty: i.qty,
 						unitPrice: i.unitPrice
 					}))
-			});
+			}).updates(getEstimate, getEstimates);
 			toast.success('Estimate saved');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
@@ -69,7 +74,7 @@
 	async function send() {
 		sending = true;
 		try {
-			const r = await sendEstimate(id);
+			const r = await sendEstimate(id).updates(getEstimate, getEstimates);
 			shareUrl = r!.url;
 			await navigator.clipboard.writeText(r!.url);
 			toast.success('Estimate sent — share link copied');

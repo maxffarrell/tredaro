@@ -62,9 +62,9 @@
 		try {
 			const input = { name, kind, description, price, durationMin, category };
 			if (itemId) {
-				await updatePricebookItem({ id: itemId, ...input, active });
+				await updatePricebookItem({ id: itemId, ...input, active }).updates(getPricebook);
 			} else {
-				await createPricebookItem(input);
+				await createPricebookItem(input).updates(getPricebook);
 			}
 			toast.success('Item saved');
 			open = false;

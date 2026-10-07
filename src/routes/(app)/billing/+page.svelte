@@ -28,6 +28,7 @@
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getJobs } from '#lib/remote/jobs.remote.ts';
+	import { getDashboard } from '#lib/remote/workspace.remote.ts';
 	import { getAiStatus, aiInvoiceSuggestions } from '#lib/remote/ai.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -118,7 +119,7 @@
 				items: invItems
 					.filter((i) => i.name.trim())
 					.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
-			});
+			}).updates(getInvoices, getCharges, getPayments, getDashboard);
 			toast.success('Invoice issued');
 			invoiceOpen = false;
 		} catch (err) {
@@ -139,7 +140,7 @@
 
 	async function voidInvoice(id: string) {
 		try {
-			await updateInvoice({ id, status: 'void' });
+			await updateInvoice({ id, status: 'void' }).updates(getInvoices, getCharges, getDashboard);
 			toast.success('Invoice voided');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not void'));
@@ -163,7 +164,7 @@
 				description: chDesc,
 				amount: chCents,
 				dueDate: chDue || new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10)
-			});
+			}).updates(getCharges, getDashboard);
 			toast.success('Charge posted');
 			chargeOpen = false;
 			chDesc = '';
@@ -176,7 +177,7 @@
 
 	async function voidCharge(id: string) {
 		try {
-			await updateCharge({ id, status: 'void' });
+			await updateCharge({ id, status: 'void' }).updates(getCharges, getDashboard);
 			toast.success('Charge voided');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not void'));
@@ -201,7 +202,7 @@
 				amount: payCents,
 				method: payMethod,
 				notes: payNote
-			});
+			}).updates(getPayments, getCharges, getInvoices, getDashboard);
 			toast.success('Payment recorded');
 			payOpen = false;
 			payDollars = payNote = '';

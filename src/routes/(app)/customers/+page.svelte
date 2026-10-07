@@ -65,7 +65,7 @@
 		try {
 			const r = await importCustomers(
 				importRows.map((row) => ({ name: row.name, email: row.email, phone: row.phone || null }))
-			);
+			).updates(getCustomers);
 			toast.success(
 				`Imported ${r.created} customer${r.created === 1 ? '' : 's'}${r.skipped ? ` — skipped ${r.skipped} duplicate${r.skipped === 1 ? '' : 's'}` : ''}`
 			);
@@ -109,7 +109,7 @@
 				name,
 				email: email || undefined,
 				phone: phone || undefined
-			});
+			}).updates(getCustomers);
 			toast.success('Customer added');
 			open = false;
 			companyName = name = email = phone = '';

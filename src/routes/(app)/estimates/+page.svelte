@@ -56,7 +56,7 @@
 				items: items
 					.filter((i) => i.name.trim())
 					.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
-			});
+			}).updates(getEstimates);
 			toast.success(`Estimate E-${est!.number} created`);
 			open = false;
 			await goto(`/estimates/${est!.id}`);
