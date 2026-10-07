@@ -56,6 +56,8 @@ export const companySettings = pgTable('company_settings', {
 	address: text('address').notNull().default(''),
 	phone: text('phone').notNull().default(''),
 	website: text('website').notNull().default(''),
+	/** Public review link (Google/Yelp/etc.) shown as a button in the job-completed email. Empty disables it. */
+	reviewUrl: text('review_url').notNull().default(''),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),

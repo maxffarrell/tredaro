@@ -175,3 +175,42 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 		})
 	});
 }
+
+/** "How did we do?" thank-you email when a job is marked completed. Review CTA when the org set a review link. */
+export async function notifyJobCompleted(orgId: string, jobId: string) {
+	const [row] = await db
+		.select({
+			email: customer.email,
+			customerName: customer.name,
+			summary: job.summary,
+			number: job.number,
+			status: job.status,
+			jobTypeName: jobType.name,
+			reviewUrl: companySettings.reviewUrl
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.innerJoin(companySettings, eq(companySettings.organizationId, job.organizationId))
+		.where(eq(job.id, jobId));
+	if (!row?.email || row.status !== 'done') return;
+	if (!(await logOnce(orgId, 'job_completed', jobId, row.email))) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: row.email,
+		subject: `Thanks for choosing ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `All done, ${row.customerName}`,
+			lines: [
+				`${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}).`,
+				...(row.reviewUrl
+					? ['If we earned it, a quick review helps us a lot — it takes under a minute.']
+					: ['You can view this visit and your documents anytime in the customer portal.'])
+			],
+			action: row.reviewUrl
+				? { label: 'Leave a review', url: row.reviewUrl }
+				: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+		})
+	});
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "company_settings" ADD COLUMN "review_url" text DEFAULT '' NOT NULL;

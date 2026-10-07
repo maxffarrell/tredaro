@@ -60,6 +60,7 @@
 	let address = $state(settings.address);
 	let phone = $state(settings.phone);
 	let website = $state(settings.website);
+	let reviewUrl = $state(settings.reviewUrl);
 	let publicPage = $state(settings.publicPage);
 	const tzOptions = Intl.supportedValuesOf('timeZone');
 	const currencyOptions = ['usd', 'eur', 'gbp', 'aud', 'cad', 'nzd', 'brl', 'inr'];
@@ -74,6 +75,7 @@
 				address,
 				phone,
 				website,
+				reviewUrl,
 				publicPage
 			});
 			toast.success('Settings saved');
@@ -261,6 +263,18 @@
 								<Input id="site" bind:value={website} />
 							</Field.Field>
 						</div>
+						<Field.Field>
+							<Field.Label for="review">Review link</Field.Label>
+							<Input
+								id="review"
+								placeholder="https://g.page/r/your-google-review-link"
+								bind:value={reviewUrl}
+							/>
+							<p class="text-xs text-muted-foreground">
+								A "Leave a review" button in the email customers get when a job is marked done.
+								Leave empty to disable.
+							</p>
+						</Field.Field>
 						<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
 							<div>
 								<p class="font-medium">Public booking page</p>

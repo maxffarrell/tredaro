@@ -285,7 +285,8 @@ export const settingsInput = v.object({
 	tagline: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50))),
-	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
+	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	reviewUrl: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
 });
 
 export const webhookInput = v.object({

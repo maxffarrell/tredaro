@@ -3,7 +3,7 @@ import { command, query } from '$app/server';
 import { refreshQuery } from './_refresh.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/jobs.ts';
-import { notifyJobScheduled } from '#lib/server/services/notifications.ts';
+import { notifyJobCompleted, notifyJobScheduled } from '#lib/server/services/notifications.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
 import { getDashboard } from './workspace.remote.ts';
@@ -100,7 +100,12 @@ export const updateJob = command(jobUpdate, async (input) => {
 	return j;
 });
 export const recordJobEvent = command(jobEventInput, async (input) => {
-	const e = await svc.recordJobEvent(await requireOrg(), input);
+	const ctx = await requireOrg();
+	const e = await svc.recordJobEvent(ctx, input);
+	if (input.kind === 'completed')
+		void notifyJobCompleted(ctx.orgId, input.jobId).catch((err) =>
+			console.error('job completed email failed', err)
+		);
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);
 	await refreshQuery(getJob, input.jobId);
