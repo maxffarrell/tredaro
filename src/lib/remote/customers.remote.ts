@@ -25,24 +25,24 @@ export const getCustomer = query(idSchema, async (id) =>
 );
 export const createCustomer = command(customerInput, async (input) => {
 	const c = await svc.createCustomer(await requireOrg(), input);
-	refreshQuery(getCustomers, undefined);
+	await refreshQuery(getCustomers, undefined);
 	return c;
 });
 export const importCustomers = command(customerImportInput, async (rows) => {
 	const r = await svc.importCustomers(await requireOrg(), rows);
-	refreshQuery(getCustomers, undefined);
+	await refreshQuery(getCustomers, undefined);
 	return r;
 });
 export const updateCustomer = command(customerUpdate, async (input) => {
 	const c = await svc.updateCustomer(await requireOrg(), input);
-	refreshQuery(getCustomer, c!.id);
-	refreshQuery(getCustomers, undefined);
+	await refreshQuery(getCustomer, c!.id);
+	await refreshQuery(getCustomers, undefined);
 	return c;
 });
 
 export const addServiceLocation = command(serviceLocationInput, async (input) => {
 	const l = await svc.addServiceLocation(await requireOrg(), input);
-	refreshQuery(getCustomer, input.customerId);
+	await refreshQuery(getCustomer, input.customerId);
 	return l;
 });
 export const updateServiceLocation = command(serviceLocationUpdate, async (input) => {
@@ -52,12 +52,12 @@ export const updateServiceLocation = command(serviceLocationUpdate, async (input
 
 export const createEquipment = command(equipmentInput, async (input) => {
 	const e = await svc.createEquipment(await requireOrg(), input);
-	refreshQuery(getCustomer, input.customerId);
+	await refreshQuery(getCustomer, input.customerId);
 	return e;
 });
 export const updateEquipment = command(equipmentUpdate, async (input) => {
 	const e = await svc.updateEquipment(await requireOrg(), input);
-	if (e) refreshQuery(getCustomer, e.customerId);
+	if (e) await refreshQuery(getCustomer, e.customerId);
 	return e;
 });
 

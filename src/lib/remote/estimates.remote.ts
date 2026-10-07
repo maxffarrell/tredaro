@@ -16,14 +16,14 @@ export const getEstimate = query(idSchema, async (id) =>
 );
 export const createEstimate = command(estimateInput, async (input) => {
 	const e = await svc.createEstimate(await requireOrg(), input);
-	refreshQuery(getEstimates, undefined);
+	await refreshQuery(getEstimates, undefined);
 	void getCustomer(input.customerId).refresh();
 	return e;
 });
 export const updateEstimate = command(estimateUpdate, async (input) => {
 	const e = await svc.updateEstimate(await requireOrg(), input);
-	refreshQuery(getEstimate, e!.id);
-	refreshQuery(getEstimates, undefined);
+	await refreshQuery(getEstimate, e!.id);
+	await refreshQuery(getEstimates, undefined);
 	return e;
 });
 
@@ -34,7 +34,7 @@ export const sendEstimate = command(idSchema, async (id) => {
 	void notifyEstimateSent(ctx.orgId, id).catch((err) =>
 		console.error('estimate email failed', err)
 	);
-	refreshQuery(getEstimate, id);
-	refreshQuery(getEstimates, undefined);
+	await refreshQuery(getEstimate, id);
+	await refreshQuery(getEstimates, undefined);
 	return r;
 });

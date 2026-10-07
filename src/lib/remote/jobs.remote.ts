@@ -24,12 +24,12 @@ const tz = async () => {
 export const getJobTypes = query(async () => svc.listJobTypes((await requireOrg()).orgId));
 export const createJobType = command(jobTypeInput, async (input) => {
 	const t = await svc.createJobType(await requireOrg('admin'), input);
-	refreshQuery(getJobTypes, undefined);
+	await refreshQuery(getJobTypes, undefined);
 	return t;
 });
 export const updateJobType = command(jobTypeUpdate, async (input) => {
 	const t = await svc.updateJobType(await requireOrg('admin'), input);
-	refreshQuery(getJobTypes, undefined);
+	await refreshQuery(getJobTypes, undefined);
 	return t;
 });
 
@@ -77,8 +77,8 @@ export const createJob = command(jobInput, async (input) => {
 		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
 			console.error('job scheduled email failed', err)
 		);
-	refreshQuery(getJobs, undefined);
-	refreshQuery(getDispatchBoard, undefined);
+	await refreshQuery(getJobs, undefined);
+	await refreshQuery(getDispatchBoard, undefined);
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
@@ -90,18 +90,18 @@ export const updateJob = command(jobUpdate, async (input) => {
 		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
 			console.error('job scheduled email failed', err)
 		);
-	refreshQuery(getJobs, undefined);
-	refreshQuery(getDispatchBoard, undefined);
-	refreshQuery(getJob, j!.id);
+	await refreshQuery(getJobs, undefined);
+	await refreshQuery(getDispatchBoard, undefined);
+	await refreshQuery(getJob, j!.id);
 	void getCustomer(j!.customerId).refresh();
 	return j;
 });
 export const recordJobEvent = command(jobEventInput, async (input) => {
 	const e = await svc.recordJobEvent(await requireOrg(), input);
-	refreshQuery(getJobs, undefined);
-	refreshQuery(getDispatchBoard, undefined);
-	refreshQuery(getJob, input.jobId);
-	refreshQuery(getTimeEntries, input.jobId);
+	await refreshQuery(getJobs, undefined);
+	await refreshQuery(getDispatchBoard, undefined);
+	await refreshQuery(getJob, input.jobId);
+	await refreshQuery(getTimeEntries, input.jobId);
 	return e;
 });
 
@@ -113,19 +113,19 @@ export const getTimeEntries = query(idSchema, async (jobId) =>
 
 export const startTimer = command(idSchema, async (jobId) => {
 	const t = await svc.startTimer(await requireOrg(), jobId);
-	refreshQuery(getTimeEntries, jobId);
+	await refreshQuery(getTimeEntries, jobId);
 	return t;
 });
 
 export const stopTimer = command(idSchema, async (jobId) => {
 	const t = await svc.stopTimer(await requireOrg(), jobId);
-	refreshQuery(getTimeEntries, jobId);
+	await refreshQuery(getTimeEntries, jobId);
 	return t;
 });
 
 export const addTimeEntry = command(timeEntryInput, async (input) => {
 	const t = await svc.addTimeEntry(await requireOrg(), await tz(), input);
-	refreshQuery(getTimeEntries, input.jobId);
+	await refreshQuery(getTimeEntries, input.jobId);
 	return t;
 });
 
@@ -133,6 +133,6 @@ export const deleteTimeEntry = command(
 	v.object({ id: idSchema, jobId: idSchema }),
 	async ({ id, jobId }) => {
 		await svc.deleteTimeEntry(await requireOrg(), id);
-		refreshQuery(getTimeEntries, jobId);
+		await refreshQuery(getTimeEntries, jobId);
 	}
 );
