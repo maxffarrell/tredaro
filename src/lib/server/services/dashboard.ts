@@ -49,7 +49,7 @@ export async function dashboard(orgId: string) {
 					Number
 				),
 			doneToday:
-				sql<number>`count(*) filter (where ${outer(job.completedAt)} >= ${dayStart} and ${outer(job.completedAt)} < ${dayEnd})`.mapWith(
+				sql<number>`count(*) filter (where ${outer(job.completedAt)} >= ${dayStart.toISOString()} and ${outer(job.completedAt)} < ${dayEnd.toISOString()})`.mapWith(
 					Number
 				)
 		})

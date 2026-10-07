@@ -45,7 +45,11 @@
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(-7)}
 				><ChevronLeft /></Button
 			>
-			<Button variant="ghost" size="sm" onclick={() => (start = todayStr)}>Today</Button>
+			<Button
+				variant="ghost"
+				size="sm"
+				onclick={() => goto(`?from=${todayStr}`, { replaceState: true })}>Today</Button
+			>
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(7)}
 				><ChevronRight /></Button
 			>

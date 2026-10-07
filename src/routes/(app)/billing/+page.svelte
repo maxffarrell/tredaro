@@ -247,7 +247,13 @@
 										>{formatMoney(inv.total - inv.paid, currency)}</Table.Cell
 									>
 									<Table.Cell class="text-right"
-										><StatusBadge status={inv.invoice.status} /></Table.Cell
+										><StatusBadge
+											status={inv.invoice.status === 'open' &&
+											inv.total > 0 &&
+											inv.total - inv.paid <= 0
+												? 'paid'
+												: inv.invoice.status}
+										/></Table.Cell
 									>
 									<Table.Cell class="text-right">
 										{#if inv.invoice.status === 'open'}

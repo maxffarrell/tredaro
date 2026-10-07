@@ -215,12 +215,23 @@ export async function updateAgreement(
 	ctx: OrgContext,
 	input: v.InferOutput<typeof s.agreementUpdate>
 ) {
+	const [existing] = await db
+		.select({ agreement: serviceAgreement, interval: agreementPlan.interval })
+		.from(serviceAgreement)
+		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
+		.where(and(eq(serviceAgreement.organizationId, ctx.orgId), eq(serviceAgreement.id, input.id)));
+	if (!existing) error(404, 'Agreement not found');
 	const [row] = await db
 		.update(serviceAgreement)
 		.set({
 			status: input.status,
 			cancelledAt: input.status === 'cancelled' ? new Date() : null,
-			nextChargeAt: input.status === 'active' ? undefined : null
+			nextChargeAt:
+				input.status === 'active'
+					? new Date(
+							`${nextPeriod(new Date().toISOString().slice(0, 10), existing.interval)}T00:00:00Z`
+						)
+					: null
 		})
 		.where(and(eq(serviceAgreement.organizationId, ctx.orgId), eq(serviceAgreement.id, input.id)))
 		.returning();
