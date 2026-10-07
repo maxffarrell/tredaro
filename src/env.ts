@@ -44,7 +44,7 @@ export const variables = defineEnvVars({
 	},
 	CRON_SECRET: {
 		description:
-			'Bearer token for `/api/cron`, which posts service-agreement charges for every workspace. Vercel Cron sends it automatically.',
+			'Bearer token for `/api/cron`, which posts service-agreement charges and sends daily reminders (appointment reminders, estimate follow-ups, staff digests) for every workspace. Vercel Cron sends it automatically.',
 		schema: (value) => value || undefined
 	},
 	TREDARO_CLOUD: {

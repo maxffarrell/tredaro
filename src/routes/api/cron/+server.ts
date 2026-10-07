@@ -4,6 +4,7 @@ import { CRON_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import { organization } from '#lib/server/db/schema.ts';
 import { runBilling } from '#lib/server/services/billing.ts';
+import { runReminders } from '#lib/server/services/notifications.ts';
 import { purgeExpiredDemos } from '#lib/server/demo-mode.ts';
 import type { RequestHandler } from './$types';
 
@@ -14,7 +15,7 @@ const authorized = (header: string | null) => {
 	return a.length === b.length && timingSafeEqual(a, b);
 };
 
-/** Daily job: posts due membership charges for every workspace and deletes expired demo orgs. */
+/** Daily job: posts due membership charges, sends reminders/digests, and deletes expired demo orgs. */
 export const GET: RequestHandler = async ({ request }) => {
 	if (!authorized(request.headers.get('authorization'))) error(401, 'Unauthorized');
 	const orgs = await db.select({ id: organization.id }).from(organization);
@@ -22,9 +23,10 @@ export const GET: RequestHandler = async ({ request }) => {
 	for (const o of orgs) {
 		try {
 			await runBilling(o.id);
+			await runReminders(o.id);
 		} catch (err) {
 			failed++;
-			console.error(`billing cron failed for ${o.id}`, err);
+			console.error(`daily cron failed for ${o.id}`, err);
 		}
 	}
 	await purgeExpiredDemos();

@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	companySettings,
@@ -16,7 +16,7 @@ import { sendSms, smsProvider } from '#lib/server/sms.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
 import { estimateUrl } from './estimates.ts';
 import { invoiceUrl } from './billing.ts';
-import { localDate, localTime } from '#lib/tz.ts';
+import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import { formatMoney } from '#lib/format.ts';
 
 async function orgName(orgId: string) {
@@ -184,6 +184,178 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 			to: row.phone,
 			body: `${name}: ${what} is scheduled for ${when}. Reply to reschedule.`
 		});
+}
+
+/** "Reminder: appointment tomorrow-ish" — one email + text per job, cron-driven. */
+export async function notifyAppointmentReminder(orgId: string, jobId: string) {
+	const [row] = await db
+		.select({
+			email: customer.email,
+			phone: customer.phone,
+			customerName: customer.name,
+			summary: job.summary,
+			number: job.number,
+			startsAt: job.startsAt,
+			status: job.status,
+			jobTypeName: jobType.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (
+		!row?.startsAt ||
+		(row.status !== 'scheduled' && row.status !== 'dispatched') ||
+		(!row.email && !row.phone)
+	)
+		return;
+	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
+	const what = row.jobTypeName ?? row.summary;
+	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	if (row.email && (await logOnce(orgId, 'appointment_reminder', jobId, row.email)))
+		await sendEmail({
+			to: row.email,
+			subject: `Reminder: J-${row.number} ${when} — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Just a reminder, ${row.customerName}`,
+				lines: [
+					`Your ${what} appointment is coming up on ${when}.`,
+					'Reply to this email if you need to reschedule.'
+				],
+				action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			})
+		});
+	if (
+		row.phone &&
+		smsProvider() &&
+		(await logOnce(orgId, 'appointment_reminder_sms', jobId, row.phone))
+	)
+		await sendSms({
+			to: row.phone,
+			body: `${name} reminder: ${what} on ${when}. Reply to reschedule.`
+		});
+}
+
+/** "Still interested?" email when a sent estimate has sat untouched for a week. */
+export async function notifyEstimateFollowup(orgId: string, estimateId: string) {
+	const [row] = await db
+		.select({
+			email: customer.email,
+			customerName: customer.name,
+			number: estimate.number,
+			status: estimate.status,
+			total:
+				sql`coalesce((select sum(i.qty * i.unit_price) from estimate_item i where i.estimate_id = ${estimate.id}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(eq(estimate.id, estimateId));
+	if (!row?.email || row.status !== 'sent') return;
+	if (!(await logOnce(orgId, 'estimate_followup', estimateId, row.email))) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: row.email,
+		subject: `Following up on estimate E-${row.number} — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Still interested, ${row.customerName}?`,
+			lines: [
+				`${name} sent you estimate E-${row.number} for ${formatMoney(row.total)} and it's still open.`,
+				"Approve or decline it online whenever you're ready."
+			],
+			action: { label: 'Review estimate', url: estimateUrl(estimateId) }
+		})
+	});
+}
+
+/** Daily cron work: appointment reminders, stale-estimate follow-ups, staff schedule digests. */
+export async function runReminders(orgId: string) {
+	const now = new Date();
+	const horizon = new Date(now.getTime() + 36 * 60 * 60 * 1000);
+	const upcoming = await db
+		.select({ id: job.id })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				inArray(job.status, ['scheduled', 'dispatched']),
+				gte(job.startsAt, now),
+				lte(job.startsAt, horizon)
+			)
+		);
+	for (const j of upcoming) await notifyAppointmentReminder(orgId, j.id);
+
+	const stale = await db
+		.select({ id: estimate.id })
+		.from(estimate)
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.status, 'sent'),
+				lt(estimate.sentAt, new Date(now.getTime() - 7 * 86400_000))
+			)
+		);
+	for (const e of stale) await notifyEstimateFollowup(orgId, e.id);
+
+	// Morning digest: each technician's jobs starting today (org timezone).
+	const tz = await orgTimezone(orgId);
+	const name = await orgName(orgId);
+	const today = localDate(now, tz);
+	const todays = await db
+		.select({
+			memberId: job.technicianId,
+			number: job.number,
+			startsAt: job.startsAt,
+			summary: job.summary,
+			jobTypeName: jobType.name,
+			customerName: customer.name,
+			email: user.email,
+			memberName: user.name
+		})
+		.from(job)
+		.innerJoin(member, eq(job.technicianId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				inArray(job.status, ['scheduled', 'dispatched', 'in_progress']),
+				gte(job.startsAt, zonedToUtc(`${today}T00:00`, tz)),
+				lt(job.startsAt, zonedToUtc(`${addDays(today, 1)}T00:00`, tz))
+			)
+		)
+		.orderBy(asc(job.startsAt));
+	const byMember = new Map<string, typeof todays>();
+	for (const r of todays) {
+		if (!r.memberId) continue;
+		byMember.set(r.memberId, [...(byMember.get(r.memberId) ?? []), r]);
+	}
+	for (const rows of byMember.values()) {
+		const r = rows[0];
+		if (!(await logOnce(orgId, 'daily_digest', today, r.email))) continue;
+		await sendEmail({
+			to: r.email,
+			subject: `${rows.length} job${rows.length === 1 ? '' : 's'} today — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Good morning, ${r.memberName}`,
+				lines: [
+					`You have ${rows.length} job${rows.length === 1 ? '' : 's'} on the schedule today:`,
+					...rows
+						.slice(0, 12)
+						.map(
+							(x) =>
+								`${localTime(x.startsAt!, tz)} — J-${x.number} ${x.jobTypeName ?? x.summary} (${x.customerName})`
+						)
+				],
+				action: { label: 'Open My Day', url: `${appOrigin()}/myday` }
+			})
+		});
+	}
 }
 
 /** "Your technician is on the way" text when a job is marked en_route. SMS only. */
