@@ -4,6 +4,7 @@ import {
 	charge,
 	companySettings,
 	customer,
+	equipment,
 	estimate,
 	estimateItem,
 	invoice,
@@ -218,6 +219,65 @@ export async function loadDemoData(ctx: OrgContext) {
 		)
 		.returning();
 
+	// Installed equipment on a few customers' sites.
+	const year = now.getUTCFullYear();
+	const equipmentRows = await db
+		.insert(equipment)
+		.values(
+			[
+				[
+					0,
+					'Upstairs AC condenser',
+					'HVAC',
+					'Carrier',
+					'24ACC636',
+					'CAR-29117',
+					year - 4,
+					year + 1
+				],
+				[0, 'Furnace', 'HVAC', 'Carrier', '59SC5', 'CAR-88331', year - 4, null],
+				[2, 'Walk-in cooler', 'Refrigeration', 'True', 'T-49-HC', 'TRU-55402', year - 2, year + 3],
+				[
+					3,
+					'Tankless water heater',
+					'Plumbing',
+					'Rheem',
+					'RTGH-95',
+					'RHM-77120',
+					year - 1,
+					year + 9
+				],
+				[4, 'Rooftop unit — zone A', 'HVAC', 'Lennox', 'LGH120', 'LNX-30817', year - 6, year - 1],
+				[
+					6,
+					'Compressor — gym floor',
+					'Refrigeration',
+					'Copeland',
+					'ZP54K5E',
+					'CPL-19380',
+					year - 3,
+					year + 2
+				]
+			].map(([i, name, category, brand, model, serial, inst, war]) => {
+				const c = customers[i as number]!;
+				const loc = locations.find((l) => l.customerId === c.id)!;
+				return {
+					organizationId: ctx.orgId,
+					customerId: c.id,
+					serviceLocationId: loc.id,
+					name: name as string,
+					category: category as string,
+					brand: brand as string,
+					model: model as string,
+					serial: serial as string,
+					installedOn: `${inst}-03-15`,
+					warrantyUntil: war ? `${war}-03-15` : null
+				};
+			})
+		)
+		.returning();
+	const equipByCustomer = new Map(equipmentRows.map((e) => [e.customerId, e]));
+
 	// Agreements + first charges + payments.
 	for (const [i, c] of customers.entries()) {
 		const p = i % 4 === 0 ? commercial! : comfortClub!;
@@ -280,6 +340,7 @@ export async function loadDemoData(ctx: OrgContext) {
 				jobTypeId: jt.id,
 				customerId: c.id,
 				serviceLocationId: loc.id,
+				equipmentId: equipByCustomer.get(c.id)?.id ?? null,
 				officeId: hq!.id,
 				technicianId: me?.id ?? null,
 				summary: jt.name,
@@ -309,6 +370,7 @@ export async function loadDemoData(ctx: OrgContext) {
 		number: n,
 		customerId: customers[2]!.id,
 		serviceLocationId: locations[2]!.id,
+		equipmentId: equipByCustomer.get(customers[2]!.id)?.id ?? null,
 		jobTypeId: repair!.id,
 		summary: 'Walk-in cooler running hot',
 		description: 'Bakery reports cooler at 52°F.',

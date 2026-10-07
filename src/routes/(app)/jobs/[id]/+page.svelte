@@ -54,6 +54,7 @@
 	let technicianId = $state(j.job.technicianId ?? '');
 	let officeId = $state(j.job.officeId ?? '');
 	let serviceLocationId = $state(j.job.serviceLocationId ?? '');
+	let equipmentId = $state(j.job.equipmentId ?? '');
 	let summary = $state(j.job.summary);
 	let description = $state(j.job.description);
 	let priority = $state(j.job.priority);
@@ -79,6 +80,7 @@
 				technicianId: technicianId || null,
 				officeId: officeId || null,
 				serviceLocationId: serviceLocationId || null,
+				equipmentId: equipmentId || null,
 				summary,
 				description,
 				priority,
@@ -231,6 +233,24 @@
 									<Select.Item value={l.id}
 										>{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}</Select.Item
 									>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label>Equipment</Field.Label>
+						<Select.Root type="single" bind:value={equipmentId}>
+							<Select.Trigger class="w-full"
+								>{c.equipment.find((e) => e.equipment.id === equipmentId)?.equipment.name ??
+									'None'}</Select.Trigger
+							>
+							<Select.Content>
+								{#each c.equipment.filter((e) => e.equipment.active || e.equipment.id === equipmentId) as e (e.equipment.id)}
+									<Select.Item value={e.equipment.id}>
+										{e.equipment.name}{[e.equipment.brand, e.equipment.model].filter(Boolean).length
+											? ` (${[e.equipment.brand, e.equipment.model].filter(Boolean).join(' ')})`
+											: ''}
+									</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>

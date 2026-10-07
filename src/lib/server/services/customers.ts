@@ -5,6 +5,7 @@ import {
 	agreementPlan,
 	charge,
 	customer,
+	equipment,
 	job,
 	jobType,
 	office,
@@ -119,7 +120,18 @@ export async function getCustomer(orgId: string, id: string) {
 		.orderBy(desc(payment.paidAt))
 		.limit(50);
 
-	return { ...row, locations, agreements, jobs, estimates, charges, payments };
+	const equipmentRows = await listEquipment(orgId, id);
+
+	return {
+		...row,
+		locations,
+		agreements,
+		jobs,
+		estimates,
+		charges,
+		payments,
+		equipment: equipmentRows
+	};
 }
 
 export async function createCustomer(
@@ -274,6 +286,112 @@ export async function updateServiceLocation(
 		.where(and(eq(serviceLocation.organizationId, ctx.orgId), eq(serviceLocation.id, id)))
 		.returning();
 	if (!row) error(404, 'Service location not found');
+	return row;
+}
+
+// ---------- Equipment ----------
+
+/** A customer's installed equipment, with location label and last service date. */
+export async function listEquipment(orgId: string, customerId?: string) {
+	return db
+		.select({
+			equipment,
+			customerName: customer.name,
+			locationLabel: serviceLocation.label,
+			locationAddress: serviceLocation.address1,
+			lastService: sql<
+				string | null
+			>`(select max(j.completed_at) from ${job} j where j.equipment_id = ${outer(equipment.id)})`
+		})
+		.from(equipment)
+		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.leftJoin(serviceLocation, eq(equipment.serviceLocationId, serviceLocation.id))
+		.where(
+			and(
+				eq(equipment.organizationId, orgId),
+				customerId ? eq(equipment.customerId, customerId) : undefined
+			)
+		)
+		.orderBy(desc(equipment.active), asc(equipment.name));
+}
+
+export async function getEquipment(orgId: string, id: string) {
+	const [row] = await db
+		.select({
+			equipment,
+			customerName: customer.name,
+			locationLabel: serviceLocation.label,
+			locationAddress: serviceLocation.address1
+		})
+		.from(equipment)
+		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.leftJoin(serviceLocation, eq(equipment.serviceLocationId, serviceLocation.id))
+		.where(and(eq(equipment.organizationId, orgId), eq(equipment.id, id)));
+	if (!row) error(404, 'Equipment not found');
+	return row;
+}
+
+export async function createEquipment(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.equipmentInput>
+) {
+	const [c] = await db
+		.select({ id: customer.id, name: customer.name })
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
+	if (!c) error(404, 'Customer not found');
+	if (input.serviceLocationId) {
+		const [loc] = await db
+			.select({ id: serviceLocation.id })
+			.from(serviceLocation)
+			.where(
+				and(
+					eq(serviceLocation.organizationId, ctx.orgId),
+					eq(serviceLocation.id, input.serviceLocationId),
+					eq(serviceLocation.customerId, input.customerId)
+				)
+			);
+		if (!loc) error(404, 'Service location not found');
+	}
+	const [row] = await db
+		.insert(equipment)
+		.values({
+			organizationId: ctx.orgId,
+			customerId: input.customerId,
+			serviceLocationId: input.serviceLocationId ?? null,
+			name: input.name,
+			category: input.category,
+			brand: input.brand,
+			model: input.model,
+			serial: input.serial,
+			installedOn: input.installedOn ?? null,
+			warrantyUntil: input.warrantyUntil ?? null,
+			notes: input.notes,
+			active: input.active
+		})
+		.returning();
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'equipment',
+		entityId: row!.id,
+		action: 'created',
+		summary: `${input.name} added for ${c.name}`
+	});
+	return row;
+}
+
+export async function updateEquipment(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.equipmentUpdate>
+) {
+	const { id, ...set } = input;
+	const [row] = await db
+		.update(equipment)
+		.set(set)
+		.where(and(eq(equipment.organizationId, ctx.orgId), eq(equipment.id, id)))
+		.returning();
+	if (!row) error(404, 'Equipment not found');
 	return row;
 }
 

@@ -134,6 +134,36 @@ export const serviceLocation = pgTable(
 	]
 );
 
+/** Installed equipment at a customer's site — an AC unit, water heater, etc. Jobs can link to it. */
+export const equipment = pgTable(
+	'equipment',
+	{
+		id: id(),
+		organizationId: orgId(),
+		customerId: text('customer_id')
+			.notNull()
+			.references(() => customer.id, { onDelete: 'cascade' }),
+		serviceLocationId: text('service_location_id').references(() => serviceLocation.id, {
+			onDelete: 'set null'
+		}),
+		name: text('name').notNull(),
+		/** Freeform category, e.g. "HVAC", "Water heater", "Generator". */
+		category: text('category').notNull().default(''),
+		brand: text('brand').notNull().default(''),
+		model: text('model').notNull().default(''),
+		serial: text('serial').notNull().default(''),
+		installedOn: date('installed_on', { mode: 'string' }),
+		warrantyUntil: date('warranty_until', { mode: 'string' }),
+		notes: text('notes').notNull().default(''),
+		active: boolean('active').notNull().default(true),
+		...timestamps
+	},
+	(t) => [
+		index('equipment_customer_idx').on(t.organizationId, t.customerId),
+		index('equipment_location_idx').on(t.serviceLocationId)
+	]
+);
+
 export const agreementInterval = pgEnum('agreement_interval', ['month', 'year']);
 
 /** A service-agreement tier a customer can subscribe to, e.g. "Comfort Club — $29/mo". */
@@ -257,6 +287,7 @@ export const job = pgTable(
 		serviceLocationId: text('service_location_id').references(() => serviceLocation.id, {
 			onDelete: 'set null'
 		}),
+		equipmentId: text('equipment_id').references(() => equipment.id, { onDelete: 'set null' }),
 		officeId: text('office_id').references(() => office.id, { onDelete: 'set null' }),
 		technicianId: text('technician_id').references(() => member.id, { onDelete: 'set null' }),
 		summary: text('summary').notNull().default(''),

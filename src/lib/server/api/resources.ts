@@ -58,6 +58,14 @@ export const resources: Record<string, Resource> = {
 			}
 		}
 	},
+	equipment: {
+		description: 'Installed customer equipment (`?customerId=` to filter)',
+		list: (ctx, url) =>
+			customers.listEquipment(ctx.orgId, url.searchParams.get('customerId') ?? undefined),
+		get: (ctx, id) => customers.getEquipment(ctx.orgId, id),
+		create: { schema: s.equipmentInput, run: customers.createEquipment as never },
+		update: { schema: s.equipmentUpdate, run: customers.updateEquipment as never }
+	},
 	job_types: {
 		description: 'Job types (service catalog for dispatch)',
 		list: (ctx) => jobs.listJobTypes(ctx.orgId),

@@ -8,6 +8,8 @@ import {
 	customerImportInput,
 	customerInput,
 	customerUpdate,
+	equipmentInput,
+	equipmentUpdate,
 	idSchema,
 	serviceLocationInput,
 	serviceLocationUpdate
@@ -45,6 +47,17 @@ export const addServiceLocation = command(serviceLocationInput, async (input) =>
 export const updateServiceLocation = command(serviceLocationUpdate, async (input) => {
 	const l = await svc.updateServiceLocation(await requireOrg(), input);
 	return l;
+});
+
+export const createEquipment = command(equipmentInput, async (input) => {
+	const e = await svc.createEquipment(await requireOrg(), input);
+	void getCustomer(input.customerId).refresh();
+	return e;
+});
+export const updateEquipment = command(equipmentUpdate, async (input) => {
+	const e = await svc.updateEquipment(await requireOrg(), input);
+	if (e) void getCustomer(e.customerId).refresh();
+	return e;
 });
 
 /** The shareable claim link for attaching a customer's login to the portal. */

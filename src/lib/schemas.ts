@@ -79,6 +79,24 @@ export const serviceLocationUpdate = v.object({
 	...v.partial(v.omit(serviceLocationInput, ['customerId'])).entries
 });
 
+export const equipmentInput = v.object({
+	customerId: idSchema,
+	serviceLocationId: v.optional(v.nullable(idSchema)),
+	name: requiredText('Name'),
+	category: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	brand: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	model: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	serial: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	installedOn: v.optional(v.nullable(isoDate)),
+	warrantyUntil: v.optional(v.nullable(isoDate)),
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	active: v.optional(v.boolean(), true)
+});
+export const equipmentUpdate = v.object({
+	id: idSchema,
+	...v.partial(v.omit(equipmentInput, ['customerId'])).entries
+});
+
 export const agreementPlanInput = v.object({
 	name: requiredText('Name'),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
@@ -151,6 +169,7 @@ export const jobInput = v.object({
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	customerId: idSchema,
 	serviceLocationId: v.optional(v.nullable(idSchema)),
+	equipmentId: v.optional(v.nullable(idSchema)),
 	officeId: v.optional(v.nullable(idSchema)),
 	technicianId: v.optional(v.nullable(idSchema)),
 	summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)), ''),
@@ -163,6 +182,7 @@ export const jobUpdate = v.object({
 	id: idSchema,
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	serviceLocationId: v.optional(v.nullable(idSchema)),
+	equipmentId: v.optional(v.nullable(idSchema)),
 	officeId: v.optional(v.nullable(idSchema)),
 	technicianId: v.optional(v.nullable(idSchema)),
 	summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),

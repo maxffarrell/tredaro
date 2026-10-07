@@ -4,6 +4,7 @@ import { db } from '#lib/server/db/index.ts';
 import {
 	charge,
 	customer,
+	equipment,
 	job,
 	jobEvent,
 	jobTimeEntry,
@@ -77,6 +78,7 @@ const jobSelect = {
 	customerName: customer.name,
 	companyName: customer.companyName,
 	technicianName: user.name,
+	equipmentName: equipment.name,
 	locationLabel: serviceLocation.label,
 	address1: serviceLocation.address1,
 	city: serviceLocation.city,
@@ -99,6 +101,7 @@ export async function listJobs(
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
+		.leftJoin(equipment, eq(job.equipmentId, equipment.id))
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(
@@ -126,6 +129,7 @@ export async function getJob(orgId: string, id: string) {
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
+		.leftJoin(equipment, eq(job.equipmentId, equipment.id))
 		.leftJoin(office, eq(job.officeId, office.id))
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
@@ -188,6 +192,7 @@ export async function createJob(
 			serviceLocationId: input.serviceLocationId ?? null,
 			officeId: input.officeId ?? jt?.officeId ?? null,
 			technicianId: input.technicianId ?? jt?.technicianId ?? null,
+			equipmentId: input.equipmentId ?? null,
 			summary: input.summary || jt?.name || '',
 			description: input.description,
 			priority: input.priority,
@@ -260,6 +265,7 @@ export async function updateJob(
 		.set({
 			jobTypeId: set.jobTypeId,
 			serviceLocationId: set.serviceLocationId,
+			equipmentId: set.equipmentId,
 			officeId: set.officeId,
 			technicianId: set.technicianId,
 			summary: set.summary,

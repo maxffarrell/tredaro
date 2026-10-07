@@ -22,6 +22,13 @@
       "when": 1791349359282,
       "tag": "0002_agreement_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791381802827,
+      "tag": "0003_equipment",
+      "breakpoints": true
     }
   ]
 }

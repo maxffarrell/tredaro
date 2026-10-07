@@ -10,6 +10,7 @@
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { toast } from 'svelte-sonner';
@@ -18,6 +19,8 @@
 		updateCustomer,
 		addServiceLocation,
 		updateServiceLocation,
+		createEquipment,
+		updateEquipment,
 		getPortalInvite
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment } from '#lib/remote/billing.remote.ts';
@@ -26,6 +29,7 @@
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import MapPin from '@lucide/svelte/icons/map-pin';
+	import AirVent from '@lucide/svelte/icons/air-vent';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Wrench from '@lucide/svelte/icons/wrench';
 
@@ -95,6 +99,67 @@
 			toast.error(errMsg(err, 'Could not save location'));
 		}
 		locPending = false;
+	}
+
+	// ------- equipment -------
+	let eqOpen = $state(false);
+	let eqPending = $state(false);
+	let eqId = $state<string | null>(null);
+	let eqName = $state('');
+	let eqLocationId = $state('');
+	let eqCategory = $state('');
+	let eqBrand = $state('');
+	let eqModel = $state('');
+	let eqSerial = $state('');
+	let eqInstalled = $state('');
+	let eqWarranty = $state('');
+	let eqNotes = $state('');
+	let eqActive = $state(true);
+
+	function openEquipment(e?: (typeof c.equipment)[number]) {
+		eqId = e?.equipment.id ?? null;
+		eqName = e?.equipment.name ?? '';
+		eqLocationId = e?.equipment.serviceLocationId ?? '';
+		eqCategory = e?.equipment.category ?? '';
+		eqBrand = e?.equipment.brand ?? '';
+		eqModel = e?.equipment.model ?? '';
+		eqSerial = e?.equipment.serial ?? '';
+		eqInstalled = e?.equipment.installedOn ?? '';
+		eqWarranty = e?.equipment.warrantyUntil ?? '';
+		eqNotes = e?.equipment.notes ?? '';
+		eqActive = e?.equipment.active ?? true;
+		eqOpen = true;
+	}
+
+	const today = new Date().toISOString().slice(0, 10);
+	const eqExpired = (warranty: string | null) => !!warranty && warranty < today;
+
+	async function saveEquipment(e: SubmitEvent) {
+		e.preventDefault();
+		eqPending = true;
+		try {
+			const eq = {
+				serviceLocationId: eqLocationId || null,
+				name: eqName,
+				category: eqCategory,
+				brand: eqBrand,
+				model: eqModel,
+				serial: eqSerial,
+				installedOn: eqInstalled || null,
+				warrantyUntil: eqWarranty || null,
+				notes: eqNotes
+			};
+			if (eqId) {
+				await updateEquipment({ id: eqId, ...eq, active: eqActive });
+			} else {
+				await createEquipment({ customerId: id, ...eq });
+			}
+			toast.success('Equipment saved');
+			eqOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save equipment'));
+		}
+		eqPending = false;
 	}
 
 	// ------- portal link -------
@@ -224,6 +289,56 @@
 					</button>
 				{:else}
 					<p class="py-3 text-sm text-muted-foreground">No service locations yet.</p>
+				{/each}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base">Equipment</Card.Title>
+				<Button size="sm" variant="outline" onclick={() => openEquipment()}>
+					<AirVent /> Add
+				</Button>
+			</Card.Header>
+			<Card.Content class="space-y-2 px-4">
+				{#each c.equipment as e (e.equipment.id)}
+					<button
+						class="w-full rounded-lg border p-3 text-left text-sm transition-colors hover:bg-accent {e
+							.equipment.active
+							? ''
+							: 'opacity-60'}"
+						onclick={() => openEquipment(e)}
+					>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-medium">{e.equipment.name}</span>
+							{#if !e.equipment.active}
+								<StatusBadge status="inactive" label="retired" />
+							{:else if eqExpired(e.equipment.warrantyUntil)}
+								<StatusBadge status="expired" label="warranty expired" />
+							{:else if e.equipment.warrantyUntil}
+								<StatusBadge status="active" label="in warranty" />
+							{/if}
+						</div>
+						<p class="mt-1 text-xs text-muted-foreground">
+							{[e.equipment.category, e.equipment.brand, e.equipment.model]
+								.filter(Boolean)
+								.join(' · ') || 'Equipment'}
+							{#if e.locationLabel || e.locationAddress}
+								— {e.locationLabel || e.locationAddress}
+							{/if}
+						</p>
+						{#if e.equipment.serial || e.lastService}
+							<p class="mt-0.5 text-xs text-muted-foreground">
+								{#if e.equipment.serial}S/N {e.equipment.serial}{/if}
+								{#if e.equipment.serial && e.lastService}
+									·
+								{/if}
+								{#if e.lastService}last serviced {formatDate(e.lastService)}{/if}
+							</p>
+						{/if}
+					</button>
+				{:else}
+					<p class="py-3 text-sm text-muted-foreground">No equipment on file.</p>
 				{/each}
 			</Card.Content>
 		</Card.Root>
@@ -414,6 +529,86 @@
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={locPending}>{locPending ? 'Saving…' : 'Save'}</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- equipment dialog -->
+<Dialog.Root bind:open={eqOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>{eqId ? 'Edit' : 'Add'} equipment</Dialog.Title>
+			<Dialog.Description
+				>Installed equipment at a site — jobs can link to it for service history.</Dialog.Description
+			>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={saveEquipment}>
+			<Field.Field>
+				<Field.Label for="eq-name">Name</Field.Label>
+				<Input id="eq-name" required bind:value={eqName} placeholder="Upstairs AC, Water heater…" />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label>Location</Field.Label>
+				<Select.Root type="single" bind:value={eqLocationId}>
+					<Select.Trigger class="w-full"
+						>{c.locations.find((l) => l.id === eqLocationId)
+							? `${c.locations.find((l) => l.id === eqLocationId)!.label ? `${c.locations.find((l) => l.id === eqLocationId)!.label} — ` : ''}${c.locations.find((l) => l.id === eqLocationId)!.address1}`
+							: 'Customer-wide'}</Select.Trigger
+					>
+					<Select.Content>
+						{#each c.locations as l (l.id)}
+							<Select.Item value={l.id}
+								>{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}</Select.Item
+							>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="eq-cat">Category</Field.Label>
+					<Input id="eq-cat" bind:value={eqCategory} placeholder="HVAC, Plumbing…" />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="eq-brand">Brand</Field.Label>
+					<Input id="eq-brand" bind:value={eqBrand} placeholder="Carrier, Rheem…" />
+				</Field.Field>
+			</div>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="eq-model">Model</Field.Label>
+					<Input id="eq-model" bind:value={eqModel} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="eq-serial">Serial #</Field.Label>
+					<Input id="eq-serial" bind:value={eqSerial} />
+				</Field.Field>
+			</div>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="eq-inst">Installed</Field.Label>
+					<Input id="eq-inst" type="date" bind:value={eqInstalled} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="eq-war">Warranty until</Field.Label>
+					<Input id="eq-war" type="date" bind:value={eqWarranty} />
+				</Field.Field>
+			</div>
+			<Field.Field>
+				<Field.Label for="eq-notes">Notes</Field.Label>
+				<Textarea id="eq-notes" rows={2} bind:value={eqNotes} />
+			</Field.Field>
+			{#if eqId}
+				<div class="flex items-center gap-2 text-sm">
+					<Switch bind:checked={eqActive} id="eq-active" />
+					<Field.Label for="eq-active" class="font-normal"
+						>{eqActive ? 'Active' : 'Retired — hidden from job pickers'}</Field.Label
+					>
+				</div>
+			{/if}
+			<Dialog.Footer>
+				<Button type="submit" disabled={eqPending}>{eqPending ? 'Saving…' : 'Save'}</Button>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>
