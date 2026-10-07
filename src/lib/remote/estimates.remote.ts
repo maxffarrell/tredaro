@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { command, query } from '$app/server';
+import { refreshQuery } from './_refresh.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/estimates.ts';
 import { notifyEstimateSent } from '#lib/server/services/notifications.ts';
@@ -15,14 +16,14 @@ export const getEstimate = query(idSchema, async (id) =>
 );
 export const createEstimate = command(estimateInput, async (input) => {
 	const e = await svc.createEstimate(await requireOrg(), input);
-	void getEstimates().refresh();
+	refreshQuery(getEstimates, undefined);
 	void getCustomer(input.customerId).refresh();
 	return e;
 });
 export const updateEstimate = command(estimateUpdate, async (input) => {
 	const e = await svc.updateEstimate(await requireOrg(), input);
-	void getEstimate(e!.id).refresh();
-	void getEstimates().refresh();
+	refreshQuery(getEstimate, e!.id);
+	refreshQuery(getEstimates, undefined);
 	return e;
 });
 
@@ -33,7 +34,7 @@ export const sendEstimate = command(idSchema, async (id) => {
 	void notifyEstimateSent(ctx.orgId, id).catch((err) =>
 		console.error('estimate email failed', err)
 	);
-	void getEstimate(id).refresh();
-	void getEstimates().refresh();
+	refreshQuery(getEstimate, id);
+	refreshQuery(getEstimates, undefined);
 	return r;
 });

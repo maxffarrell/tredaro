@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { command, query } from '$app/server';
+import { refreshQuery } from './_refresh.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/customers.ts';
 import { portalToken } from '#lib/server/services/portal.ts';
@@ -24,24 +25,24 @@ export const getCustomer = query(idSchema, async (id) =>
 );
 export const createCustomer = command(customerInput, async (input) => {
 	const c = await svc.createCustomer(await requireOrg(), input);
-	void getCustomers().refresh();
+	refreshQuery(getCustomers, undefined);
 	return c;
 });
 export const importCustomers = command(customerImportInput, async (rows) => {
 	const r = await svc.importCustomers(await requireOrg(), rows);
-	void getCustomers().refresh();
+	refreshQuery(getCustomers, undefined);
 	return r;
 });
 export const updateCustomer = command(customerUpdate, async (input) => {
 	const c = await svc.updateCustomer(await requireOrg(), input);
-	void getCustomer(c!.id).refresh();
-	void getCustomers().refresh();
+	refreshQuery(getCustomer, c!.id);
+	refreshQuery(getCustomers, undefined);
 	return c;
 });
 
 export const addServiceLocation = command(serviceLocationInput, async (input) => {
 	const l = await svc.addServiceLocation(await requireOrg(), input);
-	void getCustomer(input.customerId).refresh();
+	refreshQuery(getCustomer, input.customerId);
 	return l;
 });
 export const updateServiceLocation = command(serviceLocationUpdate, async (input) => {
@@ -51,12 +52,12 @@ export const updateServiceLocation = command(serviceLocationUpdate, async (input
 
 export const createEquipment = command(equipmentInput, async (input) => {
 	const e = await svc.createEquipment(await requireOrg(), input);
-	void getCustomer(input.customerId).refresh();
+	refreshQuery(getCustomer, input.customerId);
 	return e;
 });
 export const updateEquipment = command(equipmentUpdate, async (input) => {
 	const e = await svc.updateEquipment(await requireOrg(), input);
-	if (e) void getCustomer(e.customerId).refresh();
+	if (e) refreshQuery(getCustomer, e.customerId);
 	return e;
 });
 

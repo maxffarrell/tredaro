@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { command, query } from '$app/server';
+import { refreshQuery } from './_refresh.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/jobs.ts';
 import { notifyJobScheduled } from '#lib/server/services/notifications.ts';
@@ -23,16 +24,16 @@ const tz = async () => {
 export const getJobTypes = query(async () => svc.listJobTypes((await requireOrg()).orgId));
 export const createJobType = command(jobTypeInput, async (input) => {
 	const t = await svc.createJobType(await requireOrg('admin'), input);
-	void getJobTypes().refresh();
+	refreshQuery(getJobTypes, undefined);
 	return t;
 });
 export const updateJobType = command(jobTypeUpdate, async (input) => {
 	const t = await svc.updateJobType(await requireOrg('admin'), input);
-	void getJobTypes().refresh();
+	refreshQuery(getJobTypes, undefined);
 	return t;
 });
 
-/** Jobs within `[from, to]` ISO dates; defaults to the next 14 days. */
+/** Jobs within `[from, to]` ISO dates; no date filter when omitted (includes unscheduled). */
 export const getJobs = query(
 	v.optional(
 		v.object({
@@ -44,13 +45,9 @@ export const getJobs = query(
 	),
 	async (opts) => {
 		const { orgId } = await requireOrg();
-		const from = opts?.from ? new Date(`${opts.from}T00:00:00Z`) : new Date();
-		const to = opts?.to
-			? new Date(`${opts.to}T00:00:00Z`)
-			: new Date(from.getTime() + 14 * 86400_000);
 		return svc.listJobs(orgId, {
-			from,
-			to,
+			from: opts?.from ? new Date(`${opts.from}T00:00:00Z`) : undefined,
+			to: opts?.to ? new Date(`${opts.to}T00:00:00Z`) : undefined,
 			status: opts?.status,
 			technicianId: opts?.technicianId
 		});
@@ -80,8 +77,8 @@ export const createJob = command(jobInput, async (input) => {
 		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
 			console.error('job scheduled email failed', err)
 		);
-	void getJobs().refresh();
-	void getDispatchBoard().refresh();
+	refreshQuery(getJobs, undefined);
+	refreshQuery(getDispatchBoard, undefined);
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
@@ -93,18 +90,18 @@ export const updateJob = command(jobUpdate, async (input) => {
 		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
 			console.error('job scheduled email failed', err)
 		);
-	void getJobs().refresh();
-	void getDispatchBoard().refresh();
-	void getJob(j!.id).refresh();
+	refreshQuery(getJobs, undefined);
+	refreshQuery(getDispatchBoard, undefined);
+	refreshQuery(getJob, j!.id);
 	void getCustomer(j!.customerId).refresh();
 	return j;
 });
 export const recordJobEvent = command(jobEventInput, async (input) => {
 	const e = await svc.recordJobEvent(await requireOrg(), input);
-	void getJobs().refresh();
-	void getDispatchBoard().refresh();
-	void getJob(input.jobId).refresh();
-	void getTimeEntries(input.jobId).refresh();
+	refreshQuery(getJobs, undefined);
+	refreshQuery(getDispatchBoard, undefined);
+	refreshQuery(getJob, input.jobId);
+	refreshQuery(getTimeEntries, input.jobId);
 	return e;
 });
 
@@ -116,19 +113,19 @@ export const getTimeEntries = query(idSchema, async (jobId) =>
 
 export const startTimer = command(idSchema, async (jobId) => {
 	const t = await svc.startTimer(await requireOrg(), jobId);
-	void getTimeEntries(jobId).refresh();
+	refreshQuery(getTimeEntries, jobId);
 	return t;
 });
 
 export const stopTimer = command(idSchema, async (jobId) => {
 	const t = await svc.stopTimer(await requireOrg(), jobId);
-	void getTimeEntries(jobId).refresh();
+	refreshQuery(getTimeEntries, jobId);
 	return t;
 });
 
 export const addTimeEntry = command(timeEntryInput, async (input) => {
 	const t = await svc.addTimeEntry(await requireOrg(), await tz(), input);
-	void getTimeEntries(input.jobId).refresh();
+	refreshQuery(getTimeEntries, input.jobId);
 	return t;
 });
 
@@ -136,6 +133,6 @@ export const deleteTimeEntry = command(
 	v.object({ id: idSchema, jobId: idSchema }),
 	async ({ id, jobId }) => {
 		await svc.deleteTimeEntry(await requireOrg(), id);
-		void getTimeEntries(jobId).refresh();
+		refreshQuery(getTimeEntries, jobId);
 	}
 );

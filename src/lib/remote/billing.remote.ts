@@ -1,5 +1,7 @@
 import * as v from 'valibot';
 import { command, query } from '$app/server';
+import { refreshQuery } from './_refresh.ts';
+import { getDashboard } from './workspace.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/billing.ts';
 import { notifyInvoiceSent } from '#lib/server/services/notifications.ts';
@@ -23,12 +25,12 @@ import {
 export const getPlans = query(async () => svc.listPlans((await requireOrg()).orgId));
 export const createPlan = command(agreementPlanInput, async (input) => {
 	const p = await svc.createPlan(await requireOrg('admin'), input);
-	void getPlans().refresh();
+	refreshQuery(getPlans, undefined);
 	return p;
 });
 export const updatePlan = command(agreementPlanUpdate, async (input) => {
 	const p = await svc.updatePlan(await requireOrg('admin'), input);
-	void getPlans().refresh();
+	refreshQuery(getPlans, undefined);
 	return p;
 });
 
@@ -41,14 +43,15 @@ export const getAgreement = query(idSchema, async (id) =>
 );
 export const createAgreement = command(agreementInput, async (input) => {
 	const a = await svc.createAgreement(await requireOrg(), input);
-	void getAgreements().refresh();
-	void getCharges().refresh();
+	refreshQuery(getAgreements, undefined);
+	refreshQuery(getCharges, undefined);
 	void getCustomer(input.customerId).refresh();
 	return a;
 });
 export const updateAgreement = command(agreementUpdate, async (input) => {
 	const a = await svc.updateAgreement(await requireOrg(), input);
-	void getAgreements().refresh();
+	refreshQuery(getAgreements, undefined);
+	refreshQuery(getAgreement, input.id);
 	void getCustomer(a.customerId).refresh();
 	return a;
 });
@@ -59,12 +62,12 @@ export const getPricebook = query(
 );
 export const createPricebookItem = command(pricebookItemInput, async (input) => {
 	const i = await svc.createPricebookItem(await requireOrg(), input);
-	void getPricebook().refresh();
+	refreshQuery(getPricebook, undefined);
 	return i;
 });
 export const updatePricebookItem = command(pricebookItemUpdate, async (input) => {
 	const i = await svc.updatePricebookItem(await requireOrg(), input);
-	void getPricebook().refresh();
+	refreshQuery(getPricebook, undefined);
 	return i;
 });
 
@@ -81,16 +84,19 @@ export const getInvoicePrefill = query(idSchema, async (jobId) =>
 );
 export const createInvoice = command(invoiceInput, async (input) => {
 	const inv = await svc.createInvoice(await requireOrg(), input);
-	void getInvoices().refresh();
-	void getCharges().refresh();
+	refreshQuery(getInvoices, undefined);
+	refreshQuery(getCharges, undefined);
+	refreshQuery(getPayments, undefined);
+	refreshQuery(getDashboard, undefined);
 	void getCustomer(input.customerId).refresh();
 	return inv;
 });
 export const updateInvoice = command(invoiceUpdate, async (input) => {
 	const inv = await svc.updateInvoice(await requireOrg(), input);
-	void getInvoices().refresh();
-	void getInvoice(inv!.id).refresh();
-	void getCharges().refresh();
+	refreshQuery(getInvoices, undefined);
+	refreshQuery(getInvoice, inv!.id);
+	refreshQuery(getCharges, undefined);
+	refreshQuery(getDashboard, undefined);
 	return inv;
 });
 
@@ -109,13 +115,15 @@ export const getCharges = query(
 );
 export const addCharge = command(chargeInput, async (input) => {
 	const c = await svc.addCharge(await requireOrg(), input);
-	void getCharges().refresh();
+	refreshQuery(getCharges, undefined);
+	refreshQuery(getDashboard, undefined);
 	void getCustomer(input.customerId).refresh();
 	return c;
 });
 export const updateCharge = command(chargeUpdate, async (input) => {
 	const c = await svc.updateCharge(await requireOrg(), input);
-	void getCharges().refresh();
+	refreshQuery(getCharges, undefined);
+	refreshQuery(getDashboard, undefined);
 	void getCustomer(c.customerId).refresh();
 	return c;
 });
@@ -123,8 +131,10 @@ export const updateCharge = command(chargeUpdate, async (input) => {
 export const getPayments = query(async () => svc.listPayments((await requireOrg()).orgId));
 export const recordPayment = command(paymentInput, async (input) => {
 	const p = await svc.recordPayment(await requireOrg(), input);
-	void getPayments().refresh();
-	void getCharges().refresh();
+	refreshQuery(getPayments, undefined);
+	refreshQuery(getCharges, undefined);
+	refreshQuery(getInvoices, undefined);
+	refreshQuery(getDashboard, undefined);
 	void getCustomer(input.customerId).refresh();
 	return p;
 });
