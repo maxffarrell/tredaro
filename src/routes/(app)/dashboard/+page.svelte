@@ -126,7 +126,7 @@
 										></span>
 										<span class="min-w-0 flex-1">
 											<span class="block truncate">{a.text}</span>
-											<span class="block text-xs text-muted-foreground">{a.sub}</span>
+											<span class="block truncate text-xs text-muted-foreground">{a.sub}</span>
 										</span>
 										{#if a.amountCents != null}
 											<span class="shrink-0 text-xs font-medium"

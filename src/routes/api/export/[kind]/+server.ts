@@ -66,7 +66,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				row([
 					`INV-${r.number}`,
 					r.customerName,
-					r.status,
+					// invoice.status stays 'open' in the DB even when fully paid — derive it like the UI badge.
+					r.status === 'open' && r.total - r.paid <= 0 ? 'paid' : r.status,
 					r.issuedAt.toISOString().slice(0, 10),
 					r.dueDate,
 					money(r.total),
