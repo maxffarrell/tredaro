@@ -24,7 +24,7 @@ Customers, service locations, dispatch board, estimates, invoices, service agree
 - **Public booking page** (`/book/[company]`): company info, agreement plans, anti-spam service-request form that lands in the unscheduled queue
 - **Command palette** (<kbd>⌘K</kbd>), `g d`/`g p`/`g j`/`g c`/`g e`/`g b`/`g a`/`g k`/`g r`/`g t` nav shortcuts
 - **REST API + API keys** (`td_`), signed **webhooks** (`x-tredaro-signature`), and an MIT **SDK** in `packages/sdk`
-- **Enterprise** (Cloud or `TREDARO_ENTERPRISE_KEY`): SAML & OIDC single sign-on, passkeys
+- **Enterprise** (Cloud or `TREDARO_ENTERPRISE_KEY`): SAML & OIDC single sign-on, passkeys, and AI features (BYOK — set `TREDARO_AI_API_KEY`/`TREDARO_AI_MODEL`, optionally `TREDARO_AI_BASE_URL`, to any OpenAI-compatible endpoint). First feature: AI-suggested invoice line items drafted from the job's notes and your pricebook
 
 Out of scope by design: payroll, inventory and fleet tracking. Webhooks + the REST API are the integration surface.
 
@@ -71,4 +71,4 @@ Webhooks (Settings → Webhooks) are signed with HMAC-SHA256 in `x-tredaro-signa
 
 ## License
 
-AGPLv3 for the core. `ee/`/`src/lib/server/ee/` under the Tredaro Enterprise License (SAML/OIDC SSO, passkeys — free with `TREDARO_ENTERPRISE_KEY` or on Tredaro Cloud). `packages/sdk` is MIT.
+AGPLv3 for the core. `ee/`/`src/lib/server/ee/` under the Tredaro Enterprise License (SAML/OIDC SSO, passkeys, AI — free with `TREDARO_ENTERPRISE_KEY` or on Tredaro Cloud). `packages/sdk` is MIT.

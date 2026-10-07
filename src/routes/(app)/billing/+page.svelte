@@ -28,15 +28,19 @@
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getJobs } from '#lib/remote/jobs.remote.ts';
+	import { getAiStatus, aiInvoiceSuggestions } from '#lib/remote/ai.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Ban from '@lucide/svelte/icons/ban';
 	import Send from '@lucide/svelte/icons/send';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
 
 	const currency = await getCurrency();
 	const customers = await getCustomers();
 	const jobs = await getJobs();
+	const ai = await getAiStatus();
 	const doneJobs = $derived(jobs.filter((j) => j.job.status === 'done'));
 
 	let tab = $state<'invoices' | 'charges' | 'payments'>(
@@ -61,6 +65,23 @@
 	async function openInvoice() {
 		invoiceOpen = true;
 		invItems = [{ name: '', qty: 1, unitPrice: 0 }];
+	}
+
+	let aiLoading = $state(false);
+	async function suggestItems() {
+		if (!invJobId || aiLoading) return;
+		aiLoading = true;
+		try {
+			const { items } = await aiInvoiceSuggestions(invJobId);
+			if (!items.length) toast('No suggestions — the job may need more notes');
+			else {
+				invItems = [...invItems.filter((i) => i.name.trim()), ...items];
+				toast.success(`${items.length} item${items.length === 1 ? '' : 's'} suggested`);
+			}
+		} catch (err) {
+			toast.error(errMsg(err, 'AI suggestion failed'));
+		}
+		aiLoading = false;
 	}
 
 	async function prefill(jobId: string) {
@@ -458,7 +479,21 @@
 				</Field.Field>
 			</div>
 			<div class="space-y-2">
-				<p class="text-sm font-medium">Items</p>
+				<div class="flex items-center justify-between">
+					<p class="text-sm font-medium">Items</p>
+					{#if ai.available && invJobId}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							disabled={aiLoading}
+							onclick={suggestItems}
+						>
+							{#if aiLoading}<Spinner class="size-3.5" />{:else}<Sparkles />{/if}
+							Suggest items
+						</Button>
+					{/if}
+				</div>
 				{#each invItems as item, i (i)}
 					<div class="grid grid-cols-[1fr_70px_120px_32px] items-center gap-2">
 						<Input placeholder="Description" bind:value={item.name} />

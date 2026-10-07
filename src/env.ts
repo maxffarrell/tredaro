@@ -51,5 +51,18 @@ export const variables = defineEnvVars({
 		description:
 			'Set to `true` on Tredaro Cloud. Enables enterprise features and cloud-only behaviour.',
 		schema: (value) => value === 'true'
+	},
+	TREDARO_AI_BASE_URL: {
+		description:
+			'OpenAI-compatible API base for enterprise AI features, e.g. `https://api.openai.com/v1` or a self-hosted gateway. Defaults to OpenAI.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_AI_API_KEY: {
+		description: 'API key for the configured AI endpoint. Bring-your-own-key — no key is bundled.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_AI_MODEL: {
+		description: 'Chat model name the endpoint should run, e.g. `gpt-5-mini`.',
+		schema: (value) => value || undefined
 	}
 });

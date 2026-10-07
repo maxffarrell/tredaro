@@ -1,0 +1,67 @@
+/* @license Enterprise */
+
+import { error } from '@sveltejs/kit';
+import { aiAvailable, aiChat, aiModel } from './ai.ts';
+import { parseSuggestedItems, type SuggestedItem } from './ai-parse.ts';
+import { getJob } from '../services/jobs.ts';
+import { listPricebook } from '../services/billing.ts';
+import { getSettings } from '../services/settings.ts';
+
+/**
+ * Drafts invoice line items for a completed job. The model sees the job summary,
+ * description and technician notes plus the org's flat-rate pricebook, and is
+ * asked to price work from the catalog where it applies.
+ */
+export async function suggestInvoiceItems(
+	orgId: string,
+	jobId: string
+): Promise<{ items: SuggestedItem[]; model: string }> {
+	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+
+	const j = await getJob(orgId, jobId);
+	const [catalog, settings] = await Promise.all([listPricebook(orgId), getSettings(orgId)]);
+
+	const notes = j.events
+		.filter((e) => e.event.note)
+		.slice(-12)
+		.map((e) => `${e.event.kind}: ${e.event.note}`);
+
+	const system = [
+		'You draft invoice line items for a field service company.',
+		'Reply with ONLY JSON: {"items":[{"name":string,"qty":number,"unitPriceCents":number}]}.',
+		'Rules: prefer pricebook names and prices when an item matches the work; qty is whole units',
+		'(bill labor in hours when the catalog prices labor hourly); unitPriceCents is an integer in',
+		'the smallest currency unit; at most 8 items; no markup explanations; if nothing applies,',
+		'return {"items":[]}.'
+	].join(' ');
+
+	const user = JSON.stringify({
+		job: {
+			type: j.jobTypeName,
+			summary: j.job.summary,
+			description: j.job.description,
+			equipment: j.equipmentName,
+			technicianNotes: notes
+		},
+		pricebook: catalog
+			.filter((i) => i.active)
+			.slice(0, 60)
+			.map((i) => ({
+				name: i.name,
+				category: i.category,
+				kind: i.kind,
+				priceCents: i.price,
+				durationMin: i.durationMin
+			})),
+		currency: settings.currency
+	});
+
+	const text = await aiChat(
+		[
+			{ role: 'system', content: system },
+			{ role: 'user', content: user }
+		],
+		{ maxTokens: 800 }
+	);
+	return { items: parseSuggestedItems(text), model: aiModel() };
+}

@@ -2,7 +2,7 @@
 
 import { TREDARO_CLOUD, TREDARO_ENTERPRISE_KEY } from '$app/env/private';
 
-export type EnterpriseFeature = 'sso' | 'passkeys';
+export type EnterpriseFeature = 'sso' | 'passkeys' | 'ai';
 
 /**
  * Enterprise features are enabled on Tredaro Cloud, or on self-hosted installs
