@@ -101,6 +101,8 @@ export const customer = pgTable(
 		phone: text('phone'),
 		status: customerStatus('status').notNull().default('active'),
 		notes: text('notes'),
+		/** Freeform labels for filtering/segmenting ("VIP", "Property manager"). */
+		tags: text('tags').array(),
 		since: date('since', { mode: 'string' }),
 		...timestamps
 	},
@@ -257,6 +259,8 @@ export const jobType = pgTable(
 		defaultAmount: integer('default_amount'),
 		/** Staff member (org `member` row) jobs default to. */
 		technicianId: text('technician_id').references(() => member.id, { onDelete: 'set null' }),
+		/** Checklist labels copied onto each new job of this type. */
+		checklist: text('checklist').array(),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -670,4 +674,22 @@ export const jobMaterial = pgTable(
 		index('job_material_job_idx').on(t.jobId),
 		index('job_material_item_idx').on(t.organizationId, t.inventoryItemId)
 	]
+);
+
+/** A to-do line on a job — seeded from the job type's checklist or added ad hoc. */
+export const jobChecklistItem = pgTable(
+	'job_checklist_item',
+	{
+		id: id(),
+		organizationId: orgId(),
+		jobId: text('job_id')
+			.notNull()
+			.references(() => job.id, { onDelete: 'cascade' }),
+		label: text('label').notNull(),
+		done: boolean('done').notNull().default(false),
+		doneAt: timestamp('done_at', { withTimezone: true }),
+		sort: integer('sort').notNull().default(0),
+		...timestamps
+	},
+	(t) => [index('job_checklist_job_idx').on(t.jobId, t.sort)]
 );

@@ -271,6 +271,45 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 	});
 }
 
+/** "Invoice INV-n is past due" — at 3 and 10 days overdue, deduped per stage. */
+export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, stage: number) {
+	const [row] = await db
+		.select({
+			email: customer.email,
+			customerName: customer.name,
+			number: invoice.number,
+			dueDate: invoice.dueDate,
+			status: invoice.status,
+			total:
+				sql`coalesce((select sum(i.qty * i.unit_price) from invoice_item i where i.invoice_id = ${invoice.id}), 0)`.mapWith(
+					Number
+				),
+			paid: sql`coalesce((select sum(p.amount) from payment p join charge c on p.charge_id = c.id where c.invoice_id = ${invoice.id}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(invoice)
+		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.where(eq(invoice.id, invoiceId));
+	const balance = row ? row.total - row.paid : 0;
+	if (!row?.email || row.status !== 'open' || balance <= 0) return;
+	if (!(await logOnce(orgId, `invoice_overdue_${stage}`, invoiceId, row.email))) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: row.email,
+		subject: `Invoice INV-${row.number} is past due — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Friendly reminder, ${row.customerName}`,
+			lines: [
+				`Invoice INV-${row.number} for ${formatMoney(balance)} was due ${row.dueDate} and is still open.`,
+				'You can pay it online in a couple of minutes.'
+			],
+			action: { label: 'Pay invoice', url: invoiceUrl(invoiceId) }
+		})
+	});
+}
+
 /** Daily cron work: appointment reminders, stale-estimate follow-ups, staff schedule digests. */
 export async function runReminders(orgId: string) {
 	const now = new Date();
@@ -299,6 +338,26 @@ export async function runReminders(orgId: string) {
 			)
 		);
 	for (const e of stale) await notifyEstimateFollowup(orgId, e.id);
+
+	// Overdue-invoice reminders at 3 and 10 days past due.
+	const todayIso = now.toISOString().slice(0, 10);
+	const overdue = await db
+		.select({ id: invoice.id, dueDate: invoice.dueDate })
+		.from(invoice)
+		.where(
+			and(
+				eq(invoice.organizationId, orgId),
+				eq(invoice.status, 'open'),
+				lt(invoice.dueDate, todayIso)
+			)
+		);
+	for (const inv of overdue) {
+		const daysPast = Math.floor(
+			(now.getTime() - new Date(`${inv.dueDate}T00:00:00Z`).getTime()) / 86400_000
+		);
+		const stage = daysPast >= 10 ? 10 : daysPast >= 3 ? 3 : 0;
+		if (stage) await notifyInvoiceOverdue(orgId, inv.id, stage);
+	}
 
 	// Morning digest: each technician's jobs starting today (org timezone).
 	const tz = await orgTimezone(orgId);

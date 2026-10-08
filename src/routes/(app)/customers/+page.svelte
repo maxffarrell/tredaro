@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -25,7 +26,14 @@
 
 	const currency = await getCurrency();
 	let q = $state('');
+	let tagFilter = $state('');
 	let customers = $state(await getCustomers());
+	const allTags = $derived(
+		[...new Set(customers.flatMap((c) => c.tags ?? []))].sort((a, b) => a.localeCompare(b))
+	);
+	const visible = $derived(
+		tagFilter ? customers.filter((c) => c.tags?.includes(tagFilter)) : customers
+	);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	function search() {
 		clearTimeout(timer);
@@ -132,14 +140,27 @@
 </PageHeader>
 
 <div class="space-y-4 p-4 md:p-6">
-	<div class="relative max-w-sm">
-		<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-		<Input
-			placeholder="Search name, company, email, phone…"
-			class="pl-9"
-			bind:value={q}
-			oninput={search}
-		/>
+	<div class="flex gap-2">
+		<div class="relative max-w-sm flex-1">
+			<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+			<Input
+				placeholder="Search name, company, email, phone…"
+				class="pl-9"
+				bind:value={q}
+				oninput={search}
+			/>
+		</div>
+		{#if allTags.length}
+			<Select.Root type="single" value={tagFilter} onValueChange={(v: string) => (tagFilter = v)}>
+				<Select.Trigger class="w-40">{tagFilter || 'All tags'}</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="">All tags</Select.Item>
+					{#each allTags as t (t)}
+						<Select.Item value={t}>{t}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
 	</div>
 
 	<Card.Root class="py-0">
@@ -155,13 +176,19 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each customers as c (c.id)}
+					{#each visible as c (c.id)}
 						<Table.Row class="cursor-pointer" onclick={() => goto(`/customers/${c.id}`)}>
 							<Table.Cell class="font-medium">
 								{c.name}
 								{#if c.companyName}<span class="text-muted-foreground">
 										· {c.companyName}</span
 									>{/if}
+								{#if c.tags?.length}
+									<span class="ml-1 inline-flex gap-1 align-middle">
+										{#each c.tags as t (t)}<Badge variant="secondary" class="font-normal">{t}</Badge
+											>{/each}
+									</span>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">
 								{c.email ?? c.phone ?? '—'}

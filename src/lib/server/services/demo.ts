@@ -190,7 +190,8 @@ export async function loadDemoData(ctx: OrgContext) {
 					.replace(/[^a-z]/gi, '')
 					.toLowerCase()}@example.com`,
 				phone: `(512) 555-01${String(10 + i)}`,
-				since: today.slice(0, 8) + String((i % 20) + 1).padStart(2, '0')
+				since: today.slice(0, 8) + String((i % 20) + 1).padStart(2, '0'),
+				tags: i === 0 ? ['VIP'] : i === 3 ? ['property manager', 'commercial'] : []
 			}))
 		)
 		.returning();

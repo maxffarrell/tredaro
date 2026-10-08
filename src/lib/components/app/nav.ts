@@ -10,6 +10,7 @@ import BookOpen from '@lucide/svelte/icons/book-open';
 import Package from '@lucide/svelte/icons/package';
 import Settings from '@lucide/svelte/icons/settings';
 import ChartColumn from '@lucide/svelte/icons/chart-column';
+import History from '@lucide/svelte/icons/history';
 
 /** `key` is the second key of the `g <key>` keyboard shortcut. */
 export const mainNav = [
@@ -23,7 +24,8 @@ export const mainNav = [
 	{ href: '/agreements', label: 'Agreements', icon: RefreshCw, key: 'a' },
 	{ href: '/pricebook', label: 'Pricebook', icon: BookOpen, key: 'k' },
 	{ href: '/inventory', label: 'Inventory', icon: Package, key: 'i' },
-	{ href: '/reports', label: 'Reports', icon: ChartColumn, key: 'r' }
+	{ href: '/reports', label: 'Reports', icon: ChartColumn, key: 'r' },
+	{ href: '/activity', label: 'Activity', icon: History, key: 'y' }
 ] as const;
 
 export const secondaryNav = [

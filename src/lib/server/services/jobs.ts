@@ -6,6 +6,7 @@ import {
 	customer,
 	equipment,
 	job,
+	jobChecklistItem,
 	jobEvent,
 	jobTimeEntry,
 	jobType,
@@ -52,6 +53,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			defaultAmount: input.defaultAmount ?? null,
 			officeId: input.officeId ?? null,
 			technicianId: input.technicianId ?? null,
+			checklist: input.checklist,
 			active: input.active
 		})
 		.returning();
@@ -210,7 +212,77 @@ export async function createJob(
 		action: 'created',
 		summary: `Job J-${number}: ${row!.summary || jt?.name || c.name}`
 	});
+	if (jt?.checklist?.length)
+		await db.insert(jobChecklistItem).values(
+			jt.checklist.map((label, i) => ({
+				organizationId: ctx.orgId,
+				jobId: row!.id,
+				label,
+				sort: i
+			}))
+		);
 	return row;
+}
+
+// ---------- checklists ----------
+
+export async function listChecklist(orgId: string, jobId: string) {
+	return db
+		.select()
+		.from(jobChecklistItem)
+		.where(and(eq(jobChecklistItem.organizationId, orgId), eq(jobChecklistItem.jobId, jobId)))
+		.orderBy(asc(jobChecklistItem.sort), asc(jobChecklistItem.createdAt));
+}
+
+export async function addChecklistItem(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.checklistItemInput>
+) {
+	const [j] = await db
+		.select({ id: job.id })
+		.from(job)
+		.where(and(eq(job.id, input.jobId), eq(job.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!j) error(404, 'Job not found');
+	const [max] = await db
+		.select({ n: sql<number>`coalesce(max(${jobChecklistItem.sort}), -1)`.mapWith(Number) })
+		.from(jobChecklistItem)
+		.where(eq(jobChecklistItem.jobId, input.jobId));
+	const [item] = await db
+		.insert(jobChecklistItem)
+		.values({
+			organizationId: ctx.orgId,
+			jobId: input.jobId,
+			label: input.label,
+			sort: max.n + 1
+		})
+		.returning();
+	return item;
+}
+
+export async function toggleChecklistItem(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.checklistToggleInput>
+) {
+	const [item] = await db
+		.update(jobChecklistItem)
+		.set({
+			done: input.done,
+			doneAt: input.done ? new Date() : null,
+			updatedAt: new Date()
+		})
+		.where(and(eq(jobChecklistItem.id, input.id), eq(jobChecklistItem.organizationId, ctx.orgId)))
+		.returning();
+	if (!item) error(404, 'Checklist item not found');
+	return item;
+}
+
+export async function deleteChecklistItem(ctx: OrgContext, id: string) {
+	const [item] = await db
+		.delete(jobChecklistItem)
+		.where(and(eq(jobChecklistItem.id, id), eq(jobChecklistItem.organizationId, ctx.orgId)))
+		.returning();
+	if (!item) error(404, 'Checklist item not found');
 }
 
 export async function updateJob(
@@ -564,3 +636,13 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 }
 
 export { addDays };
+
+/** Job id for a checklist item — used to refresh the right queries before delete. */
+export async function getChecklistJobId(orgId: string, id: string) {
+	const [row] = await db
+		.select({ jobId: jobChecklistItem.jobId })
+		.from(jobChecklistItem)
+		.where(and(eq(jobChecklistItem.id, id), eq(jobChecklistItem.organizationId, orgId)))
+		.limit(1);
+	return row?.jobId;
+}

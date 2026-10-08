@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -52,13 +53,27 @@
 	let phone = $state(c.customer.phone);
 	let notes = $state(c.customer.notes);
 	let status = $state(c.customer.status);
+	let tagsInput = $state((c.customer.tags ?? []).join(', '));
 	let saving = $state(false);
 
 	async function saveCustomer(e: SubmitEvent) {
 		e.preventDefault();
 		saving = true;
 		try {
-			await updateCustomer({ id, name, type, companyName, email, phone, notes, status });
+			await updateCustomer({
+				id,
+				name,
+				type,
+				companyName,
+				email,
+				phone,
+				notes,
+				status,
+				tags: tagsInput
+					.split(',')
+					.map((t) => t.trim())
+					.filter(Boolean)
+			});
 			toast.success('Customer saved');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
@@ -265,6 +280,13 @@
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Record</Card.Title></Card.Header>
 			<Card.Content>
+				{#if c.customer.tags?.length}
+					<div class="mb-3 flex flex-wrap gap-1">
+						{#each c.customer.tags as t (t)}
+							<Badge variant="secondary">{t}</Badge>
+						{/each}
+					</div>
+				{/if}
 				<form class="space-y-4" onsubmit={saveCustomer}>
 					<div class="grid grid-cols-2 gap-4">
 						<Field.Field>
@@ -309,6 +331,14 @@
 					<Field.Field>
 						<Field.Label for="cd-notes">Notes</Field.Label>
 						<Textarea id="cd-notes" rows={3} bind:value={notes} />
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="cd-tags">Tags</Field.Label>
+						<Input
+							id="cd-tags"
+							placeholder="VIP, property manager — comma-separated"
+							bind:value={tagsInput}
+						/>
 					</Field.Field>
 					<Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
 				</form>

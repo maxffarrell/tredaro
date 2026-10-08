@@ -11,7 +11,15 @@ import { getReports as reports } from '#lib/server/services/reports.ts';
 import { search } from '#lib/server/services/search.ts';
 import { loadDemoData } from '#lib/server/services/demo.ts';
 import * as settingsSvc from '#lib/server/services/settings.ts';
-import { idSchema, officeInput, officeUpdate, settingsInput, webhookInput } from '#lib/schemas.ts';
+import {
+	activityFilter,
+	idSchema,
+	officeInput,
+	officeUpdate,
+	settingsInput,
+	webhookInput
+} from '#lib/schemas.ts';
+import * as eventsSvc from '#lib/server/services/events.ts';
 import { assertNotDemo } from '#lib/server/demo-mode.ts';
 
 export const getDashboard = query(async () => dashboard((await requireOrg()).orgId));
@@ -113,3 +121,12 @@ export const seedDemo = command(async () => {
 	void getDashboard().refresh();
 	return result;
 });
+
+// ---------- activity feed ----------
+
+export const getActivity = query(activityFilter, async (filter) =>
+	eventsSvc.listActivity((await requireOrg()).orgId, filter.entityType || undefined)
+);
+export const getActivityTypes = query(async () =>
+	eventsSvc.listActivityTypes((await requireOrg()).orgId)
+);
