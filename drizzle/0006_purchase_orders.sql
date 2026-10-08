@@ -1,4 +1,7 @@
-CREATE TYPE "public"."po_status" AS ENUM('draft', 'ordered', 'received', 'cancelled');
+DO $$ BEGIN
+	CREATE TYPE "public"."po_status" AS ENUM('draft', 'ordered', 'received', 'cancelled');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "purchase_order" (
 	"id" text PRIMARY KEY NOT NULL,
