@@ -325,6 +325,13 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(inventoryItem.qtyOnHand))
 		.limit(4);
 
+	const outOfStock = await db
+		.select()
+		.from(inventoryItem)
+		.where(and(eq(inventoryItem.organizationId, orgId), eq(inventoryItem.qtyOnHand, 0)))
+		.orderBy(asc(inventoryItem.name))
+		.limit(4);
+
 	const staleUnscheduled = await db
 		.select({
 			id: job.id,
@@ -445,6 +452,13 @@ export async function dashboard(orgId: string) {
 				href: '/inventory',
 				text: `PO-${p.number} · ${p.supplier}`,
 				sub: `expected ${p.expectedOn} — still not received`,
+				amountCents: null as number | null
+			})),
+			...outOfStock.map((i) => ({
+				tone: 'red' as const,
+				href: '/inventory',
+				text: `Out of stock · ${i.name}`,
+				sub: `${i.sku || 'item'} — none on hand`,
 				amountCents: null as number | null
 			})),
 			...lowStock.map((i) => ({

@@ -628,4 +628,57 @@
 			</Table.Root>
 		</Card.Content>
 	</Card.Root>
+
+	<Card.Root>
+		<Card.Header
+			><Card.Title class="text-base">Completion rate — last 90 days</Card.Title></Card.Header
+		>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Outcome</Table.Head>
+						<Table.Head class="text-right">Jobs</Table.Head>
+						<Table.Head class="text-right">%</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					<Table.Row>
+						<Table.Cell class="font-medium">Completed</Table.Cell>
+						<Table.Cell class="text-right tabular-nums">{r.completion.done}</Table.Cell>
+						<Table.Cell class="text-right tabular-nums"
+							>{r.completion.total
+								? Math.round((r.completion.done / r.completion.total) * 100)
+								: 0}%</Table.Cell
+						>
+					</Table.Row>
+					<Table.Row>
+						<Table.Cell class="font-medium">Cancelled</Table.Cell>
+						<Table.Cell class="text-right tabular-nums">{r.completion.cancelled}</Table.Cell>
+						<Table.Cell class="text-right tabular-nums"
+							>{r.completion.total
+								? Math.round((r.completion.cancelled / r.completion.total) * 100)
+								: 0}%</Table.Cell
+						>
+					</Table.Row>
+					<Table.Row>
+						<Table.Cell class="font-medium">No-show</Table.Cell>
+						<Table.Cell class="text-right tabular-nums">{r.completion.noShow}</Table.Cell>
+						<Table.Cell class="text-right tabular-nums"
+							>{r.completion.total
+								? Math.round((r.completion.noShow / r.completion.total) * 100)
+								: 0}%</Table.Cell
+						>
+					</Table.Row>
+					<Table.Row>
+						<Table.Cell class="font-medium text-muted-foreground">All jobs</Table.Cell>
+						<Table.Cell class="text-right text-muted-foreground tabular-nums"
+							>{r.completion.total}</Table.Cell
+						>
+						<Table.Cell class="text-right text-muted-foreground tabular-nums">100%</Table.Cell>
+					</Table.Row>
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
 </div>

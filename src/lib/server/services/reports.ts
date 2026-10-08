@@ -307,6 +307,27 @@ async function techPerformance(orgId: string) {
 		.sort((a, b) => b.revenue - a.revenue || b.jobsDone - a.jobsDone);
 }
 
+async function completionStats(orgId: string) {
+	const [row] = await db
+		.select({
+			done: sql<number>`count(*) filter (where ${job.status} = 'done')`.mapWith(Number),
+			cancelled:
+				sql<number>`count(*) filter (where ${job.status} = 'cancelled' or ${job.cancelledAt} is not null)`.mapWith(
+					Number
+				),
+			total: sql<number>`count(*)`.mapWith(Number),
+			noShow:
+				sql<number>`count(*) filter (where ${job.status} = 'cancelled' and ${job.cancelReason} is not null and ${job.cancelReason} ilike '%no%show%')`.mapWith(
+					Number
+				)
+		})
+		.from(job)
+		.where(
+			and(eq(job.organizationId, orgId), gte(job.createdAt, new Date(Date.now() - 90 * 86400_000)))
+		);
+	return row;
+}
+
 export async function getReports(orgId: string) {
 	const [
 		completedJobs,
@@ -326,7 +347,8 @@ export async function getReports(orgId: string) {
 		offices,
 		salesByType,
 		payMethodRows,
-		jobSourceRows
+		jobSourceRows,
+		completion
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -345,7 +367,8 @@ export async function getReports(orgId: string) {
 		officePerformance(orgId),
 		salesByJobType(orgId),
 		paymentsByMethod(orgId),
-		jobsBySource(orgId)
+		jobsBySource(orgId),
+		completionStats(orgId)
 	]);
 	return {
 		completedJobs,
@@ -365,7 +388,8 @@ export async function getReports(orgId: string) {
 		offices,
 		salesByType,
 		payMethods: payMethodRows,
-		jobSources: jobSourceRows
+		jobSources: jobSourceRows,
+		completion
 	};
 }
 
