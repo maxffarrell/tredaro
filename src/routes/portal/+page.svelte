@@ -203,7 +203,7 @@
 								{#if j.confirmed}
 									<StatusBadge status="approved" label="Confirmed" />
 								{:else if j.job.status === 'scheduled' && j.job.startsAt}
-									<div class="flex items-center justify-end gap-1">
+									<div class="flex flex-col items-end gap-1 sm:flex-row sm:items-center">
 										<Button
 											size="sm"
 											variant="outline"
