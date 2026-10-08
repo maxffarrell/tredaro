@@ -676,7 +676,6 @@ export const jobMaterial = pgTable(
 	]
 );
 
-
 /** A to-do line on a job — seeded from the job type's checklist or added ad hoc. */
 export const jobChecklistItem = pgTable(
 	'job_checklist_item',
@@ -694,7 +693,6 @@ export const jobChecklistItem = pgTable(
 	},
 	(t) => [index('job_checklist_job_idx').on(t.jobId, t.sort)]
 );
-
 
 export const poStatus = pgEnum('po_status', ['draft', 'ordered', 'received', 'cancelled']);
 
@@ -736,4 +734,3 @@ export const purchaseOrderItem = pgTable(
 	},
 	(t) => [index('po_item_po_idx').on(t.purchaseOrderId)]
 );
-
