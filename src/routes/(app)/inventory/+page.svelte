@@ -262,6 +262,11 @@
 		</Button>
 		<Badge variant="secondary" class="mr-2">On-hand value {formatMoney(totalValue, currency)}</Badge
 		>
+		{@const lowCount = items.filter((i) => i.low).length}
+		{#if lowCount}
+			<Badge variant="outline" class="mr-2 text-amber-600 dark:text-amber-400">{lowCount} low</Badge
+			>
+		{/if}
 		<Button size="sm" onclick={() => openItem()}><Plus /> New item</Button>
 	{/snippet}
 </PageHeader>

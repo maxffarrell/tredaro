@@ -172,6 +172,15 @@
 								{#if j.job.source && j.job.source !== 'manual'}
 									<Badge variant="outline" class="ml-1 capitalize">{j.job.source}</Badge>
 								{/if}
+								{#if j.job.priority === 'urgent' || j.job.priority === 'high'}
+									<Badge
+										variant="outline"
+										class="ml-1 {j.job.priority === 'urgent'
+											? 'border-red-500/40 text-red-600 dark:text-red-400'
+											: 'border-amber-500/40 text-amber-600 dark:text-amber-400'}"
+										>{j.job.priority}</Badge
+									>
+								{/if}
 							</Table.Cell>
 							<Table.Cell>{j.customerName}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">
