@@ -404,7 +404,7 @@ async function avgTicket(orgId: string) {
 	const [row] = await db
 		.select({
 			n: sql<number>`count(*)`.mapWith(Number),
-			avg: sql<number>`avg((select coalesce(sum(c.amount), 0) from ${charge} c where c.invoice_id = ${outer(invoice).id} and c.status != 'void'))`.mapWith(
+			avg: sql<number>`avg((select coalesce(sum(c.amount), 0) from ${charge} c where c.invoice_id = ${outer(invoice.id)} and c.status != 'void'))`.mapWith(
 				Number
 			)
 		})
