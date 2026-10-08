@@ -4,11 +4,22 @@
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
-	import { getStaffNotifications } from '#lib/remote/workspace.remote.ts';
+	import { getStaffNotifications, markAllNotificationsRead } from '#lib/remote/workspace.remote.ts';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import CheckCheck from '@lucide/svelte/icons/check-check';
 	import { formatRelative } from '#lib/format.ts';
 	import Bell from '@lucide/svelte/icons/bell';
 
 	const rows = await getStaffNotifications();
+	const unread = $derived(rows.filter((n) => !n.readAt).length);
+
+	async function markAllRead() {
+		try {
+			await markAllNotificationsRead().updates(getStaffNotifications);
+		} catch {
+			// noop — row state will reconcile on next refresh
+		}
+	}
 
 	const KIND_LABELS: Record<string, string> = {
 		booking_staff_alert: 'Booking request',
@@ -35,7 +46,15 @@
 	}
 </script>
 
-<PageHeader title="Notifications" crumbs={[{ label: 'Home', href: '/dashboard' }]} />
+<PageHeader title="Notifications" crumbs={[{ label: 'Home', href: '/dashboard' }]}>
+	{#snippet actions()}
+		{#if unread > 0}
+			<Button size="sm" variant="outline" onclick={markAllRead}
+				><CheckCheck /> Mark all read ({unread})</Button
+			>
+		{/if}
+	{/snippet}
+</PageHeader>
 
 <div class="space-y-4 p-4 md:p-6">
 	<Card.Root class="py-0">
@@ -52,10 +71,13 @@
 				<Table.Body>
 					{#each rows as n (n.id)}
 						{@const link = href(n.kind, n.entityId)}
-						<Table.Row>
-							<Table.Cell class="pl-6 text-muted-foreground"
-								>{formatRelative(n.createdAt)}</Table.Cell
-							>
+						<Table.Row class={n.readAt ? '' : 'bg-primary/5'}>
+							<Table.Cell class="pl-6 text-muted-foreground">
+								{#if !n.readAt}<span
+										class="mr-1.5 inline-block size-2 rounded-full bg-primary align-middle"
+									></span>{/if}
+								{formatRelative(n.createdAt)}
+							</Table.Cell>
 							<Table.Cell>
 								<Badge variant="secondary" class="mr-2"
 									>{KIND_LABELS[n.kind] ?? n.kind.replaceAll('_', ' ')}</Badge

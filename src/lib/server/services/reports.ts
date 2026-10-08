@@ -73,6 +73,20 @@ async function revenueByMonth(orgId: string) {
 		.orderBy(asc(sql`to_char(${payment.paidAt}, 'YYYY-MM')`));
 }
 
+/** Collected payments grouped by method (all time). */
+async function paymentsByMethod(orgId: string) {
+	return db
+		.select({
+			method: payment.method,
+			count: sql<number>`count(*)`.mapWith(Number),
+			total: sql<number>`sum(${payment.amount})`.mapWith(Number)
+		})
+		.from(payment)
+		.where(eq(payment.organizationId, orgId))
+		.groupBy(payment.method)
+		.orderBy(desc(sql`sum(${payment.amount})`));
+}
+
 /** Active agreement count per plan. */
 async function agreementsByPlan(orgId: string) {
 	return db
@@ -307,7 +321,8 @@ export async function getReports(orgId: string) {
 		leads,
 		aging,
 		offices,
-		salesByType
+		salesByType,
+		payMethodRows
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -324,7 +339,8 @@ export async function getReports(orgId: string) {
 		leadsBySource(orgId),
 		receivablesAging(orgId),
 		officePerformance(orgId),
-		salesByJobType(orgId)
+		salesByJobType(orgId),
+		paymentsByMethod(orgId)
 	]);
 	return {
 		completedJobs,
@@ -342,7 +358,8 @@ export async function getReports(orgId: string) {
 		leads,
 		aging,
 		offices,
-		salesByType
+		salesByType,
+		payMethods: payMethodRows
 	};
 }
 

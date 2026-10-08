@@ -689,6 +689,8 @@ export const notificationLog = pgTable(
 		kind: text('kind').notNull(),
 		entityId: text('entity_id').notNull(),
 		recipient: text('recipient').notNull(),
+		/** Read receipt for the staff inbox (null = unread). */
+		readAt: timestamp('read_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => [uniqueIndex('notification_log_once_idx').on(t.kind, t.entityId, t.recipient)]

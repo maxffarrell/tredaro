@@ -47,6 +47,12 @@ export const reviseEstimate = command(idSchema, async (id) => {
 	return rev;
 });
 
+export const duplicateEstimate = command(idSchema, async (id) => {
+	const copy = await svc.duplicateEstimate(await requireOrg(), id);
+	await refreshQuery(getEstimates, undefined);
+	return copy;
+});
+
 export const invoiceEstimate = command(idSchema, async (id) => {
 	const inv = await svc.invoiceEstimate(await requireOrg(), id);
 	await refreshQuery(getEstimate, id);

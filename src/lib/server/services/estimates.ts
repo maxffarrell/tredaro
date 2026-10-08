@@ -253,6 +253,53 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 	return row;
 }
 
+/** Copies an estimate (any status) into a brand-new draft with a fresh E-number. */
+export async function duplicateEstimate(ctx: OrgContext, id: string) {
+	const [e] = await db
+		.select()
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
+	if (!e) error(404, 'Estimate not found');
+	const items = await db
+		.select()
+		.from(estimateItem)
+		.where(eq(estimateItem.estimateId, id))
+		.orderBy(asc(estimateItem.position));
+	const number = await nextNumber(ctx.orgId, 'estimate');
+	const [row] = await db
+		.insert(estimate)
+		.values({
+			organizationId: ctx.orgId,
+			number,
+			customerId: e.customerId,
+			serviceLocationId: e.serviceLocationId,
+			notes: e.notes
+		})
+		.returning();
+	if (items.length)
+		await db.insert(estimateItem).values(
+			items.map((it, i) => ({
+				estimateId: row!.id,
+				pricebookItemId: it.pricebookItemId,
+				name: it.name,
+				description: it.description,
+				qty: it.qty,
+				unitPrice: it.unitPrice,
+				optional: it.optional,
+				position: i
+			}))
+		);
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'estimate',
+		entityId: row!.id,
+		action: 'created',
+		summary: `Estimate E-${number} copied from E-${e.number}`
+	});
+	return row;
+}
+
 /** Turns an approved estimate straight into a draft invoice (skips job conversion). */
 export async function invoiceEstimate(ctx: OrgContext, id: string) {
 	const [e] = await db

@@ -561,4 +561,38 @@
 			</Table.Root>
 		</Card.Content>
 	</Card.Root>
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Payments by method</Card.Title>
+			<Card.Description>Collected revenue per payment method — all time</Card.Description>
+		</Card.Header>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Method</Table.Head>
+						<Table.Head class="text-right">Payments</Table.Head>
+						<Table.Head class="text-right">Collected</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.payMethods as m (m.method)}
+						<Table.Row>
+							<Table.Cell class="font-medium capitalize">{m.method}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{m.count}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(m.total, currency)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={3} class="text-muted-foreground"
+								>No payments recorded yet.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
 </div>

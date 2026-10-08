@@ -1,9 +1,10 @@
 import * as v from 'valibot';
 import { randomBytes } from 'node:crypto';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { command, query } from '$app/server';
 import { requireOrg, requireUser } from '#lib/server/context.ts';
+import { refreshQuery } from './_refresh.ts';
 import { db } from '#lib/server/db/index.ts';
 import { customer, member, notificationLog, user, webhook } from '#lib/server/db/schema.ts';
 import { dashboard } from '#lib/server/services/dashboard.ts';
@@ -59,6 +60,23 @@ export const getStaffNotifications = query(async () => {
 		.where(and(eq(notificationLog.organizationId, orgId), eq(notificationLog.recipient, me.email)))
 		.orderBy(desc(notificationLog.createdAt))
 		.limit(50);
+});
+
+export const markAllNotificationsRead = command(async () => {
+	const { user: me } = requireUser();
+	const { orgId } = await requireOrg();
+	await db
+		.update(notificationLog)
+		.set({ readAt: new Date() })
+		.where(
+			and(
+				eq(notificationLog.organizationId, orgId),
+				eq(notificationLog.recipient, me.email),
+				isNull(notificationLog.readAt)
+			)
+		);
+	await refreshQuery(getStaffNotifications);
+	return { ok: true };
 });
 
 /** Staff of the org (technicians are picked from these). */

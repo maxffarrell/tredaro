@@ -20,6 +20,7 @@
 		updateEstimate,
 		sendEstimate,
 		reviseEstimate,
+		duplicateEstimate,
 		invoiceEstimate
 	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
@@ -27,6 +28,7 @@
 	import Send from '@lucide/svelte/icons/send';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Printer from '@lucide/svelte/icons/printer';
+	import CopyPlus from '@lucide/svelte/icons/copy-plus';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -132,6 +134,16 @@
 		}
 	}
 
+	async function duplicate() {
+		try {
+			const copy = await duplicateEstimate(id).updates(getEstimates);
+			toast.success(`Draft E-${copy!.number} created`);
+			goto(`/estimates/${copy!.id}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not duplicate'));
+		}
+	}
+
 	async function copyLink() {
 		await navigator.clipboard.writeText(shareUrl);
 		toast.success('Link copied');
@@ -158,6 +170,7 @@
 		{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
 			<Button size="sm" variant="outline" onclick={invoice}><Receipt /> Invoice</Button>
 		{/if}
+		<Button size="sm" variant="outline" onclick={duplicate}><CopyPlus /> Duplicate</Button>
 		<Button size="sm" variant="outline" href="/estimates/{id}/print"><Printer /> Print</Button>
 	{/snippet}
 </PageHeader>
