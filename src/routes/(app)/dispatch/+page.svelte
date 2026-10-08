@@ -32,6 +32,7 @@
 	const board = $derived(
 		await getDispatchBoard({ from: start, to: addDays(start, 7), officeId: officeId || undefined })
 	);
+	const doneThisWeek = $derived(board.scheduled.filter((j) => j.job.status === 'done').length);
 	const filteredQueue = $derived(
 		queueFilter.trim()
 			? board.unscheduled.filter((j) =>
@@ -169,6 +170,9 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
+			{/if}
+			{#if doneThisWeek}
+				<Badge variant="outline">{doneThisWeek} done</Badge>
 			{/if}
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(-7)}
 				><ChevronLeft /></Button

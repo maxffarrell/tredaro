@@ -49,6 +49,7 @@
 
 	const currency = await getCurrency();
 	const todayStr = new Date().toISOString().slice(0, 10);
+	const weekStr = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
 	const customers = await getCustomers();
 	const termsDays = (await getSettings()).invoiceTermsDays;
 	const jobs = await getJobs();
@@ -527,7 +528,11 @@
 								ch.charge.dueDate && ch.charge.dueDate < todayStr && ch.charge.amount - ch.paid > 0
 						).length} overdue</span
 					>{/if}{#if visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length}
-					· {visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length} partial{/if}
+					· {visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length} partial{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate && ch.charge.dueDate >= todayStr && ch.charge.dueDate <= weekStr).length}
+					· {visibleCharges.filter(
+						(ch) =>
+							ch.charge.dueDate && ch.charge.dueDate >= todayStr && ch.charge.dueDate <= weekStr
+					).length} due this week{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
