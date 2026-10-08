@@ -65,6 +65,12 @@
 	const uninvoicedCount = $derived(
 		jobs.filter((j) => j.job.status === 'done' && !j.invoiced).length
 	);
+	const todayIso = new Date().toISOString().slice(0, 10);
+	const todayCount = $derived(
+		jobs.filter(
+			(j) => j.job.startsAt && new Date(j.job.startsAt).toISOString().slice(0, 10) === todayIso
+		).length
+	);
 	const overdueCount = $derived(
 		jobs.filter(
 			(j) =>
@@ -158,6 +164,9 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
+		{/if}
+		{#if todayCount}
+			<Badge variant="outline">{todayCount} today</Badge>
 		{/if}
 		{#if uninvoicedCount}
 			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"

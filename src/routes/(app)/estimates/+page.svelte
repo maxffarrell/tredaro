@@ -51,6 +51,14 @@
 	let items = $state([{ name: '', qty: 1, unitPrice: 0 }]);
 
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+	const oldestSentDays = $derived.by(() => {
+		if (tab !== 'sent' || !estimates.length) return null;
+		const ts = estimates
+			.filter((e) => e.estimate.sentAt)
+			.map((e) => new Date(e.estimate.sentAt!).getTime());
+		if (!ts.length) return null;
+		return Math.max(1, Math.floor((Date.now() - Math.min(...ts)) / 86400_000));
+	});
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
@@ -112,7 +120,9 @@
 				)}</span
 			>
 			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'} ·
-			{estimates.filter((e) => e.viewed).length} viewed
+			{estimates.filter((e) => e.viewed).length}
+			{estimates.filter((e) => e.viewed).length} viewed{#if oldestSentDays !== null}
+				· oldest sent {oldestSentDays}d ago{/if}
 		</p>
 	{/if}
 	{#if tab === 'draft' && estimates.length}
