@@ -789,13 +789,14 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 			})
 			.from(jobTimeEntry)
 			.where(and(eq(jobTimeEntry.jobId, jobId), sql`${jobTimeEntry.endedAt} is not null`));
-		if (minutes > 0)
+		const hours = Math.round((minutes / 60) * 100) / 100;
+		if (hours > 0)
 			labor = [
 				{
 					pricebookItemId: null,
 					name: 'Labor',
 					description: '',
-					qty: Math.round((minutes / 60) * 100) / 100,
+					qty: hours,
 					unitPrice: jt.hourlyRate
 				}
 			];
