@@ -87,6 +87,8 @@ export async function adjustQty(
 		i.qtyOnHand = 0;
 	}
 	if (sign > 0) void rearmLowStock(ctx.orgId, i.id).catch(() => {});
+	else if (i.reorderPoint != null && i.qtyOnHand <= i.reorderPoint)
+		void notifyLowStock(ctx.orgId, i.id).catch(() => {});
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId,
