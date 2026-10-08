@@ -216,8 +216,12 @@
 	const time = $derived(await getTimeEntries(id));
 	const minutes = (e: { startedAt: Date; endedAt: Date | null }) =>
 		Math.max(0, Math.round(((e.endedAt ?? new Date()).getTime() - e.startedAt.getTime()) / 60000));
-	const fmtDur = (min: number) =>
-		min >= 60 ? `${Math.floor(min / 60)}h ${min % 60 ? `${min % 60}m` : ''}`.trim() : `${min}m`;
+	const fmtDur = (min: number) => {
+		min = Math.round(min);
+		return min >= 60
+			? `${Math.floor(min / 60)}h ${min % 60 ? `${min % 60}m` : ''}`.trim()
+			: `${min}m`;
+	};
 	const totalMin = $derived(time.entries.reduce((s, e) => s + minutes(e.entry), 0));
 
 	async function toggleTimer() {
