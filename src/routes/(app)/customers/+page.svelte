@@ -70,6 +70,7 @@
 	const withPortal = $derived(visible.filter((c) => c.portalLinked).length);
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
 	const underAgreement = $derived(visible.filter((c) => c.hasAgreement).length);
+	const onHold = $derived(visible.filter((c) => c.onHold).length);
 	const neverServiced = $derived(
 		visible.filter((c) => c.status === 'active' && !c.lastVisit).length
 	);
@@ -303,7 +304,8 @@
 			· {companyCount} companies{/if}{#if noUpcoming}
 			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}
 			· {underAgreement} under agreement{/if}{#if neverServiced}
-			· {neverServiced} never serviced{/if}
+			· {neverServiced} never serviced{/if}{#if onHold}
+			· {onHold} on hold{/if}
 	</p>
 
 	<Card.Root class="py-0">

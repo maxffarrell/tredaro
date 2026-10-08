@@ -32,6 +32,9 @@
 	const board = $derived(
 		await getDispatchBoard({ from: start, to: addDays(start, 7), officeId: officeId || undefined })
 	);
+	const offToday = $derived(
+		board ? board.timeOff.filter((t) => t.startsOn <= todayStr && t.endsOn >= todayStr).length : 0
+	);
 	const doneThisWeek = $derived(board.scheduled.filter((j) => j.job.status === 'done').length);
 	const filteredQueue = $derived(
 		queueFilter.trim()
@@ -173,6 +176,11 @@
 			{/if}
 			{#if doneThisWeek}
 				<Badge variant="outline">{doneThisWeek} done</Badge>
+			{/if}
+			{#if offToday}
+				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+					>{offToday} off today</Badge
+				>
 			{/if}
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(-7)}
 				><ChevronLeft /></Button

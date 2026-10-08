@@ -51,6 +51,19 @@
 	let items = $state([{ name: '', qty: 1, unitPrice: 0 }]);
 
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+	const winRate = $derived.by(() => {
+		const decided = estimates.filter(
+			(e) =>
+				e.estimate.status === 'approved' ||
+				e.estimate.status === 'converted' ||
+				e.estimate.status === 'declined'
+		).length;
+		if (!decided) return null;
+		const won = estimates.filter(
+			(e) => e.estimate.status === 'approved' || e.estimate.status === 'converted'
+		).length;
+		return Math.round((won / decided) * 100);
+	});
 	const oldestSentDays = $derived.by(() => {
 		if (tab !== 'sent' || !estimates.length) return null;
 		const ts = estimates
@@ -101,7 +114,8 @@
 			{formatMoney(
 				estimates.reduce((s, e) => s + e.total, 0),
 				currency
-			)} across {estimates.length} estimate{estimates.length === 1 ? '' : 's'}
+			)} across {estimates.length} estimate{estimates.length === 1 ? '' : 's'}{#if winRate !== null}
+				· {winRate}% won (of decided){/if}
 		</p>
 	{/if}
 	{#if tab === 'approved' && estimates.length}
@@ -128,7 +142,6 @@
 				)}</span
 			>
 			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'} ·
-			{estimates.filter((e) => e.viewed).length}
 			{estimates.filter((e) => e.viewed).length} viewed{#if oldestSentDays !== null}
 				· oldest sent {oldestSentDays}d ago{/if}
 		</p>
