@@ -200,14 +200,15 @@ async function postAgreementCharge(
 	orgId: string,
 	agreementId: string,
 	periodStart: string,
-	p: { name: string; amount: number }
+	p: { name: string; amount: number },
+	q: typeof db = db
 ) {
-	await db
+	await q
 		.insert(charge)
 		.values({
 			organizationId: orgId,
 			customerId: (
-				await db
+				await q
 					.select({ customerId: serviceAgreement.customerId })
 					.from(serviceAgreement)
 					.where(eq(serviceAgreement.id, agreementId))
@@ -267,13 +268,18 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 	if (!m.nextChargeAt) error(409, 'Agreement has no upcoming charge');
 
 	const period = m.nextChargeAt.toISOString().slice(0, 10);
-	if (p.amount > 0) await postAgreementCharge(ctx.orgId, m.id, period, p);
 	const next = nextPeriod(period, p.interval);
-	await db
-		.update(serviceAgreement)
-		.set({ nextChargeAt: new Date(`${next}T00:00:00Z`) })
-		.where(eq(serviceAgreement.id, m.id));
-	await generateAgreementVisits(ctx.orgId, m, period, p);
+	// Charge + roll-forward + visit generation commit together — a failure
+	// anywhere leaves the agreement untouched so the button stays truthful.
+	await db.transaction(async (tx) => {
+		if (p.amount > 0)
+			await postAgreementCharge(ctx.orgId, m.id, period, p, tx as unknown as typeof db);
+		await tx
+			.update(serviceAgreement)
+			.set({ nextChargeAt: new Date(`${next}T00:00:00Z`) })
+			.where(eq(serviceAgreement.id, m.id));
+		await generateAgreementVisits(ctx.orgId, m, period, p, tx as unknown as typeof db);
+	});
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId,
@@ -294,19 +300,20 @@ async function generateAgreementVisits(
 	orgId: string,
 	agreement: typeof serviceAgreement.$inferSelect,
 	periodStart: string,
-	p: typeof agreementPlan.$inferSelect
+	p: typeof agreementPlan.$inferSelect,
+	q: typeof db = db
 ) {
 	const visits = p.includedVisits ?? 0;
 	if (visits <= 0) return 0;
 	const jt = p.jobTypeId
 		? (
-				await db
+				await q
 					.select()
 					.from(jobType)
 					.where(and(eq(jobType.organizationId, orgId), eq(jobType.id, p.jobTypeId)))
 			)[0]
 		: null;
-	const [loc] = await db
+	const [loc] = await q
 		.select()
 		.from(serviceLocation)
 		.where(
@@ -314,11 +321,11 @@ async function generateAgreementVisits(
 		);
 	let created = 0;
 	for (let i = 1; i <= visits; i++) {
-		const [row] = await db
+		const [row] = await q
 			.insert(job)
 			.values({
 				organizationId: orgId,
-				number: await nextNumber(orgId, 'job'),
+				number: await nextNumber(orgId, 'job', q),
 				jobTypeId: jt?.id ?? null,
 				customerId: agreement.customerId,
 				serviceLocationId: loc?.id ?? null,

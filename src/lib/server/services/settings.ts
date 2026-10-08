@@ -1,7 +1,14 @@
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { companySettings, office, organization } from '#lib/server/db/schema.ts';
+import {
+	companySettings,
+	estimate,
+	invoice,
+	job,
+	office,
+	organization
+} from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
@@ -39,22 +46,35 @@ export async function updateSettings(
 /** Allocates the next human-readable document number for the workspace. */
 export async function nextNumber(
 	orgId: string,
-	kind: 'job' | 'estimate' | 'invoice'
+	kind: 'job' | 'estimate' | 'invoice',
+	q: typeof db = db
 ): Promise<number> {
 	await getSettings(orgId);
-	const set =
+	// The counter can drift behind reality (seeds/imports insert numbered rows
+	// directly), so allocate `greatest(counter, max(existing)+1)` and never issue
+	// a number that collides with the org's unique index.
+	const [col, set] =
 		kind === 'job'
-			? { nextJobNumber: sql`${companySettings.nextJobNumber} + 1` }
+			? [
+					companySettings.nextJobNumber,
+					{
+						nextJobNumber: sql`greatest(${companySettings.nextJobNumber}, coalesce((select max(number) from ${job} where ${job.organizationId} = ${orgId}), 0) + 1) + 1`
+					}
+				]
 			: kind === 'estimate'
-				? { nextEstimateNumber: sql`${companySettings.nextEstimateNumber} + 1` }
-				: { nextInvoiceNumber: sql`${companySettings.nextInvoiceNumber} + 1` };
-	const col =
-		kind === 'job'
-			? companySettings.nextJobNumber
-			: kind === 'estimate'
-				? companySettings.nextEstimateNumber
-				: companySettings.nextInvoiceNumber;
-	const [row] = await db
+				? [
+						companySettings.nextEstimateNumber,
+						{
+							nextEstimateNumber: sql`greatest(${companySettings.nextEstimateNumber}, coalesce((select max(number) from ${estimate} where ${estimate.organizationId} = ${orgId}), 0) + 1) + 1`
+						}
+					]
+				: [
+						companySettings.nextInvoiceNumber,
+						{
+							nextInvoiceNumber: sql`greatest(${companySettings.nextInvoiceNumber}, coalesce((select max(number) from ${invoice} where ${invoice.organizationId} = ${orgId}), 0) + 1) + 1`
+						}
+					];
+	const [row] = await q
 		.update(companySettings)
 		.set(set)
 		.where(eq(companySettings.organizationId, orgId))
