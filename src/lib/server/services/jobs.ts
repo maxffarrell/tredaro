@@ -5,7 +5,9 @@ import {
 	charge,
 	customer,
 	equipment,
+	inventoryItem,
 	job,
+	jobMaterial,
 	jobChecklistItem,
 	jobEvent,
 	jobTimeEntry,
@@ -156,7 +158,29 @@ export async function getJob(orgId: string, id: string) {
 		.from(charge)
 		.where(and(eq(charge.jobId, id), sql`${charge.status} != 'void'`));
 
-	return { ...row, events, openBalance: open };
+	const [costing] = await db
+		.select({
+			laborMin:
+				sql<number>`(select coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60), 0) from ${jobTimeEntry} te where te.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
+			matCost:
+				sql<number>`(select coalesce(sum(m.qty * i.unit_cost), 0) from ${jobMaterial} m inner join ${inventoryItem} i on m.inventory_item_id = i.id where m.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
+			matSell:
+				sql<number>`(select coalesce(sum(m.qty * m.unit_price), 0) from ${jobMaterial} m where m.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
+			billed:
+				sql<number>`(select coalesce(sum(c.amount), 0) from ${charge} c where c.job_id = ${outer(job.id)} and c.status != 'void')`.mapWith(
+					Number
+				)
+		})
+		.from(job)
+		.where(eq(job.id, id));
+
+	return { ...row, events, openBalance: open, costing };
 }
 
 /** Creates a job. `startsAt` is a wall-clock time in the workspace timezone; omit for unscheduled. */

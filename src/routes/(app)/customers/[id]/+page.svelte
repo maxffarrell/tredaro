@@ -43,6 +43,7 @@
 	import AirVent from '@lucide/svelte/icons/air-vent';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Wrench from '@lucide/svelte/icons/wrench';
+	import Download from '@lucide/svelte/icons/download';
 	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Repeat from '@lucide/svelte/icons/repeat';
@@ -334,6 +335,12 @@
 		{/if}
 		<Button size="sm" variant="outline" onclick={copyPortal}><Link2 /> Portal link</Button>
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
+		<Button
+			size="sm"
+			variant="outline"
+			href="/api/export/statement.csv?customer={c.customer.id}"
+			download><Download /> Statement</Button
+		>
 	{/snippet}
 </PageHeader>
 

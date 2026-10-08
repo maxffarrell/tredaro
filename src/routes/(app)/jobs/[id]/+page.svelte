@@ -561,6 +561,38 @@
 		</Card.Root>
 
 		<Card.Root>
+			<Card.Header><Card.Title class="text-base">Costing</Card.Title></Card.Header>
+			<Card.Content class="space-y-2 text-sm">
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Labor</span><span>{fmtDur(j.costing.laborMin)}</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Materials (cost)</span><span class="tabular-nums"
+						>{formatMoney(j.costing.matCost, settings.currency)}</span
+					>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Materials (sell)</span><span class="tabular-nums"
+						>{formatMoney(j.costing.matSell, settings.currency)}</span
+					>
+				</div>
+				<Separator />
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Invoiced</span><span class="tabular-nums"
+						>{formatMoney(j.costing.billed, settings.currency)}</span
+					>
+				</div>
+				<div class="flex justify-between font-medium">
+					<span>Margin</span><span
+						class="tabular-nums {j.costing.billed - j.costing.matCost < 0
+							? 'text-destructive'
+							: ''}">{formatMoney(j.costing.billed - j.costing.matCost, settings.currency)}</span
+					>
+				</div>
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
 				<Card.Title class="flex items-center gap-2 text-base"
 					><Timer class="size-4" /> Time</Card.Title

@@ -200,8 +200,58 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				])
 			)
 		].join('\n');
+	} else if (kind === 'statement') {
+		// Per-customer account statement: every non-void charge with running balance.
+		const customerId = url.searchParams.get('customer');
+		if (!customerId) error(400, 'Pass ?customer=<id>');
+		const [cust] = await db
+			.select({ id: customer.id, name: customer.name })
+			.from(customer)
+			.where(and(eq(customer.id, customerId), eq(customer.organizationId, ctx.orgId)))
+			.limit(1);
+		if (!cust) error(404, 'Customer not found');
+		const rows = await db
+			.select({
+				charge: charge,
+				jobNumber: job.number,
+				invoiceNumber: invoice.number,
+				paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+					Number
+				)
+			})
+			.from(charge)
+			.leftJoin(job, eq(charge.jobId, job.id))
+			.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
+			.where(
+				and(
+					eq(charge.organizationId, ctx.orgId),
+					eq(charge.customerId, customerId),
+					sql`${charge.status} != 'void'`
+				)
+			)
+			.orderBy(asc(charge.createdAt));
+		let bal = 0;
+		const lines = rows.map((r) => {
+			bal += r.charge.amount - r.paid;
+			return row([
+				r.charge.createdAt.toISOString().slice(0, 10),
+				r.charge.description,
+				r.jobNumber ? `J-${r.jobNumber}` : '',
+				r.invoiceNumber ? `INV-${r.invoiceNumber}` : '',
+				r.charge.dueDate ?? '',
+				money(r.charge.amount),
+				money(r.paid),
+				money(bal)
+			]);
+		});
+		body = [
+			`Statement for ${cust.name}`,
+			row(['Date', 'Description', 'Job', 'Invoice', 'Due', 'Amount', 'Paid', 'Balance']),
+			...lines,
+			row(['', '', '', '', '', '', 'Balance due', money(bal)])
+		].join('\n');
 	} else {
-		error(404, 'Unknown export — try invoices, time-entries, quickbooks or payments');
+		error(404, 'Unknown export — try invoices, time-entries, quickbooks, payments or statement');
 	}
 
 	return new Response(`${body}\n`, {

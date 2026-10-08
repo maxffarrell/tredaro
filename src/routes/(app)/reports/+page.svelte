@@ -263,6 +263,92 @@
 		</Card.Content>
 	</Card.Root>
 
+	<Card.Root class="lg:col-span-2">
+		<Card.Header>
+			<Card.Title class="text-base">Job profitability</Card.Title>
+			<Card.Description
+				>Completed jobs, last 90 days — invoiced vs materials cost and logged labor</Card.Description
+			>
+		</Card.Header>
+		<Card.Content>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Job</Table.Head>
+						<Table.Head>Customer</Table.Head>
+						<Table.Head class="text-right">Labor</Table.Head>
+						<Table.Head class="text-right">Materials</Table.Head>
+						<Table.Head class="text-right">Invoiced</Table.Head>
+						<Table.Head class="text-right">Margin</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.profit as j (j.id)}
+						<Table.Row>
+							<Table.Cell class="font-medium"
+								><a class="hover:underline" href="/jobs/{j.id}">J-{j.number}</a>
+								{j.summary}</Table.Cell
+							>
+							<Table.Cell>{j.customerName}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{fmtHours(j.laborMin)}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(j.matCost, currency, true)}</Table.Cell
+							>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(j.billed, currency, true)}</Table.Cell
+							>
+							<Table.Cell
+								class="text-right tabular-nums {j.billed - j.matCost < 0 ? 'text-destructive' : ''}"
+								>{formatMoney(j.billed - j.matCost, currency, true)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={6} class="text-muted-foreground"
+								>No completed jobs in the last 90 days.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Top customers</Card.Title>
+			<Card.Description>Payments collected, last 12 months</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Customer</Table.Head>
+						<Table.Head class="text-right">Collected</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.topCustomers as cu (cu.id)}
+						<Table.Row>
+							<Table.Cell class="font-medium"
+								><a class="hover:underline" href="/customers/{cu.id}">{cu.name}</a></Table.Cell
+							>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(cu.collected, currency, true)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={2} class="text-muted-foreground"
+								>No payments collected yet.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Labor by technician</Card.Title>

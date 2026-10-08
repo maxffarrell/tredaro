@@ -5,6 +5,8 @@ import {
 	charge,
 	customer,
 	estimate,
+	inventoryItem,
+	jobMaterial,
 	job,
 	jobTimeEntry,
 	jobType,
@@ -244,17 +246,88 @@ async function techPerformance(orgId: string) {
 }
 
 export async function getReports(orgId: string) {
-	const [completedJobs, customers, revenue, plans, byType, estimates, techs, labor, perf] =
-		await Promise.all([
-			jobsByDay(orgId),
-			newCustomersByMonth(orgId),
-			revenueByMonth(orgId),
-			agreementsByPlan(orgId),
-			jobsByType(orgId),
-			estimateFunnel(orgId),
-			technicianLoad(orgId),
-			laborByTechnician(orgId),
-			techPerformance(orgId)
-		]);
-	return { completedJobs, customers, revenue, plans, byType, estimates, techs, labor, perf };
+	const [
+		completedJobs,
+		customers,
+		revenue,
+		plans,
+		byType,
+		estimates,
+		techs,
+		labor,
+		perf,
+		profit,
+		tops
+	] = await Promise.all([
+		jobsByDay(orgId),
+		newCustomersByMonth(orgId),
+		revenueByMonth(orgId),
+		agreementsByPlan(orgId),
+		jobsByType(orgId),
+		estimateFunnel(orgId),
+		technicianLoad(orgId),
+		laborByTechnician(orgId),
+		techPerformance(orgId),
+		jobProfitability(orgId),
+		topCustomers(orgId)
+	]);
+	return {
+		completedJobs,
+		customers,
+		revenue,
+		plans,
+		byType,
+		estimates,
+		techs,
+		labor,
+		perf,
+		profit,
+		topCustomers: tops
+	};
+}
+
+/** Done jobs in the last 90d: invoiced total vs materials cost + labor hours. */
+async function jobProfitability(orgId: string) {
+	const since = new Date(Date.now() - 90 * 86400_000);
+	return db
+		.select({
+			id: job.id,
+			number: job.number,
+			summary: job.summary,
+			customerName: customer.name,
+			completedAt: job.completedAt,
+			billed:
+				sql<number>`(select coalesce(sum(c.amount), 0) from ${charge} c where c.job_id = ${outer(job.id)} and c.status != 'void')`.mapWith(
+					Number
+				),
+			matCost:
+				sql<number>`(select coalesce(sum(m.qty * i.unit_cost), 0) from ${jobMaterial} m inner join ${inventoryItem} i on m.inventory_item_id = i.id where m.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
+			laborMin:
+				sql<number>`(select coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60), 0) from ${jobTimeEntry} te where te.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				)
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(and(eq(job.organizationId, orgId), isNull(job.cancelledAt), gte(job.completedAt, since)))
+		.orderBy(desc(job.completedAt));
+}
+
+/** Top 10 customers by payments collected in the last 12 months. */
+async function topCustomers(orgId: string) {
+	const since = new Date(Date.now() - 365 * 86400_000);
+	return db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			collected: sql<number>`sum(${payment.amount})`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.where(and(eq(payment.organizationId, orgId), gte(payment.paidAt, since)))
+		.groupBy(customer.id, customer.name)
+		.orderBy(desc(sql`sum(${payment.amount})`))
+		.limit(10);
 }
