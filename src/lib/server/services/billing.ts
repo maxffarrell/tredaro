@@ -901,6 +901,50 @@ export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof
 	return rows[0];
 }
 
+/** Refund a recorded payment: flags it and inserts a negative payment against the same charge, reopening any paid charge it uncovers. */
+export async function refundPayment(ctx: OrgContext, paymentId: string) {
+	const [p] = await db
+		.select()
+		.from(payment)
+		.where(and(eq(payment.organizationId, ctx.orgId), eq(payment.id, paymentId)));
+	if (!p) error(404, 'Payment not found');
+	if (p.amount <= 0) error(409, 'Already a refund entry');
+	if (p.refundedAt) error(409, 'Payment already refunded');
+	const [c] = await db
+		.select({ name: customer.name })
+		.from(customer)
+		.where(eq(customer.id, p.customerId));
+	await db.transaction(async (tx) => {
+		await tx.update(payment).set({ refundedAt: new Date() }).where(eq(payment.id, p.id));
+		await tx.insert(payment).values({
+			organizationId: ctx.orgId,
+			customerId: p.customerId,
+			chargeId: p.chargeId,
+			amount: -p.amount,
+			method: p.method,
+			reference: `refund:${p.id}`,
+			notes: `Refund of ${formatMoney(p.amount)} payment${p.externalId ? ' — refund it in the payment provider too' : ''}`,
+			recordedBy: ctx.userId
+		});
+		// Reopen charges this refund uncovered.
+		await tx.execute(sql`
+			update ${charge} c set status = 'open', updated_at = now()
+			where c.organization_id = ${ctx.orgId} and c.status = 'paid'
+			  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id) < c.amount
+		`);
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId ?? null,
+		entityType: 'payment',
+		entityId: p.id,
+		action: 'refunded',
+		summary: `${formatMoney(p.amount)} refunded to ${c?.name ?? 'customer'}`,
+		data: { customerId: p.customerId, method: p.method }
+	});
+	return true;
+}
+
 export async function listPayments(orgId: string) {
 	return db
 		.select({ payment, customerName: customer.name })

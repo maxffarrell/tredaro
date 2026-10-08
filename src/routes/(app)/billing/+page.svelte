@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
@@ -26,7 +27,8 @@
 		getCurrency,
 		getInvoicePrefill,
 		emailInvoice,
-		textInvoice
+		textInvoice,
+		refundPayment
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getJobs } from '#lib/remote/jobs.remote.ts';
@@ -38,6 +40,7 @@
 	import Ban from '@lucide/svelte/icons/ban';
 	import Send from '@lucide/svelte/icons/send';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Download from '@lucide/svelte/icons/download';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
@@ -139,6 +142,15 @@
 			else toast.error('Already emailed, or the customer has no email');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not email invoice'));
+		}
+	}
+
+	async function refundPaymentCmd(id: string) {
+		try {
+			await refundPayment(id).updates(getPayments, getCharges, getInvoices, getDashboard);
+			toast.success('Payment refunded');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not refund'));
 		}
 	}
 
@@ -455,15 +467,33 @@
 										>{formatDate(p.payment.paidAt)}</Table.Cell
 									>
 									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{p.payment.notes || '—'}</Table.Cell
+										>{p.payment.notes || '—'}
+										{#if p.payment.refundedAt}
+											<Badge variant="secondary" class="ml-1">refunded</Badge>
+										{/if}</Table.Cell
 									>
-									<Table.Cell class="text-right tabular-nums"
+									<Table.Cell
+										class="text-right tabular-nums {p.payment.amount < 0 ? 'text-destructive' : ''}"
 										>{formatMoney(p.payment.amount, currency)}</Table.Cell
 									>
+									<Table.Cell class="text-right">
+										{#if p.payment.amount > 0 && !p.payment.refundedAt}
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-8"
+												title="Refund payment"
+												onclick={(e: MouseEvent) => {
+													e.stopPropagation();
+													refundPaymentCmd(p.payment.id);
+												}}><Undo2 class="size-4" /></Button
+											>
+										{/if}
+									</Table.Cell>
 								</Table.Row>
 							{:else}
 								<Table.Row
-									><Table.Cell colspan={5} class="text-center text-muted-foreground"
+									><Table.Cell colspan={6} class="text-center text-muted-foreground"
 										>No payments yet.</Table.Cell
 									></Table.Row
 								>

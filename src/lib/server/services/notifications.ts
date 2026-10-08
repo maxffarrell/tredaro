@@ -376,12 +376,13 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 
 /** "Invoice INV-n is past due" — at 3 and 10 days overdue, deduped per stage. */
 export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, stage: number) {
-	if (!(await notifFlags(orgId)).email) return;
+	const flags = await notifFlags(orgId);
 	const [row] = await db
 		.select({
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
 			smsOptOut: customer.smsOptOut,
+			phone: customer.phone,
 			customerName: customer.name,
 			number: invoice.number,
 			dueDate: invoice.dueDate,
@@ -398,9 +399,21 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 		.innerJoin(customer, eq(invoice.customerId, customer.id))
 		.where(eq(invoice.id, invoiceId));
 	const balance = row ? row.total - row.paid : 0;
-	if (!row?.email || row.emailOptOut || row.status !== 'open' || balance <= 0) return;
-	if (!(await logOnce(orgId, `invoice_overdue_${stage}`, invoiceId, row.email))) return;
+	if (!row || row.status !== 'open' || balance <= 0) return;
 	const name = await orgName(orgId);
+	if (
+		flags.sms &&
+		row.phone &&
+		!row.smsOptOut &&
+		smsProvider() &&
+		(await logOnce(orgId, `invoice_overdue_sms_${stage}`, invoiceId, row.phone))
+	)
+		await sendSms({
+			to: row.phone,
+			body: `${name}: invoice INV-${row.number} for ${formatMoney(balance)} was due ${row.dueDate} and is still open. Pay online: ${invoiceUrl(invoiceId)}`
+		});
+	if (!flags.email || !row.email || row.emailOptOut) return;
+	if (!(await logOnce(orgId, `invoice_overdue_${stage}`, invoiceId, row.email))) return;
 	await sendEmail({
 		to: row.email,
 		subject: `Invoice INV-${row.number} is past due — ${name}`,

@@ -153,6 +153,16 @@ export const recordPayment = command(paymentInput, async (input) => {
 	return p;
 });
 
+export const refundPayment = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	await svc.refundPayment(ctx, id);
+	await refreshQuery(getPayments, undefined);
+	await refreshQuery(getCharges, undefined);
+	await refreshQuery(getInvoices, undefined);
+	await refreshQuery(getDashboard, undefined);
+	return { refunded: true };
+});
+
 export const getCustomerBalance = query(idSchema, async (customerId) =>
 	svc.customerBalance((await requireOrg()).orgId, customerId)
 );
