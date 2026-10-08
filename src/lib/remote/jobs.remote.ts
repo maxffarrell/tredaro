@@ -56,7 +56,8 @@ export const getJobs = query(
 			to: v.optional(v.string()),
 			status: v.optional(v.array(v.string())),
 			technicianId: v.optional(v.string()),
-			equipmentId: v.optional(v.string())
+			equipmentId: v.optional(v.string()),
+			blocked: v.optional(v.boolean())
 		})
 	),
 	async (opts) => {
@@ -66,7 +67,8 @@ export const getJobs = query(
 			to: opts?.to ? new Date(`${opts.to}T00:00:00Z`) : undefined,
 			status: opts?.status,
 			technicianId: opts?.technicianId,
-			equipmentId: opts?.equipmentId
+			equipmentId: opts?.equipmentId,
+			blocked: opts?.blocked
 		});
 	}
 );

@@ -43,7 +43,8 @@
 		['scheduled', 'Scheduled'],
 		['dispatched', 'Dispatched'],
 		['in_progress', 'In progress'],
-		['done', 'Done']
+		['done', 'Done'],
+		['blocked', 'Blocked']
 	] as const;
 	const now = $state(new Date());
 	let tab = $state(page.url.searchParams.get('status') ?? 'all');
@@ -54,7 +55,8 @@
 			tab === 'all' && !techId
 				? undefined
 				: {
-						...(tab === 'all' ? {} : { status: [tab] }),
+						...(tab === 'all' || tab === 'blocked' ? {} : { status: [tab] }),
+						...(tab === 'blocked' ? { blocked: true } : {}),
 						...(techId ? { technicianId: techId } : {})
 					}
 		)
@@ -188,6 +190,9 @@
 							>
 							<Table.Cell>
 								<StatusBadge status={j.job.status} />
+								{#if j.job.blocked}
+									<Badge variant="outline" class="text-amber-600 dark:text-amber-400">parts</Badge>
+								{/if}
 								{#if j.job.status === 'done' && !j.invoiced}
 									<Badge
 										class="ml-1 border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"

@@ -12,6 +12,7 @@ import {
 	isNull,
 	lt,
 	lte,
+	ne,
 	sql
 } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -140,6 +141,7 @@ export async function listJobs(
 		unscheduled?: boolean;
 		officeId?: string;
 		equipmentId?: string;
+		blocked?: boolean;
 	}
 ) {
 	return db
@@ -165,7 +167,8 @@ export async function listJobs(
 						)})`
 					: undefined,
 				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined,
-				opts.equipmentId ? eq(job.equipmentId, opts.equipmentId) : undefined
+				opts.equipmentId ? eq(job.equipmentId, opts.equipmentId) : undefined,
+				opts.blocked ? eq(job.blocked, true) : undefined
 			)
 		)
 		.orderBy(
@@ -192,7 +195,21 @@ export async function jobCounts(orgId: string, technicianId?: string) {
 			)
 		)
 		.groupBy(job.status);
-	return Object.fromEntries(rows.map((r) => [r.status, r.n]));
+	const counts = Object.fromEntries(rows.map((r) => [r.status, r.n]));
+	const [b] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.blocked, true),
+				ne(job.status, 'done'),
+				ne(job.status, 'cancelled'),
+				technicianId ? eq(job.technicianId, technicianId) : undefined
+			)
+		);
+	counts.blocked = b?.n ?? 0;
+	return counts;
 }
 
 export async function getJob(orgId: string, id: string) {

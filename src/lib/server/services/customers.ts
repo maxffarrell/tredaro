@@ -39,6 +39,8 @@ export async function listCustomers(orgId: string, q?: string) {
 			tags: customer.tags,
 			preferredMemberId: customer.preferredMemberId,
 			officeId: customer.officeId,
+			portalLinked: sql<boolean>`${customer.portalUserId} is not null`.mapWith(Boolean),
+			leadSource: customer.leadSource,
 			officeName: office.name,
 			openBalance:
 				sql<number>`coalesce((select sum(c.amount - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0)) from ${charge} c where c.customer_id = ${outer(customer.id)} and c.status = 'open'), 0)`.mapWith(

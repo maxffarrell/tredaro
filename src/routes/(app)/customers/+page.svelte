@@ -34,6 +34,7 @@
 	let q = $state('');
 	let tagFilter = $state('');
 	let officeFilter = $state('');
+	let sourceFilter = $state('');
 	let customers = $state(await getCustomers());
 	const officeOptions = $derived(
 		[
@@ -42,6 +43,11 @@
 			).entries()
 		].sort((a, b) => a[1].localeCompare(b[1]))
 	);
+	const allSources = $derived(
+		[...new Set(customers.map((c) => c.leadSource).filter((x): x is string => !!x))].sort((a, b) =>
+			a.localeCompare(b)
+		)
+	);
 	const allTags = $derived(
 		[...new Set(customers.flatMap((c) => c.tags ?? []))].sort((a, b) => a.localeCompare(b))
 	);
@@ -49,7 +55,8 @@
 		customers.filter(
 			(c) =>
 				(!tagFilter || c.tags?.includes(tagFilter)) &&
-				(!officeFilter || (c.officeId ?? '') === officeFilter)
+				(!officeFilter || (c.officeId ?? '') === officeFilter) &&
+				(!sourceFilter || c.leadSource === sourceFilter)
 		)
 	);
 	const totalBalance = $derived(visible.reduce((sum, c) => sum + c.openBalance, 0));
@@ -228,6 +235,21 @@
 				</Select.Content>
 			</Select.Root>
 		{/if}
+		{#if allSources.length}
+			<Select.Root
+				type="single"
+				value={sourceFilter}
+				onValueChange={(v: string) => (sourceFilter = v)}
+			>
+				<Select.Trigger class="w-44">{sourceFilter || 'All sources'}</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="">All sources</Select.Item>
+					{#each allSources as src (src)}
+						<Select.Item value={src} class="capitalize">{src}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
 	</div>
 
 	<p class="text-sm text-muted-foreground">
@@ -253,6 +275,11 @@
 						<Table.Row class="cursor-pointer" onclick={() => goto(`/customers/${c.id}`)}>
 							<Table.Cell class="font-medium">
 								{c.name}
+								{#if c.portalLinked}
+									<Badge variant="outline" class="ml-1 px-1 py-0 text-[10px] font-normal"
+										>portal</Badge
+									>
+								{/if}
 								{#if c.companyName}<span class="text-muted-foreground">
 										· {c.companyName}</span
 									>{/if}
