@@ -63,6 +63,7 @@
 	);
 	const totalBalance = $derived(visible.reduce((sum, c) => sum + c.openBalance, 0));
 	const onHoldCount = $derived(visible.filter((c) => c.onHold).length);
+	const withBalance = $derived(visible.filter((c) => c.openBalance > 0).length);
 	const newThisMonth = $derived(
 		visible.filter((c) => c.since && c.since >= new Date().toISOString().slice(0, 8) + '01').length
 	);
@@ -271,7 +272,8 @@
 	<p class="text-sm text-muted-foreground">
 		{visible.length} customer{visible.length === 1 ? '' : 's'} ·
 		{formatMoney(totalBalance, currency)} open balance{#if newThisMonth}
-			· <span class="text-foreground">{newThisMonth} new this month</span>{/if}{#if onHoldCount}
+			· <span class="text-foreground">{newThisMonth} new this month</span>{/if}{#if withBalance}
+			· {withBalance} with balance{/if}{#if onHoldCount}
 			· <span class="text-red-600 dark:text-red-400">{onHoldCount} on hold</span>{/if}
 	</p>
 

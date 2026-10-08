@@ -382,6 +382,17 @@
 					across {openRows.length} invoice{openRows.length === 1 ? '' : 's'}
 				</p>
 			{/if}
+			{#if statusParam === 'overdue' && invoices.length}
+				<p class="mb-2 text-sm text-muted-foreground">
+					{invoices.length} overdue invoice{invoices.length === 1 ? '' : 's'} ·
+					<span class="font-medium text-amber-600 dark:text-amber-400"
+						>{formatMoney(
+							invoices.reduce((sum, i) => sum + i.total - i.paid, 0),
+							currency
+						)}</span
+					>
+				</p>
+			{/if}
 			<div class="mb-2 flex gap-1.5">
 				{#each [['', 'All'], ['open', 'Open'], ['overdue', 'Overdue'], ['void', 'Void']] as [s, label] (s)}
 					<Button

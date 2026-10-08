@@ -260,7 +260,9 @@
 		<Button size="sm" variant="outline" href="/api/export/inventory.csv" download>
 			<Download /> Export CSV
 		</Button>
-		<Badge variant="secondary" class="mr-2">On-hand value {formatMoney(totalValue, currency)}</Badge
+		<Badge variant="secondary" class="mr-2"
+			>{items.length} item{items.length === 1 ? '' : 's'} ·
+			{formatMoney(totalValue, currency)} on hand</Badge
 		>
 		{@const lowCount = items.filter((i) => i.low).length}
 		{#if lowCount}
