@@ -48,8 +48,15 @@ export function estimateUrl(id: string) {
 
 // ---------- Staff side ----------
 
+/** Live expiry: a `sent` row past `valid_until` reads as `expired` everywhere, even pre-cron. */
+function withExpiry<T extends { status: string; validUntil: string | null }>(row: T): T {
+	if (row.status === 'sent' && row.validUntil && row.validUntil < todayIso())
+		return { ...row, status: 'expired' };
+	return row;
+}
+
 export async function listEstimates(orgId: string, status?: string) {
-	return db
+	const rows = await db
 		.select({
 			estimate,
 			customerName: customer.name,
@@ -61,13 +68,11 @@ export async function listEstimates(orgId: string, status?: string) {
 		})
 		.from(estimate)
 		.innerJoin(customer, eq(estimate.customerId, customer.id))
-		.where(
-			and(
-				eq(estimate.organizationId, orgId),
-				status ? eq(estimate.status, status as never) : undefined
-			)
-		)
+		.where(eq(estimate.organizationId, orgId))
 		.orderBy(desc(estimate.createdAt));
+	return rows
+		.map((r) => ({ ...r, estimate: withExpiry(r.estimate) }))
+		.filter((r) => !status || r.estimate.status === status);
 }
 
 export async function getEstimate(orgId: string, id: string) {
@@ -84,6 +89,7 @@ export async function getEstimate(orgId: string, id: string) {
 		.leftJoin(pricebookItem, eq(estimateItem.pricebookItemId, pricebookItem.id))
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
+	row.estimate = withExpiry(row.estimate);
 	const linkedJob = row.estimate.jobId
 		? (
 				await db
@@ -295,13 +301,7 @@ export async function publicEstimate(id: string) {
 		.select({ currency: companySettings.currency })
 		.from(companySettings)
 		.where(eq(companySettings.organizationId, row.estimate.organizationId));
-	if (
-		row.estimate.status === 'sent' &&
-		row.estimate.validUntil &&
-		row.estimate.validUntil < todayIso()
-	) {
-		row.estimate.status = 'expired';
-	}
+	row.estimate = withExpiry(row.estimate);
 	return { ...row, items, currency: settings?.currency ?? 'usd' };
 }
 
