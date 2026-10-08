@@ -189,6 +189,7 @@
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
 	let taxRatePct = $state(settings.taxRateBps / 100);
 	let lateFeeDollars = $state(settings.lateFeeCents / 100);
+	let depositPct = $state(settings.estimateDepositPct);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -224,7 +225,8 @@
 				bookingNoticeDays,
 				bookingDailyLimit,
 				taxRateBps: Math.round((taxRatePct || 0) * 100),
-				lateFeeCents: Math.round((lateFeeDollars || 0) * 100)
+				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
+				estimateDepositPct: Math.round(depositPct || 0)
 			});
 			toast.success('Settings saved');
 		} catch (err) {

@@ -4,7 +4,11 @@ import { refreshQuery } from './_refresh.ts';
 import { getDashboard } from './workspace.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/billing.ts';
-import { notifyInvoiceSent, notifyInvoiceTexted } from '#lib/server/services/notifications.ts';
+import {
+	notifyInvoiceSent,
+	notifyInvoiceTexted,
+	notifyPaymentReceived
+} from '#lib/server/services/notifications.ts';
 import { getCustomer } from './customers.remote.ts';
 import { getJobs } from './jobs.remote.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
@@ -154,7 +158,13 @@ export const updateCharge = command(chargeUpdate, async (input) => {
 
 export const getPayments = query(async () => svc.listPayments((await requireOrg()).orgId));
 export const recordPayment = command(paymentInput, async (input) => {
-	const p = await svc.recordPayment(await requireOrg(), input);
+	const ctx = await requireOrg();
+	const p = await svc.recordPayment(ctx, input);
+	if (p?.length)
+		void notifyPaymentReceived(
+			ctx.orgId,
+			p.map((r) => r.id)
+		).catch((err) => console.error('payment receipt email failed', err));
 	await refreshQuery(getPayments, undefined);
 	await refreshQuery(getCharges, undefined);
 	await refreshQuery(getInvoices, undefined);

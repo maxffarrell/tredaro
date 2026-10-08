@@ -74,6 +74,8 @@ export const companySettings = pgTable('company_settings', {
 	bookingDailyLimit: integer('booking_daily_limit').notNull().default(0),
 	/** Flat late fee added once to an invoice that goes 3+ days past due (0 = off). */
 	lateFeeCents: integer('late_fee_cents').notNull().default(0),
+	/** Deposit invoice created on estimate approval, % of the estimate total (0 = none). */
+	estimateDepositPct: integer('estimate_deposit_pct').notNull().default(0),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),

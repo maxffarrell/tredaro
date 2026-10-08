@@ -443,6 +443,35 @@ export async function decideEstimate(
 			{ source: 'estimate' }
 		);
 		jobId = created!.id;
+
+		// Deposit on approval: when the org collects a percentage up front, cut a
+		// deposit invoice for that share of the estimate total and email the pay link.
+		const settings = await getSettings(est.organizationId);
+		const pct = settings.estimateDepositPct;
+		const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+		if (pct > 0 && total > 0) {
+			const dep = await createInvoice(
+				{ orgId: est.organizationId, userId: null },
+				{
+					customerId: est.customerId,
+					dueDate: todayIso(),
+					notes: `Deposit for estimate E-${est.number}`,
+					items: [
+						{
+							pricebookItemId: null,
+							name: `Deposit — estimate E-${est.number} (${pct}%)`,
+							description: '',
+							qty: 1,
+							unitPrice: Math.round((total * pct) / 100)
+						}
+					]
+				}
+			);
+			const { notifyInvoiceSent } = await import('./notifications.ts');
+			notifyInvoiceSent(est.organizationId, dep!.id).catch((err) =>
+				console.error('deposit invoice email failed', err)
+			);
+		}
 	}
 
 	const [row] = await db

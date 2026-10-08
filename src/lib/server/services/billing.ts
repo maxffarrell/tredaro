@@ -556,7 +556,10 @@ export async function getInvoice(orgId: string, id: string) {
  * Issues an invoice: stores the line items and posts one receivable for the total.
  * `items` defaults to the job's approved estimate items when `fromEstimate` is set.
  */
-export async function createInvoice(ctx: OrgContext, input: v.InferOutput<typeof s.invoiceInput>) {
+export async function createInvoice(
+	ctx: { orgId: string; userId?: string | null },
+	input: v.InferOutput<typeof s.invoiceInput>
+) {
 	const [c] = await db
 		.select()
 		.from(customer)
@@ -995,7 +998,7 @@ export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof
 		summary: `${formatMoney(input.amount)} from ${c.name}`,
 		data: { customerId: input.customerId, method: input.method }
 	});
-	return rows[0];
+	return rows;
 }
 
 /** Refund a recorded payment: flags it and inserts a negative payment against the same charge, reopening any paid charge it uncovers. */

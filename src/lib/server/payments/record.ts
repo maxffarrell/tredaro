@@ -81,4 +81,11 @@ export async function recordOnlinePayment(p: OnlinePayment) {
 			payments: rows.map((r) => r.id)
 		}
 	});
+	// Email a receipt per recorded part. Dynamic import keeps the
+	// notifications → billing → payments import graph acyclic.
+	const { notifyPaymentReceived } = await import('#lib/server/services/notifications.ts');
+	notifyPaymentReceived(
+		p.orgId,
+		rows.map((r) => r.id)
+	).catch((err) => console.error('payment receipt email failed', err));
 }
