@@ -112,6 +112,10 @@ export const customer = pgTable(
 		emailOptOut: boolean('email_opt_out').notNull().default(false),
 		/** Where the customer came from ("Google", "Referral", ...) for the leads report. */
 		leadSource: text('lead_source'),
+		/** Tech the customer prefers — pre-fills new jobs. */
+		preferredMemberId: text('preferred_member_id').references(() => member.id, {
+			onDelete: 'set null'
+		}),
 		since: date('since', { mode: 'string' }),
 		...timestamps
 	},

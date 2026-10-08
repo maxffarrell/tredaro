@@ -11,7 +11,8 @@
 		recordJobEvent,
 		signJob,
 		startTimer,
-		stopTimer
+		stopTimer,
+		getCalendarFeed
 	} from '#lib/remote/jobs.remote.ts';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import { errMsg } from '#lib/format.ts';
@@ -24,9 +25,18 @@
 	import Square from '@lucide/svelte/icons/square';
 	import Timer from '@lucide/svelte/icons/timer';
 	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
+	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 
 	const day = $derived(await getMyDay());
 	const tz = $derived(day.tz);
+	const calFeed = $derived(await getCalendarFeed());
+	function copyCal() {
+		if (!calFeed) return;
+		navigator.clipboard
+			.writeText(`${location.origin}${calFeed}`)
+			.then(() => toast.success('Calendar feed URL copied — subscribe in your calendar app'))
+			.catch(() => toast.info(`${location.origin}${calFeed}`));
+	}
 
 	type EventKind = 'dispatched' | 'en_route' | 'on_site' | 'completed';
 	const NEXT: Record<string, { kind: EventKind; label: string }[]> = {
@@ -163,7 +173,15 @@
 	</Card.Root>
 {/snippet}
 
-<PageHeader title="My Day" />
+{#snippet calActions()}
+	{#if calFeed}
+		<Button variant="outline" size="sm" onclick={copyCal} title="Subscribe to your schedule">
+			<CalendarPlus /> Calendar
+		</Button>
+	{/if}
+{/snippet}
+
+<PageHeader title="My Day" actions={calActions} />
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 md:p-6">
 	<p class="text-sm text-muted-foreground">

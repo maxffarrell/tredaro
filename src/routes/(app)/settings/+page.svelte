@@ -55,6 +55,10 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+	import Sun from '@lucide/svelte/icons/sun';
+	import Moon from '@lucide/svelte/icons/moon';
+	import MonitorSmartphone from '@lucide/svelte/icons/monitor-smartphone';
+	import { userPrefersMode, setMode } from 'mode-watcher';
 
 	let settings = $state(await getSettings());
 	let offices = $state(await getOffices());
@@ -497,6 +501,22 @@
 					<Card.Description>Saved to this browser, not your profile.</Card.Description>
 				</Card.Header>
 				<Card.Content>
+					<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
+						<div>
+							<p class="font-medium">Appearance</p>
+							<p class="text-xs text-muted-foreground">Light, dark, or follow your system.</p>
+						</div>
+						<div class="flex gap-1">
+							{#each [{ id: 'light', icon: Sun, label: 'Light' }, { id: 'dark', icon: Moon, label: 'Dark' }, { id: 'system', icon: MonitorSmartphone, label: 'System' }] as m (m.id)}
+								<Button
+									size="sm"
+									variant={userPrefersMode.current === m.id ? 'default' : 'outline'}
+									onclick={() => setMode(m.id as 'light' | 'dark' | 'system')}
+									title={m.label}><m.icon /></Button
+								>
+							{/each}
+						</div>
+					</div>
 					<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
 						<div>
 							<p class="font-medium">Guided tour</p>

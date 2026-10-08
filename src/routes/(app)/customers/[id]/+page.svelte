@@ -34,7 +34,7 @@
 		updateSchedule,
 		deleteSchedule
 	} from '#lib/remote/maintenance.remote.ts';
-	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
+	import { getJobTypes, getTechnicians } from '#lib/remote/jobs.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
@@ -121,6 +121,8 @@
 	let smsOptOut = $state(c.customer.smsOptOut);
 	let emailOptOut = $state(c.customer.emailOptOut);
 	let leadSource = $state(c.customer.leadSource);
+	let preferredMemberId = $state(c.customer.preferredMemberId ?? '');
+	const technicians = $derived(await getTechnicians());
 	let saving = $state(false);
 	let loadedId = '';
 	$effect(() => {
@@ -137,6 +139,7 @@
 			smsOptOut = c.customer.smsOptOut;
 			emailOptOut = c.customer.emailOptOut;
 			leadSource = c.customer.leadSource;
+			preferredMemberId = c.customer.preferredMemberId ?? '';
 		}
 	});
 
@@ -159,7 +162,8 @@
 					.filter(Boolean),
 				smsOptOut,
 				emailOptOut,
-				leadSource
+				leadSource,
+				preferredMemberId: preferredMemberId || null
 			});
 			toast.success('Customer saved');
 		} catch (err) {
@@ -441,6 +445,22 @@
 							<option value="Online booking"></option>
 							<option value="Other"></option>
 						</datalist>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label>Preferred technician</Field.Label>
+						<Select.Root type="single" bind:value={preferredMemberId}>
+							<Select.Trigger class="w-full"
+								>{technicians.find((t) => t.id === preferredMemberId)?.name ??
+									'No preference'}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">No preference</Select.Item>
+								{#each technicians as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<p class="text-xs text-muted-foreground">Pre-fills new jobs for this customer.</p>
 					</Field.Field>
 					<div class="space-y-2 rounded-md border p-3">
 						<p class="text-sm font-medium">Contact preferences</p>

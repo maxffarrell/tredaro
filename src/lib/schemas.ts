@@ -53,7 +53,8 @@ export const customerInput = v.object({
 	tags: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(40))), []),
 	smsOptOut: v.optional(v.boolean(), false),
 	emailOptOut: v.optional(v.boolean(), false),
-	leadSource: optionalText
+	leadSource: optionalText,
+	preferredMemberId: v.optional(v.nullable(idSchema))
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),

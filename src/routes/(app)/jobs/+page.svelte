@@ -45,6 +45,13 @@
 	let customerId = $state(page.url.searchParams.get('customer') ?? '');
 	let jobTypeId = $state('');
 	let technicianId = $state('');
+	let techPrefilled = '';
+	function pickCustomer(v: string | undefined) {
+		customerId = v ?? '';
+		const pref = customers.find((c) => c.id === customerId)?.preferredMemberId ?? '';
+		if (!technicianId || technicianId === techPrefilled) technicianId = pref;
+		techPrefilled = pref;
+	}
 	let startsAt = $state('');
 	let summary = $state('');
 	let description = $state('');
@@ -155,7 +162,7 @@
 		<form class="space-y-4" onsubmit={submit}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
-				<Select.Root type="single" bind:value={customerId}>
+				<Select.Root type="single" value={customerId} onValueChange={pickCustomer}>
 					<Select.Trigger class="w-full"
 						>{customers.find((c) => c.id === customerId)?.name ??
 							'Choose a customer'}</Select.Trigger

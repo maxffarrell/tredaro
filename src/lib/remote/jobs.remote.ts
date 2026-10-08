@@ -265,3 +265,5 @@ export const removeJobExpense = command(idSchema, async (expenseId) => {
 	await refreshQuery(getJob, e.jobId);
 	return e;
 });
+
+export const getCalendarFeed = query(async () => svc.calendarFeed(await requireOrg()));

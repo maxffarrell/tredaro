@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { error } from '@sveltejs/kit';
 import {
 	and,
@@ -926,4 +928,13 @@ export async function removeJobExpense(ctx: OrgContext, expenseId: string) {
 		summary: `Removed expense: ${e.description}`
 	});
 	return e;
+}
+
+/** Signed iCal feed URL for the calling technician (`/api/cal/<member>.<hmac>`), or null for non-techs. */
+export async function calendarFeed(ctx: OrgContext) {
+	const me = await memberFor(ctx);
+	if (!me) return null;
+	return `/api/cal/${me.id}.${createHmac('sha256', BETTER_AUTH_SECRET)
+		.update(`cal:${me.id}`)
+		.digest('base64url')}`;
 }

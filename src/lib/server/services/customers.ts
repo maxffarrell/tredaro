@@ -36,6 +36,7 @@ export async function listCustomers(orgId: string, q?: string) {
 			status: customer.status,
 			since: customer.since,
 			tags: customer.tags,
+			preferredMemberId: customer.preferredMemberId,
 			officeName: office.name,
 			openBalance:
 				sql<number>`coalesce((select sum(c.amount - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0)) from ${charge} c where c.customer_id = ${outer(customer.id)} and c.status = 'open'), 0)`.mapWith(
@@ -157,7 +158,8 @@ export async function createCustomer(
 			tags: input.tags,
 			smsOptOut: input.smsOptOut,
 			emailOptOut: input.emailOptOut,
-			leadSource: input.leadSource ?? null
+			leadSource: input.leadSource ?? null,
+			preferredMemberId: input.preferredMemberId ?? null
 		})
 		.returning();
 	await emit({
@@ -241,7 +243,9 @@ export async function updateCustomer(
 			tags: set.tags,
 			smsOptOut: set.smsOptOut,
 			emailOptOut: set.emailOptOut,
-			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null
+			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null,
+			preferredMemberId:
+				set.preferredMemberId === undefined ? undefined : set.preferredMemberId || null
 		})
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, id)))
 		.returning();
