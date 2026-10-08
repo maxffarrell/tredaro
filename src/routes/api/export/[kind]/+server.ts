@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { requireOrg } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -8,6 +8,7 @@ import {
 	invoiceItem,
 	job,
 	jobTimeEntry,
+	jobType,
 	member,
 	outer,
 	payment,
@@ -24,7 +25,7 @@ const cell = (v: unknown) => {
 const row = (cells: unknown[]) => cells.map(cell).join(',');
 const money = (cents: number | null | undefined) => (cents == null ? '' : (cents / 100).toFixed(2));
 
-/** CSV exports for staff: `GET /api/export/invoices.csv` or `/api/export/time-entries.csv` (optional ?from=&to= YYYY-MM-DD). */
+/** CSV exports for staff: `GET /api/export/{invoices,jobs,time-entries,customers,quickbooks,xero}.csv` (optional ?from=&to= YYYY-MM-DD). */
 export const GET: RequestHandler = async ({ params, url }) => {
 	const ctx = await requireOrg();
 	const kind = params.kind?.replace(/\.csv$/, '');
@@ -73,6 +74,58 @@ export const GET: RequestHandler = async ({ params, url }) => {
 					money(r.total),
 					money(r.paid),
 					money(r.total - r.paid)
+				])
+			)
+		].join('\n');
+	} else if (kind === 'jobs') {
+		const rows = await db
+			.select({
+				number: job.number,
+				customerName: customer.name,
+				typeName: jobType.name,
+				technicianName: user.name,
+				status: job.status,
+				priority: job.priority,
+				startsAt: job.startsAt,
+				completedAt: job.completedAt,
+				createdAt: job.createdAt
+			})
+			.from(job)
+			.innerJoin(customer, eq(job.customerId, customer.id))
+			.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+			.leftJoin(member, eq(job.technicianId, member.id))
+			.leftJoin(user, eq(member.userId, user.id))
+			.where(
+				and(
+					eq(job.organizationId, ctx.orgId),
+					from ? gte(job.createdAt, new Date(`${from}T00:00:00Z`)) : undefined,
+					toBound ? lt(job.createdAt, new Date(toBound)) : undefined
+				)
+			)
+			.orderBy(desc(job.number));
+		body = [
+			row([
+				'Job',
+				'Customer',
+				'Type',
+				'Technician',
+				'Status',
+				'Priority',
+				'Scheduled',
+				'Completed',
+				'Created'
+			]),
+			...rows.map((r) =>
+				row([
+					`J-${r.number}`,
+					r.customerName,
+					r.typeName ?? '',
+					r.technicianName ?? '',
+					r.status,
+					r.priority,
+					r.startsAt ? r.startsAt.toISOString() : '',
+					r.completedAt ? r.completedAt.toISOString().slice(0, 10) : '',
+					r.createdAt.toISOString().slice(0, 10)
 				])
 			)
 		].join('\n');

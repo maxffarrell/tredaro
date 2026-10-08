@@ -465,6 +465,31 @@
 
 	<Card.Root>
 		<Card.Header>
+			<Card.Title class="text-base">Technician utilization</Card.Title>
+			<Card.Description
+				>Scheduled hours booked over the next 7 days vs an 8 hr/day capacity</Card.Description
+			>
+		</Card.Header>
+		<Card.Content class="space-y-1.5">
+			{#each r.utilization as t (t.name)}
+				<div class="flex items-center gap-2 text-sm">
+					<span class="w-32 shrink-0 truncate">{t.name}</span>
+					<div
+						class="h-4 rounded {t.pct > 100 ? 'bg-destructive/80' : 'bg-primary/70'}"
+						style="width: {Math.min(70, (t.pct / 100) * 70)}%"
+					></div>
+					<span class="tabular-nums {t.pct > 100 ? 'text-destructive' : ''}"
+						>{t.hours}h · {t.pct}%</span
+					>
+				</div>
+			{:else}
+				<p class="text-sm text-muted-foreground">No technicians.</p>
+			{/each}
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
 			<Card.Title class="text-base">Office performance</Card.Title>
 			<Card.Description>Jobs and revenue collected by office — all time</Card.Description>
 		</Card.Header>

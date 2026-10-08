@@ -6,12 +6,13 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { getDispatchBoard, updateJob } from '#lib/remote/jobs.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { addDays } from '#lib/tz.ts';
-	import { SvelteMap } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { errMsg } from '#lib/format.ts';
@@ -40,6 +41,32 @@
 				)
 			: board.unscheduled
 	);
+
+	// ------- bulk assign -------
+	const selected = new SvelteSet<string>();
+	let bulkTech = $state('');
+	let bulkBusy = $state(false);
+	function toggleSelect(id: string) {
+		if (selected.has(id)) selected.delete(id);
+		else selected.add(id);
+	}
+	async function assignSelected() {
+		if (!selected.size) return;
+		bulkBusy = true;
+		try {
+			for (const [i, id] of [...selected].entries()) {
+				// Stagger 30-minute slots from 8am on the board's first day.
+				const startsAt = `${start}T08:${i % 2 ? '30' : '00'}`;
+				await updateJob({ id, technicianId: bulkTech || null, startsAt }).updates(getDispatchBoard);
+			}
+			toast.success(`Assigned ${selected.size} job${selected.size > 1 ? 's' : ''}`);
+			selected.clear();
+		} catch (err) {
+			toast.error(errMsg(err, 'Bulk assign failed'));
+		} finally {
+			bulkBusy = false;
+		}
+	}
 
 	function shift(days: number) {
 		start = addDays(start, days);
@@ -145,36 +172,70 @@
 			<Card.Title class="text-base">Unscheduled ({board.unscheduled.length})</Card.Title>
 			<Input class="ml-auto h-7 w-32 text-xs" placeholder="Filter…" bind:value={queueFilter} />
 		</Card.Header>
+		{#if selected.size}
+			<div class="flex items-center gap-2 border-b px-4 py-2">
+				<span class="text-xs text-muted-foreground">{selected.size} selected</span>
+				<Select.Root type="single" bind:value={bulkTech}>
+					<Select.Trigger class="h-7 w-32 text-xs"
+						>{board.technicians.find((t) => t.id === bulkTech)?.name ||
+							'Technician'}</Select.Trigger
+					>
+					<Select.Content>
+						{#each board.technicians as t (t.id)}
+							<Select.Item value={t.id}>{t.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<Button size="sm" class="h-7 text-xs" disabled={bulkBusy} onclick={assignSelected}
+					>Assign</Button
+				>
+				<Button size="sm" variant="ghost" class="h-7 text-xs" onclick={() => selected.clear()}
+					>Clear</Button
+				>
+			</div>
+		{/if}
 		<Card.Content class="space-y-2 px-4">
 			{#each filteredQueue as j (j.job.id)}
-				<button
-					class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
-					draggable="true"
-					ondragstart={(e) => dragJob(e, j)}
-					ondragover={allowDrop}
-					ondrop={(e) => {
-						e.stopPropagation();
-						dropOn(e, 'queue');
-					}}
-					onclick={() => goto(`/jobs/${j.job.id}`)}
-				>
-					<div class="flex items-center justify-between gap-2">
-						<span class="truncate text-sm font-medium">
-							{j.job.summary || j.jobTypeName} · {j.customerName}
-						</span>
-						<StatusBadge status={j.job.priority} />
-					</div>
-					<p class="mt-1 text-xs text-muted-foreground">
-						J-{j.job.number} · {j.job.source}
-						{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span>{/if}
-						{#if j.city}· {j.city}{/if}
-						{#if j.job.preferredTime}
-							<br /><span class="text-amber-600 dark:text-amber-400"
-								>Asked: {j.job.preferredTime}</span
-							>
-						{/if}
-					</p>
-				</button>
+				<div class="flex items-start gap-2">
+					<Checkbox
+						class="mt-2"
+						checked={selected.has(j.job.id)}
+						onCheckedChange={() => toggleSelect(j.job.id)}
+					/>
+					<button
+						class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent {selected.has(
+							j.job.id
+						)
+							? 'border-primary bg-primary/5'
+							: ''}"
+						draggable="true"
+						ondragstart={(e) => dragJob(e, j)}
+						ondragover={allowDrop}
+						ondrop={(e) => {
+							e.stopPropagation();
+							dropOn(e, 'queue');
+						}}
+						onclick={() => goto(`/jobs/${j.job.id}`)}
+					>
+						<div class="flex items-center justify-between gap-2">
+							<span class="truncate text-sm font-medium">
+								{j.job.summary || j.jobTypeName} · {j.customerName}
+							</span>
+							<StatusBadge status={j.job.priority} />
+						</div>
+						<p class="mt-1 text-xs text-muted-foreground">
+							J-{j.job.number} · {j.job.source}
+							{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span
+								>{/if}
+							{#if j.city}· {j.city}{/if}
+							{#if j.job.preferredTime}
+								<br /><span class="text-amber-600 dark:text-amber-400"
+									>Asked: {j.job.preferredTime}</span
+								>
+							{/if}
+						</p>
+					</button>
+				</div>
 			{:else}
 				<p class="py-4 text-sm text-muted-foreground">Queue is clear.</p>
 			{/each}

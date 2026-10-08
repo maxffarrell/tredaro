@@ -20,6 +20,7 @@
 	import { errMsg } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Download from '@lucide/svelte/icons/download';
 	import Wrench from '@lucide/svelte/icons/wrench';
 
 	const settings = await getSettings();
@@ -82,6 +83,9 @@
 
 <PageHeader title="Jobs">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" href="/api/export/jobs.csv" download
+			><Download /> Export</Button
+		>
 		<Button size="sm" onclick={() => (open = true)}><Plus /> New job</Button>
 	{/snippet}
 </PageHeader>

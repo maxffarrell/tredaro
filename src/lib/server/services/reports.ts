@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	agreementPlan,
@@ -173,6 +173,42 @@ async function laborByTechnician(orgId: string) {
 		.orderBy(desc(minutes));
 }
 
+/** Next-7-days scheduled minutes per tech vs an 8h×7 capacity — dispatch load at a glance. */
+async function utilization(orgId: string) {
+	const now = new Date();
+	const weekOut = new Date(now.getTime() + 7 * 86400_000);
+	const minutes = sql`coalesce(sum(extract(epoch from (${job.endsAt} - ${job.startsAt})) / 60), 0)`;
+	const rows = await db
+		.select({
+			memberId: member.id,
+			name: user.name,
+			minutes: sql<number>`${minutes}`.mapWith(Number)
+		})
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.leftJoin(
+			job,
+			and(
+				eq(job.technicianId, member.id),
+				eq(job.organizationId, orgId),
+				isNotNull(job.startsAt),
+				isNotNull(job.endsAt),
+				gte(job.startsAt, now),
+				lt(job.startsAt, weekOut),
+				sql`${job.status} not in ('cancelled')`
+			)
+		)
+		.where(eq(member.organizationId, orgId))
+		.groupBy(member.id, user.name)
+		.orderBy(desc(minutes));
+	const capacity = 7 * 8 * 60;
+	return rows.map((r) => ({
+		name: r.name,
+		hours: Math.round((r.minutes / 60) * 10) / 10,
+		pct: Math.min(999, Math.round((r.minutes / capacity) * 100))
+	}));
+}
+
 /** Per-technician performance over the last 90 days: completed jobs, logged hours, revenue collected on their jobs. */
 async function techPerformance(orgId: string) {
 	const since = new Date(Date.now() - 90 * 86400_000);
@@ -264,6 +300,7 @@ export async function getReports(orgId: string) {
 		estimates,
 		techs,
 		labor,
+		util,
 		perf,
 		profit,
 		tops,
@@ -280,6 +317,7 @@ export async function getReports(orgId: string) {
 		estimateFunnel(orgId),
 		technicianLoad(orgId),
 		laborByTechnician(orgId),
+		utilization(orgId),
 		techPerformance(orgId),
 		jobProfitability(orgId),
 		topCustomers(orgId),
@@ -297,6 +335,7 @@ export async function getReports(orgId: string) {
 		estimates,
 		techs,
 		labor,
+		utilization: util,
 		perf,
 		profit,
 		topCustomers: tops,
