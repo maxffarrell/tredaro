@@ -756,3 +756,22 @@ export const memberTimeOff = pgTable(
 	},
 	(t) => [index('member_time_off_member_idx').on(t.memberId, t.startsOn)]
 );
+
+/** A photo attached to a job — bytes live on disk under UPLOADS_DIR. */
+export const jobPhoto = pgTable(
+	'job_photo',
+	{
+		id: id(),
+		organizationId: orgId(),
+		jobId: text('job_id')
+			.notNull()
+			.references(() => job.id, { onDelete: 'cascade' }),
+		uploadedById: text('uploaded_by_id').references(() => member.id, { onDelete: 'set null' }),
+		fileName: text('file_name').notNull(),
+		mime: text('mime').notNull(),
+		size: integer('size').notNull(),
+		path: text('path').notNull(),
+		...timestamps
+	},
+	(t) => [index('job_photo_job_idx').on(t.jobId)]
+);

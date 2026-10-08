@@ -226,6 +226,45 @@
 
 	<Card.Root>
 		<Card.Header>
+			<Card.Title class="text-base">Technician performance</Card.Title>
+			<Card.Description
+				>Jobs completed, hours logged, revenue collected on their jobs — last 90 days</Card.Description
+			>
+		</Card.Header>
+		<Card.Content>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Technician</Table.Head>
+						<Table.Head class="text-right">Jobs done</Table.Head>
+						<Table.Head class="text-right">Hours</Table.Head>
+						<Table.Head class="text-right">Collected</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.perf as t (t.memberId)}
+						<Table.Row>
+							<Table.Cell class="font-medium">{t.name}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{t.jobsDone}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{fmtHours(t.minutes)}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(t.revenue, currency, true)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={4} class="text-muted-foreground"
+								>No technician activity in the last 90 days.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
 			<Card.Title class="text-base">Labor by technician</Card.Title>
 			<Card.Description>Logged time, last 30 days — open timers count to now</Card.Description>
 		</Card.Header>

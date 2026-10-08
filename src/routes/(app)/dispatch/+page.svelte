@@ -5,12 +5,14 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { getDispatchBoard } from '#lib/remote/jobs.remote.ts';
+	import { getDispatchBoard, updateJob } from '#lib/remote/jobs.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { addDays } from '#lib/tz.ts';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { page } from '$app/state';
+	import { toast } from 'svelte-sonner';
+	import { errMsg } from '#lib/format.ts';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Inbox from '@lucide/svelte/icons/inbox';
@@ -25,6 +27,40 @@
 	function shift(days: number) {
 		start = addDays(start, days);
 		goto(`?from=${start}`, { replaceState: true });
+	}
+
+	// ------- drag to reassign / unschedule -------
+	let dropZone = $state<string | null>(null);
+	function dragJob(e: DragEvent, j: { job: { id: string } }) {
+		e.dataTransfer?.setData('text/plain', j.job.id);
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+	function allowDrop(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+	}
+	async function dropOn(e: DragEvent, techId: string | 'queue') {
+		e.preventDefault();
+		dropZone = null;
+		const jobId = e.dataTransfer?.getData('text/plain');
+		if (!jobId) return;
+		try {
+			if (techId === 'queue') {
+				await updateJob({ id: jobId, startsAt: null });
+				toast.success('Job unscheduled');
+			} else {
+				// Unscheduled jobs dropped on a tech get an 8am slot on the board's first day.
+				const job = board.unscheduled.find((j) => j.job.id === jobId);
+				await updateJob({
+					id: jobId,
+					technicianId: techId || null,
+					...(job ? { startsAt: `${start}T08:00` } : {})
+				});
+				toast.success('Job reassigned');
+			}
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not move job'));
+		}
 	}
 
 	const byTech = $derived.by(() => {
@@ -60,7 +96,13 @@
 
 <div class="grid gap-4 p-4 md:p-6 lg:grid-cols-[300px_1fr]">
 	<!-- Unscheduled queue -->
-	<Card.Root class="h-fit">
+	<Card.Root
+		class="h-fit {dropZone === 'queue' ? 'ring-2 ring-primary' : ''}"
+		ondragover={allowDrop}
+		ondragenter={() => (dropZone = 'queue')}
+		ondragleave={() => (dropZone = null)}
+		ondrop={(e) => dropOn(e, 'queue')}
+	>
 		<Card.Header class="flex-row items-center gap-2">
 			<Inbox class="size-4 text-muted-foreground" />
 			<Card.Title class="text-base">Unscheduled ({board.unscheduled.length})</Card.Title>
@@ -68,7 +110,9 @@
 		<Card.Content class="space-y-2 px-4">
 			{#each board.unscheduled as j (j.job.id)}
 				<button
-					class="w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent"
+					class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
+					draggable="true"
+					ondragstart={(e) => dragJob(e, j)}
 					onclick={() => goto(`/jobs/${j.job.id}`)}
 				>
 					<div class="flex items-center justify-between gap-2">
@@ -91,7 +135,13 @@
 	<!-- Scheduled, grouped by technician -->
 	<div class="space-y-4">
 		{#each byTech as [techId, group] (techId || 'unassigned')}
-			<Card.Root>
+			<Card.Root
+				class={dropZone === (techId || 'unassigned') ? 'ring-2 ring-primary' : ''}
+				ondragover={allowDrop}
+				ondragenter={() => (dropZone = techId || 'unassigned')}
+				ondragleave={() => (dropZone = null)}
+				ondrop={(e) => dropOn(e, techId)}
+			>
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2 text-base">
 						{group.name}
@@ -110,7 +160,9 @@
 							{#each group.jobs as j (j.job.id)}
 								<li>
 									<button
-										class="w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent"
+										class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
+										draggable="true"
+										ondragstart={(e) => dragJob(e, j)}
 										onclick={() => goto(`/jobs/${j.job.id}`)}
 									>
 										<div class="flex items-center gap-2">

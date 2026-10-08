@@ -3,6 +3,7 @@ import { command, query } from '$app/server';
 import { refreshQuery } from './_refresh.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/jobs.ts';
+import * as photosSvc from '#lib/server/services/photos.ts';
 import {
 	notifyJobCompleted,
 	notifyJobEnRoute,
@@ -217,5 +218,17 @@ export const deleteChecklistItem = command(idSchema, async (id) => {
 		await refreshQuery(getJobChecklist, jobId);
 		await refreshQuery(getJob, jobId);
 	}
+	return { id };
+});
+
+// ---------- photos ----------
+
+export const getJobPhotos = query(idSchema, async (jobId) =>
+	photosSvc.listJobPhotos((await requireOrg()).orgId, jobId)
+);
+
+export const deleteJobPhoto = command(idSchema, async (id) => {
+	const row = await photosSvc.deleteJobPhoto(await requireOrg(), id);
+	await refreshQuery(getJobPhotos, row.jobId);
 	return { id };
 });

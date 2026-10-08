@@ -42,6 +42,10 @@ export const variables = defineEnvVars({
 			'Signing secret(s) for `/api/payments/stripe/webhook`. Comma-separate several (e.g. account and Connect endpoints).',
 		schema: (value) => value || undefined
 	},
+	UPLOADS_DIR: {
+		description: 'Directory for uploaded job photos. Defaults to `data/uploads`.',
+		schema: (value) => value || undefined
+	},
 	CRON_SECRET: {
 		description:
 			'Bearer token for `/api/cron`, which posts service-agreement charges and sends daily reminders (appointment reminders, estimate follow-ups, staff digests) for every workspace. Vercel Cron sends it automatically.',

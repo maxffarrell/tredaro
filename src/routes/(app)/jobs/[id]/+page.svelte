@@ -37,7 +37,9 @@
 		getJobChecklist,
 		addChecklistItem,
 		toggleChecklistItem,
-		deleteChecklistItem
+		deleteChecklistItem,
+		getJobPhotos,
+		deleteJobPhoto
 	} from '#lib/remote/jobs.remote.ts';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
@@ -51,6 +53,7 @@
 	import Timer from '@lucide/svelte/icons/timer';
 	import Package from '@lucide/svelte/icons/package';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
+	import Camera from '@lucide/svelte/icons/camera';
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -210,6 +213,39 @@
 
 	// ------- materials -------
 	const materials = $derived(await getJobMaterials({ jobId: id }));
+
+	// ------- photos -------
+	const photos = $derived(await getJobPhotos(id));
+	let uploading = $state(false);
+	async function uploadPhoto(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		uploading = true;
+		try {
+			const form = new FormData();
+			form.set('file', file);
+			const res = await fetch(`/api/jobs/${id}/photos`, { method: 'POST', body: form });
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				throw new Error(body?.message ?? `Upload failed (${res.status})`);
+			}
+			await getJobPhotos(id).refresh();
+			toast.success('Photo added');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload photo'));
+		}
+		input.value = '';
+		uploading = false;
+	}
+	async function removePhoto(photoId: string) {
+		try {
+			await deleteJobPhoto(photoId).updates(getJobPhotos);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not delete'));
+		}
+	}
+
 	const stock = $derived(await getInventory());
 	let addingMat = $state(false);
 	let matItem = $state('');
@@ -656,6 +692,65 @@
 							{stock.length ? 'Log material' : 'Add stock items in Inventory first'}
 						</Button>
 					{/if}
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between space-y-0">
+				<Card.Title class="flex items-center gap-2 text-base"
+					><Camera class="size-4" /> Photos</Card.Title
+				>
+				{#if photos.length}
+					<span class="text-sm text-muted-foreground tabular-nums">{photos.length}</span>
+				{/if}
+			</Card.Header>
+			<Card.Content class="px-4">
+				{#if photos.length}
+					<ul class="grid grid-cols-3 gap-2">
+						{#each photos as p (p.id)}
+							<li class="group relative">
+								<a href="/files/job-photo/{p.id}" target="_blank" rel="noreferrer">
+									<img
+										src="/files/job-photo/{p.id}"
+										alt={p.fileName}
+										class="aspect-square w-full rounded-md border object-cover"
+										loading="lazy"
+									/>
+								</a>
+								{#if !locked}
+									<Button
+										variant="destructive"
+										size="icon"
+										class="absolute top-1 right-1 size-6 opacity-0 transition-opacity group-hover:opacity-100"
+										onclick={() => removePhoto(p.id)}
+										aria-label="Delete photo"
+									>
+										<Trash2 class="size-3" />
+									</Button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="text-sm text-muted-foreground">No photos yet.</p>
+				{/if}
+				{#if !locked}
+					<label
+						class="mt-3 flex items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground transition-colors hover:bg-accent {uploading
+							? 'pointer-events-none opacity-60'
+							: 'cursor-pointer'}"
+					>
+						<Camera class="size-4" />
+						{uploading ? 'Uploading…' : 'Add a photo'}
+						<input
+							type="file"
+							accept="image/*"
+							class="sr-only"
+							disabled={uploading}
+							onchange={uploadPhoto}
+						/>
+					</label>
 				{/if}
 			</Card.Content>
 		</Card.Root>

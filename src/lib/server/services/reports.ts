@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, gte, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	agreementPlan,
+	charge,
 	customer,
 	estimate,
 	job,
@@ -168,8 +169,82 @@ async function laborByTechnician(orgId: string) {
 		.orderBy(desc(minutes));
 }
 
+/** Per-technician performance over the last 90 days: completed jobs, logged hours, revenue collected on their jobs. */
+async function techPerformance(orgId: string) {
+	const since = new Date(Date.now() - 90 * 86400_000);
+	const [done, hours, revenue] = await Promise.all([
+		db
+			.select({
+				memberId: job.technicianId,
+				jobs: sql<number>`count(*)`.mapWith(Number)
+			})
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, orgId),
+					isNotNull(job.technicianId),
+					isNull(job.cancelledAt),
+					gte(job.completedAt, since)
+				)
+			)
+			.groupBy(job.technicianId),
+		db
+			.select({
+				memberId: jobTimeEntry.memberId,
+				minutes:
+					sql<number>`sum(extract(epoch from (coalesce(${jobTimeEntry.endedAt}, now()) - ${jobTimeEntry.startedAt})) / 60)`.mapWith(
+						Number
+					)
+			})
+			.from(jobTimeEntry)
+			.where(and(eq(jobTimeEntry.organizationId, orgId), gte(jobTimeEntry.startedAt, since)))
+			.groupBy(jobTimeEntry.memberId),
+		db
+			.select({
+				memberId: job.technicianId,
+				total: sql<number>`sum(${payment.amount})`.mapWith(Number)
+			})
+			.from(payment)
+			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(job, eq(charge.jobId, job.id))
+			.where(
+				and(
+					eq(payment.organizationId, orgId),
+					gte(payment.paidAt, since),
+					isNotNull(job.technicianId)
+				)
+			)
+			.groupBy(job.technicianId)
+	]);
+	const ids = new Set(
+		[...done, ...hours, ...revenue].map((r) => r.memberId).filter((x): x is string => !!x)
+	);
+	if (!ids.size) return [];
+	const names = new Map(
+		(
+			await db
+				.select({ memberId: member.id, name: user.name })
+				.from(member)
+				.innerJoin(user, eq(member.userId, user.id))
+				.where(eq(member.organizationId, orgId))
+		).map((r) => [r.memberId, r.name])
+	);
+	const doneMap = new Map(done.map((r) => [r.memberId, r.jobs]));
+	const hoursMap = new Map(hours.map((r) => [r.memberId, r.minutes]));
+	const revMap = new Map(revenue.map((r) => [r.memberId, r.total]));
+	return [...ids]
+		.map((memberId) => ({
+			memberId,
+			name: names.get(memberId) ?? 'Former staff',
+			jobsDone: doneMap.get(memberId) ?? 0,
+			minutes: hoursMap.get(memberId) ?? 0,
+			revenue: revMap.get(memberId) ?? 0
+		}))
+		.sort((a, b) => b.revenue - a.revenue || b.jobsDone - a.jobsDone);
+}
+
 export async function getReports(orgId: string) {
-	const [completedJobs, customers, revenue, plans, byType, estimates, techs, labor] =
+	const [completedJobs, customers, revenue, plans, byType, estimates, techs, labor, perf] =
 		await Promise.all([
 			jobsByDay(orgId),
 			newCustomersByMonth(orgId),
@@ -178,7 +253,8 @@ export async function getReports(orgId: string) {
 			jobsByType(orgId),
 			estimateFunnel(orgId),
 			technicianLoad(orgId),
-			laborByTechnician(orgId)
+			laborByTechnician(orgId),
+			techPerformance(orgId)
 		]);
-	return { completedJobs, customers, revenue, plans, byType, estimates, techs, labor };
+	return { completedJobs, customers, revenue, plans, byType, estimates, techs, labor, perf };
 }
