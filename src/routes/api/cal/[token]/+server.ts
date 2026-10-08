@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, gte, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, lt, ne } from 'drizzle-orm';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import { customer, job, member, organization, serviceLocation } from '#lib/server/db/schema.ts';
@@ -47,11 +47,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	const from = new Date(now.getTime() - 30 * 86400_000);
 	const to = new Date(now.getTime() + 90 * 86400_000);
 	const jobs = await db
-		.select({
-			job,
-			customerName: customer.name,
-			address: sql<string>`nullif(trim(concat_ws(', ', nullif(${serviceLocation.address1}, ''), nullif(concat_ws(' ', nullif(${serviceLocation.city}, ''), nullif(${serviceLocation.state}, '')), nullif(${serviceLocation.zip}, ''))), '')`
-		})
+		.select({ job, customerName: customer.name, loc: serviceLocation })
 		.from(job)
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
@@ -75,6 +71,11 @@ export const GET: RequestHandler = async ({ params }) => {
 		...jobs.flatMap((j) => {
 			const start = j.job.startsAt ?? j.job.createdAt;
 			const end = j.job.endsAt ?? new Date(start.getTime() + 3600_000);
+			const address = j.loc
+				? [j.loc.address1, [j.loc.city, j.loc.state].filter(Boolean).join(' '), j.loc.zip]
+						.filter(Boolean)
+						.join(', ')
+				: '';
 			return [
 				'BEGIN:VEVENT',
 				`UID:job-${j.job.id}@tredaro`,
@@ -82,7 +83,7 @@ export const GET: RequestHandler = async ({ params }) => {
 				`DTSTART:${ics(start)}`,
 				`DTEND:${ics(end)}`,
 				fold(`SUMMARY:${esc(`J-${j.job.number} · ${j.customerName} — ${j.job.summary}`)}`),
-				...(j.address ? [fold(`LOCATION:${esc(j.address)}`)] : []),
+				...(address ? [fold(`LOCATION:${esc(address)}`)] : []),
 				fold(
 					`DESCRIPTION:${esc(`${j.job.summary}${j.job.description ? `\\n${j.job.description}` : ''}`)}`
 				),
