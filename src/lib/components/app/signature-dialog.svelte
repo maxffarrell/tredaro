@@ -20,7 +20,7 @@
 	} = $props();
 
 	let canvas: HTMLCanvasElement | undefined = $state();
-	let nameEl: HTMLInputElement | undefined = $state();
+	let nameEl: HTMLInputElement | null = $state(null);
 	let hasName = $state(false);
 	let drawn = $state(false);
 	let drawing = false;
