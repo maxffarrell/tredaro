@@ -5,23 +5,24 @@ import type { RequestHandler } from './$types';
 
 /**
  * Twilio inbound-SMS webhook. Configure in the Twilio console:
- *   POST {origin}/api/webhooks/twilio?org=<orgId>
+ *   HTTP GET {origin}/api/webhooks/twilio?org=<orgId>
+ * GET is required: Twilio's POST is application/x-www-form-urlencoded, which
+ * SvelteKit's CSRF guard rejects before hooks run (Twilio sends no Origin).
  * STOP/START toggle the customer's sms opt-out; any other reply is logged to
  * the customer's communications history as an inbound text.
  */
 const digits = (s: string) => s.replace(/\D/g, '');
 
-export const POST: RequestHandler = async ({ url, request }) => {
+const handle = async (url: URL, fields: { get(k: string): unknown }) => {
 	const orgId = url.searchParams.get('org');
 	if (!orgId) return new Response('missing org', { status: 400 });
-	const form = await request.formData();
-	const from = String(form.get('From') ?? '');
-	const body = String(form.get('Body') ?? '').trim();
+	const from = String(fields.get('From') ?? fields.get('from') ?? '');
+	const body = String(fields.get('Body') ?? fields.get('body') ?? '').trim();
 	const last10 = digits(from).slice(-10);
 	if (last10.length < 7) return new Response('unrecognized sender', { status: 400 });
 
 	const [cust] = await db
-		.select({ id: customer.id, smsOptOut: customer.smsOptOut })
+		.select({ id: customer.id, smsOptOut: customer.smsOptOut, phone: customer.phone })
 		.from(customer)
 		.where(
 			and(
@@ -45,9 +46,16 @@ export const POST: RequestHandler = async ({ url, request }) => {
 		organizationId: orgId,
 		kind: 'inbound_sms',
 		entityId: `${cust.id}:${Date.now()}`,
-		recipient: `${from}:${body.slice(0, 140)}`
+		recipient: `${cust.phone ?? from}:${body.slice(0, 140)}`
 	});
 	return new Response('<Response/>', {
 		headers: { 'content-type': 'text/xml' }
 	});
 };
+
+export const GET: RequestHandler = ({ url }) => handle(url, url.searchParams);
+
+// Kept for correctness when the caller supplies an Origin header; Twilio's
+// real posts are CSRF-blocked, so the GET URL above is the supported path.
+export const POST: RequestHandler = async ({ url, request }) =>
+	handle(url, await request.formData());
