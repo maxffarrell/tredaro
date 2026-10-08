@@ -538,7 +538,7 @@ async function officePerformance(orgId: string) {
 		.innerJoin(job, eq(charge.jobId, job.id))
 		.where(eq(payment.organizationId, orgId))
 		.groupBy(job.officeId);
-	const jobsMap = new Map(jobs.map((r) => [r.officeId, r]));
+	const jobsMap = new Map(jobs.map((r) => [r.officeId ?? '', r]));
 	const revMap = new Map(collected.map((r) => [r.officeId ?? '', r.total]));
 	const names = new Map(offices.map((o) => [o.id, o.name]));
 	const ids = new Set([...jobsMap.keys(), ...names.keys(), ...revMap.keys()]);
