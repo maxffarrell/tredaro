@@ -11,6 +11,8 @@ import {
 	invoice,
 	invoiceItem,
 	job,
+	jobMaterial,
+	inventoryItem,
 	payment,
 	pricebookItem,
 	serviceAgreement,
@@ -716,6 +718,16 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 	const [jt] = j.jobTypeId
 		? await db.select().from(jobType).where(eq(jobType.id, j.jobTypeId))
 		: [];
+	// Materials logged on the job become billable lines at their recorded sell price.
+	const mats = await db
+		.select({
+			name: inventoryItem.name,
+			qty: jobMaterial.qty,
+			unitPrice: jobMaterial.unitPrice
+		})
+		.from(jobMaterial)
+		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+		.where(eq(jobMaterial.jobId, jobId));
 	return {
 		job: j,
 		items: [
@@ -725,7 +737,14 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 				description: j.description,
 				qty: 1,
 				unitPrice: jt?.defaultAmount ?? 0
-			}
+			},
+			...mats.map((m) => ({
+				pricebookItemId: null,
+				name: m.name,
+				description: '',
+				qty: m.qty,
+				unitPrice: m.unitPrice
+			}))
 		]
 	};
 }

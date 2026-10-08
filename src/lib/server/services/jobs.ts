@@ -1,5 +1,17 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, getTableColumns, gte, isNull, lt, lte, sql } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	getTableColumns,
+	gte,
+	inArray,
+	isNull,
+	lt,
+	lte,
+	sql
+} from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	charge,
@@ -208,9 +220,15 @@ export async function createJob(
 
 	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
-	if (start)
-		await assertTechAvailable(ctx.orgId, input.technicianId ?? jt?.technicianId ?? null, start, tz);
 	const durationMin = jt?.durationMin ?? 60;
+	if (start)
+		await assertTechAvailable(
+			ctx.orgId,
+			input.technicianId ?? jt?.technicianId ?? null,
+			start,
+			tz,
+			new Date(start.getTime() + durationMin * 60_000)
+		);
 	const [row] = await db
 		.insert(job)
 		.values({
@@ -348,7 +366,15 @@ export async function updateJob(
 
 	const effectiveStart = start === undefined ? existing.startsAt : start;
 	const effectiveTech = set.technicianId === undefined ? existing.technicianId : set.technicianId;
-	if (effectiveStart) await assertTechAvailable(ctx.orgId, effectiveTech, effectiveStart, tz);
+	if (effectiveStart)
+		await assertTechAvailable(
+			ctx.orgId,
+			effectiveTech,
+			effectiveStart,
+			tz,
+			new Date(effectiveStart.getTime() + durationMin * 60_000),
+			id
+		);
 
 	const status =
 		set.cancelled === true
@@ -697,7 +723,9 @@ export async function assertTechAvailable(
 	orgId: string,
 	memberId: string | null,
 	start: Date,
-	tz: string
+	tz: string,
+	end?: Date | null,
+	excludeJobId?: string
 ) {
 	if (!memberId) return;
 	const day = localDate(start, tz);
@@ -720,6 +748,27 @@ export async function assertTechAvailable(
 			409,
 			`${block.name} is off ${block.startsOn === block.endsOn ? `on ${block.startsOn}` : `${block.startsOn} to ${block.endsOn}`}`
 		);
+
+	// Double-booking guard: another live job overlapping [start, end).
+	if (end && end > start) {
+		const [conflict] = await db
+			.select({ number: job.number, name: user.name })
+			.from(job)
+			.innerJoin(member, eq(job.technicianId, member.id))
+			.innerJoin(user, eq(member.userId, user.id))
+			.where(
+				and(
+					eq(job.organizationId, orgId),
+					eq(job.technicianId, memberId),
+					lt(job.startsAt, end),
+					sql`${job.endsAt} > ${start}`,
+					inArray(job.status, ['scheduled', 'dispatched', 'in_progress']),
+					excludeJobId ? sql`${job.id} != ${excludeJobId}` : undefined
+				)
+			)
+			.limit(1);
+		if (conflict) error(409, `${conflict.name} is already on J-${conflict.number} at that time`);
+	}
 }
 
 export async function listTimeOff(orgId: string) {

@@ -30,6 +30,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Minus from '@lucide/svelte/icons/minus';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
+	import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 
@@ -114,11 +115,19 @@
 		{ inventoryItemId: '', qty: 1, unitCost: 0 }
 	]);
 
-	function openPo() {
+	function openPo(pre?: (typeof rows)[number]) {
 		poSupplier = '';
 		poExpected = '';
 		poNotes = '';
-		poLines = [{ inventoryItemId: '', qty: 1, unitCost: 0 }];
+		poLines = pre
+			? [
+					{
+						inventoryItemId: pre.item.id,
+						qty: Math.max((pre.item.reorderPoint ?? 0) * 2 - pre.item.qtyOnHand, 1),
+						unitCost: pre.item.unitCost
+					}
+				]
+			: [{ inventoryItemId: '', qty: 1, unitCost: 0 }];
 		poOpen = true;
 	}
 	function pickPoItem(i: number, v: string) {
@@ -231,6 +240,17 @@
 							>
 							<Table.Cell class="text-right" onclick={(e: MouseEvent) => e.stopPropagation()}>
 								<div class="flex justify-end gap-1">
+									{#if i.low}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="size-7"
+											title="Order stock"
+											onclick={() => openPo(i)}
+										>
+											<ShoppingCart class="size-3.5" />
+										</Button>
+									{/if}
 									<Button
 										variant="ghost"
 										size="icon"
@@ -277,7 +297,7 @@
 	<Card.Root class="py-0">
 		<Card.Header class="flex-row items-center justify-between space-y-0">
 			<Card.Title class="text-base">Purchase orders</Card.Title>
-			<Button size="sm" variant="outline" onclick={openPo}><Plus /> New PO</Button>
+			<Button size="sm" variant="outline" onclick={() => openPo()}><Plus /> New PO</Button>
 		</Card.Header>
 		<Card.Content class="px-0">
 			<Table.Root>
