@@ -152,7 +152,10 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Estimate funnel</Card.Title>
-			<Card.Description>{approvalRate}% approval on decided estimates</Card.Description>
+			<Card.Description
+				>{approvalRate}% approval on decided estimates{#if r.estimateDecisionDays != null}
+					· avg {r.estimateDecisionDays.toFixed(1)}d to decision{/if}</Card.Description
+			>
 		</Card.Header>
 		<Card.Content class="px-0">
 			<Table.Root>

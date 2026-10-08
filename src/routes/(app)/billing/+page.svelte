@@ -391,6 +391,12 @@
 					)}
 				</p>
 			{/if}
+			{@const voided = invoices.filter((i) => i.invoice.status === 'void')}
+			{#if voided.length}
+				<p class="mb-2 text-sm text-muted-foreground">
+					{voided.length} voided invoice{voided.length === 1 ? '' : 's'} excluded from totals
+				</p>
+			{/if}
 			{#if statusParam === 'overdue' && invoices.length}
 				<p class="mb-2 text-sm text-muted-foreground">
 					{invoices.length} overdue invoice{invoices.length === 1 ? '' : 's'} ·

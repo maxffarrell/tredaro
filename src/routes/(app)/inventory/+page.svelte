@@ -266,6 +266,7 @@
 		>
 		{@const lowCount = items.filter((i) => i.low).length}
 		{@const outCount = items.filter((i) => i.item.qtyOnHand === 0).length}
+		{@const unmonitoredCount = items.filter((i) => i.item.reorderPoint == null).length}
 		{@const openPos = pos.filter((p) => p.po.status === 'draft' || p.po.status === 'ordered')}
 		{#if openPos.length}
 			<Badge variant="outline" class="mr-2"
@@ -282,6 +283,11 @@
 		{/if}
 		{#if outCount}
 			<Badge variant="outline" class="mr-2 text-red-600 dark:text-red-400">{outCount} out</Badge>
+		{/if}
+		{#if unmonitoredCount}
+			<Badge variant="outline" class="mr-2 text-muted-foreground"
+				>{unmonitoredCount} no reorder pt</Badge
+			>
 		{/if}
 		<Button size="sm" onclick={() => openItem()}><Plus /> New item</Button>
 	{/snippet}

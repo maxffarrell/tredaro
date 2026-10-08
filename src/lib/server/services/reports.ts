@@ -144,6 +144,25 @@ async function estimateFunnel(orgId: string) {
 	return rows;
 }
 
+/** Avg days from estimate sent to decision (approved/converted/declined), via updated_at. */
+async function avgDaysToEstimateDecision(orgId: string) {
+	const [{ avg }] = await db
+		.select({
+			avg: sql<number>`avg(extract(epoch from (${estimate.updatedAt} - ${estimate.sentAt})) / 86400)`.mapWith(
+				Number
+			)
+		})
+		.from(estimate)
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				isNotNull(estimate.sentAt),
+				inArray(estimate.status, ['approved', 'converted', 'declined'])
+			)
+		);
+	return avg ?? null;
+}
+
 /** Per-technician workload over the last 30 days. */
 async function technicianLoad(orgId: string) {
 	return db
@@ -545,7 +564,8 @@ export async function getReports(orgId: string) {
 		openPOs,
 		refunds,
 		churned,
-		revByType
+		revByType,
+		decisionDays
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -573,7 +593,8 @@ export async function getReports(orgId: string) {
 		openPOValue(orgId),
 		refundsTotal(orgId),
 		churnedAgreements(orgId),
-		revenueByCustomerType(orgId)
+		revenueByCustomerType(orgId),
+		avgDaysToEstimateDecision(orgId)
 	]);
 	return {
 		completedJobs,
@@ -602,7 +623,8 @@ export async function getReports(orgId: string) {
 		openPOs,
 		refunds,
 		churnedAgreements: churned,
-		revByCustomerType: revByType
+		revByCustomerType: revByType,
+		estimateDecisionDays: decisionDays
 	};
 }
 
