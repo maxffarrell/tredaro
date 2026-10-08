@@ -152,6 +152,7 @@ export const getTimeEntries = query(idSchema, async (jobId) =>
 export const startTimer = command(idSchema, async (jobId) => {
 	const t = await svc.startTimer(await requireOrg(), jobId);
 	await refreshQuery(getTimeEntries, jobId);
+	await refreshQuery(getJob, jobId);
 	await refreshQuery(getMyDay, undefined);
 	return t;
 });
@@ -159,6 +160,7 @@ export const startTimer = command(idSchema, async (jobId) => {
 export const stopTimer = command(idSchema, async (jobId) => {
 	const t = await svc.stopTimer(await requireOrg(), jobId);
 	await refreshQuery(getTimeEntries, jobId);
+	await refreshQuery(getJob, jobId);
 	await refreshQuery(getMyDay, undefined);
 	return t;
 });
@@ -166,6 +168,7 @@ export const stopTimer = command(idSchema, async (jobId) => {
 export const addTimeEntry = command(timeEntryInput, async (input) => {
 	const t = await svc.addTimeEntry(await requireOrg(), await tz(), input);
 	await refreshQuery(getTimeEntries, input.jobId);
+	await refreshQuery(getJob, input.jobId);
 	return t;
 });
 
@@ -174,6 +177,7 @@ export const deleteTimeEntry = command(
 	async ({ id, jobId }) => {
 		await svc.deleteTimeEntry(await requireOrg(), id);
 		await refreshQuery(getTimeEntries, jobId);
+		await refreshQuery(getJob, jobId);
 	}
 );
 

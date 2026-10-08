@@ -13,6 +13,7 @@ import {
 } from '#lib/schemas.ts';
 import { refreshQuery } from './_refresh.ts';
 import { getDashboard } from './workspace.remote.ts';
+import { getJob } from './jobs.remote.ts';
 
 export const getInventory = query(async () => svc.listItems((await requireOrg()).orgId));
 
@@ -55,6 +56,7 @@ export const getJobMaterials = query(v.object({ jobId: idSchema }), async ({ job
 export const addJobMaterial = command(jobMaterialInput, async (input) => {
 	const m = await svc.addMaterial(await requireOrg(), input);
 	await refreshQuery(getJobMaterials, { jobId: input.jobId });
+	await refreshQuery(getJob, input.jobId);
 	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
 	return m;
@@ -63,6 +65,7 @@ export const addJobMaterial = command(jobMaterialInput, async (input) => {
 export const removeJobMaterial = command(idSchema, async (materialId) => {
 	const m = await svc.removeMaterial(await requireOrg(), materialId);
 	await refreshQuery(getJobMaterials, { jobId: m.jobId });
+	await refreshQuery(getJob, m.jobId);
 	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
 	return m;

@@ -197,8 +197,8 @@
 
 	async function toggleTimer() {
 		try {
-			if (time.mine) await stopTimer(id).updates(getTimeEntries);
-			else await startTimer(id).updates(getTimeEntries);
+			if (time.mine) await stopTimer(id).updates(getTimeEntries, getJob);
+			else await startTimer(id).updates(getTimeEntries, getJob);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update timer'));
 		}
@@ -218,7 +218,7 @@
 				startedAt: teStart,
 				endedAt: teEnd || null,
 				note: teNote
-			}).updates(getTimeEntries);
+			}).updates(getTimeEntries, getJob);
 			addingTime = false;
 			teStart = teEnd = teNote = '';
 			teMember = '';
@@ -229,7 +229,7 @@
 	}
 	async function removeTime(entryId: string) {
 		try {
-			await deleteTimeEntry({ id: entryId, jobId: id }).updates(getTimeEntries);
+			await deleteTimeEntry({ id: entryId, jobId: id }).updates(getTimeEntries, getJob);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not delete'));
 		}
@@ -288,7 +288,7 @@
 				inventoryItemId: matItem,
 				qty: matQty,
 				unitPrice: matPrice ?? 0
-			}).updates(getJobMaterials);
+			}).updates(getJobMaterials, getJob);
 			addingMat = false;
 			matItem = '';
 			matQty = 1;
@@ -300,7 +300,7 @@
 	}
 	async function removeMat(materialId: string) {
 		try {
-			await removeJobMaterial(materialId).updates(getJobMaterials);
+			await removeJobMaterial(materialId).updates(getJobMaterials, getJob);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not remove material'));
 		}
