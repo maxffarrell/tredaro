@@ -298,7 +298,9 @@
 					<Field.Field>
 						<Field.Label for="ed-valid">Valid until</Field.Label>
 						<Input id="ed-valid" type="date" bind:value={validUntil} />
-						<Field.Description>Defaults to 30 days after sending.</Field.Description>
+						<Field.Description
+							>Defaults to the workspace validity window (Settings → Invoicing).</Field.Description
+						>
 					</Field.Field>
 					<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
 				</form>
