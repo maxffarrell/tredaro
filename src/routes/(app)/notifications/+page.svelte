@@ -17,6 +17,9 @@
 	import { formatRelative } from '#lib/format.ts';
 	import Bell from '@lucide/svelte/icons/bell';
 	import { toast } from 'svelte-sonner';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
 	import { errMsg } from '#lib/format.ts';
 
 	let page = $state(50);
@@ -24,6 +27,23 @@
 	const hasMore = $derived(rows.length >= page);
 	const unread = $derived(rows.filter((n) => !n.readAt).length);
 	let unreadOnly = $state(false);
+	let replyTo = $state<string | null>(null);
+	let replyText = $state('');
+	let replyPending = $state(false);
+	async function sendReply() {
+		if (!replyTo || !replyText.trim()) return;
+		replyPending = true;
+		try {
+			await textCustomerCmd({ customerId: replyTo, message: replyText.trim() });
+			toast.success('Text sent');
+			replyTo = null;
+			replyText = '';
+		} catch (e) {
+			toast.error(errMsg(e, 'Could not send'));
+		} finally {
+			replyPending = false;
+		}
+	}
 	let kindFilter = $state('all');
 	const kinds = $derived([...new Set(rows.map((n) => n.kind))]);
 	const shown = $derived(
@@ -138,6 +158,15 @@
 								>{n.recipient}</Table.Cell
 							>
 							<Table.Cell class="pr-6 text-right">
+								{#if n.kind === 'inbound_sms_staff'}
+									<button
+										class="mr-3 text-xs text-primary hover:underline"
+										onclick={() => {
+											replyTo = n.entityId.split(':')[0] ?? null;
+											replyText = '';
+										}}>Reply</button
+									>
+								{/if}
 								{#if !n.readAt}
 									<button
 										class="mr-3 text-xs text-muted-foreground hover:text-foreground hover:underline"
@@ -178,3 +207,22 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<Dialog.Root
+	open={replyTo !== null}
+	onOpenChange={(v) => {
+		if (!v) replyTo = null;
+	}}
+>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Text the customer</Dialog.Title>
+			<Dialog.Description>Sends an SMS via the org's Twilio number.</Dialog.Description>
+		</Dialog.Header>
+		<Textarea rows={3} bind:value={replyText} placeholder="Type a reply…" />
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (replyTo = null)}>Cancel</Button>
+			<Button onclick={sendReply} disabled={replyPending || !replyText.trim()}>Send</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

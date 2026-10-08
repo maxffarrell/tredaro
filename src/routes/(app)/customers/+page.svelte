@@ -33,12 +33,24 @@
 	const currency = await getCurrency();
 	let q = $state('');
 	let tagFilter = $state('');
+	let officeFilter = $state('');
 	let customers = $state(await getCustomers());
+	const officeOptions = $derived(
+		[
+			...new Map(
+				customers.filter((c) => c.officeName).map((c) => [c.officeId ?? '', c.officeName!])
+			).entries()
+		].sort((a, b) => a[1].localeCompare(b[1]))
+	);
 	const allTags = $derived(
 		[...new Set(customers.flatMap((c) => c.tags ?? []))].sort((a, b) => a.localeCompare(b))
 	);
 	const visible = $derived(
-		tagFilter ? customers.filter((c) => c.tags?.includes(tagFilter)) : customers
+		customers.filter(
+			(c) =>
+				(!tagFilter || c.tags?.includes(tagFilter)) &&
+				(!officeFilter || (c.officeId ?? '') === officeFilter)
+		)
 	);
 	const totalBalance = $derived(visible.reduce((sum, c) => sum + c.openBalance, 0));
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -192,6 +204,23 @@
 					<Select.Item value="">All tags</Select.Item>
 					{#each allTags as t (t)}
 						<Select.Item value={t}>{t}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
+		{#if officeOptions.length}
+			<Select.Root
+				type="single"
+				value={officeFilter}
+				onValueChange={(v: string) => (officeFilter = v)}
+			>
+				<Select.Trigger class="w-44"
+					>{officeOptions.find(([id]) => id === officeFilter)?.[1] ?? 'All offices'}</Select.Trigger
+				>
+				<Select.Content>
+					<Select.Item value="">All offices</Select.Item>
+					{#each officeOptions as [id, name] (id)}
+						<Select.Item value={id}>{name}</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>

@@ -399,6 +399,26 @@ async function topMaterials(orgId: string) {
 		.limit(8);
 }
 
+/** Average issued-invoice total over the last 90 days. */
+async function avgTicket(orgId: string) {
+	const [row] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			avg: sql<number>`avg((select coalesce(sum(c.amount), 0) from ${charge} c where c.invoice_id = ${invoice.id} and c.status != 'void'))`.mapWith(
+				Number
+			)
+		})
+		.from(invoice)
+		.where(
+			and(
+				eq(invoice.organizationId, orgId),
+				eq(invoice.status, 'open'),
+				gte(invoice.issuedAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return row?.n ? row.avg : null;
+}
+
 export async function getReports(orgId: string) {
 	const [
 		completedJobs,
@@ -421,7 +441,8 @@ export async function getReports(orgId: string) {
 		jobSourceRows,
 		completion,
 		daysToPay,
-		topMaterialRows
+		topMaterialRows,
+		ticket
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -443,7 +464,8 @@ export async function getReports(orgId: string) {
 		jobsBySource(orgId),
 		completionStats(orgId),
 		avgDaysToPay(orgId),
-		topMaterials(orgId)
+		topMaterials(orgId),
+		avgTicket(orgId)
 	]);
 	return {
 		completedJobs,
@@ -466,7 +488,8 @@ export async function getReports(orgId: string) {
 		jobSources: jobSourceRows,
 		completion,
 		daysToPay,
-		topMaterials: topMaterialRows
+		topMaterials: topMaterialRows,
+		avgTicket: ticket
 	};
 }
 

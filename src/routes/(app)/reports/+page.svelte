@@ -107,6 +107,13 @@
 			{:else}
 				<p class="text-sm text-muted-foreground">No payments yet.</p>
 			{/each}
+			{#if r.avgTicket != null}
+				<p class="pt-2 text-sm text-muted-foreground">
+					Avg invoice (90d): <span class="font-medium text-foreground"
+						>{formatMoney(r.avgTicket, currency)}</span
+					>
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
