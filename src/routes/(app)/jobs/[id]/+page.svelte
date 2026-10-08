@@ -62,7 +62,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Plus from '@lucide/svelte/icons/plus';
 
-	const id = page.params.id!;
+	const id = $derived(page.params.id!);
 	const j = $derived(await getJob(id));
 	const jobTypes = $derived(await getJobTypes());
 	const technicians = $derived(await getTechnicians());
@@ -92,6 +92,27 @@
 			? Math.round((j.job.endsAt.getTime() - j.job.startsAt.getTime()) / 60000)
 			: 60
 	);
+	let loadedId = '';
+	$effect(() => {
+		if (j.job.id !== loadedId) {
+			loadedId = j.job.id;
+			jobTypeId = j.job.jobTypeId ?? '';
+			technicianId = j.job.technicianId ?? '';
+			officeId = j.job.officeId ?? '';
+			serviceLocationId = j.job.serviceLocationId ?? '';
+			equipmentId = j.job.equipmentId ?? '';
+			summary = j.job.summary;
+			description = j.job.description;
+			priority = j.job.priority;
+			startsAt = j.job.startsAt
+				? `${localDate(j.job.startsAt, settings.timezone)}T${localTime(j.job.startsAt, settings.timezone)}`
+				: '';
+			durationMin =
+				j.job.startsAt && j.job.endsAt
+					? Math.round((j.job.endsAt.getTime() - j.job.startsAt.getTime()) / 60000)
+					: 60;
+		}
+	});
 	let pending = $state(false);
 
 	async function save(e: SubmitEvent) {
