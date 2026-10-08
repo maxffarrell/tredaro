@@ -384,7 +384,11 @@
 							currency
 						)}</span
 					>
-					across {openRows.length} invoice{openRows.length === 1 ? '' : 's'}
+					across {openRows.length} invoice{openRows.length === 1 ? '' : 's'} · avg
+					{formatMoney(
+						openRows.reduce((sum, i) => sum + i.total - i.paid, 0) / openRows.length,
+						currency
+					)}
 				</p>
 			{/if}
 			{#if statusParam === 'overdue' && invoices.length}

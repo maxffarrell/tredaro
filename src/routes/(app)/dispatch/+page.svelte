@@ -197,6 +197,14 @@
 		<Card.Header class="flex-row items-center gap-2">
 			<Inbox class="size-4 text-muted-foreground" />
 			<Card.Title class="text-base">Unscheduled ({board.unscheduled.length})</Card.Title>
+			{@const urgentCount = board.unscheduled.filter(
+				(j) => j.job.priority === 'urgent' || j.job.priority === 'high'
+			).length}
+			{#if urgentCount}
+				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+					>{urgentCount} urgent/high</Badge
+				>
+			{/if}
 			<Input class="ml-auto h-7 w-32 text-xs" placeholder="Filter…" bind:value={queueFilter} />
 		</Card.Header>
 		{#if selected.size}
