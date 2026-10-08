@@ -209,6 +209,14 @@ export async function addMaterial(
 			action: 'material_added',
 			summary: `Used ${input.qty} × ${item.name}`
 		});
+		void emit({
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'inventory_item',
+			entityId: item.id,
+			action: 'material_added',
+			summary: `Used ${input.qty} ${item.unit} on a job${truckMemberId ? ' (from truck)' : ''}`
+		});
 		return m;
 	});
 }
@@ -247,6 +255,14 @@ export async function removeMaterial(ctx: OrgContext, materialId: string) {
 			entityId: m.jobId,
 			action: 'material_removed',
 			summary: `Returned ${m.qty} × material`
+		});
+		void emit({
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'inventory_item',
+			entityId: m.inventoryItemId,
+			action: 'material_removed',
+			summary: `Returned ${m.qty} to ${m.sourceMemberId ? 'truck' : 'stock'} from a job`
 		});
 		return m;
 	});
@@ -374,6 +390,7 @@ export async function transitionPurchaseOrder(
 		.where(and(eq(purchaseOrder.id, id), eq(purchaseOrder.organizationId, ctx.orgId)))
 		.limit(1);
 	if (!po) error(404, 'Purchase order not found');
+	const receivedLines: { itemId: string; qty: number }[] = [];
 	const ok =
 		(po.status === 'draft' && to === 'ordered') ||
 		(po.status === 'ordered' && (to === 'received' || to === 'cancelled')) ||
@@ -401,6 +418,7 @@ export async function transitionPurchaseOrder(
 					.update(inventoryItem)
 					.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${l.qty}` })
 					.where(eq(inventoryItem.id, l.inventoryItemId));
+				receivedLines.push({ itemId: l.inventoryItemId, qty: l.qty });
 			}
 		}
 	});
@@ -412,6 +430,16 @@ export async function transitionPurchaseOrder(
 		action: to,
 		summary: `PO-${po.number} ${to}`
 	});
+	for (const l of receivedLines) {
+		void emit({
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'inventory_item',
+			entityId: l.itemId,
+			action: 'received',
+			summary: `Received ${l.qty} on PO-${po.number}`
+		});
+	}
 	return { id, status: to };
 }
 

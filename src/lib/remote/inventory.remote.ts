@@ -35,6 +35,7 @@ export const createInventoryItem = command(inventoryItemInput, async (input) => 
 export const updateInventoryItem = command(inventoryItemUpdate, async (input) => {
 	const i = await svc.updateItem(await requireOrg('admin'), input);
 	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getItemHistory, input.id);
 	void getDashboard().refresh();
 	return i;
 });
@@ -46,6 +47,7 @@ const adjustInput = v.object({
 export const adjustInventoryQty = command(adjustInput, async (input) => {
 	const i = await svc.adjustQty(await requireOrg('admin'), input);
 	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getItemHistory, input.id);
 	void getDashboard().refresh();
 	return i;
 });
@@ -53,6 +55,7 @@ export const adjustInventoryQty = command(adjustInput, async (input) => {
 export const deleteInventoryItem = command(idSchema, async (id) => {
 	await svc.deleteItem(await requireOrg('admin'), id);
 	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getItemHistory, id);
 	void getDashboard().refresh();
 	return { id };
 });
@@ -66,6 +69,7 @@ export const addJobMaterial = command(jobMaterialInput, async (input) => {
 	await refreshQuery(getJobMaterials, { jobId: input.jobId });
 	await refreshQuery(getJob, input.jobId);
 	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getItemHistory, input.inventoryItemId);
 	void getDashboard().refresh();
 	return m;
 });
@@ -75,6 +79,7 @@ export const removeJobMaterial = command(idSchema, async (materialId) => {
 	await refreshQuery(getJobMaterials, { jobId: m.jobId });
 	await refreshQuery(getJob, m.jobId);
 	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getItemHistory, m.inventoryItemId);
 	void getDashboard().refresh();
 	return m;
 });
@@ -123,6 +128,7 @@ export const transferTruckStock = command(truckTransferInput, async (input) => {
 	const r = await svc.transferStock(await requireOrg('admin'), input);
 	await refreshQuery(getTruckStock, undefined);
 	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getItemHistory, input.inventoryItemId);
 	void getDashboard().refresh();
 	return r;
 });

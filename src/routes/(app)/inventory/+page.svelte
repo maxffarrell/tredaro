@@ -323,7 +323,10 @@
 										size="icon"
 										class="size-7"
 										title="Movement history"
-										onclick={() => (historyItem = i)}
+										onclick={() => {
+											historyItem = i;
+											void getItemHistory(i.item.id).refresh();
+										}}
 									>
 										<History class="size-3.5" />
 									</Button>
