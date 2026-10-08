@@ -156,7 +156,8 @@ export async function createCustomer(
 			since: input.since ?? null,
 			tags: input.tags,
 			smsOptOut: input.smsOptOut,
-			emailOptOut: input.emailOptOut
+			emailOptOut: input.emailOptOut,
+			leadSource: input.leadSource ?? null
 		})
 		.returning();
 	await emit({
@@ -239,7 +240,8 @@ export async function updateCustomer(
 			since: set.since,
 			tags: set.tags,
 			smsOptOut: set.smsOptOut,
-			emailOptOut: set.emailOptOut
+			emailOptOut: set.emailOptOut,
+			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null
 		})
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, id)))
 		.returning();

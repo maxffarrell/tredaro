@@ -60,12 +60,30 @@ export const getStaff = query(async () => {
 			email: user.email,
 			image: user.image,
 			role: member.role,
+			commissionPct: member.commissionPct,
 			createdAt: member.createdAt
 		})
 		.from(member)
 		.innerJoin(user, eq(user.id, member.userId))
 		.where(eq(member.organizationId, orgId))
 		.orderBy(asc(member.createdAt));
+});
+
+const commissionInput = v.object({
+	memberId: idSchema,
+	commissionPct: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))
+});
+
+/** Sets a technician's commission % used by the reports commission column. */
+export const updateCommission = command(commissionInput, async (input) => {
+	const { orgId } = await requireOrg();
+	const [row] = await db
+		.update(member)
+		.set({ commissionPct: input.commissionPct })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
 });
 
 export const getWebhooks = query(async () => {

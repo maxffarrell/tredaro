@@ -225,23 +225,30 @@ async function techPerformance(orgId: string) {
 	const names = new Map(
 		(
 			await db
-				.select({ memberId: member.id, name: user.name })
+				.select({ memberId: member.id, name: user.name, pct: member.commissionPct })
 				.from(member)
 				.innerJoin(user, eq(member.userId, user.id))
 				.where(eq(member.organizationId, orgId))
-		).map((r) => [r.memberId, r.name])
+		).map((r) => [r.memberId, r])
 	);
 	const doneMap = new Map(done.map((r) => [r.memberId, r.jobs]));
 	const hoursMap = new Map(hours.map((r) => [r.memberId, r.minutes]));
 	const revMap = new Map(revenue.map((r) => [r.memberId, r.total]));
 	return [...ids]
-		.map((memberId) => ({
-			memberId,
-			name: names.get(memberId) ?? 'Former staff',
-			jobsDone: doneMap.get(memberId) ?? 0,
-			minutes: hoursMap.get(memberId) ?? 0,
-			revenue: revMap.get(memberId) ?? 0
-		}))
+		.map((memberId) => {
+			const info = names.get(memberId);
+			const revenue = revMap.get(memberId) ?? 0;
+			const pct = info?.pct ?? 0;
+			return {
+				memberId,
+				name: info?.name ?? 'Former staff',
+				jobsDone: doneMap.get(memberId) ?? 0,
+				minutes: hoursMap.get(memberId) ?? 0,
+				revenue,
+				commissionPct: pct,
+				commission: Math.round((revenue * pct) / 100)
+			};
+		})
 		.sort((a, b) => b.revenue - a.revenue || b.jobsDone - a.jobsDone);
 }
 
@@ -257,7 +264,8 @@ export async function getReports(orgId: string) {
 		labor,
 		perf,
 		profit,
-		tops
+		tops,
+		leads
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -269,7 +277,8 @@ export async function getReports(orgId: string) {
 		laborByTechnician(orgId),
 		techPerformance(orgId),
 		jobProfitability(orgId),
-		topCustomers(orgId)
+		topCustomers(orgId),
+		leadsBySource(orgId)
 	]);
 	return {
 		completedJobs,
@@ -282,8 +291,34 @@ export async function getReports(orgId: string) {
 		labor,
 		perf,
 		profit,
-		topCustomers: tops
+		topCustomers: tops,
+		leads
 	};
+}
+
+/** Customers + collected revenue grouped by lead source (all time). */
+async function leadsBySource(orgId: string) {
+	const customers_ = await db
+		.select({
+			source: sql<string>`coalesce(nullif(${customer.leadSource}, ''), 'Unknown')`,
+			count: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(customer)
+		.where(eq(customer.organizationId, orgId))
+		.groupBy(sql`coalesce(nullif(${customer.leadSource}, ''), 'Unknown')`);
+	const collected = await db
+		.select({
+			source: sql<string>`coalesce(nullif(${customer.leadSource}, ''), 'Unknown')`,
+			total: sql<number>`sum(${payment.amount})`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.where(eq(payment.organizationId, orgId))
+		.groupBy(sql`coalesce(nullif(${customer.leadSource}, ''), 'Unknown')`);
+	const map = new Map(collected.map((r) => [r.source, r.total]));
+	return customers_
+		.map((r) => ({ source: r.source, customers: r.count, collected: map.get(r.source) ?? 0 }))
+		.sort((a, b) => b.collected - a.collected || b.customers - a.customers);
 }
 
 /** Done jobs in the last 90d: invoiced total vs materials cost + labor hours. */

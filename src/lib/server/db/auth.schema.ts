@@ -94,6 +94,8 @@ export const member = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		role: text('role').default('member').notNull(),
+		/** % of collected revenue on their jobs, for the commission report. */
+		commissionPct: integer('commission_pct').default(0).notNull(),
 		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => [

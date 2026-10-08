@@ -239,6 +239,7 @@
 						<Table.Head class="text-right">Jobs done</Table.Head>
 						<Table.Head class="text-right">Hours</Table.Head>
 						<Table.Head class="text-right">Collected</Table.Head>
+						<Table.Head class="text-right">Commission</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -250,10 +251,15 @@
 							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(t.revenue, currency, true)}</Table.Cell
 							>
+							<Table.Cell class="text-right tabular-nums"
+								>{t.commissionPct
+									? `${formatMoney(t.commission, currency, true)} (${t.commissionPct}%)`
+									: '—'}</Table.Cell
+							>
 						</Table.Row>
 					{:else}
 						<Table.Row
-							><Table.Cell colspan={4} class="text-muted-foreground"
+							><Table.Cell colspan={5} class="text-muted-foreground"
 								>No technician activity in the last 90 days.</Table.Cell
 							></Table.Row
 						>
@@ -306,6 +312,43 @@
 						<Table.Row
 							><Table.Cell colspan={6} class="text-muted-foreground"
 								>No completed jobs in the last 90 days.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Leads by source</Card.Title>
+			<Card.Description
+				>Customers and revenue collected by where they came from — set a lead source on the customer
+				record</Card.Description
+			>
+		</Card.Header>
+		<Card.Content>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Source</Table.Head>
+						<Table.Head class="text-right">Customers</Table.Head>
+						<Table.Head class="text-right">Collected</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.leads as l (l.source)}
+						<Table.Row>
+							<Table.Cell class="font-medium">{l.source}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{l.customers}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(l.collected, currency, true)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={3} class="text-muted-foreground">No customers yet.</Table.Cell
 							></Table.Row
 						>
 					{/each}

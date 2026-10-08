@@ -45,6 +45,18 @@ async function logOnce(orgId: string, kind: string, entityId: string, recipient:
 	return !!row;
 }
 
+async function notifFlags(orgId: string) {
+	const [s] = await db
+		.select({
+			email: companySettings.emailNotifications,
+			sms: companySettings.smsNotifications,
+			digest: companySettings.staffDigest
+		})
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	return { email: s?.email ?? true, sms: s?.sms ?? true, digest: s?.digest ?? true };
+}
+
 /** "Your estimate is ready" with the approve/decline link. */
 export async function notifyEstimateSent(orgId: string, estimateId: string) {
 	const [row] = await db
@@ -82,6 +94,7 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 
 /** "We got your request" after a public /book submission creates the job. */
 export async function notifyBookingReceived(orgId: string, jobId: string) {
+	if (!(await notifFlags(orgId)).email) return;
 	const [row] = await db
 		.select({
 			email: customer.email,
@@ -153,6 +166,7 @@ export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 
 /** "Your job is scheduled" once a job gets a start time. Emails and/or texts the customer. */
 export async function notifyJobScheduled(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
 	const [row] = await db
 		.select({
 			email: customer.email,
@@ -173,7 +187,12 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
 	const what = row.jobTypeName ?? row.summary;
 	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
-	if (row.email && !row.emailOptOut && (await logOnce(orgId, 'job_scheduled', jobId, row.email)))
+	if (
+		row.email &&
+		!row.emailOptOut &&
+		flags.email &&
+		(await logOnce(orgId, 'job_scheduled', jobId, row.email))
+	)
 		await sendEmail({
 			to: row.email,
 			subject: `Job J-${row.number} scheduled — ${name}`,
@@ -190,6 +209,7 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 	if (
 		row.phone &&
 		!row.smsOptOut &&
+		flags.sms &&
 		smsProvider() &&
 		(await logOnce(orgId, 'job_scheduled_sms', jobId, row.phone))
 	)
@@ -201,6 +221,7 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 
 /** "Reminder: appointment tomorrow-ish" — one email + text per job, cron-driven. */
 export async function notifyAppointmentReminder(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
 	const [row] = await db
 		.select({
 			email: customer.email,
@@ -230,6 +251,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 	if (
 		row.email &&
 		!row.emailOptOut &&
+		flags.email &&
 		(await logOnce(orgId, 'appointment_reminder', jobId, row.email))
 	)
 		await sendEmail({
@@ -248,6 +270,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 	if (
 		row.phone &&
 		!row.smsOptOut &&
+		flags.sms &&
 		smsProvider() &&
 		(await logOnce(orgId, 'appointment_reminder_sms', jobId, row.phone))
 	)
@@ -259,6 +282,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 
 /** "Still interested?" email when a sent estimate has sat untouched for a week. */
 export async function notifyEstimateFollowup(orgId: string, estimateId: string) {
+	if (!(await notifFlags(orgId)).email) return;
 	const [row] = await db
 		.select({
 			email: customer.email,
@@ -295,6 +319,7 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 
 /** "Invoice INV-n is past due" — at 3 and 10 days overdue, deduped per stage. */
 export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, stage: number) {
+	if (!(await notifFlags(orgId)).email) return;
 	const [row] = await db
 		.select({
 			email: customer.email,
@@ -418,7 +443,9 @@ export async function runReminders(orgId: string) {
 		if (!r.memberId) continue;
 		byMember.set(r.memberId, [...(byMember.get(r.memberId) ?? []), r]);
 	}
+	const flags = await notifFlags(orgId);
 	for (const rows of byMember.values()) {
+		if (!flags.digest) break;
 		const r = rows[0];
 		if (!(await logOnce(orgId, 'daily_digest', today, r.email))) continue;
 		await sendEmail({
@@ -445,6 +472,7 @@ export async function runReminders(orgId: string) {
 /** "Your technician is on the way" text when a job is marked en_route. SMS only. */
 export async function notifyJobEnRoute(orgId: string, jobId: string) {
 	if (!smsProvider()) return;
+	if (!(await notifFlags(orgId)).sms) return;
 	const [row] = await db
 		.select({
 			phone: customer.phone,
@@ -471,6 +499,7 @@ export async function notifyJobEnRoute(orgId: string, jobId: string) {
 
 /** "How did we do?" thank-you email when a job is marked completed. Review CTA when the org set a review link. */
 export async function notifyJobCompleted(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
 	const [row] = await db
 		.select({
 			email: customer.email,
@@ -491,7 +520,12 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 		.where(eq(job.id, jobId));
 	if ((!row?.email && !row?.phone) || row?.status !== 'done') return;
 	const name = await orgName(orgId);
-	if (row.email && !row.emailOptOut && (await logOnce(orgId, 'job_completed', jobId, row.email)))
+	if (
+		row.email &&
+		!row.emailOptOut &&
+		flags.email &&
+		(await logOnce(orgId, 'job_completed', jobId, row.email))
+	)
 		await sendEmail({
 			to: row.email,
 			subject: `Thanks for choosing ${name}`,
@@ -512,6 +546,7 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 	if (
 		row.phone &&
 		!row.smsOptOut &&
+		flags.sms &&
 		smsProvider() &&
 		(await logOnce(orgId, 'job_completed_sms', jobId, row.phone))
 	)

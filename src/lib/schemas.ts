@@ -52,7 +52,8 @@ export const customerInput = v.object({
 	since: v.optional(v.nullable(isoDate)),
 	tags: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(40))), []),
 	smsOptOut: v.optional(v.boolean(), false),
-	emailOptOut: v.optional(v.boolean(), false)
+	emailOptOut: v.optional(v.boolean(), false),
+	leadSource: optionalText
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),
@@ -374,7 +375,10 @@ export const settingsInput = v.object({
 	address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50))),
 	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
-	reviewUrl: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
+	reviewUrl: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	emailNotifications: v.optional(v.boolean()),
+	smsNotifications: v.optional(v.boolean()),
+	staffDigest: v.optional(v.boolean())
 });
 
 export const webhookInput = v.object({

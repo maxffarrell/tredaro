@@ -58,6 +58,10 @@ export const companySettings = pgTable('company_settings', {
 	website: text('website').notNull().default(''),
 	/** Public review link (Google/Yelp/etc.) shown as a button in the job-completed email. Empty disables it. */
 	reviewUrl: text('review_url').notNull().default(''),
+	/** Master switches for automated sends — manual Send buttons always work. */
+	emailNotifications: boolean('email_notifications').notNull().default(true),
+	smsNotifications: boolean('sms_notifications').notNull().default(true),
+	staffDigest: boolean('staff_digest').notNull().default(true),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),
@@ -106,6 +110,8 @@ export const customer = pgTable(
 		/** Do-not-contact flags: suppress automated customer-facing texts/emails. */
 		smsOptOut: boolean('sms_opt_out').notNull().default(false),
 		emailOptOut: boolean('email_opt_out').notNull().default(false),
+		/** Where the customer came from ("Google", "Referral", ...) for the leads report. */
+		leadSource: text('lead_source'),
 		since: date('since', { mode: 'string' }),
 		...timestamps
 	},

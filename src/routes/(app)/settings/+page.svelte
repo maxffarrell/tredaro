@@ -27,6 +27,7 @@
 		toggleWebhook,
 		deleteWebhook,
 		getStaff,
+		updateCommission,
 		seedDemo
 	} from '#lib/remote/workspace.remote.ts';
 	import {
@@ -164,6 +165,9 @@
 	let website = $state(settings.website);
 	let reviewUrl = $state(settings.reviewUrl);
 	let publicPage = $state(settings.publicPage);
+	let emailNotifications = $state(settings.emailNotifications);
+	let smsNotifications = $state(settings.smsNotifications);
+	let staffDigest = $state(settings.staffDigest);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -190,7 +194,10 @@
 				phone,
 				website,
 				reviewUrl,
-				publicPage
+				publicPage,
+				emailNotifications,
+				smsNotifications,
+				staffDigest
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -243,6 +250,15 @@
 		const { error } = await authClient.organization.removeMember({ memberIdOrEmail: id });
 		if (error) return toast.error(error.message ?? 'Could not remove');
 		toast.success('Removed');
+	}
+	async function saveCommission(s: (typeof staff)[number], el: Event) {
+		const pct = Number((el.target as HTMLInputElement).value) || 0;
+		try {
+			await updateCommission({ memberId: s.id, commissionPct: pct }).updates(getStaff);
+			toast.success(`Commission set to ${pct}%`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
 	}
 
 	// ------- api keys -------
@@ -390,6 +406,39 @@
 								Leave empty to disable.
 							</p>
 						</Field.Field>
+						<div class="space-y-3 rounded-lg border p-3 text-sm">
+							<p class="font-medium">Automated notifications</p>
+							<div class="flex items-center justify-between">
+								<div>
+									<p>Customer emails</p>
+									<p class="text-xs text-muted-foreground">
+										Appointment reminders, follow-ups, and lifecycle emails.
+									</p>
+								</div>
+								<Switch bind:checked={emailNotifications} />
+							</div>
+							<div class="flex items-center justify-between">
+								<div>
+									<p>Customer texts (SMS)</p>
+									<p class="text-xs text-muted-foreground">
+										Scheduled, on-the-way, and completed texts (requires Twilio).
+									</p>
+								</div>
+								<Switch bind:checked={smsNotifications} />
+							</div>
+							<div class="flex items-center justify-between">
+								<div>
+									<p>Staff morning digest</p>
+									<p class="text-xs text-muted-foreground">
+										Daily "jobs today" email to each technician.
+									</p>
+								</div>
+								<Switch bind:checked={staffDigest} />
+							</div>
+							<p class="text-xs text-muted-foreground">
+								Manual Send buttons on invoices and estimates always work.
+							</p>
+						</div>
 						<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
 							<div>
 								<p class="font-medium">Public booking page</p>
@@ -511,6 +560,17 @@
 									<p class="truncate text-xs text-muted-foreground">{s.email}</p>
 								</div>
 								<div class="flex items-center gap-2">
+									<label class="flex items-center gap-1 text-xs text-muted-foreground">
+										<Input
+											type="number"
+											min={0}
+											max={100}
+											class="h-7 w-16"
+											value={s.commissionPct}
+											onchange={(e) => saveCommission(s, e)}
+										/>
+										% comm.
+									</label>
 									<Badge
 										variant={s.role === 'owner' || s.role === 'admin' ? 'default' : 'secondary'}
 										>{s.role}</Badge

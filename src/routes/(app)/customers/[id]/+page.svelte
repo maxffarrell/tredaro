@@ -120,6 +120,7 @@
 	let tagsInput = $state((c.customer.tags ?? []).join(', '));
 	let smsOptOut = $state(c.customer.smsOptOut);
 	let emailOptOut = $state(c.customer.emailOptOut);
+	let leadSource = $state(c.customer.leadSource);
 	let saving = $state(false);
 	let loadedId = '';
 	$effect(() => {
@@ -135,6 +136,7 @@
 			tagsInput = (c.customer.tags ?? []).join(', ');
 			smsOptOut = c.customer.smsOptOut;
 			emailOptOut = c.customer.emailOptOut;
+			leadSource = c.customer.leadSource;
 		}
 	});
 
@@ -156,7 +158,8 @@
 					.map((t) => t.trim())
 					.filter(Boolean),
 				smsOptOut,
-				emailOptOut
+				emailOptOut,
+				leadSource
 			});
 			toast.success('Customer saved');
 		} catch (err) {
@@ -421,6 +424,23 @@
 					<Field.Field>
 						<Field.Label for="cd-notes">Notes</Field.Label>
 						<Textarea id="cd-notes" rows={3} bind:value={notes} />
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="cd-source">Lead source</Field.Label>
+						<Input
+							id="cd-source"
+							placeholder="Google, referral, yard sign…"
+							bind:value={leadSource}
+							list="lead-sources"
+						/>
+						<datalist id="lead-sources">
+							<option value="Google"></option>
+							<option value="Referral"></option>
+							<option value="Repeat customer"></option>
+							<option value="Yard sign"></option>
+							<option value="Online booking"></option>
+							<option value="Other"></option>
+						</datalist>
 					</Field.Field>
 					<div class="space-y-2 rounded-md border p-3">
 						<p class="text-sm font-medium">Contact preferences</p>
