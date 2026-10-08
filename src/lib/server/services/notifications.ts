@@ -65,6 +65,7 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
 			smsOptOut: customer.smsOptOut,
+			phone: customer.phone,
 			customerName: customer.name,
 			number: estimate.number,
 			total:
@@ -75,9 +76,20 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 		.from(estimate)
 		.innerJoin(customer, eq(estimate.customerId, customer.id))
 		.where(eq(estimate.id, estimateId));
+	if ((!row.email || row.emailOptOut) && (!row.phone || row.smsOptOut || !smsProvider())) return;
+	const name = await orgName(orgId);
+	if (
+		row.phone &&
+		!row.smsOptOut &&
+		smsProvider() &&
+		(await logOnce(orgId, 'estimate_sent_sms', estimateId, row.phone))
+	)
+		await sendSms({
+			to: row.phone,
+			body: `${name}: estimate E-${row.number} for ${formatMoney(row.total)} — review and approve: ${estimateUrl(estimateId)}`
+		});
 	if (!row?.email || row.emailOptOut) return;
 	if (!(await logOnce(orgId, 'estimate_sent', estimateId, row.email))) return;
-	const name = await orgName(orgId);
 	await sendEmail({
 		to: row.email,
 		subject: `Estimate E-${row.number} from ${name}`,
@@ -161,6 +173,33 @@ export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 			],
 			action: { label: 'View and pay invoice', url: invoiceUrl(invoiceId) }
 		})
+	});
+	return true;
+}
+
+/** Texts the customer their invoice's public pay link (manual "Text" button — not gated on notification toggles). */
+export async function notifyInvoiceTexted(orgId: string, invoiceId: string) {
+	if (!smsProvider()) return false;
+	const [row] = await db
+		.select({
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut,
+			number: invoice.number,
+			status: invoice.status,
+			total:
+				sql`coalesce((select sum(i.qty * i.unit_price) from invoice_item i where i.invoice_id = ${invoice.id}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(invoice)
+		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.where(eq(invoice.id, invoiceId));
+	if (!row?.phone || row.smsOptOut || row.status !== 'open') return false;
+	if (!(await logOnce(orgId, 'invoice_texted', invoiceId, row.phone))) return false;
+	const name = await orgName(orgId);
+	await sendSms({
+		to: row.phone,
+		body: `${name}: invoice INV-${row.number} for ${formatMoney(row.total)} — view and pay: ${invoiceUrl(invoiceId)}`
 	});
 	return true;
 }

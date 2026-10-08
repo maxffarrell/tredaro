@@ -128,6 +128,7 @@
 					</div>
 					<p class="mt-1 text-xs text-muted-foreground">
 						J-{j.job.number} · {j.job.source}
+						{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span>{/if}
 						{#if j.city}· {j.city}{/if}
 						{#if j.job.preferredTime}
 							<br /><span class="text-amber-600 dark:text-amber-400"
@@ -195,6 +196,9 @@
 											{j.job.startsAt
 												? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 												: 'unscheduled'}
+											{#if j.job.blocked}
+												· <span class="text-amber-600 dark:text-amber-400">parts</span>
+											{/if}
 										</p>
 									</button>
 								</li>

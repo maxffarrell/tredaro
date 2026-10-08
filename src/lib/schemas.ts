@@ -288,6 +288,7 @@ export const jobUpdate = v.object({
 	summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000))),
 	priority: v.optional(v.picklist(jobPriorities)),
+	blocked: v.optional(v.boolean()),
 	/** Set to schedule; null unschedules. */
 	startsAt: v.optional(v.nullable(localDateTime)),
 	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440))),

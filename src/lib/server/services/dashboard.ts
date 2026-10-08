@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lt, lte, ne, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -209,6 +209,21 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(serviceAgreement.nextChargeAt))
 		.limit(4);
 
+	const blockedJobs = await db
+		.select({ id: job.id, number: job.number, summary: job.summary, customerName: customer.name })
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.blocked, true),
+				isNull(job.cancelledAt),
+				ne(job.status, 'done')
+			)
+		)
+		.orderBy(asc(job.number))
+		.limit(4);
+
 	const lowStock = await db
 		.select()
 		.from(inventoryItem)
@@ -257,6 +272,13 @@ export async function dashboard(orgId: string) {
 				href: `/customers/${w.customerId}`,
 				text: `${w.customerName} · ${w.name}`,
 				sub: `warranty ends ${w.warrantyUntil}`,
+				amountCents: null as number | null
+			})),
+			...blockedJobs.map((b) => ({
+				tone: 'amber' as const,
+				href: `/jobs/${b.id}`,
+				text: `${b.customerName} · J-${b.number} ${b.summary}`,
+				sub: 'waiting on parts',
 				amountCents: null as number | null
 			})),
 			...renewingAgreements.map((a) => ({

@@ -319,6 +319,8 @@ export const job = pgTable(
 		description: text('description').notNull().default(''),
 		status: jobStatus('status').notNull().default('unscheduled'),
 		priority: jobPriority('priority').notNull().default('normal'),
+		/** Flagged when the job can't proceed (waiting on parts/approval) — dispatcher attention. */
+		blocked: boolean('blocked').notNull().default(false),
 		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
 		preferredTime: text('preferred_time'),
 		/** Visit window; null while unscheduled. */

@@ -303,10 +303,32 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				])
 			)
 		].join('\n');
+	} else if (kind === 'customers') {
+		const rows = await db
+			.select()
+			.from(customer)
+			.where(eq(customer.organizationId, ctx.orgId))
+			.orderBy(asc(customer.name));
+		body = [
+			row(['Name', 'Company', 'Type', 'Status', 'Email', 'Phone', 'Tags', 'Lead source', 'Since']),
+			...rows.map((r) =>
+				row([
+					r.name,
+					r.companyName,
+					r.type,
+					r.status,
+					r.email,
+					r.phone,
+					(r.tags ?? []).join('; '),
+					r.leadSource,
+					r.since
+				])
+			)
+		].join('\n');
 	} else {
 		error(
 			404,
-			'Unknown export — try invoices, time-entries, quickbooks, xero, payments or statement'
+			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers or statement'
 		);
 	}
 

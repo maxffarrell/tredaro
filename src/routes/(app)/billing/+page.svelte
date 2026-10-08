@@ -25,7 +25,8 @@
 		recordPayment,
 		getCurrency,
 		getInvoicePrefill,
-		emailInvoice
+		emailInvoice,
+		textInvoice
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getJobs } from '#lib/remote/jobs.remote.ts';
@@ -36,6 +37,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Ban from '@lucide/svelte/icons/ban';
 	import Send from '@lucide/svelte/icons/send';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Download from '@lucide/svelte/icons/download';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
@@ -137,6 +139,16 @@
 			else toast.error('Already emailed, or the customer has no email');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not email invoice'));
+		}
+	}
+
+	async function textInvoiceCmd(id: string) {
+		try {
+			const { sent } = await textInvoice(id);
+			if (sent) toast.success('Invoice texted');
+			else toast.error('Already texted, SMS off, or the customer has no phone');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not text invoice'));
 		}
 	}
 
@@ -323,6 +335,16 @@
 													e.stopPropagation();
 													sendInvoice(inv.invoice.id);
 												}}><Send class="size-4" /></Button
+											>
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-8"
+												title="Text invoice link"
+												onclick={(e: MouseEvent) => {
+													e.stopPropagation();
+													textInvoiceCmd(inv.invoice.id);
+												}}><MessageSquare class="size-4" /></Button
 											>
 											<Button
 												variant="ghost"

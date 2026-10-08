@@ -4,7 +4,7 @@ import { refreshQuery } from './_refresh.ts';
 import { getDashboard } from './workspace.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/billing.ts';
-import { notifyInvoiceSent } from '#lib/server/services/notifications.ts';
+import { notifyInvoiceSent, notifyInvoiceTexted } from '#lib/server/services/notifications.ts';
 import { getCustomer } from './customers.remote.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import {
@@ -113,6 +113,13 @@ export const emailInvoice = command(idSchema, async (id) => {
 	// Existence + org check before the notification path fires.
 	await svc.getInvoice(ctx.orgId, id);
 	const sent = await notifyInvoiceSent(ctx.orgId, id);
+	return { sent };
+});
+
+export const textInvoice = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	await svc.getInvoice(ctx.orgId, id);
+	const sent = await notifyInvoiceTexted(ctx.orgId, id);
 	return { sent };
 });
 

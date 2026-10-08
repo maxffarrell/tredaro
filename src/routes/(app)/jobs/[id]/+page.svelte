@@ -4,6 +4,7 @@
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -645,6 +646,18 @@
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Priority</span><StatusBadge status={j.job.priority} />
 				</div>
+				{#if j.job.status !== 'done' && !j.job.cancelledAt}
+					<div class="flex items-center justify-between">
+						<span class="text-muted-foreground">Waiting on parts</span>
+						<Switch
+							checked={j.job.blocked}
+							onCheckedChange={async (v) => {
+								await updateJob({ id, blocked: v }).updates(getJob, getJobs, getDispatchBoard);
+								toast.success(v ? 'Flagged — shows on the dashboard' : 'Unblocked');
+							}}
+						/>
+					</div>
+				{/if}
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Source</span><span class="capitalize"
 						>{j.job.source}</span

@@ -414,6 +414,7 @@ export async function updateJob(
 			summary: set.summary,
 			description: set.description,
 			priority: set.priority,
+			blocked: set.blocked,
 			startsAt: start,
 			endsAt,
 			status,
@@ -421,6 +422,15 @@ export async function updateJob(
 		})
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)))
 		.returning();
+	if (set.blocked !== undefined && set.blocked !== existing.blocked)
+		await emit({
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'job',
+			entityId: id,
+			action: set.blocked ? 'blocked' : 'unblocked',
+			summary: `J-${existing.number} ${set.blocked ? 'flagged waiting on parts' : 'unblocked'}`
+		});
 	if (set.cancelled === true) {
 		await stopOpenTimers(ctx.orgId, id);
 		await emit({
