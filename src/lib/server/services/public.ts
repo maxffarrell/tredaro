@@ -1,10 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, like, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	agreementPlan,
 	companySettings,
 	customer,
+	job,
 	jobType,
 	office,
 	organization,
@@ -85,6 +86,26 @@ export async function requestBooking(
 			min.setDate(min.getDate() + settings.bookingNoticeDays);
 			const minDay = min.toISOString().slice(0, 10);
 			if (m[1] < minDay) error(400, `Earliest available day is ${minDay} — pick a later date`);
+		}
+	}
+
+	// Daily cap: at most bookingDailyLimit public bookings for the requested day.
+	if (settings.bookingDailyLimit > 0 && input.preferredTime) {
+		const m = /^(\d{4}-\d{2}-\d{2})/.exec(input.preferredTime);
+		if (m) {
+			const [{ taken }] = await db
+				.select({ taken: sql<number>`count(*)`.mapWith(Number) })
+				.from(job)
+				.where(
+					and(
+						eq(job.organizationId, org.id),
+						eq(job.source, 'booking'),
+						like(job.preferredTime, `${m[1]}%`),
+						sql`${job.cancelledAt} is null`
+					)
+				);
+			if (taken >= settings.bookingDailyLimit)
+				error(400, 'That day is fully booked — please pick another');
 		}
 	}
 

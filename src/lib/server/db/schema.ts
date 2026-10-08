@@ -70,6 +70,10 @@ export const companySettings = pgTable('company_settings', {
 	bookingNoticeDays: integer('booking_notice_days').notNull().default(0),
 	/** Sales tax in basis points appended as a line item on new invoices (0 = untaxed). */
 	taxRateBps: integer('tax_rate_bps').notNull().default(0),
+	/** Max public bookings accepted per requested day (0 = unlimited). */
+	bookingDailyLimit: integer('booking_daily_limit').notNull().default(0),
+	/** Flat late fee added once to an invoice that goes 3+ days past due (0 = off). */
+	lateFeeCents: integer('late_fee_cents').notNull().default(0),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),
@@ -897,4 +901,19 @@ export const maintenanceSchedule = pgTable(
 		index('maintenance_schedule_customer_idx').on(t.customerId),
 		index('maintenance_schedule_due_idx').on(t.organizationId, t.active, t.nextDueOn)
 	]
+);
+
+/** Texts queued during quiet hours (21:00–08:00 org-local); flushed by the cron. */
+export const smsOutbox = pgTable(
+	'sms_outbox',
+	{
+		id: id(),
+		organizationId: orgId(),
+		to: text('to').notNull(),
+		body: text('body').notNull(),
+		sendAfter: timestamp('send_after', { withTimezone: true }).notNull(),
+		sentAt: timestamp('sent_at', { withTimezone: true }),
+		...timestamps
+	},
+	(t) => [index('sms_outbox_pending_idx').on(t.organizationId, t.sendAfter)]
 );

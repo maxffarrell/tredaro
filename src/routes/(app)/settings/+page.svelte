@@ -180,7 +180,9 @@
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
+	let bookingDailyLimit = $state(settings.bookingDailyLimit);
 	let taxRatePct = $state(settings.taxRateBps / 100);
+	let lateFeeDollars = $state(settings.lateFeeCents / 100);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -214,7 +216,9 @@
 				invoiceTermsDays,
 				autoInvoiceOnComplete,
 				bookingNoticeDays,
-				taxRateBps: Math.round((taxRatePct || 0) * 100)
+				bookingDailyLimit,
+				taxRateBps: Math.round((taxRatePct || 0) * 100),
+				lateFeeCents: Math.round((lateFeeDollars || 0) * 100)
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -499,6 +503,21 @@
 									Appended as a Sales tax line on every new invoice. 0 = untaxed.
 								</p>
 							</Field.Field>
+							<Field.Field>
+								<Field.Label for="late-fee">Late fee ($)</Field.Label>
+								<Input
+									id="late-fee"
+									type="number"
+									min="0"
+									max="1000"
+									step="0.01"
+									class="w-24"
+									bind:value={lateFeeDollars}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Added once to an invoice that runs 3+ days past due. 0 = no late fees.
+								</p>
+							</Field.Field>
 							<div class="flex items-center justify-between">
 								<div>
 									<p>Auto-draft invoice on completion</p>
@@ -567,6 +586,19 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									How far ahead customers must book — 0 allows same-day requests.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="s-daily-limit">Daily booking limit</Field.Label>
+								<Input
+									id="s-daily-limit"
+									type="number"
+									min={0}
+									max={100}
+									bind:value={bookingDailyLimit}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Max bookings accepted per requested day — 0 = unlimited.
 								</p>
 							</Field.Field>
 						{/if}

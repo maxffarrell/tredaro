@@ -10,13 +10,15 @@ import {
 	agreementPlan,
 	estimate,
 	invoice,
+	invoiceItem,
 	job,
 	payment,
 	serviceAgreement,
 	jobType,
 	notificationLog,
 	organization,
-	inventoryItem
+	inventoryItem,
+	smsOutbox
 } from '#lib/server/db/schema.ts';
 import { member, user } from '#lib/server/db/auth.schema.ts';
 import { appOrigin, sendEmail } from '#lib/server/email.ts';
@@ -41,6 +43,54 @@ async function orgCurrencyOf(orgId: string) {
 		.from(companySettings)
 		.where(eq(companySettings.organizationId, orgId));
 	return s?.currency ?? 'usd';
+}
+
+/**
+ * sendSms honoring quiet hours: between 21:00 and 08:00 (org timezone) the text
+ * is parked in sms_outbox for the cron's flushSmsOutbox at the next 8am instead
+ * of hitting the customer's phone overnight.
+ */
+async function sendSmsQuiet(orgId: string, msg: { to: string; body: string }) {
+	const tz = await orgTimezone(orgId);
+	const now = new Date();
+	const localNow = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+	const hour = localNow.getHours();
+	if (hour >= 21 || hour < 8) {
+		const offset = localNow.getTime() - now.getTime();
+		const next = new Date(localNow);
+		next.setHours(8, 0, 0, 0);
+		if (next.getTime() <= localNow.getTime()) next.setDate(next.getDate() + 1);
+		await db.insert(smsOutbox).values({
+			organizationId: orgId,
+			to: msg.to,
+			body: msg.body,
+			sendAfter: new Date(next.getTime() - offset)
+		});
+		return;
+	}
+	await sendSms(msg);
+}
+
+/** Delivers queued texts whose quiet-hours window has passed (called from runReminders). */
+export async function flushSmsOutbox(orgId: string) {
+	const due = await db
+		.select()
+		.from(smsOutbox)
+		.where(
+			and(
+				eq(smsOutbox.organizationId, orgId),
+				sql`${smsOutbox.sentAt} is null`,
+				lte(smsOutbox.sendAfter, new Date())
+			)
+		);
+	for (const m of due) {
+		try {
+			await sendSms({ to: m.to, body: m.body });
+		} catch (err) {
+			console.error('sms outbox send failed', m.id, err);
+		}
+		await db.update(smsOutbox).set({ sentAt: new Date() }).where(eq(smsOutbox.id, m.id));
+	}
 }
 
 async function orgTimezone(orgId: string) {
@@ -109,7 +159,7 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 		smsProvider() &&
 		(await logOnce(orgId, 'estimate_sent_sms', estimateId, row.phone))
 	)
-		await sendSms({
+		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: `${name}: estimate E-${row.number} for ${formatMoney(row.total)} — review and approve: ${estimateUrl(estimateId)}`
 		});
@@ -222,7 +272,7 @@ export async function notifyInvoiceTexted(orgId: string, invoiceId: string) {
 	if (!row?.phone || row.smsOptOut || row.status !== 'open') return false;
 	if (!(await logOnce(orgId, 'invoice_texted', invoiceId, row.phone))) return false;
 	const name = await orgName(orgId);
-	await sendSms({
+	await sendSmsQuiet(orgId, {
 		to: row.phone,
 		body: `${name}: invoice INV-${row.number} for ${formatMoney(row.total)} — view and pay: ${invoiceUrl(invoiceId)}`
 	});
@@ -245,7 +295,7 @@ export async function textCustomer(ctx: OrgContext, customerId: string, message:
 	if (!c.phone) error(400, 'Customer has no phone number');
 	if (c.smsOptOut) error(409, 'Customer has opted out of texts');
 	const name = await orgName(ctx.orgId);
-	await sendSms({ to: c.phone, body: `${name}: ${message}` });
+	await sendSmsQuiet(ctx.orgId, { to: c.phone, body: `${name}: ${message}` });
 	await db
 		.insert(notificationLog)
 		.values({
@@ -364,7 +414,7 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 		smsProvider() &&
 		(await logOnce(orgId, 'job_scheduled_sms', jobId, row.phone))
 	)
-		await sendSms({
+		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: `${name}: ${what} is scheduled for ${when}. Reply to reschedule.`
 		});
@@ -425,7 +475,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 		smsProvider() &&
 		(await logOnce(orgId, 'appointment_reminder_sms', jobId, row.phone))
 	)
-		await sendSms({
+		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: `${name} reminder: ${what} on ${when}. Reply to reschedule.`
 		});
@@ -479,7 +529,7 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 		smsProvider() &&
 		(await logOnce(orgId, 'estimate_followup_sms', estimateId, row.phone))
 	)
-		await sendSms({
+		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: `${name}: estimate E-${row.number} for ${formatMoney(row.total)} is still open. Review it here: ${estimateUrl(estimateId)}`
 		});
@@ -519,7 +569,7 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 		smsProvider() &&
 		(await logOnce(orgId, `invoice_overdue_sms_${stage}`, invoiceId, row.phone))
 	)
-		await sendSms({
+		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: `${name}: invoice INV-${row.number} for ${formatMoney(balance)} was due ${row.dueDate} and is still open. Pay online: ${invoiceUrl(invoiceId)}`
 		});
@@ -542,6 +592,7 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 
 /** Daily cron work: appointment reminders, stale-estimate follow-ups, staff schedule digests. */
 export async function runReminders(orgId: string) {
+	await flushSmsOutbox(orgId);
 	await expireEstimates(orgId);
 	const now = new Date();
 	const horizon = new Date(now.getTime() + 36 * 60 * 60 * 1000);
@@ -588,6 +639,38 @@ export async function runReminders(orgId: string) {
 		);
 		const stage = daysPast >= 10 ? 10 : daysPast >= 3 ? 3 : 0;
 		if (stage) await notifyInvoiceOverdue(orgId, inv.id, stage);
+	}
+
+	// Late fee: one flat fee appended to any invoice 3+ days past due while the
+	// org charges late fees — deduped per invoice via notification_log.
+	const [cfg] = await db
+		.select({ lateFeeCents: companySettings.lateFeeCents })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	if (cfg?.lateFeeCents && cfg.lateFeeCents > 0) {
+		for (const inv of overdue) {
+			const daysPast = Math.floor(
+				(now.getTime() - new Date(`${inv.dueDate}T00:00:00Z`).getTime()) / 86400_000
+			);
+			if (daysPast < 3) continue;
+			if (!(await logOnce(orgId, 'late_fee', inv.id, 'system'))) continue;
+			const [openCharge] = await db
+				.select({ id: charge.id })
+				.from(charge)
+				.where(and(eq(charge.invoiceId, inv.id), eq(charge.status, 'open')));
+			if (!openCharge) continue; // paid/void — nothing to add a fee to
+			await db.insert(invoiceItem).values({
+				invoiceId: inv.id,
+				name: 'Late fee',
+				description: `Added ${daysPast} days past the due date`,
+				qty: 1,
+				unitPrice: cfg.lateFeeCents
+			});
+			await db
+				.update(charge)
+				.set({ amount: sql`${charge.amount} + ${cfg.lateFeeCents}` })
+				.where(eq(charge.id, openCharge.id));
+		}
 	}
 
 	// Warranty-expiry heads-up: equipment whose warranty ends within 30 days — one email per unit.
@@ -669,7 +752,7 @@ export async function runReminders(orgId: string) {
 				smsProvider() &&
 				(await logOnce(orgId, 'agreement_renewal_sms', a.id, `${a.phone}:${renewsOn}`))
 			)
-				await sendSms({
+				await sendSmsQuiet(orgId, {
 					to: a.phone,
 					body: `${name2}: your ${a.planName} plan renews ${renewsOn} for ${formatMoney(a.amount)}. Reply STOP to opt out.`
 				});
@@ -773,7 +856,7 @@ export async function notifyJobEnRoute(orgId: string, jobId: string) {
 	if (!row?.phone || row.smsOptOut) return;
 	if (!(await logOnce(orgId, 'job_en_route_sms', jobId, row.phone))) return;
 	const name = await orgName(orgId);
-	await sendSms({
+	await sendSmsQuiet(orgId, {
 		to: row.phone,
 		body: `${name}: ${row.technicianName ?? 'Your technician'} is on the way for ${row.jobTypeName ?? `job J-${row.number}`}.`
 	});
@@ -832,7 +915,7 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 		smsProvider() &&
 		(await logOnce(orgId, 'job_completed_sms', jobId, row.phone))
 	)
-		await sendSms({
+		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: row.reviewUrl
 				? `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks! A quick review helps a lot: ${row.reviewUrl}`
