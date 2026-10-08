@@ -92,7 +92,7 @@ async function deliverWebhooks(event: TredaroEvent) {
 // ---------- feed ----------
 
 /** Recent org activity for the /activity page — newest first, optional entity-type filter. */
-export async function listActivity(orgId: string, entityType?: string) {
+export async function listActivity(orgId: string, entityType?: string, entityId?: string) {
 	const rows = await db
 		.select({
 			activity,
@@ -104,7 +104,8 @@ export async function listActivity(orgId: string, entityType?: string) {
 		.where(
 			and(
 				eq(activity.organizationId, orgId),
-				entityType ? eq(activity.entityType, entityType) : undefined
+				entityType ? eq(activity.entityType, entityType) : undefined,
+				entityId ? eq(activity.entityId, entityId) : undefined
 			)
 		)
 		.orderBy(desc(activity.createdAt))

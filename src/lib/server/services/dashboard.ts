@@ -254,6 +254,27 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(inventoryItem.qtyOnHand))
 		.limit(4);
 
+	const staleUnscheduled = await db
+		.select({
+			id: job.id,
+			number: job.number,
+			summary: job.summary,
+			createdAt: job.createdAt,
+			customerName: customer.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'unscheduled'),
+				isNull(job.cancelledAt),
+				lt(job.createdAt, weekAgo)
+			)
+		)
+		.orderBy(asc(job.createdAt))
+		.limit(4);
+
 	const latePOs = await db
 		.select()
 		.from(purchaseOrder)
@@ -324,6 +345,13 @@ export async function dashboard(orgId: string) {
 				text: `${a.customerName} · ${a.planName}`,
 				sub: `bills ${localDate(a.nextChargeAt!, tz)}`,
 				amountCents: a.amount
+			})),
+			...staleUnscheduled.map((j) => ({
+				tone: 'amber' as const,
+				href: `/jobs/${j.id}`,
+				text: `${j.customerName} · J-${j.number} ${j.summary}`,
+				sub: `in the queue since ${localDate(j.createdAt, tz)}`,
+				amountCents: null as number | null
 			})),
 			...latePOs.map((p) => ({
 				tone: 'amber' as const,

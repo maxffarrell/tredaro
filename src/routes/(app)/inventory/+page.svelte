@@ -23,11 +23,12 @@
 		transitionPurchaseOrder,
 		deletePurchaseOrder,
 		getTruckStock,
-		transferTruckStock
+		transferTruckStock,
+		getItemHistory
 	} from '#lib/remote/inventory.remote.ts';
 	import { getTechnicians } from '#lib/remote/jobs.remote.ts';
 	import { getCurrency } from '#lib/remote/billing.remote.ts';
-	import { errMsg, formatMoney } from '#lib/format.ts';
+	import { errMsg, formatMoney, formatRelative } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Package from '@lucide/svelte/icons/package';
 	import Search from '@lucide/svelte/icons/search';
@@ -38,6 +39,7 @@
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 	import Truck from '@lucide/svelte/icons/truck';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
+	import History from '@lucide/svelte/icons/history';
 
 	const currency = await getCurrency();
 	let rows = $state(await getInventory());
@@ -50,6 +52,10 @@
 				r.item.sku.toLowerCase().includes(q.toLowerCase())
 		)
 	);
+
+	// ------- item history -------
+	let historyItem = $state<(typeof rows)[number] | null>(null);
+	const itemHistory = $derived(historyItem ? await getItemHistory(historyItem.item.id) : []);
 
 	// ------- item dialog -------
 	let open = $state(false);
@@ -311,6 +317,15 @@
 										onclick={() => ((adjusting = i), (adjQty = 1))}
 									>
 										<ArrowUpDown class="size-3.5" />
+									</Button>
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-7"
+										title="Movement history"
+										onclick={() => (historyItem = i)}
+									>
+										<History class="size-3.5" />
 									</Button>
 									<Button
 										variant="ghost"
@@ -691,5 +706,32 @@
 				>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- movement history -->
+<Dialog.Root open={!!historyItem} onOpenChange={(o: boolean) => !o && (historyItem = null)}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>{historyItem?.item.name} — history</Dialog.Title>
+			<Dialog.Description>Every stock movement and edit, newest first.</Dialog.Description>
+		</Dialog.Header>
+		<div class="max-h-96 divide-y overflow-y-auto">
+			{#each itemHistory as e (e.activity.id)}
+				<div class="flex items-baseline justify-between gap-3 py-2">
+					<div class="text-sm">
+						{e.activity.summary}
+						{#if e.actorName}
+							<span class="text-muted-foreground">· {e.actorName}</span>
+						{/if}
+					</div>
+					<span class="shrink-0 text-xs text-muted-foreground"
+						>{formatRelative(e.activity.createdAt)}</span
+					>
+				</div>
+			{:else}
+				<p class="py-6 text-center text-sm text-muted-foreground">No movements yet.</p>
+			{/each}
+		</div>
 	</Dialog.Content>
 </Dialog.Root>

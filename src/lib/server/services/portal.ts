@@ -268,13 +268,15 @@ export async function availableProviders(orgId: string, currency: string) {
 export async function updatePortalContact(
 	userId: string,
 	customerId: string,
-	input: { email?: string; phone?: string }
+	input: { email?: string; phone?: string; smsOptOut?: boolean; emailOptOut?: boolean }
 ) {
 	const [row] = await db
 		.update(customer)
 		.set({
 			email: input.email?.trim() ? input.email.trim() : null,
-			phone: input.phone?.trim() ? input.phone.trim() : null
+			phone: input.phone?.trim() ? input.phone.trim() : null,
+			...(input.smsOptOut === undefined ? {} : { smsOptOut: input.smsOptOut }),
+			...(input.emailOptOut === undefined ? {} : { emailOptOut: input.emailOptOut })
 		})
 		.where(and(eq(customer.id, customerId), eq(customer.portalUserId, userId)))
 		.returning();

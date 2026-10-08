@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/inventory.ts';
+import * as eventsSvc from '#lib/server/services/events.ts';
 import {
 	idSchema,
 	inventoryAdjustInput,
@@ -17,6 +18,12 @@ import { getDashboard } from './workspace.remote.ts';
 import { getJob } from './jobs.remote.ts';
 
 export const getInventory = query(async () => svc.listItems((await requireOrg()).orgId));
+
+/** Per-item movement history — the activity feed scoped to one inventory item. */
+export const getItemHistory = query(idSchema, async (itemId) => {
+	const { orgId } = await requireOrg();
+	return eventsSvc.listActivity(orgId, 'inventory_item', itemId);
+});
 
 export const createInventoryItem = command(inventoryItemInput, async (input) => {
 	const i = await svc.createItem(await requireOrg('admin'), input);

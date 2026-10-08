@@ -10,6 +10,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { toast } from 'svelte-sonner';
 	import {
@@ -67,6 +68,8 @@
 	// ------- your details -------
 	let contactEmail = $state('');
 	let contactPhone = $state('');
+	let contactText = $state(true);
+	let contactEmailUpdates = $state(true);
 	let contactPending = $state(false);
 	let contactLoaded = '';
 	$effect(() => {
@@ -74,6 +77,8 @@
 			contactLoaded = d.customer.id;
 			contactEmail = d.customer.email ?? '';
 			contactPhone = d.customer.phone ?? '';
+			contactText = !d.customer.smsOptOut;
+			contactEmailUpdates = !d.customer.emailOptOut;
 		}
 	});
 	async function saveContact(e: SubmitEvent) {
@@ -83,7 +88,9 @@
 			await updatePortalContact({
 				customerId,
 				email: contactEmail.trim(),
-				phone: contactPhone.trim()
+				phone: contactPhone.trim(),
+				smsOptOut: !contactText,
+				emailOptOut: !contactEmailUpdates
 			}).updates(getPortalOverview);
 			toast.success('Details saved');
 		} catch (err) {
@@ -369,6 +376,14 @@
 						<Field.Label for="p-phone">Phone</Field.Label>
 						<Input id="p-phone" bind:value={contactPhone} />
 					</Field.Field>
+					<div class="flex items-center justify-between gap-3 text-sm">
+						<label for="p-texts">Text me updates</label>
+						<Switch id="p-texts" bind:checked={contactText} />
+					</div>
+					<div class="flex items-center justify-between gap-3 text-sm">
+						<label for="p-emails">Email me updates</label>
+						<Switch id="p-emails" bind:checked={contactEmailUpdates} />
+					</div>
 					<Button type="submit" size="sm" disabled={contactPending}
 						>{contactPending ? 'Saving…' : 'Save details'}</Button
 					>

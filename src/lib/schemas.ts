@@ -457,7 +457,9 @@ export const portalContactInput = v.object({
 		v.union([v.literal(''), v.pipe(v.string(), v.trim(), v.email('Invalid email'))]),
 		''
 	),
-	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
+	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ''),
+	smsOptOut: v.optional(v.boolean()),
+	emailOptOut: v.optional(v.boolean())
 });
 
 export const timeOffInput = v.object({
