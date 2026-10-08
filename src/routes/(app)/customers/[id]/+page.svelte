@@ -91,6 +91,7 @@
 		job_completed_sms: 'Job completed text',
 		warranty_expiry: 'Warranty expiring reminder',
 		manual_sms: 'Texted customer',
+		parts_delay: 'Waiting on a part update',
 		inbound_sms: 'Text from customer',
 		statement: 'Statement emailed'
 	};
