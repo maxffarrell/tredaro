@@ -33,7 +33,8 @@
 		['draft', 'Drafts'],
 		['sent', 'Sent'],
 		['approved', 'Approved'],
-		['declined', 'Declined']
+		['declined', 'Declined'],
+		['expired', 'Expired']
 	] as const;
 	let tab = $state(page.url.searchParams.get('status') ?? 'all');
 	const estimates = $derived(await getEstimates(tab === 'all' ? undefined : { status: tab }));

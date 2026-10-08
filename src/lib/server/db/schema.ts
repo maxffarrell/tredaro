@@ -103,6 +103,9 @@ export const customer = pgTable(
 		notes: text('notes'),
 		/** Freeform labels for filtering/segmenting ("VIP", "Property manager"). */
 		tags: text('tags').array(),
+		/** Do-not-contact flags: suppress automated customer-facing texts/emails. */
+		smsOptOut: boolean('sms_opt_out').notNull().default(false),
+		emailOptOut: boolean('email_opt_out').notNull().default(false),
 		since: date('since', { mode: 'string' }),
 		...timestamps
 	},
@@ -400,7 +403,8 @@ export const estimateStatus = pgEnum('estimate_status', [
 	'approved',
 	'declined',
 	'converted',
-	'superseded'
+	'superseded',
+	'expired'
 ]);
 
 /** A quote for work. Customers approve it on a public link; approval books the job. */
@@ -418,6 +422,8 @@ export const estimate = pgTable(
 		}),
 		status: estimateStatus('status').notNull().default('draft'),
 		notes: text('notes').notNull().default(''),
+		/** Quote expires after this date; the public link stops accepting answers. */
+		validUntil: date('valid_until', { mode: 'string' }),
 		sentAt: timestamp('sent_at', { withTimezone: true }),
 		respondedAt: timestamp('responded_at', { withTimezone: true }),
 		/** Typed name captured on the public approval page. */

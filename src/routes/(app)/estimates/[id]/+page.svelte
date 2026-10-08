@@ -38,6 +38,7 @@
 	const linkedJob = $derived(est.linkedJob ?? null);
 
 	let notes = $state('');
+	let validUntil = $state('');
 	let items = $state<
 		{ pricebookItemId: string | null; name: string; qty: number; unitPrice: number }[]
 	>([]);
@@ -46,6 +47,7 @@
 		if (est.estimate.id !== loadedId) {
 			loadedId = est.estimate.id;
 			notes = est.estimate.notes;
+			validUntil = est.estimate.validUntil ?? '';
 			items = est.items.map((i) => ({
 				pricebookItemId: i.item.pricebookItemId,
 				name: i.item.name,
@@ -64,6 +66,7 @@
 			await updateEstimate({
 				id,
 				notes,
+				validUntil: validUntil || null,
 				items: items
 					.filter((i) => i.name.trim())
 					.map((i) => ({
@@ -123,7 +126,7 @@
 		{:else if shareUrl}
 			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
 		{/if}
-		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined'}
+		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
 			<Button size="sm" variant="outline" onclick={revise}><FilePen /> Revise</Button>
 		{/if}
 	{/snippet}
@@ -163,6 +166,11 @@
 					<Field.Field>
 						<Field.Label for="ed-notes">Notes</Field.Label>
 						<Textarea id="ed-notes" rows={3} bind:value={notes} />
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="ed-valid">Valid until</Field.Label>
+						<Input id="ed-valid" type="date" bind:value={validUntil} />
+						<Field.Description>Defaults to 30 days after sending.</Field.Description>
 					</Field.Field>
 					<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
 				</form>
@@ -233,6 +241,13 @@
 					<div class="flex justify-between">
 						<span class="text-muted-foreground">Sent</span><span
 							>{formatDate(est.estimate.sentAt)}</span
+						>
+					</div>
+				{/if}
+				{#if est.estimate.validUntil}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">Valid until</span><span
+							>{formatDate(est.estimate.validUntil)}</span
 						>
 					</div>
 				{/if}

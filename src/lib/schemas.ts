@@ -50,7 +50,9 @@ export const customerInput = v.object({
 	status: v.optional(v.picklist(customerStatuses), 'active'),
 	notes: optionalText,
 	since: v.optional(v.nullable(isoDate)),
-	tags: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(40))), [])
+	tags: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(40))), []),
+	smsOptOut: v.optional(v.boolean(), false),
+	emailOptOut: v.optional(v.boolean(), false)
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),
@@ -313,6 +315,7 @@ export const estimateUpdate = v.object({
 	id: idSchema,
 	serviceLocationId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	validUntil: v.optional(v.nullable(isoDate)),
 	items: v.optional(v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item')))
 });
 

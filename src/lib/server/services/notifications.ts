@@ -14,7 +14,7 @@ import { member, user } from '#lib/server/db/auth.schema.ts';
 import { appOrigin, sendEmail } from '#lib/server/email.ts';
 import { sendSms, smsProvider } from '#lib/server/sms.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
-import { estimateUrl } from './estimates.ts';
+import { estimateUrl, expireEstimates } from './estimates.ts';
 import { invoiceUrl } from './billing.ts';
 import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import { formatMoney } from '#lib/format.ts';
@@ -50,6 +50,8 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			customerName: customer.name,
 			number: estimate.number,
 			total:
@@ -60,7 +62,7 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 		.from(estimate)
 		.innerJoin(customer, eq(estimate.customerId, customer.id))
 		.where(eq(estimate.id, estimateId));
-	if (!row?.email) return;
+	if (!row?.email || row.emailOptOut) return;
 	if (!(await logOnce(orgId, 'estimate_sent', estimateId, row.email))) return;
 	const name = await orgName(orgId);
 	await sendEmail({
@@ -83,6 +85,8 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			customerName: customer.name,
 			summary: job.summary,
 			jobTypeName: jobType.name
@@ -91,7 +95,7 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
-	if (!row?.email) return;
+	if (!row?.email || row.emailOptOut) return;
 	if (!(await logOnce(orgId, 'booking_received', jobId, row.email))) return;
 	const name = await orgName(orgId);
 	await sendEmail({
@@ -114,6 +118,8 @@ export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			customerName: customer.name,
 			number: invoice.number,
 			dueDate: invoice.dueDate,
@@ -126,7 +132,7 @@ export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 		.from(invoice)
 		.innerJoin(customer, eq(invoice.customerId, customer.id))
 		.where(eq(invoice.id, invoiceId));
-	if (!row?.email || row.status !== 'open') return false;
+	if (!row?.email || row.emailOptOut || row.status !== 'open') return false;
 	if (!(await logOnce(orgId, 'invoice_sent', invoiceId, row.email))) return false;
 	const name = await orgName(orgId);
 	await sendEmail({
@@ -150,6 +156,8 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
@@ -165,7 +173,7 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
 	const what = row.jobTypeName ?? row.summary;
 	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
-	if (row.email && (await logOnce(orgId, 'job_scheduled', jobId, row.email)))
+	if (row.email && !row.emailOptOut && (await logOnce(orgId, 'job_scheduled', jobId, row.email)))
 		await sendEmail({
 			to: row.email,
 			subject: `Job J-${row.number} scheduled — ${name}`,
@@ -179,7 +187,12 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 				action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
 			})
 		});
-	if (row.phone && smsProvider() && (await logOnce(orgId, 'job_scheduled_sms', jobId, row.phone)))
+	if (
+		row.phone &&
+		!row.smsOptOut &&
+		smsProvider() &&
+		(await logOnce(orgId, 'job_scheduled_sms', jobId, row.phone))
+	)
 		await sendSms({
 			to: row.phone,
 			body: `${name}: ${what} is scheduled for ${when}. Reply to reschedule.`
@@ -191,6 +204,8 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
@@ -212,7 +227,11 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
 	const what = row.jobTypeName ?? row.summary;
 	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
-	if (row.email && (await logOnce(orgId, 'appointment_reminder', jobId, row.email)))
+	if (
+		row.email &&
+		!row.emailOptOut &&
+		(await logOnce(orgId, 'appointment_reminder', jobId, row.email))
+	)
 		await sendEmail({
 			to: row.email,
 			subject: `Reminder: J-${row.number} ${when} — ${name}`,
@@ -228,6 +247,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 		});
 	if (
 		row.phone &&
+		!row.smsOptOut &&
 		smsProvider() &&
 		(await logOnce(orgId, 'appointment_reminder_sms', jobId, row.phone))
 	)
@@ -242,6 +262,8 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			customerName: customer.name,
 			number: estimate.number,
 			status: estimate.status,
@@ -253,7 +275,7 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 		.from(estimate)
 		.innerJoin(customer, eq(estimate.customerId, customer.id))
 		.where(eq(estimate.id, estimateId));
-	if (!row?.email || row.status !== 'sent') return;
+	if (!row?.email || row.emailOptOut || row.status !== 'sent') return;
 	if (!(await logOnce(orgId, 'estimate_followup', estimateId, row.email))) return;
 	const name = await orgName(orgId);
 	await sendEmail({
@@ -276,6 +298,8 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			customerName: customer.name,
 			number: invoice.number,
 			dueDate: invoice.dueDate,
@@ -292,7 +316,7 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 		.innerJoin(customer, eq(invoice.customerId, customer.id))
 		.where(eq(invoice.id, invoiceId));
 	const balance = row ? row.total - row.paid : 0;
-	if (!row?.email || row.status !== 'open' || balance <= 0) return;
+	if (!row?.email || row.emailOptOut || row.status !== 'open' || balance <= 0) return;
 	if (!(await logOnce(orgId, `invoice_overdue_${stage}`, invoiceId, row.email))) return;
 	const name = await orgName(orgId);
 	await sendEmail({
@@ -312,6 +336,7 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 
 /** Daily cron work: appointment reminders, stale-estimate follow-ups, staff schedule digests. */
 export async function runReminders(orgId: string) {
+	await expireEstimates(orgId);
 	const now = new Date();
 	const horizon = new Date(now.getTime() + 36 * 60 * 60 * 1000);
 	const upcoming = await db
@@ -423,6 +448,8 @@ export async function notifyJobEnRoute(orgId: string, jobId: string) {
 	const [row] = await db
 		.select({
 			phone: customer.phone,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			number: job.number,
 			jobTypeName: jobType.name,
 			technicianName: user.name
@@ -433,7 +460,7 @@ export async function notifyJobEnRoute(orgId: string, jobId: string) {
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(eq(job.id, jobId));
-	if (!row?.phone) return;
+	if (!row?.phone || row.smsOptOut) return;
 	if (!(await logOnce(orgId, 'job_en_route_sms', jobId, row.phone))) return;
 	const name = await orgName(orgId);
 	await sendSms({
@@ -447,6 +474,8 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 	const [row] = await db
 		.select({
 			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
 			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
@@ -462,7 +491,7 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 		.where(eq(job.id, jobId));
 	if ((!row?.email && !row?.phone) || row?.status !== 'done') return;
 	const name = await orgName(orgId);
-	if (row.email && (await logOnce(orgId, 'job_completed', jobId, row.email)))
+	if (row.email && !row.emailOptOut && (await logOnce(orgId, 'job_completed', jobId, row.email)))
 		await sendEmail({
 			to: row.email,
 			subject: `Thanks for choosing ${name}`,
@@ -480,7 +509,12 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 					: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
 			})
 		});
-	if (row.phone && smsProvider() && (await logOnce(orgId, 'job_completed_sms', jobId, row.phone)))
+	if (
+		row.phone &&
+		!row.smsOptOut &&
+		smsProvider() &&
+		(await logOnce(orgId, 'job_completed_sms', jobId, row.phone))
+	)
 		await sendSms({
 			to: row.phone,
 			body: row.reviewUrl

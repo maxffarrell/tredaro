@@ -61,6 +61,7 @@
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Printer from '@lucide/svelte/icons/printer';
 	import Plus from '@lucide/svelte/icons/plus';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
@@ -398,6 +399,13 @@
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
 		{/if}
+		<Button
+			size="sm"
+			variant="ghost"
+			href="/jobs/{id}/workorder"
+			target="_blank"
+			title="Print work order"><Printer /></Button
+		>
 		{#if !locked}
 			<Button size="sm" variant="ghost" class="text-destructive" onclick={cancel}><Ban /></Button>
 		{/if}

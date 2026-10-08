@@ -118,6 +118,8 @@
 	let notes = $state(c.customer.notes);
 	let status = $state(c.customer.status);
 	let tagsInput = $state((c.customer.tags ?? []).join(', '));
+	let smsOptOut = $state(c.customer.smsOptOut);
+	let emailOptOut = $state(c.customer.emailOptOut);
 	let saving = $state(false);
 	let loadedId = '';
 	$effect(() => {
@@ -131,6 +133,8 @@
 			notes = c.customer.notes;
 			status = c.customer.status;
 			tagsInput = (c.customer.tags ?? []).join(', ');
+			smsOptOut = c.customer.smsOptOut;
+			emailOptOut = c.customer.emailOptOut;
 		}
 	});
 
@@ -150,7 +154,9 @@
 				tags: tagsInput
 					.split(',')
 					.map((t) => t.trim())
-					.filter(Boolean)
+					.filter(Boolean),
+				smsOptOut,
+				emailOptOut
 			});
 			toast.success('Customer saved');
 		} catch (err) {
@@ -416,6 +422,19 @@
 						<Field.Label for="cd-notes">Notes</Field.Label>
 						<Textarea id="cd-notes" rows={3} bind:value={notes} />
 					</Field.Field>
+					<div class="space-y-2 rounded-md border p-3">
+						<p class="text-sm font-medium">Contact preferences</p>
+						<label class="flex items-center gap-2 text-sm">
+							<Switch bind:checked={smsOptOut} /> Don't send automated texts
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<Switch bind:checked={emailOptOut} /> Don't send automated emails
+						</label>
+						<p class="text-xs text-muted-foreground">
+							Suppresses appointment reminders, follow-ups, and invoices/estimate emails for this
+							customer.
+						</p>
+					</div>
 					<Field.Field>
 						<Field.Label for="cd-tags">Tags</Field.Label>
 						<Input

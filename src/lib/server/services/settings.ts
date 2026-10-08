@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { companySettings, office } from '#lib/server/db/schema.ts';
+import { companySettings, office, organization } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
@@ -11,13 +11,17 @@ export async function getSettings(orgId: string) {
 		.select()
 		.from(companySettings)
 		.where(eq(companySettings.organizationId, orgId));
-	if (row) return row;
+	const [org] = await db
+		.select({ name: organization.name })
+		.from(organization)
+		.where(eq(organization.id, orgId));
+	if (row) return { ...row, orgName: org?.name ?? '' };
 	const [created] = await db
 		.insert(companySettings)
 		.values({ organizationId: orgId })
 		.onConflictDoNothing()
 		.returning();
-	return created!;
+	return { ...created!, orgName: org?.name ?? '' };
 }
 
 export async function updateSettings(
@@ -25,12 +29,11 @@ export async function updateSettings(
 	input: v.InferOutput<typeof s.settingsInput>
 ) {
 	await getSettings(ctx.orgId);
-	const [row] = await db
+	await db
 		.update(companySettings)
 		.set({ ...input, updatedAt: new Date() })
-		.where(eq(companySettings.organizationId, ctx.orgId))
-		.returning();
-	return row;
+		.where(eq(companySettings.organizationId, ctx.orgId));
+	return getSettings(ctx.orgId);
 }
 
 /** Allocates the next human-readable document number for the workspace. */

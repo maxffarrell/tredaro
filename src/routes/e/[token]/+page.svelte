@@ -10,7 +10,7 @@
 	import { toast } from 'svelte-sonner';
 	import { decidePublicEstimate } from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
-	import { errMsg, formatMoney } from '#lib/format.ts';
+	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -69,6 +69,9 @@
 					For {customerName}
 					{#if loc?.address1}· {loc.address1}, {loc.city}{/if}
 				</p>
+				{#if est.validUntil && est.status === 'sent'}
+					<p class="text-xs text-muted-foreground">Valid until {formatDate(est.validUntil)}</p>
+				{/if}
 			</div>
 			<div class="flex items-center gap-2">
 				<StatusBadge status={decided ?? est.status} />
@@ -125,6 +128,15 @@
 					<p class="font-semibold">Estimate approved</p>
 					<p class="mt-1 text-sm text-muted-foreground">
 						{orgName} will reach out to schedule the work.
+					</p>
+				</Card.Content>
+			</Card.Root>
+		{:else if est.status === 'expired'}
+			<Card.Root>
+				<Card.Content class="py-6 text-center">
+					<p class="font-semibold">This estimate has expired</p>
+					<p class="mt-1 text-sm text-muted-foreground">
+						Contact {orgName} for an updated quote.
 					</p>
 				</Card.Content>
 			</Card.Root>

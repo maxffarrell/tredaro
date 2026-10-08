@@ -46,6 +46,7 @@
 		converted: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
 		paused: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
 		inactive: 'bg-muted text-muted-foreground',
+		expired: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
 		residential: 'bg-sky-500/10 text-sky-700 dark:text-sky-400',
 		commercial: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
 		low: 'bg-muted text-muted-foreground',

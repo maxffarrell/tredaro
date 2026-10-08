@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, lt, sql } from 'drizzle-orm';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -160,7 +160,8 @@ export async function updateEstimate(
 		.update(estimate)
 		.set({
 			serviceLocationId: input.serviceLocationId,
-			notes: input.notes
+			notes: input.notes,
+			validUntil: input.validUntil
 		})
 		.where(eq(estimate.id, input.id))
 		.returning();
@@ -175,8 +176,8 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 		.from(estimate)
 		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
 	if (!e) error(404, 'Estimate not found');
-	if (e.status !== 'sent' && e.status !== 'declined')
-		error(409, 'Only sent or declined estimates can be revised');
+	if (e.status !== 'sent' && e.status !== 'declined' && e.status !== 'expired')
+		error(409, 'Only sent, declined, or expired estimates can be revised');
 	const items = await db
 		.select()
 		.from(estimateItem)
@@ -226,9 +227,15 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 
 /** Marks the estimate sent; the public link can now be shared with the customer. */
 export async function sendEstimate(ctx: OrgContext, id: string) {
+	// Quotes default to a 30-day validity window unless staff set a different date.
+	const defaultValidUntil = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
 	const [row] = await db
 		.update(estimate)
-		.set({ status: 'sent', sentAt: new Date() })
+		.set({
+			status: 'sent',
+			sentAt: new Date(),
+			validUntil: sql`coalesce(${estimate.validUntil}, ${defaultValidUntil})`
+		})
 		.where(
 			and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id), eq(estimate.status, 'draft'))
 		)
@@ -247,8 +254,25 @@ export async function sendEstimate(ctx: OrgContext, id: string) {
 
 // ---------- Public side ----------
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/** Flips sent estimates past their validUntil to 'expired' (daily cron + opportunistic read). */
+export async function expireEstimates(orgId: string) {
+	await db
+		.update(estimate)
+		.set({ status: 'expired' })
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.status, 'sent'),
+				lt(estimate.validUntil, todayIso())
+			)
+		);
+}
+
 /** What the public /e/[token] page shows. */
 export async function publicEstimate(id: string) {
+	// A sent estimate past its validity reads as expired even before the cron flips it.
 	const [row] = await db
 		.select({
 			estimate,
@@ -271,6 +295,13 @@ export async function publicEstimate(id: string) {
 		.select({ currency: companySettings.currency })
 		.from(companySettings)
 		.where(eq(companySettings.organizationId, row.estimate.organizationId));
+	if (
+		row.estimate.status === 'sent' &&
+		row.estimate.validUntil &&
+		row.estimate.validUntil < todayIso()
+	) {
+		row.estimate.status = 'expired';
+	}
 	return { ...row, items, currency: settings?.currency ?? 'usd' };
 }
 
@@ -287,6 +318,12 @@ export async function decideEstimate(
 	if (!estimateId) error(400, 'Invalid link');
 	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
 	if (!est) error(404, 'Estimate not found');
+	if (
+		est.status === 'expired' ||
+		(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
+	) {
+		error(409, 'This estimate has expired — ask for a new one');
+	}
 	if (est.status !== 'sent') error(409, 'This estimate has already been answered');
 
 	if (input.approve && !input.name) error(400, 'Type your name to approve');

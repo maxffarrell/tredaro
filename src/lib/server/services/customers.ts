@@ -154,7 +154,9 @@ export async function createCustomer(
 			status: input.status,
 			notes: input.notes ?? null,
 			since: input.since ?? null,
-			tags: input.tags
+			tags: input.tags,
+			smsOptOut: input.smsOptOut,
+			emailOptOut: input.emailOptOut
 		})
 		.returning();
 	await emit({
@@ -235,7 +237,9 @@ export async function updateCustomer(
 			status: set.status,
 			notes: set.notes,
 			since: set.since,
-			tags: set.tags
+			tags: set.tags,
+			smsOptOut: set.smsOptOut,
+			emailOptOut: set.emailOptOut
 		})
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, id)))
 		.returning();
