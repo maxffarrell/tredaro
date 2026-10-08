@@ -1,4 +1,7 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { error } from '@sveltejs/kit';
 import { and, eq, sql } from 'drizzle-orm';
+import { TREDARO_TWILIO_AUTH_TOKEN } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import { customer, notificationLog } from '#lib/server/db/schema.ts';
 import type { RequestHandler } from './$types';
@@ -10,14 +13,43 @@ import type { RequestHandler } from './$types';
  * SvelteKit's CSRF guard rejects before hooks run (Twilio sends no Origin).
  * STOP/START toggle the customer's sms opt-out; any other reply is logged to
  * the customer's communications history as an inbound text.
+ *
+ * Requests are verified against `X-Twilio-Signature` (HMAC-SHA1 over the
+ * request URL + sorted POST fields, per Twilio's docs). Verification is
+ * enforced whenever TREDARO_TWILIO_AUTH_TOKEN is set; without a token the
+ * endpoint stays open for local stub testing.
  */
 const digits = (s: string) => s.replace(/\D/g, '');
 
-const handle = async (url: URL, fields: { get(k: string): unknown }) => {
+function verifySignature(url: URL, fields: Map<string, string>, signature: string | null) {
+	if (!TREDARO_TWILIO_AUTH_TOKEN) return; // stub/local: no secret configured
+	if (!signature) error(403, 'Missing X-Twilio-Signature');
+	// GET params already live inside the URL; only POST body fields are appended.
+	let payload = url.toString();
+	for (const k of [...fields.keys()].sort()) payload += k + fields.get(k);
+	const expected = createHmac('sha1', TREDARO_TWILIO_AUTH_TOKEN).update(payload).digest();
+	let given: Buffer;
+	try {
+		given = Buffer.from(signature, 'base64');
+	} catch {
+		error(403, 'Invalid X-Twilio-Signature');
+	}
+	if (given!.length !== expected.length || !timingSafeEqual(given!, expected)) {
+		error(403, 'Invalid X-Twilio-Signature');
+	}
+}
+
+const handle = async (
+	url: URL,
+	fields: Map<string, string>,
+	signature: string | null,
+	signedFields: Map<string, string>
+) => {
+	verifySignature(url, signedFields, signature);
 	const orgId = url.searchParams.get('org');
 	if (!orgId) return new Response('missing org', { status: 400 });
-	const from = String(fields.get('From') ?? fields.get('from') ?? '');
-	const body = String(fields.get('Body') ?? fields.get('body') ?? '').trim();
+	const from = fields.get('From') ?? fields.get('from') ?? '';
+	const body = (fields.get('Body') ?? fields.get('body') ?? '').trim();
 	const last10 = digits(from).slice(-10);
 	if (last10.length < 7) return new Response('unrecognized sender', { status: 400 });
 
@@ -53,9 +85,17 @@ const handle = async (url: URL, fields: { get(k: string): unknown }) => {
 	});
 };
 
-export const GET: RequestHandler = ({ url }) => handle(url, url.searchParams);
+export const GET: RequestHandler = ({ url, request }) =>
+	handle(
+		url,
+		new Map([...url.searchParams.entries()].map(([k, v]) => [k, v])),
+		request.headers.get('x-twilio-signature'),
+		new Map() // GET params are already inside the signed URL
+	);
 
 // Kept for correctness when the caller supplies an Origin header; Twilio's
 // real posts are CSRF-blocked, so the GET URL above is the supported path.
-export const POST: RequestHandler = async ({ url, request }) =>
-	handle(url, await request.formData());
+export const POST: RequestHandler = async ({ url, request }) => {
+	const form = new Map((await request.formData()).entries().map(([k, v]) => [k, String(v)]));
+	return handle(url, form, request.headers.get('x-twilio-signature'), form);
+};
