@@ -225,6 +225,11 @@ export const mergeCustomerInput = v.object({
 	targetId: idSchema
 });
 
+export const textCustomerInput = v.object({
+	customerId: idSchema,
+	message: v.pipe(v.string(), v.trim(), v.minLength(1, 'Message required'), v.maxLength(500))
+});
+
 export const purchaseOrderInput = v.object({
 	supplier: requiredText('Supplier'),
 	expectedOn: v.optional(v.union([isoDate, v.literal('')]), ''),
@@ -444,6 +449,15 @@ export const portalRequestInput = v.object({
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
+});
+
+export const portalContactInput = v.object({
+	customerId: idSchema,
+	email: v.optional(
+		v.union([v.literal(''), v.pipe(v.string(), v.trim(), v.email('Invalid email'))]),
+		''
+	),
+	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
 });
 
 export const timeOffInput = v.object({

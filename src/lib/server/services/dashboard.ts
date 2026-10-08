@@ -14,6 +14,7 @@ import {
 	jobType,
 	member,
 	payment,
+	purchaseOrder,
 	serviceAgreement,
 	user,
 	outer
@@ -253,6 +254,19 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(inventoryItem.qtyOnHand))
 		.limit(4);
 
+	const latePOs = await db
+		.select()
+		.from(purchaseOrder)
+		.where(
+			and(
+				eq(purchaseOrder.organizationId, orgId),
+				eq(purchaseOrder.status, 'ordered'),
+				lt(purchaseOrder.expectedOn, today)
+			)
+		)
+		.orderBy(asc(purchaseOrder.expectedOn))
+		.limit(4);
+
 	return {
 		timezone: tz,
 		currency: settings?.currency ?? 'usd',
@@ -310,6 +324,13 @@ export async function dashboard(orgId: string) {
 				text: `${a.customerName} · ${a.planName}`,
 				sub: `bills ${localDate(a.nextChargeAt!, tz)}`,
 				amountCents: a.amount
+			})),
+			...latePOs.map((p) => ({
+				tone: 'amber' as const,
+				href: '/inventory',
+				text: `PO-${p.number} · ${p.supplier}`,
+				sub: `expected ${p.expectedOn} — still not received`,
+				amountCents: null as number | null
 			})),
 			...lowStock.map((i) => ({
 				tone: 'amber' as const,

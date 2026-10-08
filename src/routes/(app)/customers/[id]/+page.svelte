@@ -25,7 +25,8 @@
 		updateEquipment,
 		getPortalInvite,
 		getCustomerDuplicates,
-		mergeCustomers
+		mergeCustomers,
+		textCustomerCmd
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment } from '#lib/remote/billing.remote.ts';
 	import {
@@ -85,10 +86,29 @@
 		job_en_route_sms: 'En-route text',
 		job_completed: 'Job completed follow-up',
 		job_completed_sms: 'Job completed text',
-		warranty_expiry: 'Warranty expiring reminder'
+		warranty_expiry: 'Warranty expiring reminder',
+		manual_sms: 'Texted customer'
 	};
 	const kindLabel = (kind: string) =>
 		KIND_LABELS[kind] ?? kind.replace(/_/g, ' ').replace(/sms$/, 'text');
+
+	// ------- manual text -------
+	let textOpen = $state(false);
+	let textMsg = $state('');
+	let textPending = $state(false);
+	async function sendText(e: SubmitEvent) {
+		e.preventDefault();
+		textPending = true;
+		try {
+			await textCustomerCmd({ customerId: id, message: textMsg.trim() });
+			textOpen = false;
+			textMsg = '';
+			toast.success('Text sent');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send text'));
+		}
+		textPending = false;
+	}
 
 	const intervalLabel = (d: number) =>
 		d === 7
@@ -692,7 +712,14 @@
 		</Card.Root>
 
 		<Card.Root>
-			<Card.Header><Card.Title class="text-base">Communications</Card.Title></Card.Header>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base">Communications</Card.Title>
+				{#if c.customer.phone}
+					<Button size="sm" variant="outline" onclick={() => (textOpen = true)}
+						><MessageSquare /> Text</Button
+					>
+				{/if}
+			</Card.Header>
 			<Card.Content class="px-4">
 				{#each c.communications as n (n.id)}
 					<div
@@ -1089,5 +1116,34 @@
 				</Button>
 			</Dialog.Footer>
 		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- manual text -->
+<Dialog.Root bind:open={textOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Text {c.customer.name}</Dialog.Title>
+			<Dialog.Description>
+				Sends an SMS to {c.customer.phone} from your company's number.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={sendText}>
+			<Field.Field>
+				<Field.Label for="cust-text">Message</Field.Label>
+				<Textarea
+					id="cust-text"
+					rows={3}
+					maxlength={500}
+					bind:value={textMsg}
+					placeholder="Running about 20 minutes behind — see you soon"
+				/>
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={textPending || !textMsg.trim()}
+					>{textPending ? 'Sending…' : 'Send text'}</Button
+				>
+			</Dialog.Footer>
+		</form>
 	</Dialog.Content>
 </Dialog.Root>

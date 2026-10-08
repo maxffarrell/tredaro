@@ -5,6 +5,7 @@ import { getDashboard } from './workspace.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/customers.ts';
 import { portalToken } from '#lib/server/services/portal.ts';
+import { textCustomer } from '#lib/server/services/notifications.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import {
 	customerImportInput,
@@ -15,7 +16,8 @@ import {
 	idSchema,
 	mergeCustomerInput,
 	serviceLocationInput,
-	serviceLocationUpdate
+	serviceLocationUpdate,
+	textCustomerInput
 } from '#lib/schemas.ts';
 
 export const getCustomers = query(
@@ -25,6 +27,10 @@ export const getCustomers = query(
 export const getCustomer = query(idSchema, async (id) =>
 	svc.getCustomer((await requireOrg()).orgId, id)
 );
+export const textCustomerCmd = command(textCustomerInput, async (input) => {
+	await textCustomer(await requireOrg(), input.customerId, input.message);
+	await refreshQuery(getCustomer, input.customerId);
+});
 export const createCustomer = command(customerInput, async (input) => {
 	const c = await svc.createCustomer(await requireOrg(), input);
 	await refreshQuery(getCustomers, undefined);

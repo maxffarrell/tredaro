@@ -6,7 +6,7 @@ import { db } from '#lib/server/db/index.ts';
 import { customer } from '#lib/server/db/schema.ts';
 import { and, eq } from 'drizzle-orm';
 import * as svc from '#lib/server/services/portal.ts';
-import { idSchema, portalRequestInput } from '#lib/schemas.ts';
+import { idSchema, portalContactInput, portalRequestInput } from '#lib/schemas.ts';
 
 /** Resolves the customer record the signed-in user is acting as, and checks it belongs to them. */
 async function myCustomer(customerId: string) {
@@ -46,6 +46,15 @@ export const confirmVisit = command(
 		return r;
 	}
 );
+
+/** Portal self-service: customer updates their own email/phone. */
+export const updatePortalContact = command(portalContactInput, async (input) => {
+	const c = await myCustomer(input.customerId);
+	const { user } = requireUser();
+	const row = await svc.updatePortalContact(user.id, c.id, input);
+	void getPortalOverview(c.id).refresh();
+	return row;
+});
 
 export const getProviders = query(idSchema, async (customerId) => {
 	const c = await myCustomer(customerId);

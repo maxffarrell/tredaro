@@ -1,4 +1,6 @@
+import { error } from '@sveltejs/kit';
 import { and, asc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
+import type { OrgContext } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
 	companySettings,
@@ -204,6 +206,34 @@ export async function notifyInvoiceTexted(orgId: string, invoiceId: string) {
 		body: `${name}: invoice INV-${row.number} for ${formatMoney(row.total)} — view and pay: ${invoiceUrl(invoiceId)}`
 	});
 	return true;
+}
+
+/**
+ * Manual free-text SMS to a customer from the Communications card.
+ * Honors smsOptOut + the configured provider (like other manual sends) but not
+ * the org's auto-notification toggles. Logged with a per-send entity key so
+ * repeat texts all land in the comms history.
+ */
+export async function textCustomer(ctx: OrgContext, customerId: string, message: string) {
+	if (!smsProvider()) error(400, 'No SMS provider configured');
+	const [c] = await db
+		.select({ name: customer.name, phone: customer.phone, smsOptOut: customer.smsOptOut })
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)));
+	if (!c) error(404, 'Customer not found');
+	if (!c.phone) error(400, 'Customer has no phone number');
+	if (c.smsOptOut) error(409, 'Customer has opted out of texts');
+	const name = await orgName(ctx.orgId);
+	await sendSms({ to: c.phone, body: `${name}: ${message}` });
+	await db
+		.insert(notificationLog)
+		.values({
+			organizationId: ctx.orgId,
+			kind: 'manual_sms',
+			entityId: `${customerId}:${Date.now()}`,
+			recipient: c.phone
+		})
+		.onConflictDoNothing();
 }
 
 /** "Your job is scheduled" once a job gets a start time. Emails and/or texts the customer. */

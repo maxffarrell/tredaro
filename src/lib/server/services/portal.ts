@@ -264,6 +264,24 @@ export async function availableProviders(orgId: string, currency: string) {
 	return out;
 }
 
+/** Portal self-service: the customer updates their own email/phone. */
+export async function updatePortalContact(
+	userId: string,
+	customerId: string,
+	input: { email?: string; phone?: string }
+) {
+	const [row] = await db
+		.update(customer)
+		.set({
+			email: input.email?.trim() ? input.email.trim() : null,
+			phone: input.phone?.trim() ? input.phone.trim() : null
+		})
+		.where(and(eq(customer.id, customerId), eq(customer.portalUserId, userId)))
+		.returning();
+	if (!row) error(403, 'Not your customer record');
+	return row;
+}
+
 /** Customer confirms a scheduled visit from the portal — writes a 'confirmed' job event. */
 export async function confirmVisit(orgId: string, customerId: string, jobId: string) {
 	const [j] = await db

@@ -17,7 +17,8 @@
 		requestService,
 		confirmVisit,
 		getProviders,
-		startCheckout
+		startCheckout,
+		updatePortalContact
 	} from '#lib/remote/portal.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
@@ -61,6 +62,34 @@
 			toast.error(errMsg(err, 'Could not confirm'));
 		}
 		confirmingId = '';
+	}
+
+	// ------- your details -------
+	let contactEmail = $state('');
+	let contactPhone = $state('');
+	let contactPending = $state(false);
+	let contactLoaded = '';
+	$effect(() => {
+		if (d.customer.id !== contactLoaded) {
+			contactLoaded = d.customer.id;
+			contactEmail = d.customer.email ?? '';
+			contactPhone = d.customer.phone ?? '';
+		}
+	});
+	async function saveContact(e: SubmitEvent) {
+		e.preventDefault();
+		contactPending = true;
+		try {
+			await updatePortalContact({
+				customerId,
+				email: contactEmail.trim(),
+				phone: contactPhone.trim()
+			}).updates(getPortalOverview);
+			toast.success('Details saved');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+		contactPending = false;
 	}
 
 	// ------- request service -------
@@ -326,6 +355,29 @@
 				</Card.Content>
 			</Card.Root>
 		{/if}
+
+		<!-- contact info -->
+		<Card.Root>
+			<Card.Header><Card.Title class="text-base">Your details</Card.Title></Card.Header>
+			<Card.Content>
+				<form class="space-y-3" onsubmit={saveContact}>
+					<Field.Field>
+						<Field.Label for="p-email">Email</Field.Label>
+						<Input id="p-email" type="email" bind:value={contactEmail} />
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="p-phone">Phone</Field.Label>
+						<Input id="p-phone" bind:value={contactPhone} />
+					</Field.Field>
+					<Button type="submit" size="sm" disabled={contactPending}
+						>{contactPending ? 'Saving…' : 'Save details'}</Button
+					>
+				</form>
+				<p class="mt-3 text-xs text-muted-foreground">
+					Used for appointment reminders, invoices, and estimate links.
+				</p>
+			</Card.Content>
+		</Card.Root>
 	</div>
 </div>
 
