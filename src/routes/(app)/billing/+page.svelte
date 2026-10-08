@@ -100,6 +100,7 @@
 			const p = await getInvoicePrefill(jobId);
 			if (p) {
 				invCustomerId = p.job.customerId;
+				invJobId = jobId;
 				invItems = p.items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }));
 			}
 		} catch (err) {
