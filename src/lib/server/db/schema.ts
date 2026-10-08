@@ -10,7 +10,8 @@ import {
 	primaryKey,
 	text,
 	timestamp,
-	uniqueIndex
+	uniqueIndex,
+	doublePrecision
 } from 'drizzle-orm/pg-core';
 import { member, organization, user } from './auth.schema.ts';
 
@@ -497,7 +498,7 @@ export const estimateItem = pgTable(
 		}),
 		name: text('name').notNull(),
 		description: text('description').notNull().default(''),
-		qty: integer('qty').notNull().default(1),
+		qty: doublePrecision('qty').notNull().default(1),
 		/** Minor units. */
 		unitPrice: integer('unit_price').notNull(),
 		/** Customer may include/exclude the line on the public approval page. */
@@ -545,7 +546,7 @@ export const invoiceItem = pgTable(
 		}),
 		name: text('name').notNull(),
 		description: text('description').notNull().default(''),
-		qty: integer('qty').notNull().default(1),
+		qty: doublePrecision('qty').notNull().default(1),
 		unitPrice: integer('unit_price').notNull(),
 		position: integer('position').notNull().default(0)
 	},

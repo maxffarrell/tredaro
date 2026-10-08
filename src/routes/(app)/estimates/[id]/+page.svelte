@@ -171,7 +171,7 @@
 					{#each items as item, i (i)}
 						<div class="grid grid-cols-[1fr_70px_120px_64px_32px] items-center gap-2">
 							<Input placeholder="Description" bind:value={item.name} />
-							<Input type="number" min={1} max={9999} bind:value={item.qty} />
+							<Input type="number" min={0.01} step={0.01} max={9999} bind:value={item.qty} />
 							<MoneyInput bind:value={item.unitPrice} />
 							<label
 								class="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground select-none"

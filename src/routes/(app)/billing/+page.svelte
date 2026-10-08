@@ -76,7 +76,9 @@
 	let invCustomerId = $state('');
 	let invJobId = $state('');
 	let invDueDate = $state('');
-	let invItems = $state<{ name: string; qty: number; unitPrice: number }[]>([]);
+	let invItems = $state<{ name: string; qty: number; unitPrice: number; description?: string }[]>(
+		[]
+	);
 	let prefillLoading = $state(false);
 
 	async function openInvoice() {
@@ -109,7 +111,12 @@
 			if (p) {
 				invCustomerId = p.job.customerId;
 				invJobId = jobId;
-				invItems = p.items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }));
+				invItems = p.items.map((i) => ({
+					name: i.name,
+					qty: i.qty,
+					unitPrice: i.unitPrice,
+					description: i.description
+				}));
 			}
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not prefill'));
@@ -136,7 +143,12 @@
 					invDueDate || new Date(Date.now() + termsDays * 86400_000).toISOString().slice(0, 10),
 				items: invItems
 					.filter((i) => i.name.trim())
-					.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
+					.map((i) => ({
+						name: i.name,
+						qty: i.qty,
+						unitPrice: i.unitPrice,
+						description: i.description
+					}))
 			}).updates(getInvoices, getCharges, getPayments, getDashboard);
 			toast.success('Invoice issued');
 			invoiceOpen = false;
@@ -593,7 +605,7 @@
 				{#each invItems as item, i (i)}
 					<div class="grid grid-cols-[1fr_70px_120px_32px] items-center gap-2">
 						<Input placeholder="Description" bind:value={item.name} />
-						<Input type="number" min={1} max={9999} bind:value={item.qty} />
+						<Input type="number" min={0.01} step={0.01} max={9999} bind:value={item.qty} />
 						<MoneyInput bind:value={item.unitPrice} />
 						<Button
 							variant="ghost"

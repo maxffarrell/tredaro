@@ -164,7 +164,14 @@
 				{#each items as item, i (i)}
 					<div class="grid grid-cols-[1fr_70px_110px_32px] items-center gap-2">
 						<Input placeholder="Description" bind:value={item.name} />
-						<Input type="number" min={1} max={9999} bind:value={item.qty} placeholder="Qty" />
+						<Input
+							type="number"
+							min={0.01}
+							step={0.01}
+							max={9999}
+							bind:value={item.qty}
+							placeholder="Qty"
+						/>
 						<MoneyInput bind:value={item.unitPrice} />
 						<Button
 							variant="ghost"

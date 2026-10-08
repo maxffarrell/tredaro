@@ -339,7 +339,7 @@ const lineItem = v.object({
 	pricebookItemId: v.optional(v.nullable(idSchema)),
 	name: requiredText('Item'),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
-	qty: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+	qty: v.optional(v.pipe(v.number(), v.minValue(0.01)), 1),
 	unitPrice: cents,
 	/** Customer may include/exclude the line when approving an estimate. */
 	optional: v.optional(v.boolean())
