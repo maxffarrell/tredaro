@@ -81,10 +81,7 @@
 	}
 
 	let sending = $state(false);
-	let shareUrl = $state('');
-	$effect(() => {
-		shareUrl = est.token ? `${page.url.origin}/e/${est.token}` : '';
-	});
+	let shareUrl = $derived(est.token ? `${page.url.origin}/e/${est.token}` : '');
 
 	async function send() {
 		sending = true;
