@@ -5,7 +5,6 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import Printer from '@lucide/svelte/icons/printer';
@@ -18,22 +17,15 @@
 
 	let { data }: PageProps = $props();
 	const { estimate: est, orgName, customerName, items, currency, location: loc } = $derived(data);
-	/** Optional lines the customer chose — default to included (ServiceTitan-style). */
-	let chosen = new SvelteSet<string>();
-	let chosenInit = false;
-	$effect(() => {
-		if (!chosenInit && items.length) {
-			chosenInit = true;
-			chosen = new SvelteSet(items.filter((i) => i.optional).map((i) => i.id));
-		}
-	});
+	/** Optional lines the customer excludes — all are included by default. */
+	let excluded = new SvelteSet<string>();
 	const hasOptional = $derived(items.some((i) => i.optional));
 	const total = $derived(
-		items.reduce((s, i) => s + (i.optional && !chosen.has(i.id) ? 0 : i.qty * i.unitPrice), 0)
+		items.reduce((s, i) => s + (excluded.has(i.id) ? 0 : i.qty * i.unitPrice), 0)
 	);
 	function toggleOptional(id: string, on: boolean) {
-		if (on) chosen.add(id);
-		else chosen.delete(id);
+		if (on) excluded.delete(id);
+		else excluded.add(id);
 	}
 
 	let decided = $state<'approved' | 'declined' | null>(
@@ -59,7 +51,9 @@
 				approve,
 				name: name.trim(),
 				note: note.trim(),
-				items: approve ? [...chosen] : []
+				items: approve
+					? items.filter((i) => i.optional && !excluded.has(i.id)).map((i) => i.id)
+					: []
 			});
 			decided = approve ? 'approved' : 'declined';
 		} catch (err) {
@@ -118,16 +112,18 @@
 								<Table.Cell class="pl-6"
 									>{#if i.optional && !decided && est.status === 'sent'}
 										<label
-											class="mr-2 inline-flex cursor-pointer items-center gap-1.5 align-middle"
+											class="mr-2 inline-flex cursor-pointer items-center gap-1.5 align-middle text-xs text-muted-foreground"
 										>
-											<Checkbox
-												checked={chosen.has(i.id)}
-												onCheckedChange={(v) => toggleOptional(i.id, !!v)}
+											<input
+												type="checkbox"
+												class="accent-primary"
+												checked={!excluded.has(i.id)}
+												onchange={(e) => toggleOptional(i.id, e.currentTarget.checked)}
 											/>
-											<span class="text-xs text-muted-foreground">include</span>
+											include
 										</label>
 									{:else if i.optional}<Badge variant="secondary" class="mr-1 font-normal"
-											>{chosen.has(i.id) || !decided ? 'Optional' : 'Skipped'}</Badge
+											>{excluded.has(i.id) ? 'Skipped' : 'Optional'}</Badge
 										>{/if}{i.name}<span class="text-muted-foreground">
 										{i.description}</span
 									></Table.Cell
