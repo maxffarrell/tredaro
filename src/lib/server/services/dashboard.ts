@@ -319,7 +319,8 @@ export async function dashboard(orgId: string) {
 			and(
 				eq(inventoryItem.organizationId, orgId),
 				sql`${inventoryItem.reorderPoint} is not null`,
-				sql`${inventoryItem.qtyOnHand} <= ${inventoryItem.reorderPoint}`
+				sql`${inventoryItem.qtyOnHand} <= ${inventoryItem.reorderPoint}`,
+				sql`${inventoryItem.qtyOnHand} > 0`
 			)
 		)
 		.orderBy(asc(inventoryItem.qtyOnHand))
