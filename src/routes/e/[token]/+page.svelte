@@ -5,17 +5,36 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import Printer from '@lucide/svelte/icons/printer';
 	import { toast } from 'svelte-sonner';
 	import { decidePublicEstimate } from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
+	import { SvelteSet } from 'svelte/reactivity';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const { estimate: est, orgName, customerName, items, currency, location: loc } = $derived(data);
-	const total = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+	/** Optional lines the customer chose — default to included (ServiceTitan-style). */
+	let chosen = new SvelteSet<string>();
+	let chosenInit = false;
+	$effect(() => {
+		if (!chosenInit && items.length) {
+			chosenInit = true;
+			chosen = new SvelteSet(items.filter((i) => i.optional).map((i) => i.id));
+		}
+	});
+	const hasOptional = $derived(items.some((i) => i.optional));
+	const total = $derived(
+		items.reduce((s, i) => s + (i.optional && !chosen.has(i.id) ? 0 : i.qty * i.unitPrice), 0)
+	);
+	function toggleOptional(id: string, on: boolean) {
+		if (on) chosen.add(id);
+		else chosen.delete(id);
+	}
 
 	let decided = $state<'approved' | 'declined' | null>(
 		est.status === 'approved' || est.status === 'converted'
@@ -39,7 +58,8 @@
 				token: page.params.token!,
 				approve,
 				name: name.trim(),
-				note: note.trim()
+				note: note.trim(),
+				items: approve ? [...chosen] : []
 			});
 			decided = approve ? 'approved' : 'declined';
 		} catch (err) {
@@ -96,7 +116,21 @@
 						{#each items as i (i.id)}
 							<Table.Row>
 								<Table.Cell class="pl-6"
-									>{i.name}<span class="text-muted-foreground"> {i.description}</span></Table.Cell
+									>{#if i.optional && !decided && est.status === 'sent'}
+										<label
+											class="mr-2 inline-flex cursor-pointer items-center gap-1.5 align-middle"
+										>
+											<Checkbox
+												checked={chosen.has(i.id)}
+												onCheckedChange={(v) => toggleOptional(i.id, !!v)}
+											/>
+											<span class="text-xs text-muted-foreground">include</span>
+										</label>
+									{:else if i.optional}<Badge variant="secondary" class="mr-1 font-normal"
+											>{chosen.has(i.id) || !decided ? 'Optional' : 'Skipped'}</Badge
+										>{/if}{i.name}<span class="text-muted-foreground">
+										{i.description}</span
+									></Table.Cell
 								>
 								<Table.Cell class="text-right">{i.qty}</Table.Cell>
 								<Table.Cell class="text-right tabular-nums"
@@ -110,7 +144,9 @@
 					</Table.Body>
 				</Table.Root>
 				<div class="flex justify-between border-t px-6 py-3 text-sm font-semibold tabular-nums">
-					<span>Total</span><span>{formatMoney(total, currency)}</span>
+					<span>Total{hasOptional ? ' (with selected options)' : ''}</span><span
+						>{formatMoney(total, currency)}</span
+					>
 				</div>
 			</Card.Content>
 		</Card.Root>

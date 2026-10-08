@@ -136,6 +136,7 @@ async function writeItems(
 			description: it.description,
 			qty: it.qty,
 			unitPrice: it.unitPrice,
+			optional: it.optional ?? false,
 			position: i
 		}))
 	);
@@ -415,12 +416,15 @@ export async function decideEstimate(
 	const [c] = await db.select().from(customer).where(eq(customer.id, est.customerId));
 
 	let jobId: string | null = null;
+	const chosen = new Set(input.items ?? []);
 	if (input.approve) {
-		const items = await db
-			.select()
-			.from(estimateItem)
-			.where(eq(estimateItem.estimateId, estimateId))
-			.orderBy(asc(estimateItem.position));
+		const items = (
+			await db
+				.select()
+				.from(estimateItem)
+				.where(eq(estimateItem.estimateId, estimateId))
+				.orderBy(asc(estimateItem.position))
+		).filter((i) => !i.optional || chosen.has(i.id));
 		const description = [
 			`Approved estimate E-${est.number}${input.name ? ` by ${input.name}` : ''}.`,
 			est.notes,
@@ -480,7 +484,12 @@ export async function decideEstimate(
 			status: input.approve ? 'converted' : 'declined',
 			respondedAt: new Date(),
 			decisionName: input.approve ? input.name : null,
-			decisionNote: [input.approve ? 'approved' : 'declined', `ip ${ip}`, input.note || null]
+			decisionNote: [
+				input.approve ? 'approved' : 'declined',
+				`ip ${ip}`,
+				input.note || null,
+				chosen.size ? `extras: ${[...chosen].join(',')}` : null
+			]
 				.filter(Boolean)
 				.join(' · '),
 			jobId

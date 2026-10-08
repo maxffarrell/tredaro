@@ -340,7 +340,9 @@ const lineItem = v.object({
 	name: requiredText('Item'),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
 	qty: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-	unitPrice: cents
+	unitPrice: cents,
+	/** Customer may include/exclude the line when approving an estimate. */
+	optional: v.optional(v.boolean())
 });
 
 export const estimateInput = v.object({
@@ -362,7 +364,9 @@ export const estimateDecisionInput = v.object({
 	token: requiredText('Token'),
 	approve: v.boolean(),
 	name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ''),
-	note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), '')
+	note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	/** Optional line items the customer chose to include (item ids). */
+	items: v.optional(v.array(idSchema), [])
 });
 
 export const invoiceInput = v.object({

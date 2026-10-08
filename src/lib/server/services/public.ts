@@ -109,15 +109,31 @@ export async function requestBooking(
 		}
 	}
 
-	// Reuse an existing customer with the same email rather than duplicating.
+	// Reuse an existing customer with the same email (or same phone digits when the
+	// email doesn't match) rather than stacking duplicates from repeat bookings.
 	const [existing] = await db
 		.select()
 		.from(customer)
 		.where(and(eq(customer.organizationId, org.id), eq(customer.email, input.email)))
 		.limit(1);
+	const digits = input.phone.replace(/\D/g, '').slice(-10);
+	const [phoneMatch] =
+		!existing && digits.length >= 7
+			? await db
+					.select()
+					.from(customer)
+					.where(
+						and(
+							eq(customer.organizationId, org.id),
+							sql`regexp_replace(${customer.phone}, '\\D', '', 'g') like ${'%' + digits}`
+						)
+					)
+					.limit(1)
+			: [undefined];
 
 	const c =
 		existing ??
+		phoneMatch ??
 		(
 			await db
 				.insert(customer)

@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
@@ -44,7 +45,13 @@
 	let notes = $state('');
 	let validUntil = $state('');
 	let items = $state<
-		{ pricebookItemId: string | null; name: string; qty: number; unitPrice: number }[]
+		{
+			pricebookItemId: string | null;
+			name: string;
+			qty: number;
+			unitPrice: number;
+			optional: boolean;
+		}[]
 	>([]);
 	let loadedId = '';
 	$effect(() => {
@@ -56,7 +63,8 @@
 				pricebookItemId: i.item.pricebookItemId,
 				name: i.item.name,
 				qty: i.item.qty,
-				unitPrice: i.item.unitPrice
+				unitPrice: i.item.unitPrice,
+				optional: i.item.optional
 			}));
 		}
 	});
@@ -77,7 +85,8 @@
 						pricebookItemId: i.pricebookItemId,
 						name: i.name,
 						qty: i.qty,
-						unitPrice: i.unitPrice
+						unitPrice: i.unitPrice,
+						optional: i.optional
 					}))
 			}).updates(getEstimate, getEstimates);
 			toast.success('Estimate saved');
@@ -160,10 +169,16 @@
 			{#if draft}
 				<form class="space-y-4" onsubmit={save}>
 					{#each items as item, i (i)}
-						<div class="grid grid-cols-[1fr_70px_120px_32px] items-center gap-2">
+						<div class="grid grid-cols-[1fr_70px_120px_64px_32px] items-center gap-2">
 							<Input placeholder="Description" bind:value={item.name} />
 							<Input type="number" min={1} max={9999} bind:value={item.qty} />
 							<MoneyInput bind:value={item.unitPrice} />
+							<label
+								class="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground select-none"
+								title="Customer can include or skip this line on the approval page"
+							>
+								<Checkbox bind:checked={item.optional} /> Opt
+							</label>
 							<Button
 								variant="ghost"
 								size="icon"
@@ -179,8 +194,10 @@
 							variant="outline"
 							size="sm"
 							onclick={() =>
-								(items = [...items, { pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }])}
-							><Plus /> Add item</Button
+								(items = [
+									...items,
+									{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0, optional: false }
+								])}><Plus /> Add item</Button
 						>
 						<span class="font-medium tabular-nums">Total {formatMoney(totalCents, currency)}</span>
 					</div>
@@ -209,7 +226,10 @@
 						{#each est.items as i (i.item.id)}
 							<Table.Row>
 								<Table.Cell
-									>{i.item.name}<span class="text-muted-foreground">
+									>{i.item.name}{#if i.item.optional}<Badge
+											variant="secondary"
+											class="mx-1 font-normal">Optional</Badge
+										>{/if}<span class="text-muted-foreground">
 										{i.item.description}</span
 									></Table.Cell
 								>

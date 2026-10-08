@@ -498,6 +498,8 @@ export const estimateItem = pgTable(
 		qty: integer('qty').notNull().default(1),
 		/** Minor units. */
 		unitPrice: integer('unit_price').notNull(),
+		/** Customer may include/exclude the line on the public approval page. */
+		optional: boolean('optional').notNull().default(false),
 		position: integer('position').notNull().default(0)
 	},
 	(t) => [index('estimate_item_estimate_idx').on(t.estimateId)]
