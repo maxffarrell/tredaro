@@ -58,7 +58,9 @@ export const customerInput = v.object({
 	leadSource: optionalText,
 	preferredMemberId: v.optional(v.nullable(idSchema)),
 	/** Credit hold — blocks new jobs until cleared. */
-	onHold: v.optional(v.boolean(), false)
+	onHold: v.optional(v.boolean(), false),
+	/** Skip the org sales-tax line on this customer's invoices. */
+	taxExempt: v.optional(v.boolean(), false)
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),

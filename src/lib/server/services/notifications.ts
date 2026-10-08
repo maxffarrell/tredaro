@@ -1304,33 +1304,55 @@ export async function notifyStaffEstimateViewed(orgId: string, estimateId: strin
 /** "We received your payment" receipt email — once per batch of payment rows. */
 export async function notifyPaymentReceived(orgId: string, paymentIds: string[]) {
 	const flags = await notifFlags(orgId);
-	if (!flags.email || !paymentIds.length) return;
+	if (!paymentIds.length) return;
 	const [row] = await db
 		.select({
 			amount: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number),
 			method: payment.method,
 			email: customer.email,
-			emailOptOut: customer.emailOptOut
+			emailOptOut: customer.emailOptOut,
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut
 		})
 		.from(payment)
 		.innerJoin(customer, eq(payment.customerId, customer.id))
 		.where(inArray(payment.id, paymentIds))
-		.groupBy(payment.method, customer.email, customer.emailOptOut);
-	if (!row?.email || row.emailOptOut || row.amount <= 0) return;
-	if (!(await logOnce(orgId, 'payment_receipt', paymentIds[0], row.email))) return;
+		.groupBy(
+			payment.method,
+			customer.email,
+			customer.emailOptOut,
+			customer.phone,
+			customer.smsOptOut
+		);
+	if (!row || row.amount <= 0) return;
 	const name = await orgName(orgId);
 	const currency = await orgCurrencyOf(orgId);
-	await sendEmail({
-		to: row.email,
-		subject: `Payment received — ${formatMoney(row.amount, currency)}`,
-		...renderEmail({
-			orgName: name,
-			heading: `Thanks — we got your ${formatMoney(row.amount, currency)} payment`,
-			lines: [
-				`Paid by ${row.method === 'other' ? 'other method' : row.method} to ${name}.`,
-				'Your balance updates automatically in your customer portal.'
-			],
-			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
-		})
-	});
+	if (
+		flags.email &&
+		row.email &&
+		!row.emailOptOut &&
+		(await logOnce(orgId, 'payment_receipt', paymentIds[0], row.email))
+	)
+		await sendEmail({
+			to: row.email,
+			subject: `Payment received — ${formatMoney(row.amount, currency)}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Thanks — we got your ${formatMoney(row.amount, currency)} payment`,
+				lines: [
+					`Paid by ${row.method === 'other' ? 'other method' : row.method} to ${name}.`,
+					'Your balance updates automatically in your customer portal.'
+				],
+				action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			})
+		});
+	// SMS receipt — same payment batch, its own dedupe key.
+	if (flags.sms && row.phone && !row.smsOptOut) {
+		if (await logOnce(orgId, 'payment_receipt_sms', paymentIds[0], row.phone)) {
+			await sendSmsQuiet(orgId, {
+				to: row.phone,
+				body: `${name}: we received your ${formatMoney(row.amount, currency)} payment. Thanks!`
+			});
+		}
+	}
 }

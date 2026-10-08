@@ -135,6 +135,8 @@ export const customer = pgTable(
 		leadSource: text('lead_source'),
 		/** Credit hold — blocks new jobs/bookings until the balance is resolved. */
 		onHold: boolean('on_hold').notNull().default(false),
+		/** Tax-exempt account — invoices skip the org's sales-tax line. */
+		taxExempt: boolean('tax_exempt').notNull().default(false),
 		/** Tech the customer prefers — pre-fills new jobs. */
 		preferredMemberId: text('preferred_member_id').references(() => member.id, {
 			onDelete: 'set null'

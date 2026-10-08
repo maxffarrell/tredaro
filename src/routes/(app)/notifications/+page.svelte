@@ -37,7 +37,8 @@
 		daily_digest: 'Daily digest',
 		agreement_renewal: 'Agreement renewal',
 		job_completed: 'Job completed',
-		payment_receipt: 'Payment received'
+		payment_receipt: 'Payment received',
+		inbound_sms_staff: 'Text from customer'
 	};
 
 	/** Where each kind's entity usually lives. */
@@ -48,6 +49,7 @@
 		if (kind === 'parts_delay' || kind === 'tech_assigned') return `/jobs/${entityId}`;
 		if (kind === 'agreement_renewal') return '/agreements';
 		if (kind === 'payment_receipt' || kind === 'job_completed') return `/jobs/${entityId}`;
+		if (kind === 'inbound_sms_staff') return `/customers/${entityId.split(':')[0]}`;
 		return null;
 	}
 </script>

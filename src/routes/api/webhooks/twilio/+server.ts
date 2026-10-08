@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { customer, notificationLog } from '#lib/server/db/schema.ts';
+import { customer, member, notificationLog, user } from '#lib/server/db/schema.ts';
 import { verifyTwilioSignature } from '#lib/server/twilio.ts';
 import type { RequestHandler } from './$types';
 
@@ -60,6 +60,36 @@ const handle = async (
 		entityId: `${cust.id}:${Date.now()}`,
 		recipient: `${cust.phone ?? from}:${body.slice(0, 140)}`
 	});
+	// Real replies (not STOP/START) also ping the staff inbox so replies aren't missed.
+	const isKeyword = [
+		'stop',
+		'stopall',
+		'unsubscribe',
+		'cancel',
+		'end',
+		'quit',
+		'start',
+		'unstop',
+		'yes'
+	].includes(key);
+	if (!isKeyword && body) {
+		const staff = await db
+			.select({ email: user.email })
+			.from(member)
+			.innerJoin(user, eq(user.id, member.userId))
+			.where(and(eq(member.organizationId, orgId), eq(member.staffAlerts, true)));
+		if (staff.length)
+			await db.insert(notificationLog).values(
+				staff
+					.filter((m) => m.email)
+					.map((m) => ({
+						organizationId: orgId,
+						kind: 'inbound_sms_staff',
+						entityId: `${cust.id}:${Date.now()}`,
+						recipient: m.email!
+					}))
+			);
+	}
 	return new Response('<Response/>', {
 		headers: { 'content-type': 'text/xml' }
 	});

@@ -645,7 +645,7 @@ export async function createInvoice(
 	const number = await nextNumber(ctx.orgId, 'invoice');
 	const settings = await getSettings(ctx.orgId);
 	const items = [...input.items];
-	if (settings.taxRateBps > 0) {
+	if (settings.taxRateBps > 0 && !c.taxExempt) {
 		const tax = Math.round((lineTotal(input.items) * settings.taxRateBps) / 10000);
 		if (tax > 0)
 			items.push({

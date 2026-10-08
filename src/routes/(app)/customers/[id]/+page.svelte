@@ -186,6 +186,7 @@
 	let smsOptOut = $state(c.customer.smsOptOut);
 	let emailOptOut = $state(c.customer.emailOptOut);
 	let onHold = $state(c.customer.onHold);
+	let taxExempt = $state(c.customer.taxExempt);
 	let leadSource = $state(c.customer.leadSource);
 	let preferredMemberId = $state(c.customer.preferredMemberId ?? '');
 	const technicians = $derived(await getTechnicians());
@@ -205,6 +206,7 @@
 			smsOptOut = c.customer.smsOptOut;
 			emailOptOut = c.customer.emailOptOut;
 			onHold = c.customer.onHold;
+			taxExempt = c.customer.taxExempt;
 			leadSource = c.customer.leadSource;
 			preferredMemberId = c.customer.preferredMemberId ?? '';
 		}
@@ -230,6 +232,7 @@
 				smsOptOut,
 				emailOptOut,
 				onHold,
+				taxExempt,
 				leadSource,
 				preferredMemberId: preferredMemberId || null
 			});
@@ -613,6 +616,9 @@
 						</label>
 						<label class="flex items-center gap-2 text-sm">
 							<Switch bind:checked={onHold} /> Credit hold — block new jobs
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<Switch bind:checked={taxExempt} /> Tax exempt — no sales tax on invoices
 						</label>
 						<p class="text-xs text-muted-foreground">
 							Suppresses appointment reminders, follow-ups, and invoices/estimate emails for this
