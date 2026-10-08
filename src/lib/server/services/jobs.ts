@@ -761,7 +761,7 @@ export async function assertTechAvailable(
 					eq(job.organizationId, orgId),
 					eq(job.technicianId, memberId),
 					lt(job.startsAt, end),
-					sql`${job.endsAt} > ${start}`,
+					sql`${job.endsAt} > ${start.toISOString()}`,
 					inArray(job.status, ['scheduled', 'dispatched', 'in_progress']),
 					excludeJobId ? sql`${job.id} != ${excludeJobId}` : undefined
 				)
