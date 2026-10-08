@@ -182,8 +182,16 @@ export async function portalOverview(customerId: string) {
 		token: estimateToken(row.estimate.id)
 	}));
 
+	const techs = await db
+		.select({ id: member.id, name: user.name })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(member.organizationId, orgId))
+		.orderBy(asc(user.name));
+
 	return {
 		customer: c,
+		techs,
 		settings,
 		agreements,
 		upcoming,
@@ -221,11 +229,22 @@ export async function requestService(
 			)
 		);
 	if (!c) error(404, 'Customer not found');
+	let techId: string | null = null;
+	if (input.preferredMemberId) {
+		const [m] = await db
+			.select({ id: member.id })
+			.from(member)
+			.where(and(eq(member.organizationId, orgId), eq(member.id, input.preferredMemberId)))
+			.limit(1);
+		if (!m) error(400, 'Invalid technician');
+		techId = m.id;
+	}
 	const row = await createJob(
 		customerCtx(orgId, userId),
 		'UTC',
 		{
 			customerId: c.id,
+			technicianId: techId,
 			serviceLocationId: input.serviceLocationId ?? null,
 			jobTypeId: input.jobTypeId ?? null,
 			summary: 'Portal request',

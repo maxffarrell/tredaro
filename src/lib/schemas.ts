@@ -465,6 +465,7 @@ export const portalRequestInput = v.object({
 	customerId: idSchema,
 	serviceLocationId: v.optional(v.nullable(idSchema)),
 	jobTypeId: v.optional(v.nullable(idSchema)),
+	preferredMemberId: v.optional(v.nullable(idSchema)),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
 });

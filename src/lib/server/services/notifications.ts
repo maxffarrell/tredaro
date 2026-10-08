@@ -27,7 +27,7 @@ import { renderEmail } from '#lib/server/email-template.ts';
 import { estimateUrl, expireEstimates } from './estimates.ts';
 import { invoiceUrl } from './billing.ts';
 import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
-import { formatMoney } from '#lib/format.ts';
+import { formatDate, formatMoney } from '#lib/format.ts';
 
 async function orgName(orgId: string) {
 	const [o] = await db
@@ -541,6 +541,48 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 		});
 }
 
+/** Heads-up to the customer when a sent estimate is about to hit its valid-until date. */
+export async function notifyEstimateExpiring(orgId: string, estimateId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			customerName: customer.name,
+			number: estimate.number,
+			status: estimate.status,
+			validUntil: estimate.validUntil,
+			total:
+				sql`coalesce((select sum(i.qty * i.unit_price) from estimate_item i where i.estimate_id = ${estimate.id}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(eq(estimate.id, estimateId));
+	if (!row || row.status !== 'sent' || !row.validUntil) return;
+	const name = await orgName(orgId);
+	if (
+		flags.email &&
+		row.email &&
+		!row.emailOptOut &&
+		(await logOnce(orgId, 'estimate_expiring', estimateId, row.email))
+	)
+		await sendEmail({
+			to: row.email,
+			subject: `Estimate E-${row.number} expires ${formatDate(row.validUntil)} — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Last chance, ${row.customerName}`,
+				lines: [
+					`${name}'s estimate E-${row.number} for ${formatMoney(row.total)} expires on ${formatDate(row.validUntil)}.`,
+					'Approve it online before then to lock in the price.'
+				],
+				action: { label: 'Review estimate', url: estimateUrl(estimateId) }
+			})
+		});
+}
+
 /** "Invoice INV-n is past due" — at 3 and 10 days overdue, deduped per stage. */
 export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, stage: number) {
 	const flags = await notifFlags(orgId);
@@ -629,6 +671,21 @@ export async function runReminders(orgId: string) {
 
 	// Overdue-invoice reminders at 3 and 10 days past due.
 	const todayIso = now.toISOString().slice(0, 10);
+	const horizonIso = new Date(now.getTime() + 3 * 86400_000).toISOString().slice(0, 10);
+	// Estimate expiry nudges — sent estimates within 3 days of validUntil.
+	const expiringEstimates = await db
+		.select({ id: estimate.id })
+		.from(estimate)
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.status, 'sent'),
+				gte(estimate.validUntil, todayIso),
+				lte(estimate.validUntil, horizonIso)
+			)
+		);
+	for (const e of expiringEstimates) await notifyEstimateExpiring(orgId, e.id);
+
 	const overdue = await db
 		.select({ id: invoice.id, dueDate: invoice.dueDate })
 		.from(invoice)

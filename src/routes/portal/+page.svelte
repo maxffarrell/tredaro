@@ -128,6 +128,7 @@
 	let reqLocationId = $state('');
 	let reqDescription = $state('');
 	let reqPreferred = $state('');
+	let reqMemberId = $state('any');
 
 	async function submitRequest(e: SubmitEvent) {
 		e.preventDefault();
@@ -138,11 +139,13 @@
 				serviceLocationId: reqLocationId || null,
 				jobTypeId: null,
 				description: reqDescription,
-				preferredTime: reqPreferred
+				preferredTime: reqPreferred,
+				preferredMemberId: reqMemberId !== 'any' ? reqMemberId : undefined
 			});
 			toast.success('Request sent — we will confirm a time');
 			reqOpen = false;
 			reqDescription = reqPreferred = '';
+			reqMemberId = 'any';
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not send request'));
 		}
@@ -462,6 +465,27 @@
 					</Select.Content>
 				</Select.Root>
 			</Field.Field>
+			{#if d.techs.length > 1}
+				<Field.Field>
+					<Field.Label
+						>Preferred technician <span class="text-muted-foreground">(optional)</span></Field.Label
+					>
+					<Select.Root type="single" bind:value={reqMemberId}>
+						<Select.Trigger class="w-full"
+							>{reqMemberId === 'any'
+								? 'No preference'
+								: (d.techs.find((t) => t.id === reqMemberId)?.name ??
+									'No preference')}</Select.Trigger
+						>
+						<Select.Content>
+							<Select.Item value="any">No preference</Select.Item>
+							{#each d.techs as t (t.id)}
+								<Select.Item value={t.id}>{t.name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+			{/if}
 			<Field.Field>
 				<Field.Label for="r-when">Preferred time</Field.Label>
 				<Input id="r-when" bind:value={reqPreferred} placeholder="e.g. tomorrow morning" />

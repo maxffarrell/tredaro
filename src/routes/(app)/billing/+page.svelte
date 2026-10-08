@@ -40,6 +40,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Ban from '@lucide/svelte/icons/ban';
 	import Send from '@lucide/svelte/icons/send';
+	import Mail from '@lucide/svelte/icons/mail';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -168,6 +169,29 @@
 		}
 	}
 
+	let bulkSending = $state(false);
+	const openUnpaid = $derived(
+		invoices.filter((i) => i.invoice.status === 'open' && i.total > 0 && i.total - i.paid > 0)
+	);
+
+	async function emailAllOpen() {
+		bulkSending = true;
+		let sent = 0;
+		let skipped = 0;
+		for (const inv of openUnpaid) {
+			try {
+				const { sent: ok } = await emailInvoice(inv.invoice.id);
+				if (ok) sent++;
+				else skipped++;
+			} catch {
+				skipped++;
+			}
+		}
+		bulkSending = false;
+		if (sent) toast.success(`Emailed ${sent} invoice${sent === 1 ? '' : 's'}`);
+		if (skipped) toast.error(`${skipped} couldn't be emailed (no email or already sent)`);
+	}
+
 	async function refundPaymentCmd(id: string) {
 		try {
 			await refundPayment(id).updates(getPayments, getCharges, getInvoices, getDashboard);
@@ -273,6 +297,14 @@
 			}}><Plus /> Post charge</Button
 		>
 		<Button size="sm" variant="outline" onclick={() => (payOpen = true)}>Record payment</Button>
+		<Button
+			size="sm"
+			variant="outline"
+			disabled={bulkSending || openUnpaid.length === 0}
+			onclick={emailAllOpen}
+			title="Email every open, unpaid invoice to its customer"
+			><Mail /> Email open ({openUnpaid.length})</Button
+		>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
