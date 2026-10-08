@@ -8,6 +8,7 @@ import {
 	charge,
 	companySettings,
 	customer,
+	equipment,
 	estimate,
 	estimateItem,
 	invoice,
@@ -133,6 +134,13 @@ export async function portalOverview(customerId: string) {
 		.where(eq(serviceLocation.customerId, customerId))
 		.orderBy(desc(serviceLocation.isPrimary), asc(serviceLocation.label));
 
+	const units = await db
+		.select({ equipment, locationLabel: serviceLocation.label })
+		.from(equipment)
+		.leftJoin(serviceLocation, eq(equipment.serviceLocationId, serviceLocation.id))
+		.where(eq(equipment.customerId, customerId))
+		.orderBy(desc(equipment.active), asc(equipment.name));
+
 	const pendingEstimateRows = await db
 		.select({
 			estimate,
@@ -157,6 +165,7 @@ export async function portalOverview(customerId: string) {
 		balance,
 		openCharges,
 		locations,
+		units,
 		pendingEstimates
 	};
 }

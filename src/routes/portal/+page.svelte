@@ -28,6 +28,7 @@
 	const customerId = $derived(data.customerId);
 	const d = $derived(await getPortalOverview(customerId));
 	const providers = $derived(await getProviders(customerId));
+	const todayIso = new Date().toISOString().slice(0, 10);
 	const tz = $derived(d.settings?.timezone ?? 'UTC');
 	const currency = $derived(d.settings?.currency ?? 'usd');
 
@@ -200,6 +201,52 @@
 				{/each}
 			</Card.Content>
 		</Card.Root>
+
+		<!-- your equipment -->
+		{#if d.units.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Your equipment</Card.Title></Card.Header>
+				<Card.Content class="px-0">
+					<Table.Root>
+						<Table.Body>
+							{#each d.units as u (u.equipment.id)}
+								<Table.Row>
+									<Table.Cell class="pl-6">
+										<p class="font-medium">
+											{u.equipment.name}
+											{#if !u.equipment.active}
+												<span class="text-xs text-muted-foreground">(retired)</span>
+											{/if}
+										</p>
+										<p class="text-xs text-muted-foreground">
+											{[u.equipment.brand, u.equipment.model].filter(Boolean).join(' ') ||
+												u.equipment.category}
+											{#if u.locationLabel}
+												· {u.locationLabel}{/if}
+										</p>
+									</Table.Cell>
+									<Table.Cell class="pr-6 text-right">
+										{#if u.equipment.warrantyUntil}
+											{#if u.equipment.warrantyUntil < todayIso}
+												<span class="text-xs text-destructive"
+													>Warranty ended {formatDate(u.equipment.warrantyUntil)}</span
+												>
+											{:else}
+												<span class="text-xs text-muted-foreground"
+													>Warranty until {formatDate(u.equipment.warrantyUntil)}</span
+												>
+											{/if}
+										{:else}
+											<span class="text-xs text-muted-foreground">—</span>
+										{/if}
+									</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 
 		<!-- pending estimates -->
 		{#if d.pendingEstimates.length}

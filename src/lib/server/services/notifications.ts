@@ -3,6 +3,7 @@ import { db } from '#lib/server/db/index.ts';
 import {
 	companySettings,
 	customer,
+	equipment,
 	estimate,
 	invoice,
 	job,
@@ -407,6 +408,47 @@ export async function runReminders(orgId: string) {
 		);
 		const stage = daysPast >= 10 ? 10 : daysPast >= 3 ? 3 : 0;
 		if (stage) await notifyInvoiceOverdue(orgId, inv.id, stage);
+	}
+
+	// Warranty-expiry heads-up: equipment whose warranty ends within 30 days — one email per unit.
+	const in30 = addDays(todayIso, 30);
+	const expiring = await db
+		.select({
+			equipment,
+			customerName: customer.name,
+			email: customer.email,
+			emailOptOut: customer.emailOptOut
+		})
+		.from(equipment)
+		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.where(
+			and(
+				eq(equipment.organizationId, orgId),
+				eq(equipment.active, true),
+				gte(equipment.warrantyUntil, todayIso),
+				lte(equipment.warrantyUntil, in30)
+			)
+		);
+	{
+		const flags = await notifFlags(orgId);
+		const name = await orgName(orgId);
+		for (const w of expiring) {
+			if (!flags.email || !w.email || w.emailOptOut) continue;
+			if (!(await logOnce(orgId, 'warranty_expiry', w.equipment.id, w.email))) continue;
+			await sendEmail({
+				to: w.email,
+				subject: `Your ${w.equipment.name} warranty ends soon — ${name}`,
+				...renderEmail({
+					orgName: name,
+					heading: `Hi ${w.customerName},`,
+					lines: [
+						`Your ${w.equipment.name}${w.equipment.brand ? ` (${[w.equipment.brand, w.equipment.model].filter(Boolean).join(' ')})` : ''} warranty ends on ${w.equipment.warrantyUntil}.`,
+						'If anything needs attention before coverage runs out, reply to this email or request service from your customer portal and we will take a look.'
+					],
+					action: { label: 'Open customer portal', url: `${appOrigin()}/portal` }
+				})
+			});
+		}
 	}
 
 	// Morning digest: each technician's jobs starting today (org timezone).

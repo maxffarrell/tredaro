@@ -137,7 +137,13 @@ export async function listJobs(
 				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined
 			)
 		)
-		.orderBy(asc(job.startsAt), asc(job.number));
+		.orderBy(
+			opts.unscheduled
+				? sql`case ${outer(job.priority)} when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end`
+				: asc(job.startsAt),
+			asc(job.startsAt),
+			asc(job.number)
+		);
 }
 
 export async function getJob(orgId: string, id: string) {
