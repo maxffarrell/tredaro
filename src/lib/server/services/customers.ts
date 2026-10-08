@@ -51,6 +51,10 @@ export async function listCustomers(orgId: string, q?: string) {
 				sql<boolean>`exists (select 1 from ${serviceAgreement} a where a.customer_id = ${outer(customer.id)} and a.status = 'active')`.mapWith(
 					Boolean
 				),
+			hasOpenQuote:
+				sql<boolean>`exists (select 1 from ${estimate} e where e.customer_id = ${outer(customer.id)} and e.status = 'sent')`.mapWith(
+					Boolean
+				),
 			hasUpcoming:
 				sql<boolean>`exists (select 1 from ${job} j where j.customer_id = ${outer(customer.id)} and j.status in ('scheduled', 'dispatched', 'in_progress') and j.starts_at > now())`.mapWith(
 					Boolean

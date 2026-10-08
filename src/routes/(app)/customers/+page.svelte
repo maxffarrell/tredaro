@@ -71,6 +71,8 @@
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
 	const underAgreement = $derived(visible.filter((c) => c.hasAgreement).length);
 	const onHold = $derived(visible.filter((c) => c.onHold).length);
+	const withOpenQuote = $derived(visible.filter((c) => c.hasOpenQuote).length);
+	const leadOnly = $derived(visible.filter((c) => c.leadSource && !c.lastVisit).length);
 	const neverServiced = $derived(
 		visible.filter((c) => c.status === 'active' && !c.lastVisit).length
 	);
@@ -305,7 +307,9 @@
 			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}
 			· {underAgreement} under agreement{/if}{#if neverServiced}
 			· {neverServiced} never serviced{/if}{#if onHold}
-			· {onHold} on hold{/if}
+			· {onHold} on hold{/if}{#if withOpenQuote}
+			· {withOpenQuote} with open quote{/if}{#if leadOnly}
+			· {leadOnly} lead-only{/if}
 	</p>
 
 	<Card.Root class="py-0">
