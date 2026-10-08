@@ -109,6 +109,8 @@ export const markNotificationRead = command(v.string(), async (id) => {
 				eq(notificationLog.recipient, me.email)
 			)
 		);
+	await refreshQuery(getStaffNotifications);
+	await refreshQuery(getUnreadNotificationCount);
 	return { ok: true };
 });
 
