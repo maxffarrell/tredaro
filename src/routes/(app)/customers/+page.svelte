@@ -69,6 +69,7 @@
 	const missingEmail = $derived(visible.filter((c) => !c.email).length);
 	const withPortal = $derived(visible.filter((c) => c.portalLinked).length);
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
+	const underAgreement = $derived(visible.filter((c) => c.hasAgreement).length);
 	const noUpcoming = $derived(
 		visible.filter((c) => c.status === 'active' && !c.hasUpcoming).length
 	);
@@ -297,7 +298,8 @@
 			· <span class="text-amber-600 dark:text-amber-400">{missingEmail} missing email</span
 			>{/if}{#if companyCount}
 			· {companyCount} companies{/if}{#if noUpcoming}
-			· {noUpcoming} without upcoming visit{/if}
+			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}
+			· {underAgreement} under agreement{/if}
 	</p>
 
 	<Card.Root class="py-0">

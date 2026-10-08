@@ -218,7 +218,10 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Technician workload</Card.Title>
-			<Card.Description>Last 30 days</Card.Description>
+			<Card.Description
+				>Last 30 days{#if r.repeatRate}
+					· {r.repeatRate.repeats}/{r.repeatRate.customers} repeat customers (90d){/if}</Card.Description
+			>
 		</Card.Header>
 		<Card.Content class="px-0">
 			<Table.Root>

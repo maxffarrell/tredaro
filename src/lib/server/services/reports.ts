@@ -144,6 +144,30 @@ async function estimateFunnel(orgId: string) {
 	return rows;
 }
 
+/** Repeat-customer rate: share of customers with a done job in 90d who have 2+ done jobs. */
+async function repeatRate(orgId: string) {
+	const rows = await db
+		.select({
+			customerId: job.customerId,
+			n: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				gte(job.completedAt, new Date(Date.now() - 90 * 86400_000)),
+				isNotNull(job.customerId)
+			)
+		)
+		.groupBy(job.customerId);
+	if (!rows.length) return null;
+	return {
+		customers: rows.length,
+		repeats: rows.filter((r) => r.n >= 2).length
+	};
+}
+
 /** Avg days from estimate sent to decision (approved/converted/declined), via updated_at. */
 async function avgDaysToEstimateDecision(orgId: string) {
 	const [{ avg }] = await db
@@ -565,7 +589,8 @@ export async function getReports(orgId: string) {
 		refunds,
 		churned,
 		revByType,
-		decisionDays
+		decisionDays,
+		repeat
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -594,7 +619,8 @@ export async function getReports(orgId: string) {
 		refundsTotal(orgId),
 		churnedAgreements(orgId),
 		revenueByCustomerType(orgId),
-		avgDaysToEstimateDecision(orgId)
+		avgDaysToEstimateDecision(orgId),
+		repeatRate(orgId)
 	]);
 	return {
 		completedJobs,
@@ -624,7 +650,8 @@ export async function getReports(orgId: string) {
 		refunds,
 		churnedAgreements: churned,
 		revByCustomerType: revByType,
-		estimateDecisionDays: decisionDays
+		estimateDecisionDays: decisionDays,
+		repeatRate: repeat
 	};
 }
 

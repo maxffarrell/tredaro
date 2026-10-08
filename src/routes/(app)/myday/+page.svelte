@@ -34,6 +34,16 @@
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 
 	const day = $derived(await getMyDay());
+	const tomorrowSchedMin = $derived(
+		(day.tomorrow ?? []).reduce(
+			(m, j) =>
+				m +
+				(j.job.startsAt && j.job.endsAt
+					? (new Date(j.job.endsAt).getTime() - new Date(j.job.startsAt).getTime()) / 60_000
+					: 0),
+			0
+		)
+	);
 	const tz = $derived(day.tz);
 	const calFeed = $derived(await getCalendarFeed());
 	function copyCal() {
@@ -301,7 +311,8 @@
 				<span class="text-muted-foreground tabular-nums"
 					>· tomorrow: <span class="font-semibold text-foreground">{day.tomorrow.length}</span>
 					job{day.tomorrow.length === 1 ? '' : 's'}{#if first?.job.startsAt}
-						— first at {localTime(first.job.startsAt, tz)}{/if}</span
+						— first at {localTime(first.job.startsAt, tz)}{/if}{#if tomorrowSchedMin > 0}
+						· {Math.floor(tomorrowSchedMin / 60)}h {Math.round(tomorrowSchedMin % 60)}m sched{/if}</span
 				>
 			{/if}
 		</div>
