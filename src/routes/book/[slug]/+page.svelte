@@ -38,6 +38,7 @@
 		new Date(Date.now() + noticeDays * 86400_000).toISOString().slice(0, 10)
 	);
 	let description = $state('');
+	let leadSource = $state('');
 	let website = $state(''); // honeypot — must stay empty
 	let pending = $state(false);
 	let done = $state(false);
@@ -62,6 +63,7 @@
 						? `${preferredDate}${preferredTime ? ` · ${preferredTime}` : ''}`
 						: preferredTime,
 					description,
+					leadSource,
 					preferredMemberId: preferredMemberId !== 'any' ? preferredMemberId : undefined,
 					website
 				}
@@ -258,6 +260,14 @@
 									rows={3}
 									bind:value={description}
 									placeholder="What's going on?"
+								/>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="b-source">How did you hear about us?</Field.Label>
+								<Input
+									id="b-source"
+									bind:value={leadSource}
+									placeholder="Google, a neighbor, our truck… (optional)"
 								/>
 							</Field.Field>
 							<!-- honeypot -->

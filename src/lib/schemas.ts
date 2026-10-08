@@ -465,6 +465,8 @@ export const bookingInput = v.object({
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	/** Preferred technician picked on the booking form. */
 	preferredMemberId: v.optional(v.nullable(idSchema)),
+	/** "How did you hear about us?" on the booking form — stored as the customer's lead source. */
+	leadSource: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ''),
 	/** Honeypot: must stay empty. */
 	website: v.optional(v.string(), '')
 });

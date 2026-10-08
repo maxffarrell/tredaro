@@ -162,10 +162,15 @@ export async function requestBooking(
 					organizationId: org.id,
 					name: input.name,
 					email: input.email,
-					phone: input.phone
+					phone: input.phone,
+					leadSource: input.leadSource || null
 				})
 				.returning()
 		)[0]!;
+
+	// A matched repeat customer who gave a lead source fills in the blank only.
+	if (input.leadSource && !c.leadSource)
+		await db.update(customer).set({ leadSource: input.leadSource }).where(eq(customer.id, c.id));
 
 	let locationId: string | null = null;
 	if (input.address1) {

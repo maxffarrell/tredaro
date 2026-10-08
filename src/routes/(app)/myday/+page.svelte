@@ -15,6 +15,8 @@
 		getCalendarFeed
 	} from '#lib/remote/jobs.remote.ts';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { errMsg } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
@@ -26,6 +28,7 @@
 	import Timer from '@lucide/svelte/icons/timer';
 	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
+	import StickyNote from '@lucide/svelte/icons/sticky-note';
 
 	const day = $derived(await getMyDay());
 	const tz = $derived(day.tz);
@@ -56,6 +59,24 @@
 
 	let pending = $state<string | null>(null);
 	let signJobId = $state<string | null>(null);
+	let noteJobId = $state<string | null>(null);
+	let noteText = $state('');
+
+	async function saveNote() {
+		if (!noteJobId || !noteText.trim()) return;
+		pending = `${noteJobId}:note`;
+		try {
+			await recordJobEvent({ jobId: noteJobId, kind: 'note', note: noteText.trim() }).updates(
+				getMyDay
+			);
+			noteJobId = null;
+			noteText = '';
+			toast.success('Note added to the job timeline');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add note'));
+		}
+		pending = null;
+	}
 
 	async function completeWithSignature(name: string, dataUrl: string) {
 		const jobId = signJobId;
@@ -164,6 +185,12 @@
 						size="sm"
 						variant="ghost"
 						disabled={pending !== null}
+						onclick={() => (noteJobId = j.job.id)}><StickyNote /> Note</Button
+					>
+					<Button
+						size="sm"
+						variant="ghost"
+						disabled={pending !== null}
 						onclick={() => clock(j.job.id)}
 					>
 						{#if day.openEntry?.entry.jobId === j.job.id}
@@ -222,6 +249,16 @@
 			</Card.Root>
 		{/if}
 
+		{#if day.overdue.length}
+			<h2 class="text-sm font-medium text-amber-600 dark:text-amber-500">
+				Overdue ({day.overdue.length}) — still on your plate
+			</h2>
+			{#each day.overdue as j (j.job.id)}
+				{@render jobCard(j)}
+			{/each}
+			<h2 class="text-sm font-medium text-muted-foreground">Today</h2>
+		{/if}
+
 		{#each day.jobs as j (j.job.id)}
 			{@render jobCard(j)}
 		{:else}
@@ -251,6 +288,25 @@
 		{/if}
 	{/if}
 </div>
+
+<Dialog.Root
+	open={noteJobId !== null}
+	onOpenChange={(v) => {
+		if (!v) noteJobId = null;
+	}}
+>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Job note</Dialog.Title>
+			<Dialog.Description>Logged to the job timeline — visible to the office.</Dialog.Description>
+		</Dialog.Header>
+		<Textarea rows={3} bind:value={noteText} placeholder="What should the office know?" />
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (noteJobId = null)}>Cancel</Button>
+			<Button onclick={saveNote} disabled={pending !== null || !noteText.trim()}>Save note</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
 
 <SignatureDialog
 	bind:open={() => signJobId !== null, (v) => (signJobId = v ? signJobId : null)}

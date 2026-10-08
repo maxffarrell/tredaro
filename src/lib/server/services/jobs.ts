@@ -905,9 +905,14 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
 	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
-	const [jobs, unscheduled, openEntries] = await Promise.all([
+	const [jobs, unscheduled, overdue, openEntries] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
+		listJobs(ctx.orgId, {
+			to: from,
+			technicianId: me.id,
+			status: ['scheduled', 'dispatched', 'in_progress']
+		}),
 		db
 			.select({ entry: jobTimeEntry, jobNumber: job.number })
 			.from(jobTimeEntry)
@@ -921,7 +926,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			)
 			.limit(1)
 	]);
-	return { member: me, jobs, unscheduled, openEntry: openEntries[0] ?? null };
+	return { member: me, jobs, unscheduled, overdue, openEntry: openEntries[0] ?? null };
 }
 
 export { addDays };
