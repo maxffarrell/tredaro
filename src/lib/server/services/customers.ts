@@ -212,6 +212,8 @@ export async function createCustomer(
 			smsOptOut: input.smsOptOut,
 			emailOptOut: input.emailOptOut,
 			leadSource: input.leadSource ?? null,
+			onHold: input.onHold,
+			taxExempt: input.taxExempt,
 			preferredMemberId: input.preferredMemberId ?? null
 		})
 		.returning();
@@ -317,6 +319,7 @@ export async function updateCustomer(
 			emailOptOut: set.emailOptOut,
 			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null,
 			onHold: set.onHold,
+			taxExempt: set.taxExempt,
 			preferredMemberId:
 				set.preferredMemberId === undefined ? undefined : set.preferredMemberId || null
 		})
