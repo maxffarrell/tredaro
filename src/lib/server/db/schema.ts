@@ -671,3 +671,44 @@ export const jobMaterial = pgTable(
 		index('job_material_item_idx').on(t.organizationId, t.inventoryItemId)
 	]
 );
+
+export const poStatus = pgEnum('po_status', ['draft', 'ordered', 'received', 'cancelled']);
+
+/** An order to a supplier for stock — draft → ordered → received applies qty to on-hand. */
+export const purchaseOrder = pgTable(
+	'purchase_order',
+	{
+		id: id(),
+		organizationId: orgId(),
+		number: integer('number').notNull(),
+		supplier: text('supplier').notNull(),
+		status: poStatus('status').notNull().default('draft'),
+		expectedOn: date('expected_on', { mode: 'string' }),
+		notes: text('notes').notNull().default(''),
+		orderedAt: timestamp('ordered_at', { withTimezone: true }),
+		receivedAt: timestamp('received_at', { withTimezone: true }),
+		...timestamps
+	},
+	(t) => [index('purchase_order_org_idx').on(t.organizationId, t.status)]
+);
+
+export const purchaseOrderItem = pgTable(
+	'purchase_order_item',
+	{
+		id: id(),
+		organizationId: orgId(),
+		purchaseOrderId: text('purchase_order_id')
+			.notNull()
+			.references(() => purchaseOrder.id, { onDelete: 'cascade' }),
+		inventoryItemId: text('inventory_item_id').references(() => inventoryItem.id, {
+			onDelete: 'set null'
+		}),
+		/** Snapshot of the item name/unit so the line survives deleting the stock item. */
+		name: text('name').notNull(),
+		unit: text('unit').notNull().default('each'),
+		qty: integer('qty').notNull().default(1),
+		unitCost: integer('unit_cost').notNull().default(0),
+		...timestamps
+	},
+	(t) => [index('po_item_po_idx').on(t.purchaseOrderId)]
+);

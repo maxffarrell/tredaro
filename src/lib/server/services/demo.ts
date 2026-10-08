@@ -6,6 +6,8 @@ import {
 	customer,
 	equipment,
 	inventoryItem,
+	purchaseOrder,
+	purchaseOrderItem,
 	estimate,
 	estimateItem,
 	invoice,
@@ -329,6 +331,42 @@ export async function loadDemoData(ctx: OrgContext) {
 			unitCost: 9500
 		}
 	]);
+
+	// One open PO so the purchase-orders card has content; restocking the contactor
+	// clears its low-stock attention row.
+	const invRows = await db
+		.select({ id: inventoryItem.id, name: inventoryItem.name, unit: inventoryItem.unit })
+		.from(inventoryItem)
+		.where(eq(inventoryItem.organizationId, ctx.orgId));
+	const contactor = invRows.find((i) => i.name === 'Contactor 2-pole 40A');
+	const capacitor = invRows.find((i) => i.name === 'Capacitor 45/5 µF');
+	const [po] = await db
+		.insert(purchaseOrder)
+		.values({
+			organizationId: ctx.orgId,
+			number: 1,
+			supplier: 'Johnstone Supply',
+			status: 'ordered',
+			expectedOn: `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(Math.min(28, now.getUTCDate() + 7)).padStart(2, '0')}`,
+			orderedAt: now
+		})
+		.returning();
+	await db.insert(purchaseOrderItem).values(
+		[
+			{ item: capacitor, qty: 10, unitCost: 1800 },
+			{ item: contactor, qty: 12, unitCost: 1200 }
+		]
+			.filter((l) => l.item)
+			.map((l) => ({
+				organizationId: ctx.orgId,
+				purchaseOrderId: po!.id,
+				inventoryItemId: l.item!.id,
+				name: l.item!.name,
+				unit: l.item!.unit,
+				qty: l.qty,
+				unitCost: l.unitCost
+			}))
+	);
 
 	// Agreements + first charges + payments.
 	for (const [i, c] of customers.entries()) {
