@@ -137,6 +137,7 @@
 	}) {
 		reqEquipmentId = u.equipment.id;
 		reqDescription = `Service for ${u.equipment.name}${[u.equipment.brand, u.equipment.model].filter(Boolean).length ? ` (${[u.equipment.brand, u.equipment.model].filter(Boolean).join(' ')})` : ''}`;
+		reqType = 'visit';
 		reqOpen = true;
 	}
 
@@ -194,7 +195,12 @@
 			{/if}
 		</p>
 	</div>
-	<Button onclick={() => (reqOpen = true)}><Wrench /> Request service</Button>
+	<Button
+		onclick={() => {
+			reqType = 'visit';
+			reqOpen = true;
+		}}><Wrench /> Request service</Button
+	>
 </div>
 
 <div class="grid gap-6 md:grid-cols-2">
