@@ -12,6 +12,7 @@ import {
 	invoiceItem,
 	job,
 	jobMaterial,
+	jobTimeEntry,
 	inventoryItem,
 	payment,
 	pricebookItem,
@@ -770,6 +771,35 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		.from(jobMaterial)
 		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
 		.where(eq(jobMaterial.jobId, jobId));
+	// Completed time entries become a Labor line when the job type bills hourly.
+	let labor: {
+		pricebookItemId: null;
+		name: string;
+		description: string;
+		qty: number;
+		unitPrice: number;
+	}[] = [];
+	if (jt?.hourlyRate) {
+		const [{ minutes }] = await db
+			.select({
+				minutes:
+					sql<number>`coalesce(sum(extract(epoch from (te.ended_at - te.started_at)) / 60), 0)`.mapWith(
+						Number
+					)
+			})
+			.from(jobTimeEntry)
+			.where(and(eq(jobTimeEntry.jobId, jobId), sql`${jobTimeEntry.endedAt} is not null`));
+		if (minutes > 0)
+			labor = [
+				{
+					pricebookItemId: null,
+					name: 'Labor',
+					description: '',
+					qty: Math.round((minutes / 60) * 100) / 100,
+					unitPrice: jt.hourlyRate
+				}
+			];
+	}
 	return {
 		job: j,
 		items: [
@@ -786,7 +816,8 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 				description: '',
 				qty: m.qty,
 				unitPrice: m.unitPrice
-			}))
+			})),
+			...labor
 		]
 	};
 }

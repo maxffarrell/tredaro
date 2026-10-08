@@ -176,6 +176,13 @@
 			"when": 1791462000000,
 			"tag": "0024_batch_ac",
 			"breakpoints": true
+		},
+		{
+			"idx": 25,
+			"version": "7",
+			"when": 1791463000000,
+			"tag": "0025_batch_ad",
+			"breakpoints": true
 		}
 	]
 }

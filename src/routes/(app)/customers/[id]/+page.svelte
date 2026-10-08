@@ -468,6 +468,12 @@
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Record</Card.Title></Card.Header>
 			<Card.Content>
+				<p class="mb-3 text-xs text-muted-foreground">
+					{c.stats.jobCount} job{c.stats.jobCount === 1 ? '' : 's'} · {formatMoney(
+						c.stats.invoiced,
+						currency
+					)} invoiced · {formatMoney(c.stats.collected, currency)} collected
+				</p>
 				{#if c.customer.tags?.length}
 					<div class="mb-3 flex flex-wrap gap-1">
 						{#each c.customer.tags as t (t)}

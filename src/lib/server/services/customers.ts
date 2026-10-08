@@ -127,6 +127,32 @@ export async function getCustomer(orgId: string, id: string) {
 
 	const equipmentRows = await listEquipment(orgId, id);
 
+	// Lifetime rollups (full history, not the 50-row lists above).
+	const [stats] = await db
+		.select({
+			jobCount: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(job)
+		.where(
+			and(eq(job.organizationId, orgId), eq(job.customerId, id), sql`${job.status} != 'cancelled'`)
+		);
+	const [money] = await db
+		.select({
+			invoiced: sql<number>`coalesce(sum(${charge.amount}), 0)`.mapWith(Number),
+			collected:
+				sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c2 on p.charge_id = c2.id where c2.customer_id = ${id} and c2.organization_id = ${orgId}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.customerId, id),
+				sql`${charge.status} != 'void'`
+			)
+		);
+
 	// Every automated email/SMS we logged a send for, addressed to this
 	// customer's email or phone — a lightweight comms history for the CRM.
 	const recipients = [row.customer.email, row.customer.phone].filter((r): r is string =>
@@ -159,7 +185,8 @@ export async function getCustomer(orgId: string, id: string) {
 		charges,
 		communications,
 		payments,
-		equipment: equipmentRows
+		equipment: equipmentRows,
+		stats: { jobCount: stats.jobCount, invoiced: money.invoiced, collected: money.collected }
 	};
 }
 

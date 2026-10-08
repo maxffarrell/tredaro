@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import type { ApiPermissions } from '#lib/api-permissions.ts';
 	import PageHeader from '#lib/components/app/page-header.svelte';
+	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
@@ -110,6 +111,7 @@
 	let jtDescription = $state('');
 	let jtDuration = $state(60);
 	let jtAmount = $state<number | null>(null);
+	let jtRate = $state<number | null>(null);
 	let jtTech = $state('');
 	let jtChecklist = $state('');
 	let jtActive = $state(true);
@@ -120,6 +122,7 @@
 		jtDescription = t?.description ?? '';
 		jtDuration = t?.durationMin ?? 60;
 		jtAmount = t?.defaultAmount ?? null;
+		jtRate = t?.hourlyRate ?? null;
 		jtTech = t?.technicianId ?? '';
 		jtChecklist = (t?.checklist ?? []).join('\n');
 		jtActive = t?.active ?? true;
@@ -133,6 +136,7 @@
 			description: jtDescription,
 			durationMin: jtDuration,
 			defaultAmount: jtAmount,
+			hourlyRate: jtRate,
 			technicianId: jtTech || null,
 			checklist: jtChecklist
 				.split('\n')
@@ -1063,6 +1067,20 @@
 				<Field.Label for="jt-desc">Description</Field.Label>
 				<Input id="jt-desc" bind:value={jtDescription} placeholder="Optional" />
 			</Field.Field>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="jt-amount">Default amount</Field.Label>
+					<MoneyInput id="jt-amount" bind:value={jtAmount} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="jt-rate">Billable rate/hr</Field.Label>
+					<MoneyInput id="jt-rate" bind:value={jtRate} />
+				</Field.Field>
+			</div>
+			<p class="-mt-2 text-xs text-muted-foreground">
+				Rate/hr turns logged time into a Labor line when invoicing; leave both blank to quote per
+				job.
+			</p>
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
 					<Field.Label for="jt-duration">Duration (min)</Field.Label>

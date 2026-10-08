@@ -72,6 +72,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			color: input.color,
 			durationMin: input.durationMin,
 			defaultAmount: input.defaultAmount ?? null,
+			hourlyRate: input.hourlyRate ?? null,
 			officeId: input.officeId ?? null,
 			technicianId: input.technicianId ?? null,
 			checklist: input.checklist,
@@ -289,6 +290,58 @@ export async function createJob(
 				sort: i
 			}))
 		);
+	return row;
+}
+
+/** Copy a job — same customer/site/equipment/type/summary/priority/checklist, fresh unscheduled number. */
+export async function duplicateJob(ctx: OrgContext, jobId: string) {
+	const [src] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!src) error(404, 'Job not found');
+	const number = await nextNumber(ctx.orgId, 'job');
+	const [row] = await db
+		.insert(job)
+		.values({
+			organizationId: ctx.orgId,
+			number,
+			jobTypeId: src.jobTypeId,
+			customerId: src.customerId,
+			serviceLocationId: src.serviceLocationId,
+			equipmentId: src.equipmentId,
+			officeId: src.officeId,
+			technicianId: src.technicianId,
+			summary: src.summary,
+			description: src.description,
+			priority: src.priority,
+			preferredTime: src.preferredTime,
+			source: 'manual',
+			status: 'unscheduled'
+		})
+		.returning();
+	const items = await db
+		.select()
+		.from(jobChecklistItem)
+		.where(eq(jobChecklistItem.jobId, jobId))
+		.orderBy(asc(jobChecklistItem.sort));
+	if (items.length)
+		await db.insert(jobChecklistItem).values(
+			items.map((i) => ({
+				organizationId: ctx.orgId,
+				jobId: row!.id,
+				label: i.label,
+				sort: i.sort
+			}))
+		);
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: row!.id,
+		action: 'created',
+		summary: `Job J-${number}: ${row!.summary} (copied from J-${src.number})`
+	});
 	return row;
 }
 

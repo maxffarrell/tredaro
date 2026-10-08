@@ -262,6 +262,7 @@ export const jobTypeInput = v.object({
 	color: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), ''),
 	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)), 60),
 	defaultAmount: v.optional(v.nullable(cents)),
+	hourlyRate: v.optional(v.nullable(cents)),
 	officeId: v.optional(v.nullable(idSchema)),
 	technicianId: v.optional(v.nullable(idSchema)),
 	/** One checklist line per entry; copied onto new jobs of this type. */

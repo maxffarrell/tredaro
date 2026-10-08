@@ -116,6 +116,15 @@ export const createJob = command(jobInput, async (input) => {
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
+export const duplicateJob = command(idSchema, async (jobId) => {
+	const ctx = await requireOrg();
+	const j = await svc.duplicateJob(ctx, jobId);
+	await refreshQuery(getJobs, undefined);
+	await refreshQuery(getDispatchBoard, undefined);
+	await refreshQuery(getDashboard, undefined);
+	await refreshQuery(getMyDay, undefined);
+	return j;
+});
 export const repeatJob = command(jobRepeatInput, async (input) => {
 	const ctx = await requireOrg();
 	const made = await svc.repeatJob(ctx, await tz(), input);

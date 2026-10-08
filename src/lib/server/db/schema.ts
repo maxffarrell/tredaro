@@ -278,6 +278,8 @@ export const jobType = pgTable(
 		durationMin: integer('duration_min').notNull().default(60),
 		/** Flat amount invoiced for this work; null = quote it. */
 		defaultAmount: integer('default_amount'),
+		/** Billable cents/hour — time entries become a Labor line in invoice prefill; null = no labor billing. */
+		hourlyRate: integer('hourly_rate'),
 		/** Staff member (org `member` row) jobs default to. */
 		technicianId: text('technician_id').references(() => member.id, { onDelete: 'set null' }),
 		/** Checklist labels copied onto each new job of this type. */

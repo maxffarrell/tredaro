@@ -30,6 +30,7 @@
 		deleteTimeEntry,
 		createJob,
 		repeatJob,
+		duplicateJob,
 		signJob
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
@@ -67,6 +68,7 @@
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
 	import Repeat from '@lucide/svelte/icons/repeat';
+	import Copy from '@lucide/svelte/icons/copy';
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -450,6 +452,19 @@
 		rebooking = false;
 	}
 
+	let duplicating = $state(false);
+	async function dupe() {
+		duplicating = true;
+		try {
+			const n = await duplicateJob(id);
+			toast.success(`Copied to J-${n!.number} (unscheduled)`);
+			await goto(`/jobs/${n!.id}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not copy job'));
+		}
+		duplicating = false;
+	}
+
 	let note = $state('');
 	async function addNote(e: SubmitEvent) {
 		e.preventDefault();
@@ -494,6 +509,13 @@
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
 		{/if}
+		<Button
+			size="sm"
+			variant="ghost"
+			title="Copy job — same details, new unscheduled job"
+			disabled={duplicating}
+			onclick={dupe}><Copy /></Button
+		>
 		<Button
 			size="sm"
 			variant="ghost"
