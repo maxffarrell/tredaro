@@ -7,7 +7,9 @@ import * as photosSvc from '#lib/server/services/photos.ts';
 import {
 	notifyJobCompleted,
 	notifyJobEnRoute,
-	notifyJobScheduled
+	notifyJobScheduled,
+	notifyPartsDelay,
+	notifyTechAssigned
 } from '#lib/server/services/notifications.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
@@ -146,6 +148,14 @@ export const updateJob = command(jobUpdate, async (input) => {
 	if (j?.startsAt && j.status === 'scheduled')
 		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
 			console.error('job scheduled email failed', err)
+		);
+	if (input.blocked === true && j?.blocked)
+		void notifyPartsDelay(ctx.orgId, j.id).catch((err) =>
+			console.error('parts delay notification failed', err)
+		);
+	if (input.technicianId && j?.technicianId)
+		void notifyTechAssigned(ctx.orgId, j.id, j.technicianId).catch((err) =>
+			console.error('tech assignment email failed', err)
 		);
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);

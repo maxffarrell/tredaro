@@ -471,6 +471,22 @@
 							<p class="text-xs text-muted-foreground">
 								Manual Send buttons on invoices and estimates always work.
 							</p>
+							<div class="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+								<p class="mb-1 font-medium text-foreground">Inbound SMS (Twilio)</p>
+								To receive customer replies (and honor STOP/START), point your Twilio number's "A message
+								comes in" webhook at:
+								<button
+									type="button"
+									class="mt-1 block w-full truncate rounded bg-muted px-2 py-1 text-left font-mono text-[11px] text-foreground hover:bg-muted/80"
+									onclick={() =>
+										copyText(
+											`${page.url.origin}/api/webhooks/twilio?org=${page.data.org.id}`,
+											'Webhook URL copied'
+										)}
+								>
+									{page.url.origin}/api/webhooks/twilio?org={page.data.org.id}
+								</button>
+							</div>
 						</div>
 						<div class="space-y-3 rounded-lg border p-3 text-sm">
 							<p class="font-medium">Invoicing</p>

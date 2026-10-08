@@ -91,6 +91,7 @@
 		job_completed_sms: 'Job completed text',
 		warranty_expiry: 'Warranty expiring reminder',
 		manual_sms: 'Texted customer',
+		inbound_sms: 'Text from customer',
 		statement: 'Statement emailed'
 	};
 	const kindLabel = (kind: string) =>
@@ -786,7 +787,9 @@
 						<div class="min-w-0">
 							<p class="truncate font-medium">{kindLabel(n.kind)}</p>
 							<p class="truncate text-xs text-muted-foreground">
-								to {n.recipient.split(':')[0]}
+								{n.kind === 'inbound_sms' ? 'from' : 'to'}
+								{n.recipient.split(':')[0]}
+								{n.kind === 'inbound_sms' ? `— ${n.recipient.split(':').slice(1).join(':')}` : ''}
 							</p>
 						</div>
 						<span class="shrink-0 text-xs text-muted-foreground">{formatRelative(n.createdAt)}</span

@@ -1009,3 +1009,85 @@ export async function rearmLowStock(orgId: string, itemId: string) {
 			)
 		);
 }
+
+/** "Your job is waiting on a part" — once per job, when staff set the blocked flag. */
+export async function notifyPartsDelay(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.email && !flags.sms) return;
+	const [row] = await db
+		.select({
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
+			phone: customer.phone,
+			number: job.number
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, jobId));
+	if (!row || (!row.email && !row.phone)) return;
+	const name = await orgName(orgId);
+	if (!(await logOnce(orgId, 'parts_delay', jobId, row.email ?? row.phone ?? 'unknown'))) return;
+	const lines = [
+		`A quick update on your job J-${row.number}: we're waiting on a part to complete the work.`,
+		`We'll reach out as soon as it's in — no action needed on your end.`
+	];
+	if (flags.email && row.email && !row.emailOptOut)
+		await sendEmail({
+			to: row.email,
+			subject: `Update on your job — ${name}`,
+			...renderEmail({ orgName: name, heading: 'Waiting on a part', lines })
+		});
+	if (flags.sms && row.phone && !row.smsOptOut)
+		await sendSmsQuiet(orgId, {
+			to: row.phone,
+			body: `${name}: J-${row.number} is waiting on a part. We'll reach out once it's in.`
+		});
+}
+
+/** "You've been assigned a job" — emails the technician. Once per job+tech. */
+export async function notifyTechAssigned(orgId: string, jobId: string, memberId: string) {
+	const m = await db
+		.select({ email: user.email, name: user.name })
+		.from(member)
+		.innerJoin(user, eq(user.id, member.userId))
+		.where(and(eq(member.organizationId, orgId), eq(member.id, memberId)))
+		.limit(1);
+	const j = await db
+		.select({
+			number: job.number,
+			summary: job.summary,
+			startsAt: job.startsAt,
+			customerId: job.customerId
+		})
+		.from(job)
+		.where(eq(job.id, jobId))
+		.limit(1);
+	if (!m.length || !j.length || !m[0].email) return;
+	if (!(await logOnce(orgId, 'tech_assigned', `${jobId}:${memberId}`, m[0].email))) return;
+	const [name, c] = await Promise.all([
+		orgName(orgId),
+		db
+			.select({ name: customer.name })
+			.from(customer)
+			.where(eq(customer.id, j[0].customerId))
+			.limit(1)
+			.then((r) => r[0])
+	]);
+	const when = j[0].startsAt
+		? ` on ${new Date(j[0].startsAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}`
+		: '';
+	await sendEmail({
+		to: m[0].email,
+		subject: `New job assigned — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `You've been assigned J-${j[0].number}`,
+			lines: [
+				`${j[0].summary} — ${c?.name ?? 'customer'}${when}.`,
+				'See it in My Day or the dispatch board.'
+			],
+			action: { label: 'Open My Day', url: `${appOrigin()}/myday` }
+		})
+	});
+}
