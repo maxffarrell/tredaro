@@ -9,7 +9,7 @@ import { getInvoices, getCharges } from './billing.remote.ts';
 import { estimateInput, estimateUpdate, idSchema } from '#lib/schemas.ts';
 
 export const getEstimates = query(
-	v.optional(v.object({ status: v.optional(v.string()) })),
+	v.optional(v.object({ status: v.optional(v.array(v.string())) })),
 	async (opts) => svc.listEstimates((await requireOrg()).orgId, opts?.status)
 );
 export const getEstimate = query(idSchema, async (id) =>

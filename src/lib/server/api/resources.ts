@@ -76,7 +76,10 @@ export const resources: Record<string, Resource> = {
 	estimates: {
 		description: 'Estimates (`?status=sent`)',
 		list: (ctx, url) =>
-			estimates.listEstimates(ctx.orgId, url.searchParams.get('status') ?? undefined),
+			estimates.listEstimates(
+				ctx.orgId,
+				url.searchParams.get('status') ? [url.searchParams.get('status')!] : undefined
+			),
 		get: (ctx, id) => estimates.getEstimate(ctx.orgId, id),
 		create: { schema: s.estimateInput, run: estimates.createEstimate as never },
 		update: { schema: s.estimateUpdate, run: estimates.updateEstimate as never }

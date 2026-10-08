@@ -58,7 +58,7 @@ function withExpiry<T extends { status: string; validUntil: string | null }>(row
 	return row;
 }
 
-export async function listEstimates(orgId: string, status?: string) {
+export async function listEstimates(orgId: string, status?: string[]) {
 	const rows = await db
 		.select({
 			estimate,
@@ -76,7 +76,7 @@ export async function listEstimates(orgId: string, status?: string) {
 		.orderBy(desc(estimate.createdAt));
 	return rows
 		.map((r) => ({ ...r, estimate: withExpiry(r.estimate) }))
-		.filter((r) => !status || r.estimate.status === status);
+		.filter((r) => !status?.length || status.includes(r.estimate.status));
 }
 
 export async function getEstimate(orgId: string, id: string) {

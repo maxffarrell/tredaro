@@ -37,7 +37,11 @@
 		['expired', 'Expired']
 	] as const;
 	let tab = $state(page.url.searchParams.get('status') ?? 'all');
-	const estimates = $derived(await getEstimates(tab === 'all' ? undefined : { status: tab }));
+	const estimates = $derived(
+		await getEstimates(
+			tab === 'all' ? undefined : { status: tab === 'approved' ? ['approved', 'converted'] : [tab] }
+		)
+	);
 
 	// ------- new estimate -------
 	let open = $state(page.url.searchParams.get('new') === '1');
