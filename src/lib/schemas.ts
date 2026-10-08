@@ -146,6 +146,23 @@ export const pricebookItemInput = v.object({
 	),
 	active: v.optional(v.boolean(), true)
 });
+export const pricebookImportRow = v.object({
+	name: requiredText('Name'),
+	kind: v.optional(v.picklist(pricebookKinds), 'service'),
+	category: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	/** Whole units of the org currency (e.g. dollars), converted to cents on import. */
+	price: v.pipe(v.number(), v.minValue(0)),
+	durationMin: v.optional(
+		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)))
+	)
+});
+export const pricebookImportInput = v.pipe(
+	v.array(pricebookImportRow),
+	v.minLength(1),
+	v.maxLength(2000)
+);
+
 export const pricebookItemUpdate = v.object({
 	id: idSchema,
 	...v.partial(pricebookItemInput).entries

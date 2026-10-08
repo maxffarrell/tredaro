@@ -250,8 +250,64 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			...lines,
 			row(['', '', '', '', '', '', 'Balance due', money(bal)])
 		].join('\n');
+	} else if (kind === 'xero') {
+		// Xero sales-invoice import shape: one row per line item.
+		const rows = await db
+			.select({
+				number: invoice.number,
+				customerName: customer.name,
+				email: customer.email,
+				issuedAt: invoice.issuedAt,
+				dueDate: invoice.dueDate,
+				name: invoiceItem.name,
+				description: invoiceItem.description,
+				qty: invoiceItem.qty,
+				unitPrice: invoiceItem.unitPrice
+			})
+			.from(invoiceItem)
+			.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
+			.innerJoin(customer, eq(invoice.customerId, customer.id))
+			.where(
+				and(
+					eq(invoice.organizationId, ctx.orgId),
+					from ? gte(invoice.issuedAt, new Date(`${from}T00:00:00Z`)) : undefined,
+					toBound ? lt(invoice.issuedAt, new Date(toBound)) : undefined
+				)
+			)
+			.orderBy(asc(invoice.number));
+		body = [
+			row([
+				'ContactName',
+				'EmailAddress',
+				'InvoiceNumber',
+				'InvoiceDate',
+				'DueDate',
+				'Description',
+				'Quantity',
+				'UnitAmount',
+				'AccountCode',
+				'TaxType'
+			]),
+			...rows.map((r) =>
+				row([
+					r.customerName,
+					r.email,
+					`INV-${r.number}`,
+					r.issuedAt.toISOString().slice(0, 10),
+					r.dueDate,
+					r.description || r.name,
+					r.qty,
+					money(r.unitPrice),
+					'200',
+					'NONE'
+				])
+			)
+		].join('\n');
 	} else {
-		error(404, 'Unknown export — try invoices, time-entries, quickbooks, payments or statement');
+		error(
+			404,
+			'Unknown export — try invoices, time-entries, quickbooks, xero, payments or statement'
+		);
 	}
 
 	return new Response(`${body}\n`, {

@@ -16,12 +16,15 @@
 		getPricebook,
 		createPricebookItem,
 		updatePricebookItem,
-		getCurrency
+		getCurrency,
+		importPricebookItems
 	} from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Search from '@lucide/svelte/icons/search';
+	import Upload from '@lucide/svelte/icons/upload';
+	import { parseCsv } from '#lib/csv.ts';
 
 	const currency = await getCurrency();
 	let q = $state('');
@@ -74,10 +77,59 @@
 		}
 		pending = false;
 	}
+
+	// ------- CSV import -------
+	let importOpen = $state(false);
+	let importText = $state('');
+	let importPending = $state(false);
+	/** Columns: name, kind, category, price, duration_min, description (header row optional). */
+	const importRows = $derived.by(() => {
+		let rows = parseCsv(importText).map((r) => ({
+			name: r[0]?.trim() ?? '',
+			kind: r[1]?.trim().toLowerCase() ?? '',
+			category: r[2]?.trim() ?? '',
+			price: r[3]?.trim() ?? '',
+			durationMin: r[4]?.trim() ?? '',
+			description: r[5]?.trim() ?? ''
+		}));
+		if (rows.length && rows[0]!.name.toLowerCase() === 'name') rows = rows.slice(1);
+		return rows.filter((r) => r.name);
+	});
+	function onImportFile(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		file?.text().then((t) => (importText = t));
+	}
+	async function runImport() {
+		importPending = true;
+		try {
+			const r = await importPricebookItems(
+				importRows.map((row) => ({
+					name: row.name,
+					kind: row.kind === 'material' ? 'material' : 'service',
+					category: row.category,
+					description: row.description,
+					price: Number(row.price || 0),
+					durationMin: row.durationMin ? Number(row.durationMin) : null
+				}))
+			).updates(getPricebook);
+			toast.success(
+				`Imported ${r.created} item${r.created === 1 ? '' : 's'}${r.skipped ? ` — skipped ${r.skipped} duplicate${r.skipped === 1 ? '' : 's'}` : ''}`
+			);
+			importOpen = false;
+			importText = '';
+			items = await getPricebook({ q });
+		} catch (err) {
+			toast.error(errMsg(err, 'Import failed'));
+		}
+		importPending = false;
+	}
 </script>
 
 <PageHeader title="Pricebook">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
+			><Upload /> Import</Button
+		>
 		<Button size="sm" onclick={() => openItem()}><Plus /> New item</Button>
 	{/snippet}
 </PageHeader>
@@ -194,5 +246,37 @@
 				<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={importOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Import pricebook items</Dialog.Title>
+			<Dialog.Description>
+				Paste CSV or pick a file — columns: name, kind (service|material), category, price,
+				duration_min, description (header row optional). Items whose name already exists are
+				skipped.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<Input type="file" accept=".csv,text/csv,text/plain" onchange={onImportFile} />
+			<Textarea
+				rows={6}
+				class="font-mono text-xs"
+				placeholder="name,kind,category,price,duration_min,description&#10;AC tune-up,service,HVAC,129,60,Seasonal tune-up"
+				bind:value={importText}
+			/>
+			{#if importText.trim()}
+				<p class="text-xs text-muted-foreground">
+					{importRows.length} item{importRows.length === 1 ? '' : 's'} ready to import
+				</p>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button disabled={importPending || !importRows.length} onclick={runImport}
+				>{importPending ? 'Importing…' : 'Import'}</Button
+			>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

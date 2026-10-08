@@ -390,6 +390,41 @@ export async function createPricebookItem(
 	return row;
 }
 
+export async function importPricebookItems(
+	ctx: OrgContext,
+	rows: v.InferOutput<typeof s.pricebookImportInput>
+) {
+	const taken = new Set(
+		(
+			await db
+				.select({ name: sql<string>`lower(${pricebookItem.name})` })
+				.from(pricebookItem)
+				.where(eq(pricebookItem.organizationId, ctx.orgId))
+		).map((r) => r.name)
+	);
+	const seen = new Set<string>();
+	const toInsert = rows.filter((r) => {
+		const n = r.name.toLowerCase();
+		if (taken.has(n) || seen.has(n)) return false;
+		seen.add(n);
+		return true;
+	});
+	if (toInsert.length)
+		await db.insert(pricebookItem).values(
+			toInsert.map((r) => ({
+				organizationId: ctx.orgId,
+				kind: r.kind,
+				category: r.category,
+				name: r.name,
+				description: r.description,
+				price: Math.round(r.price * 100),
+				durationMin: r.durationMin ?? null,
+				active: true
+			}))
+		);
+	return { created: toInsert.length, skipped: rows.length - toInsert.length };
+}
+
 export async function updatePricebookItem(
 	ctx: OrgContext,
 	input: v.InferOutput<typeof s.pricebookItemUpdate>

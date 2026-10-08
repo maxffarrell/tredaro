@@ -239,6 +239,9 @@
 				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/quickbooks.csv')}
 					>QuickBooks invoices</DropdownMenu.Item
 				>
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/xero.csv')}
+					>Xero invoices</DropdownMenu.Item
+				>
 				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/payments.csv')}
 					>Payments (CSV)</DropdownMenu.Item
 				>

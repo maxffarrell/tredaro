@@ -164,6 +164,18 @@
 	let website = $state(settings.website);
 	let reviewUrl = $state(settings.reviewUrl);
 	let publicPage = $state(settings.publicPage);
+	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
+	const embedSnippet = $derived(
+		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
+	);
+	async function copyText(text: string, msg: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			toast.success(msg);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not copy'));
+		}
+	}
 	const tzOptions = Intl.supportedValuesOf('timeZone');
 	const currencyOptions = ['usd', 'eur', 'gbp', 'aud', 'cad', 'nzd', 'brl', 'inr'];
 	async function saveSettings(e: SubmitEvent) {
@@ -387,6 +399,44 @@
 							</div>
 							<Switch bind:checked={publicPage} />
 						</div>
+						{#if publicPage}
+							<div class="space-y-2 rounded-lg border p-3 text-sm">
+								<div class="flex items-center justify-between gap-2">
+									<p class="font-medium">Embed on your website</p>
+									<Button
+										size="sm"
+										variant="outline"
+										href="{page.url.origin}/book/{page.data.org.slug}"
+										target="_blank"><ExternalLink class="size-4" /> Preview</Button
+									>
+								</div>
+								<p class="text-xs text-muted-foreground">
+									Link customers to your booking page or drop the iframe into any site.
+								</p>
+								<div class="flex items-center gap-2">
+									<Input
+										readonly
+										class="font-mono text-xs"
+										value="{page.url.origin}/book/{page.data.org.slug}"
+									/>
+									<Button
+										size="sm"
+										variant="outline"
+										onclick={() => copyText(bookUrl, 'Booking link copied')}
+										><Copy class="size-4" /></Button
+									>
+								</div>
+								<div class="flex items-center gap-2">
+									<Input readonly class="font-mono text-xs" value={embedSnippet} />
+									<Button
+										size="sm"
+										variant="outline"
+										onclick={() => copyText(embedSnippet, 'Embed snippet copied')}
+										><Copy class="size-4" /></Button
+									>
+								</div>
+							</div>
+						{/if}
 						<Button type="submit" disabled={pending}>Save</Button>
 					</form>
 				</Card.Content>

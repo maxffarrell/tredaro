@@ -19,7 +19,8 @@ import {
 	invoiceUpdate,
 	paymentInput,
 	pricebookItemInput,
-	pricebookItemUpdate
+	pricebookItemUpdate,
+	pricebookImportInput
 } from '#lib/schemas.ts';
 
 export const getPlans = query(async () => svc.listPlans((await requireOrg()).orgId));
@@ -65,6 +66,12 @@ export const createPricebookItem = command(pricebookItemInput, async (input) => 
 	await refreshQuery(getPricebook, undefined);
 	return i;
 });
+export const importPricebookItems = command(pricebookImportInput, async (rows) => {
+	const r = await svc.importPricebookItems(await requireOrg(), rows);
+	await refreshQuery(getPricebook, undefined);
+	return r;
+});
+
 export const updatePricebookItem = command(pricebookItemUpdate, async (input) => {
 	const i = await svc.updatePricebookItem(await requireOrg(), input);
 	await refreshQuery(getPricebook, undefined);
