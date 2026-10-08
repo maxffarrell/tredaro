@@ -491,6 +491,7 @@ export async function signJob(ctx: OrgContext, input: v.InferOutput<typeof s.job
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, input.jobId)));
 	if (!j) error(404, 'Job not found');
 	if (j.status === 'cancelled') error(409, 'Job is cancelled');
+	console.log('[signJob]', JSON.stringify({ name: input.name, sigLen: input.signature.length }));
 
 	const [row] = await db
 		.update(job)
