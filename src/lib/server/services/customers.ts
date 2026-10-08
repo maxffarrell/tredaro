@@ -57,7 +57,8 @@ export async function listCustomers(orgId: string, q?: string) {
 							ilike(customer.name, `%${term}%`),
 							ilike(customer.companyName, `%${term}%`),
 							ilike(customer.email, `%${term}%`),
-							ilike(customer.phone, `%${term}%`)
+							ilike(customer.phone, `%${term}%`),
+							sql`exists (select 1 from ${equipment} e where e.customer_id = ${customer.id} and e.organization_id = ${orgId} and (e.serial ilike ${`%${term}%`} or e.model ilike ${`%${term}%`} or e.name ilike ${`%${term}%`} or e.brand ilike ${`%${term}%`}))`
 						)
 					: undefined
 			)

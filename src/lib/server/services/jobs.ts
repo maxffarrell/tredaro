@@ -28,6 +28,7 @@ import {
 	jobMaterial,
 	jobChecklistItem,
 	jobEvent,
+	jobPhoto,
 	jobTimeEntry,
 	jobType,
 	member,
@@ -76,6 +77,8 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			officeId: input.officeId ?? null,
 			technicianId: input.technicianId ?? null,
 			checklist: input.checklist,
+			requireChecklist: input.requireChecklist,
+			requirePhoto: input.requirePhoto,
 			active: input.active
 		})
 		.returning();
@@ -545,6 +548,32 @@ export async function recordJobEvent(
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, input.jobId)));
 	if (!j) error(404, 'Job not found');
 	if (j.status === 'done' || j.status === 'cancelled') error(409, `Job is ${j.status}`);
+
+	// Job-type completion gates — the tech must finish the checklist and/or attach
+	// a photo before the job can be marked complete.
+	if (input.kind === 'completed' && j.jobTypeId) {
+		const [type] = await db
+			.select({
+				requireChecklist: jobType.requireChecklist,
+				requirePhoto: jobType.requirePhoto
+			})
+			.from(jobType)
+			.where(eq(jobType.id, j.jobTypeId));
+		if (type?.requireChecklist) {
+			const [{ n: open }] = await db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(jobChecklistItem)
+				.where(and(eq(jobChecklistItem.jobId, input.jobId), eq(jobChecklistItem.done, false)));
+			if (open > 0) error(409, `Finish every checklist item first (${open} open)`);
+		}
+		if (type?.requirePhoto) {
+			const [{ n }] = await db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(jobPhoto)
+				.where(eq(jobPhoto.jobId, input.jobId));
+			if (n === 0) error(409, 'Attach at least one photo before completing');
+		}
+	}
 
 	const [memberRow] = await db
 		.select({ id: member.id })

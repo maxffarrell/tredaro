@@ -2,7 +2,11 @@ import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { bookingInput, estimateDecisionInput } from '#lib/schemas.ts';
 import { getPublicCompany, requestBooking } from '#lib/server/services/public.ts';
-import { notifyBookingReceived, notifyStaffBooking } from '#lib/server/services/notifications.ts';
+import {
+	notifyBookingReceived,
+	notifyStaffBooking,
+	notifyStaffEstimateDecision
+} from '#lib/server/services/notifications.ts';
 import {
 	decideEstimate,
 	publicEstimate,
@@ -45,9 +49,14 @@ export const getPublicEstimate = query(v.string(), async (token) => {
 });
 
 /** Customer approves or declines an estimate on its public link. */
-export const decidePublicEstimate = command(estimateDecisionInput, async (input) =>
-	decideEstimate(input.token, clientIp(), input)
-);
+export const decidePublicEstimate = command(estimateDecisionInput, async (input) => {
+	const r = await decideEstimate(input.token, clientIp(), input);
+	if (r?.organizationId)
+		void notifyStaffEstimateDecision(r.organizationId, r.id).catch((err) =>
+			console.error('estimate decision alert failed', err)
+		);
+	return r;
+});
 
 /** Starts provider checkout for an invoice's balance off the public /i/[token] page. */
 export const payPublicInvoice = command(

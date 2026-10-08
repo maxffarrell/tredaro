@@ -115,6 +115,8 @@
 	let jtRate = $state<number | null>(null);
 	let jtTech = $state('');
 	let jtChecklist = $state('');
+	let jtReqChecklist = $state(false);
+	let jtReqPhoto = $state(false);
 	let jtActive = $state(true);
 
 	function openJt(t?: (typeof jobTypes)[number]) {
@@ -126,6 +128,8 @@
 		jtRate = t?.hourlyRate ?? null;
 		jtTech = t?.technicianId ?? '';
 		jtChecklist = (t?.checklist ?? []).join('\n');
+		jtReqChecklist = t?.requireChecklist ?? false;
+		jtReqPhoto = t?.requirePhoto ?? false;
 		jtActive = t?.active ?? true;
 		jtOpen = true;
 	}
@@ -143,6 +147,8 @@
 				.split('\n')
 				.map((l) => l.trim())
 				.filter(Boolean),
+			requireChecklist: jtReqChecklist,
+			requirePhoto: jtReqPhoto,
 			active: jtActive
 		};
 		try {
@@ -1207,6 +1213,26 @@
 					>New jobs of this type get these steps on their Checklist card.</Field.Description
 				>
 			</Field.Field>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-req-checklist" class="text-sm font-medium"
+						>Require checklist to complete</label
+					>
+					<p class="text-xs text-muted-foreground">Job can't be completed with open steps.</p>
+				</div>
+				<Switch
+					id="jt-req-checklist"
+					checked={jtReqChecklist}
+					onCheckedChange={(v) => (jtReqChecklist = v)}
+				/>
+			</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-req-photo" class="text-sm font-medium">Require photo to complete</label>
+					<p class="text-xs text-muted-foreground">At least one photo before completion.</p>
+				</div>
+				<Switch id="jt-req-photo" checked={jtReqPhoto} onCheckedChange={(v) => (jtReqPhoto = v)} />
+			</div>
 			<div class="flex items-center justify-between">
 				<label for="jt-active" class="text-sm font-medium">Active</label>
 				<Switch id="jt-active" checked={jtActive} onCheckedChange={(v) => (jtActive = v)} />

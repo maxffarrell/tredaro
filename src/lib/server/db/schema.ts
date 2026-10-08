@@ -290,6 +290,10 @@ export const jobType = pgTable(
 		technicianId: text('technician_id').references(() => member.id, { onDelete: 'set null' }),
 		/** Checklist labels copied onto each new job of this type. */
 		checklist: text('checklist').array(),
+		/** Completion gates: the job can't be marked complete until every checklist
+		 * item is done / at least one photo is attached. */
+		requireChecklist: boolean('require_checklist').notNull().default(false),
+		requirePhoto: boolean('require_photo').notNull().default(false),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},

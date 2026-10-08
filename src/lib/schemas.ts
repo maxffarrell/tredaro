@@ -267,6 +267,8 @@ export const jobTypeInput = v.object({
 	technicianId: v.optional(v.nullable(idSchema)),
 	/** One checklist line per entry; copied onto new jobs of this type. */
 	checklist: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(200))), []),
+	requireChecklist: v.optional(v.boolean(), false),
+	requirePhoto: v.optional(v.boolean(), false),
 	active: v.optional(v.boolean(), true)
 });
 export const jobTypeUpdate = v.object({ id: idSchema, ...v.partial(jobTypeInput).entries });

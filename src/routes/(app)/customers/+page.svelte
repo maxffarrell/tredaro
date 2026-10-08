@@ -166,7 +166,7 @@
 		<div class="relative max-w-sm flex-1">
 			<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input
-				placeholder="Search name, company, email, phone…"
+				placeholder="Search name, company, contact info, equipment…"
 				class="pl-9"
 				bind:value={q}
 				oninput={search}

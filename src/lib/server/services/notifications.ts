@@ -1091,3 +1091,41 @@ export async function notifyTechAssigned(orgId: string, jobId: string, memberId:
 		})
 	});
 }
+
+/** "Customer answered your estimate" — emails owner/admins, once per estimate. */
+export async function notifyStaffEstimateDecision(orgId: string, estimateId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			number: estimate.number,
+			status: estimate.status,
+			decisionName: estimate.decisionName,
+			customerName: customer.name
+		})
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(eq(estimate.id, estimateId));
+	if (!row || !['converted', 'declined'].includes(row.status)) return;
+	const approved = row.status === 'converted';
+	const name = await orgName(orgId);
+	const who = `${row.customerName}${row.decisionName ? ` (${row.decisionName})` : ''}`;
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'estimate_decision', estimateId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `E-${row.number} ${approved ? 'approved' : 'declined'} — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Estimate E-${row.number} ${approved ? 'approved 🎉' : 'declined'}`,
+				lines: [
+					`${who} ${approved ? 'approved the estimate — a job was created and is waiting in the dispatch queue.' : 'declined the estimate.'}`
+				],
+				action: {
+					label: approved ? 'Open dispatch' : 'Open estimates',
+					url: `${appOrigin()}${approved ? '/dispatch' : '/estimates'}`
+				}
+			})
+		});
+	}
+}
