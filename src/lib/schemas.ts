@@ -440,7 +440,8 @@ export const settingsInput = v.object({
 	estimateDepositPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
 	laborRoundingMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(120))),
 	serviceZips: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000))),
-	bookingEnabled: v.optional(v.boolean())
+	bookingEnabled: v.optional(v.boolean()),
+	bookingMessage: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
 });
 
 export const webhookInput = v.object({

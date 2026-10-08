@@ -152,7 +152,7 @@
 							<p class="mt-1 text-sm font-medium">Reference {reference}</p>
 						{/if}
 						<p class="mt-1 text-sm text-muted-foreground">
-							{org.name} will call or email you to confirm a time.
+							{settings?.bookingMessage || `${org.name} will call or email you to confirm a time.`}
 						</p>
 					</Card.Content>
 				</Card.Root>

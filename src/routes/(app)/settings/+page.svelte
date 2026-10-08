@@ -196,6 +196,7 @@
 	let depositPct = $state(settings.estimateDepositPct);
 	let laborRounding = $state(settings.laborRoundingMin);
 	let serviceZips = $state(settings.serviceZips);
+	let bookingMessage = $state(settings.bookingMessage);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -235,7 +236,8 @@
 				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
 				estimateDepositPct: Math.round(depositPct || 0),
 				laborRoundingMin: Math.round(laborRounding || 0),
-				serviceZips
+				serviceZips,
+				bookingMessage
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -737,6 +739,17 @@
 								<Input id="s-zips" bind:value={serviceZips} placeholder="90210, 90211, 90212" />
 								<p class="text-xs text-muted-foreground">
 									Comma-separated ZIPs customers can book in — blank accepts anywhere.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="s-bookmsg">Booking confirmation</Field.Label>
+								<Input
+									id="s-bookmsg"
+									bind:value={bookingMessage}
+									placeholder="We'll call or email you to confirm a time."
+								/>
+								<p class="text-xs text-muted-foreground">
+									Shown on the booking page after a request is sent — blank uses the default.
 								</p>
 							</Field.Field>
 						{/if}

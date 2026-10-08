@@ -469,6 +469,34 @@ export async function decideEstimate(
 	return applyDecision(est, c, input, `ip ${ip}`);
 }
 
+/** Customer asks for changes on the public link — keeps status 'sent', logs the
+ * request on the estimate and pings staff (notification + email via caller). */
+export async function requestEstimateChanges(
+	token: string,
+	ip: string,
+	input: { name?: string; note: string }
+) {
+	const estimateId = verifyEstimateToken(token);
+	if (!estimateId) error(400, 'Invalid link');
+	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
+	if (!est) error(404, 'Estimate not found');
+	if (
+		est.status === 'expired' ||
+		(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
+	)
+		error(409, 'This estimate has expired — ask for a new one');
+	if (est.status !== 'sent') error(409, 'This estimate has already been answered');
+	const req = `Changes requested by ${input.name || 'customer'} (ip ${ip}): ${input.note.slice(0, 400)}`;
+	await db
+		.update(estimate)
+		.set({
+			decisionNote: est.decisionNote ? `${est.decisionNote} | ${req}` : req,
+			updatedAt: new Date()
+		})
+		.where(eq(estimate.id, est.id));
+	return { organizationId: est.organizationId, id: est.id };
+}
+
 /**
  * Staff records a verbal/phone approval or decline on a sent estimate — same
  * conversion as the public link (job creation, deposit invoice, decision note).

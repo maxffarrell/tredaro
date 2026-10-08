@@ -112,7 +112,16 @@
 							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(e.total, currency)}</Table.Cell
 							>
-							<Table.Cell><StatusBadge status={e.estimate.status} /></Table.Cell>
+							<Table.Cell>
+								<StatusBadge status={e.estimate.status} />
+								{#if e.estimate.decisionNote?.includes('Changes requested')}
+									<Badge
+										variant="secondary"
+										class="ml-1 border-amber-200 bg-amber-100 font-normal text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+										>Changes</Badge
+									>
+								{/if}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
 						<Table.Row>

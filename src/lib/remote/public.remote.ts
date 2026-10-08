@@ -5,11 +5,13 @@ import { getPublicCompany, requestBooking } from '#lib/server/services/public.ts
 import {
 	notifyBookingReceived,
 	notifyStaffBooking,
+	notifyStaffEstimateChanges,
 	notifyStaffEstimateDecision
 } from '#lib/server/services/notifications.ts';
 import {
 	decideEstimate,
 	publicEstimate,
+	requestEstimateChanges,
 	verifyEstimateToken
 } from '#lib/server/services/estimates.ts';
 import { publicInvoiceCheckout } from '#lib/server/services/billing.ts';
@@ -57,6 +59,22 @@ export const decidePublicEstimate = command(estimateDecisionInput, async (input)
 		);
 	return r;
 });
+
+/** Customer asks for changes on the public estimate link — keeps it 'sent' and pings staff. */
+export const requestEstimateChangesPublic = command(
+	v.object({
+		token: v.string(),
+		name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120))),
+		note: v.pipe(v.string(), v.trim(), v.minLength(1, 'Say what to change'), v.maxLength(500))
+	}),
+	async (input) => {
+		const r = await requestEstimateChanges(input.token, clientIp(), input);
+		void notifyStaffEstimateChanges(r.organizationId, r.id, input.note).catch((err) =>
+			console.error('estimate changes alert failed', err)
+		);
+		return r;
+	}
+);
 
 /** Starts provider checkout for an invoice's balance off the public /i/[token] page. */
 export const payPublicInvoice = command(

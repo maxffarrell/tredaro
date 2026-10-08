@@ -83,6 +83,8 @@ export const companySettings = pgTable('company_settings', {
 	serviceZips: text('service_zips').notNull().default(''),
 	/** Master switch for the public /book/[slug] form. */
 	bookingEnabled: boolean('booking_enabled').notNull().default(true),
+	/** Custom confirmation message on the booking success card (blank = default copy). */
+	bookingMessage: text('booking_message').notNull().default(''),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),

@@ -9,7 +9,7 @@
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import Printer from '@lucide/svelte/icons/printer';
 	import { toast } from 'svelte-sonner';
-	import { decidePublicEstimate } from '#lib/remote/public.remote.ts';
+	import { decidePublicEstimate, requestEstimateChangesPublic } from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -38,6 +38,26 @@
 	let name = $state('');
 	let note = $state('');
 	let pending = $state(false);
+	let changesSent = $state(false);
+
+	async function requestChanges() {
+		if (!note.trim()) {
+			toast.error('Say what to change in the note');
+			return;
+		}
+		pending = true;
+		try {
+			await requestEstimateChangesPublic({
+				token: page.params.token!,
+				name: name.trim() || undefined,
+				note: note.trim()
+			});
+			changesSent = true;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not submit'));
+		}
+		pending = false;
+	}
 
 	async function decide(approve: boolean) {
 		if (approve && !name.trim()) {
@@ -172,6 +192,15 @@
 					</p>
 				</Card.Content>
 			</Card.Root>
+		{:else if changesSent}
+			<Card.Root>
+				<Card.Content class="py-6 text-center">
+					<p class="font-semibold">Change request sent</p>
+					<p class="mt-1 text-sm text-muted-foreground">
+						{orgName} will follow up with an updated quote.
+					</p>
+				</Card.Content>
+			</Card.Root>
 		{:else if decided === 'declined'}
 			<Card.Root>
 				<Card.Content class="py-6 text-center">
@@ -198,10 +227,13 @@
 							<Input id="dec-note" bind:value={note} placeholder="Anything to add?" />
 						</Field.Field>
 					</div>
-					<div class="flex gap-2">
+					<div class="flex flex-wrap gap-2">
 						<Button onclick={() => decide(true)} disabled={pending}>Approve estimate</Button>
 						<Button variant="outline" onclick={() => decide(false)} disabled={pending}
 							>Decline</Button
+						>
+						<Button variant="ghost" onclick={requestChanges} disabled={pending}
+							>Request changes</Button
 						>
 					</div>
 				</Card.Content>

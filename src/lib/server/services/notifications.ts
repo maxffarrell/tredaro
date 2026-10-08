@@ -1366,6 +1366,32 @@ export async function notifyStaffEstimateViewed(orgId: string, estimateId: strin
 	}
 }
 
+/** Customer clicked "Request changes" on the public estimate — staff alert, once per estimate. */
+export async function notifyStaffEstimateChanges(orgId: string, estimateId: string, note: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ number: estimate.number, customerName: customer.name })
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(eq(estimate.id, estimateId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'estimate_changes', estimateId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `E-${row.number} change request — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} asked for changes on E-${row.number}`,
+				lines: [note.slice(0, 500), 'The estimate stays in sent status until you revise it.'],
+				action: { label: 'Open estimate', url: `${appOrigin()}/estimates/${estimateId}` }
+			})
+		});
+	}
+}
+
 /** "We received your payment" receipt email — once per batch of payment rows. */
 export async function notifyPaymentReceived(orgId: string, paymentIds: string[]) {
 	const flags = await notifFlags(orgId);
