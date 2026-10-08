@@ -249,7 +249,7 @@ export async function dashboard(orgId: string) {
 			)
 		)
 		.groupBy(customer.id, customer.name)
-		.having(sql`max(${job.completedAt}) < ${cutoff}`)
+		.having(sql`max(${job.completedAt}) < ${cutoff.toISOString()}`)
 		.orderBy(sql`max(${job.completedAt})`)
 		.limit(4);
 
