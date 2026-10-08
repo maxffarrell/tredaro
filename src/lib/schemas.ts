@@ -454,6 +454,8 @@ export const bookingInput = v.object({
 	/** Preferred day/time, free text ("weekday mornings"). */
 	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ''),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	/** Preferred technician picked on the booking form. */
+	preferredMemberId: v.optional(v.nullable(idSchema)),
 	/** Honeypot: must stay empty. */
 	website: v.optional(v.string(), '')
 });

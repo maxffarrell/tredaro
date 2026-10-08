@@ -11,6 +11,7 @@ import Package from '@lucide/svelte/icons/package';
 import Settings from '@lucide/svelte/icons/settings';
 import ChartColumn from '@lucide/svelte/icons/chart-column';
 import History from '@lucide/svelte/icons/history';
+import Bell from '@lucide/svelte/icons/bell';
 
 /** `key` is the second key of the `g <key>` keyboard shortcut. */
 export const mainNav = [
@@ -25,7 +26,8 @@ export const mainNav = [
 	{ href: '/pricebook', label: 'Pricebook', icon: BookOpen, key: 'k' },
 	{ href: '/inventory', label: 'Inventory', icon: Package, key: 'i' },
 	{ href: '/reports', label: 'Reports', icon: ChartColumn, key: 'r' },
-	{ href: '/activity', label: 'Activity', icon: History, key: 'y' }
+	{ href: '/activity', label: 'Activity', icon: History, key: 'y' },
+	{ href: '/notifications', label: 'Notifications', icon: Bell, key: 'n' }
 ] as const;
 
 export const secondaryNav = [

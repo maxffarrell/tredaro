@@ -31,7 +31,7 @@
 		getEquipmentJobs,
 		revokePortalAccess
 	} from '#lib/remote/customers.remote.ts';
-	import { recordPayment } from '#lib/remote/billing.remote.ts';
+	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
 	import {
 		getSchedules,
 		createSchedule,
@@ -422,6 +422,27 @@
 			toast.error(errMsg(err, 'Could not record payment'));
 		}
 		payPending = false;
+	}
+
+	// ------- account credit -------
+	let creditOpen = $state(false);
+	let creditPending = $state(false);
+	let creditDollars = $state('');
+	let creditNote = $state('');
+	const creditCents = $derived(Math.round((parseFloat(creditDollars) || 0) * 100));
+
+	async function submitCredit(e: SubmitEvent) {
+		e.preventDefault();
+		creditPending = true;
+		try {
+			await addCredit({ customerId: id, amount: creditCents, note: creditNote || undefined });
+			toast.success('Credit added');
+			creditOpen = false;
+			creditDollars = creditNote = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add credit'));
+		}
+		creditPending = false;
 	}
 </script>
 
@@ -906,6 +927,14 @@
 								payOpen = true;
 							}}>Record payment</Button
 						>
+						<Button
+							size="sm"
+							variant="outline"
+							onclick={() => {
+								creditDollars = '';
+								creditOpen = true;
+							}}>Add credit</Button
+						>
 					{/if}
 					<Button size="sm" variant="ghost" href="/billing?customer={id}">All billing</Button>
 				</div>
@@ -988,6 +1017,42 @@
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={locPending}>{locPending ? 'Saving…' : 'Save'}</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={creditOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Add account credit</Dialog.Title>
+			<Dialog.Description>
+				A negative charge — lowers {c.customer.name}'s open balance automatically.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={submitCredit}>
+			<Field.Field>
+				<Field.Label for="cr-amt">Amount</Field.Label>
+				<Input
+					id="cr-amt"
+					type="number"
+					step="0.01"
+					min="0.01"
+					required
+					bind:value={creditDollars}
+					placeholder="0.00"
+				/>
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="cr-note">Note</Field.Label>
+				<Input id="cr-note" bind:value={creditNote} placeholder="Optional — e.g. goodwill" />
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={creditPending || creditCents <= 0}
+					>{creditPending
+						? 'Saving…'
+						: `Add ${creditCents ? formatMoney(creditCents, currency) : 'credit'}`}</Button
+				>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

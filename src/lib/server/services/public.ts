@@ -11,6 +11,7 @@ import {
 	organization,
 	serviceLocation
 } from '#lib/server/db/schema.ts';
+import { member, user } from '#lib/server/db/auth.schema.ts';
 import { emit } from './events.ts';
 import { createJob } from './jobs.ts';
 import type * as s from '#lib/schemas.ts';
@@ -55,7 +56,14 @@ export async function getPublicCompany(slug: string) {
 		.where(eq(office.organizationId, org.id))
 		.orderBy(asc(office.name));
 
-	return { org, settings, plans, jobTypes, offices };
+	const techs = await db
+		.select({ id: member.id, name: user.name })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(member.organizationId, org.id))
+		.orderBy(asc(user.name));
+
+	return { org, settings, plans, jobTypes, offices, techs };
 }
 
 const bookRate = new Map<string, number[]>();
@@ -181,11 +189,26 @@ export async function requestBooking(
 		locationId = primary?.id ?? null;
 	}
 
+	// Optional preferred-tech choice — must be a member of this org.
+	let techId: string | null = null;
+	if (input.preferredMemberId) {
+		const [m] = await db
+			.select({ id: member.id })
+			.from(member)
+			.where(and(eq(member.organizationId, org.id), eq(member.id, input.preferredMemberId)))
+			.limit(1);
+		if (!m) error(400, 'Invalid technician');
+		techId = m.id;
+		if (!c.preferredMemberId)
+			await db.update(customer).set({ preferredMemberId: m.id }).where(eq(customer.id, c.id));
+	}
+
 	const j = await createJob(
 		{ orgId: org.id, userId: null },
 		settings?.timezone ?? 'UTC',
 		{
 			customerId: c.id,
+			technicianId: techId,
 			serviceLocationId: locationId,
 			jobTypeId: input.jobTypeId ?? null,
 			summary: 'Website booking request',

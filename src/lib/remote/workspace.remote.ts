@@ -3,9 +3,9 @@ import { randomBytes } from 'node:crypto';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { command, query } from '$app/server';
-import { requireOrg } from '#lib/server/context.ts';
+import { requireOrg, requireUser } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
-import { customer, member, user, webhook } from '#lib/server/db/schema.ts';
+import { customer, member, notificationLog, user, webhook } from '#lib/server/db/schema.ts';
 import { dashboard } from '#lib/server/services/dashboard.ts';
 import { getReports as reports } from '#lib/server/services/reports.ts';
 import { search } from '#lib/server/services/search.ts';
@@ -47,6 +47,18 @@ export const updateOffice = command(officeUpdate, async (input) => {
 	const o = await settingsSvc.updateOffice(await requireOrg('admin'), input);
 	void getOffices().refresh();
 	return o;
+});
+
+/** Staff-facing notification_log entries addressed to the current user's email. */
+export const getStaffNotifications = query(async () => {
+	const { user: me } = requireUser();
+	const { orgId } = await requireOrg();
+	return db
+		.select()
+		.from(notificationLog)
+		.where(and(eq(notificationLog.organizationId, orgId), eq(notificationLog.recipient, me.email)))
+		.orderBy(desc(notificationLog.createdAt))
+		.limit(50);
 });
 
 /** Staff of the org (technicians are picked from these). */

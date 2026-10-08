@@ -16,7 +16,7 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	const { org, settings, plans, jobTypes } = $derived(data);
+	const { org, settings, plans, jobTypes, techs } = $derived(data);
 	const currency = $derived(settings?.currency ?? 'usd');
 
 	let name = $state('');
@@ -26,6 +26,7 @@
 	// (e.g. a per-service "Book now" button on the org's own site).
 	const typeParam = page.url.searchParams.get('type') ?? '';
 	let jobTypeId = $state(data.jobTypes.some((t) => t.id === typeParam) ? typeParam : '');
+	let preferredMemberId = $state('any');
 	let address1 = $state('');
 	let city = $state('');
 	let addrState = $state('');
@@ -188,6 +189,22 @@
 															? ` — ${formatMoney(t.defaultAmount, currency)}`
 															: ''}</Select.Item
 													>
+												{/each}
+											</Select.Content>
+										</Select.Root>
+									</Field.Field>
+								{/if}
+								{#if techs.length}
+									<Field.Field>
+										<Field.Label>Preferred technician (optional)</Field.Label>
+										<Select.Root type="single" bind:value={preferredMemberId}>
+											<Select.Trigger class="w-full">
+												{techs.find((t) => t.id === preferredMemberId)?.name ?? 'No preference'}
+											</Select.Trigger>
+											<Select.Content>
+												<Select.Item value="any">No preference</Select.Item>
+												{#each techs as t (t.id)}
+													<Select.Item value={t.id}>{t.name}</Select.Item>
 												{/each}
 											</Select.Content>
 										</Select.Root>

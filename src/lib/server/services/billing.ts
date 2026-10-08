@@ -928,6 +928,38 @@ export async function addCharge(ctx: OrgContext, input: v.InferOutput<typeof s.c
 	return row;
 }
 
+/** Adds a negative open charge — credit on file that lowers the customer's open balance. */
+export async function addCredit(
+	ctx: OrgContext,
+	input: { customerId: string; amount: number; note?: string }
+) {
+	const [c] = await db
+		.select()
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
+	if (!c) error(404, 'Customer not found');
+	const [row] = await db
+		.insert(charge)
+		.values({
+			organizationId: ctx.orgId,
+			customerId: input.customerId,
+			kind: 'other',
+			description: `Account credit${input.note ? ` — ${input.note}` : ''}`,
+			amount: -Math.abs(input.amount),
+			dueDate: new Date().toISOString().slice(0, 10)
+		})
+		.returning();
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId ?? null,
+		entityType: 'charge',
+		entityId: row!.id,
+		action: 'created',
+		summary: `Credit of ${formatMoney(input.amount)} added`
+	});
+	return row;
+}
+
 export async function updateCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeUpdate>) {
 	const { id, ...set } = input;
 	const [row] = await db

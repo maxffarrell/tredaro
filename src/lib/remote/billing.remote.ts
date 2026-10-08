@@ -169,6 +169,21 @@ export const updateCharge = command(chargeUpdate, async (input) => {
 	return c;
 });
 
+const creditInput = v.object({
+	customerId: idSchema,
+	amount: v.pipe(v.number(), v.integer(), v.minValue(1)),
+	note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)))
+});
+
+/** Adds an account credit (negative open charge) to a customer. */
+export const addCredit = command(creditInput, async (input) => {
+	const c = await svc.addCredit(await requireOrg(), input);
+	await refreshQuery(getCharges, undefined);
+	await refreshQuery(getDashboard, undefined);
+	void getCustomer(input.customerId).refresh();
+	return c;
+});
+
 export const getPayments = query(async () => svc.listPayments((await requireOrg()).orgId));
 export const recordPayment = command(paymentInput, async (input) => {
 	const ctx = await requireOrg();
