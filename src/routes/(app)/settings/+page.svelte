@@ -230,7 +230,8 @@
 				taxRateBps: Math.round((taxRatePct || 0) * 100),
 				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
 				estimateDepositPct: Math.round(depositPct || 0),
-				laborRoundingMin: Math.round(laborRounding || 0)
+				laborRoundingMin: Math.round(laborRounding || 0),
+				serviceZips
 			});
 			toast.success('Settings saved');
 		} catch (err) {
