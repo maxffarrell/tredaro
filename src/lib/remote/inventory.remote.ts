@@ -16,14 +16,14 @@ export const getInventory = query(async () => svc.listItems((await requireOrg())
 
 export const createInventoryItem = command(inventoryItemInput, async (input) => {
 	const i = await svc.createItem(await requireOrg('admin'), input);
-	void refreshQuery(getInventory, undefined);
+	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
 	return i;
 });
 
 export const updateInventoryItem = command(inventoryItemUpdate, async (input) => {
 	const i = await svc.updateItem(await requireOrg('admin'), input);
-	void refreshQuery(getInventory, undefined);
+	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
 	return i;
 });
@@ -34,14 +34,16 @@ const adjustInput = v.object({
 });
 export const adjustInventoryQty = command(adjustInput, async (input) => {
 	const i = await svc.adjustQty(await requireOrg('admin'), input);
-	void refreshQuery(getInventory, undefined);
+	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
 	return i;
 });
 
 export const deleteInventoryItem = command(idSchema, async (id) => {
 	await svc.deleteItem(await requireOrg('admin'), id);
-	void refreshQuery(getInventory, undefined);
+	await refreshQuery(getInventory, undefined);
+	void getDashboard().refresh();
+	return { id };
 });
 
 export const getJobMaterials = query(v.object({ jobId: idSchema }), async ({ jobId }) =>
@@ -50,15 +52,16 @@ export const getJobMaterials = query(v.object({ jobId: idSchema }), async ({ job
 
 export const addJobMaterial = command(jobMaterialInput, async (input) => {
 	const m = await svc.addMaterial(await requireOrg(), input);
-	void refreshQuery(getJobMaterials, { jobId: input.jobId });
-	void refreshQuery(getInventory, undefined);
+	await refreshQuery(getJobMaterials, { jobId: input.jobId });
+	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
 	return m;
 });
 
 export const removeJobMaterial = command(idSchema, async (materialId) => {
 	const m = await svc.removeMaterial(await requireOrg(), materialId);
-	void refreshQuery(getJobMaterials, { jobId: m.jobId });
-	void refreshQuery(getInventory, undefined);
+	await refreshQuery(getJobMaterials, { jobId: m.jobId });
+	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
+	return m;
 });

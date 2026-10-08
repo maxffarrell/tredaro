@@ -3,13 +3,21 @@ const currencyFormatters = new Map<string, Intl.NumberFormat>();
 /** Message from a remote-function rejection (plain object, not always an Error). */
 export function errMsg(err: unknown, fallback: string) {
 	if (err instanceof Error) return err.message;
-	if (
-		typeof err === 'object' &&
-		err !== null &&
-		'message' in err &&
-		typeof (err as { message: unknown }).message === 'string'
-	)
-		return (err as { message: string }).message;
+	if (typeof err === 'object' && err !== null) {
+		// SvelteKit serializes server-side `error(status, msg)` into `body.message`.
+		const body = (err as { body?: unknown }).body;
+		if (typeof body === 'string' && body) return body;
+		if (
+			typeof body === 'object' &&
+			body !== null &&
+			'message' in body &&
+			typeof (body as { message: unknown }).message === 'string' &&
+			(body as { message: string }).message
+		)
+			return (body as { message: string }).message;
+		if ('message' in err && typeof (err as { message: unknown }).message === 'string')
+			return (err as { message: string }).message;
+	}
 	return fallback;
 }
 
