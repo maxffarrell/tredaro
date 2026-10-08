@@ -15,7 +15,8 @@ import {
 	serviceAgreement,
 	jobType,
 	notificationLog,
-	organization
+	organization,
+	inventoryItem
 } from '#lib/server/db/schema.ts';
 import { member, user } from '#lib/server/db/auth.schema.ts';
 import { appOrigin, sendEmail } from '#lib/server/email.ts';
@@ -58,6 +59,16 @@ async function logOnce(orgId: string, kind: string, entityId: string, recipient:
 		.onConflictDoNothing()
 		.returning();
 	return !!row;
+}
+
+/** Emails of owner/admin members — recipients of staff-facing alerts. */
+async function adminEmails(orgId: string) {
+	const rows = await db
+		.select({ email: user.email })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(and(eq(member.organizationId, orgId), inArray(member.role, ['owner', 'admin'])));
+	return rows.map((r) => r.email).filter((e): e is string => !!e);
 }
 
 async function notifFlags(orgId: string) {
@@ -827,4 +838,91 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 				? `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks! A quick review helps a lot: ${row.reviewUrl}`
 				: `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks for choosing us!`
 		});
+}
+
+/** Emails admins/dispatchers the moment a booking request lands (staffDigest toggle gates it). */
+export async function notifyStaffBooking(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			customerName: customer.name,
+			phone: customer.phone,
+			jobTypeName: jobType.name,
+			summary: job.summary,
+			preferredTime: job.preferredTime
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'booking_staff_alert', jobId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `New booking request — ${row.customerName} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `New booking request from ${row.customerName}`,
+				lines: [
+					`${row.jobTypeName ?? row.summary}${row.preferredTime ? ` — asks for ${row.preferredTime}` : ''}.`,
+					row.phone ? `Phone: ${row.phone}` : 'No phone on file.'
+				],
+				action: { label: 'Open dispatch', url: `${appOrigin()}/dispatch` }
+			})
+		});
+	}
+}
+
+/** Emails admins when an item's on-hand drops to/below its reorder point. Re-arms on restock. */
+export async function notifyLowStock(orgId: string, itemId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [i] = await db
+		.select({
+			name: inventoryItem.name,
+			qty: inventoryItem.qtyOnHand,
+			rp: inventoryItem.reorderPoint,
+			unit: inventoryItem.unit
+		})
+		.from(inventoryItem)
+		.where(eq(inventoryItem.id, itemId));
+	if (!i || i.rp == null || i.qty > i.rp) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'low_stock', itemId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Low stock: ${i.name} — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `${i.name} is running low`,
+				lines: [
+					`${i.qty} ${i.unit} on hand — the reorder point is ${i.rp}.`,
+					'Restock it or raise a purchase order from the inventory page.'
+				],
+				action: { label: 'Open inventory', url: `${appOrigin()}/inventory` }
+			})
+		});
+	}
+}
+
+/** Re-arms an item's low-stock alerts after stock is added back above the reorder point. */
+export async function rearmLowStock(orgId: string, itemId: string) {
+	const [i] = await db
+		.select({ qty: inventoryItem.qtyOnHand, rp: inventoryItem.reorderPoint })
+		.from(inventoryItem)
+		.where(eq(inventoryItem.id, itemId));
+	if (!i || i.rp == null || i.qty <= i.rp) return;
+	await db
+		.delete(notificationLog)
+		.where(
+			and(
+				eq(notificationLog.organizationId, orgId),
+				eq(notificationLog.kind, 'low_stock'),
+				eq(notificationLog.entityId, itemId)
+			)
+		);
 }

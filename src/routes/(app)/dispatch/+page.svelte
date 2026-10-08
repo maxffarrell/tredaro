@@ -5,6 +5,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
 	import { getDispatchBoard, updateJob } from '#lib/remote/jobs.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
@@ -21,6 +22,7 @@
 	const settings = await getSettings();
 	const offices = await getOffices();
 	let officeId = $state(page.url.searchParams.get('office') ?? '');
+	let queueFilter = $state('');
 	const officeName = $derived(offices.find((o) => o.id === officeId)?.name ?? '');
 	const tz = settings.timezone;
 
@@ -28,6 +30,15 @@
 	let start = $state(page.url.searchParams.get('from') ?? todayStr);
 	const board = $derived(
 		await getDispatchBoard({ from: start, to: addDays(start, 7), officeId: officeId || undefined })
+	);
+	const filteredQueue = $derived(
+		queueFilter.trim()
+			? board.unscheduled.filter((j) =>
+					`${j.job.summary} ${j.jobTypeName} ${j.customerName} J-${j.job.number}`
+						.toLowerCase()
+						.includes(queueFilter.trim().toLowerCase())
+				)
+			: board.unscheduled
 	);
 
 	function shift(days: number) {
@@ -132,9 +143,10 @@
 		<Card.Header class="flex-row items-center gap-2">
 			<Inbox class="size-4 text-muted-foreground" />
 			<Card.Title class="text-base">Unscheduled ({board.unscheduled.length})</Card.Title>
+			<Input class="ml-auto h-7 w-32 text-xs" placeholder="Filter…" bind:value={queueFilter} />
 		</Card.Header>
 		<Card.Content class="space-y-2 px-4">
-			{#each board.unscheduled as j (j.job.id)}
+			{#each filteredQueue as j (j.job.id)}
 				<button
 					class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
 					draggable="true"

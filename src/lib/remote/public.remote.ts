@@ -2,7 +2,7 @@ import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { bookingInput, estimateDecisionInput } from '#lib/schemas.ts';
 import { getPublicCompany, requestBooking } from '#lib/server/services/public.ts';
-import { notifyBookingReceived } from '#lib/server/services/notifications.ts';
+import { notifyBookingReceived, notifyStaffBooking } from '#lib/server/services/notifications.ts';
 import {
 	decideEstimate,
 	publicEstimate,
@@ -29,6 +29,9 @@ export const requestBookingForm = command(
 		const r = await requestBooking(slug, clientIp(), input);
 		void notifyBookingReceived(r.job!.organizationId, r.job!.id).catch((err) =>
 			console.error('booking email failed', err)
+		);
+		void notifyStaffBooking(r.job!.organizationId, r.job!.id).catch((err) =>
+			console.error('staff booking alert failed', err)
 		);
 		return r;
 	}

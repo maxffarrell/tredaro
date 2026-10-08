@@ -6,6 +6,7 @@ import { db } from '#lib/server/db/index.ts';
 import { customer } from '#lib/server/db/schema.ts';
 import { and, eq } from 'drizzle-orm';
 import * as svc from '#lib/server/services/portal.ts';
+import { notifyStaffBooking } from '#lib/server/services/notifications.ts';
 import { idSchema, portalContactInput, portalRequestInput } from '#lib/schemas.ts';
 
 /** Resolves the customer record the signed-in user is acting as, and checks it belongs to them. */
@@ -32,6 +33,9 @@ export const requestService = command(portalRequestInput, async (input) => {
 		...input,
 		customerId: c.id
 	});
+	void notifyStaffBooking(c.organizationId, j!.id).catch((err) =>
+		console.error('staff booking alert failed', err)
+	);
 	void getPortalOverview(c.id).refresh();
 	return j;
 });

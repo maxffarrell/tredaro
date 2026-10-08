@@ -12,6 +12,7 @@ import {
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
+import { notifyLowStock, rearmLowStock } from './notifications.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
@@ -85,6 +86,7 @@ export async function adjustQty(
 		await db.update(inventoryItem).set({ qtyOnHand: 0 }).where(eq(inventoryItem.id, input.id));
 		i.qtyOnHand = 0;
 	}
+	if (sign > 0) void rearmLowStock(ctx.orgId, i.id).catch(() => {});
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId,
@@ -188,6 +190,10 @@ export async function addMaterial(
 				.update(inventoryItem)
 				.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} - ${input.qty}` })
 				.where(eq(inventoryItem.id, item.id));
+			if (item.reorderPoint != null && item.qtyOnHand - input.qty <= item.reorderPoint)
+				void notifyLowStock(ctx.orgId, item.id).catch((err) =>
+					console.error('low-stock alert failed', err)
+				);
 		}
 		const [m] = await tx
 			.insert(jobMaterial)
@@ -247,6 +253,7 @@ export async function removeMaterial(ctx: OrgContext, materialId: string) {
 				.update(inventoryItem)
 				.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${m.qty}` })
 				.where(eq(inventoryItem.id, m.inventoryItemId));
+			void rearmLowStock(ctx.orgId, m.inventoryItemId).catch(() => {});
 		}
 		void emit({
 			orgId: ctx.orgId,
@@ -419,6 +426,7 @@ export async function transitionPurchaseOrder(
 					.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${l.qty}` })
 					.where(eq(inventoryItem.id, l.inventoryItemId));
 				receivedLines.push({ itemId: l.inventoryItemId, qty: l.qty });
+				void rearmLowStock(ctx.orgId, l.inventoryItemId).catch(() => {});
 			}
 		}
 	});
@@ -540,6 +548,7 @@ export async function transferStock(
 				.update(inventoryItem)
 				.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${input.qty}` })
 				.where(eq(inventoryItem.id, item.id));
+			void rearmLowStock(ctx.orgId, item.id).catch(() => {});
 		}
 		void emit({
 			orgId: ctx.orgId,
