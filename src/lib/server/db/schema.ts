@@ -381,7 +381,8 @@ export const estimateStatus = pgEnum('estimate_status', [
 	'sent',
 	'approved',
 	'declined',
-	'converted'
+	'converted',
+	'superseded'
 ]);
 
 /** A quote for work. Customers approve it on a public link; approval books the job. */
@@ -406,12 +407,16 @@ export const estimate = pgTable(
 		decisionNote: text('decision_note'),
 		/** Job created on approval. */
 		jobId: text('job_id'),
+		/** Revision number — a revised estimate shares the number of the one it supersedes. */
+		version: integer('version').notNull().default(1),
+		/** Earlier revision this one replaces (set null keeps history queryable). */
+		supersedesId: text('supersedes_id'),
 		...timestamps
 	},
 	(t) => [
 		index('estimate_org_idx').on(t.organizationId),
 		index('estimate_customer_idx').on(t.customerId),
-		uniqueIndex('estimate_org_number_idx').on(t.organizationId, t.number)
+		uniqueIndex('estimate_org_number_idx').on(t.organizationId, t.number, t.version)
 	]
 );
 
@@ -711,4 +716,21 @@ export const purchaseOrderItem = pgTable(
 		...timestamps
 	},
 	(t) => [index('po_item_po_idx').on(t.purchaseOrderId)]
+);
+
+/** PTO/availability block for a staff member — dispatch flags these days. */
+export const memberTimeOff = pgTable(
+	'member_time_off',
+	{
+		id: id(),
+		organizationId: orgId(),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => member.id, { onDelete: 'cascade' }),
+		startsOn: date('starts_on', { mode: 'string' }).notNull(),
+		endsOn: date('ends_on', { mode: 'string' }).notNull(),
+		reason: text('reason').notNull().default(''),
+		...timestamps
+	},
+	(t) => [index('member_time_off_member_idx').on(t.memberId, t.startsOn)]
 );

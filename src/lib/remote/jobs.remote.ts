@@ -19,7 +19,8 @@ import {
 	jobTypeInput,
 	jobTypeUpdate,
 	jobUpdate,
-	timeEntryInput
+	timeEntryInput,
+	timeOffInput
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -172,3 +173,17 @@ export const deleteTimeEntry = command(
 		await refreshQuery(getTimeEntries, jobId);
 	}
 );
+
+// ---------- time off ----------
+
+export const getTimeOff = query(async () => svc.listTimeOff((await requireOrg()).orgId));
+export const addTimeOff = command(timeOffInput, async (input) => {
+	const row = await svc.addTimeOff(await requireOrg('admin'), input);
+	await refreshQuery(getTimeOff, undefined);
+	return row;
+});
+export const deleteTimeOff = command(idSchema, async (id) => {
+	await svc.deleteTimeOff(await requireOrg('admin'), id);
+	await refreshQuery(getTimeOff, undefined);
+	return { id };
+});

@@ -168,6 +168,62 @@ export async function updateEstimate(
 	return row;
 }
 
+/** Creates revision N+1 of a sent/decided estimate as a new draft; the old one is marked superseded. */
+export async function reviseEstimate(ctx: OrgContext, id: string) {
+	const [e] = await db
+		.select()
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
+	if (!e) error(404, 'Estimate not found');
+	if (e.status !== 'sent' && e.status !== 'declined')
+		error(409, 'Only sent or declined estimates can be revised');
+	const items = await db
+		.select()
+		.from(estimateItem)
+		.where(eq(estimateItem.estimateId, id))
+		.orderBy(asc(estimateItem.position));
+	const row = await db.transaction(async (tx) => {
+		await tx
+			.update(estimate)
+			.set({ status: 'superseded', updatedAt: new Date() })
+			.where(eq(estimate.id, id));
+		const [inserted] = await tx
+			.insert(estimate)
+			.values({
+				organizationId: ctx.orgId,
+				number: e.number,
+				customerId: e.customerId,
+				serviceLocationId: e.serviceLocationId,
+				notes: e.notes,
+				version: e.version + 1,
+				supersedesId: e.id
+			})
+			.returning();
+		return inserted;
+	});
+	if (items.length)
+		await db.insert(estimateItem).values(
+			items.map((it, i) => ({
+				estimateId: row!.id,
+				pricebookItemId: it.pricebookItemId,
+				name: it.name,
+				description: it.description,
+				qty: it.qty,
+				unitPrice: it.unitPrice,
+				position: i
+			}))
+		);
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'estimate',
+		entityId: row!.id,
+		action: 'revised',
+		summary: `Estimate E-${e.number} revised to v${e.version + 1}`
+	});
+	return row;
+}
+
 /** Marks the estimate sent; the public link can now be shared with the customer. */
 export async function sendEstimate(ctx: OrgContext, id: string) {
 	const [row] = await db

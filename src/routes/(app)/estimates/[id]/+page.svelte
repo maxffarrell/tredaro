@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
@@ -15,7 +17,8 @@
 		getEstimate,
 		getEstimates,
 		updateEstimate,
-		sendEstimate
+		sendEstimate,
+		reviseEstimate
 	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
@@ -24,6 +27,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import FilePen from '@lucide/svelte/icons/file-pen';
 
 	const id = page.params.id!;
 	const est = $derived(await getEstimate(id));
@@ -84,6 +88,16 @@
 		sending = false;
 	}
 
+	async function revise() {
+		try {
+			const rev = await reviseEstimate(id).updates(getEstimate, getEstimates);
+			toast.success(`Revision v${rev!.version} created as a draft`);
+			goto(`/estimates/${rev!.id}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not revise'));
+		}
+	}
+
 	async function copyLink() {
 		await navigator.clipboard.writeText(shareUrl);
 		toast.success('Link copied');
@@ -93,12 +107,16 @@
 <PageHeader title="E-{est.estimate.number}" crumbs={[{ label: 'Estimates', href: '/estimates' }]}>
 	{#snippet actions()}
 		<StatusBadge status={est.estimate.status} />
+		{#if est.estimate.version > 1}<Badge variant="secondary">v{est.estimate.version}</Badge>{/if}
 		{#if draft}
 			<Button size="sm" onclick={send} disabled={sending}
 				><Send /> {sending ? 'Sending…' : 'Send'}</Button
 			>
 		{:else if shareUrl}
 			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
+		{/if}
+		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined'}
+			<Button size="sm" variant="outline" onclick={revise}><FilePen /> Revise</Button>
 		{/if}
 	{/snippet}
 </PageHeader>

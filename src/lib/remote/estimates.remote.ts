@@ -38,3 +38,10 @@ export const sendEstimate = command(idSchema, async (id) => {
 	await refreshQuery(getEstimates, undefined);
 	return r;
 });
+
+export const reviseEstimate = command(idSchema, async (id) => {
+	const rev = await svc.reviseEstimate(await requireOrg(), id);
+	await refreshQuery(getEstimate, id);
+	await refreshQuery(getEstimates, undefined);
+	return rev;
+});

@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, getTableColumns, gte, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gte, isNull, lt, lte, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	charge,
@@ -10,6 +10,7 @@ import {
 	jobTimeEntry,
 	jobType,
 	member,
+	memberTimeOff,
 	office,
 	payment,
 	serviceLocation,
@@ -19,7 +20,7 @@ import {
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
 import { nextNumber } from './settings.ts';
-import { addDays, zonedToUtc } from '#lib/tz.ts';
+import { addDays, localDate, zonedToUtc } from '#lib/tz.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
@@ -181,6 +182,8 @@ export async function createJob(
 
 	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
+	if (start)
+		await assertTechAvailable(ctx.orgId, input.technicianId ?? jt?.technicianId ?? null, start, tz);
 	const durationMin = jt?.durationMin ?? 60;
 	const [row] = await db
 		.insert(job)
@@ -246,6 +249,10 @@ export async function updateJob(
 			: start === null
 				? null
 				: new Date(start.getTime() + durationMin * 60_000);
+
+	const effectiveStart = start === undefined ? existing.startsAt : start;
+	const effectiveTech = set.technicianId === undefined ? existing.technicianId : set.technicianId;
+	if (effectiveStart) await assertTechAvailable(ctx.orgId, effectiveTech, effectiveStart, tz);
 
 	const status =
 		set.cancelled === true
@@ -517,12 +524,24 @@ export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
 
 /** Jobs in the window plus everything unscheduled — one payload for the dispatch board. */
 export async function dispatchBoard(orgId: string, from: Date, to: Date) {
-	const [scheduled, unscheduled, technicians] = await Promise.all([
+	const fromIso = from.toISOString().slice(0, 10);
+	const toIso = to.toISOString().slice(0, 10);
+	const [scheduled, unscheduled, technicians, timeOff] = await Promise.all([
 		listJobs(orgId, { from, to }),
 		listJobs(orgId, { unscheduled: true }),
-		listTechnicians(orgId)
+		listTechnicians(orgId),
+		db
+			.select()
+			.from(memberTimeOff)
+			.where(
+				and(
+					eq(memberTimeOff.organizationId, orgId),
+					lte(memberTimeOff.startsOn, toIso),
+					gte(memberTimeOff.endsOn, fromIso)
+				)
+			)
 	]);
-	return { scheduled, unscheduled, technicians };
+	return { scheduled, unscheduled, technicians, timeOff };
 }
 
 /** Technicians = staff members of the org. */
@@ -564,3 +583,74 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 }
 
 export { addDays };
+
+// ---------- Time off ----------
+
+/** 409 when the tech has a time-off block overlapping the job's day(s). */
+export async function assertTechAvailable(
+	orgId: string,
+	memberId: string | null,
+	start: Date,
+	tz: string
+) {
+	if (!memberId) return;
+	const day = localDate(start, tz);
+	const [block] = await db
+		.select({ startsOn: memberTimeOff.startsOn, endsOn: memberTimeOff.endsOn, name: user.name })
+		.from(memberTimeOff)
+		.innerJoin(member, eq(memberTimeOff.memberId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(
+				eq(memberTimeOff.organizationId, orgId),
+				eq(memberTimeOff.memberId, memberId),
+				lte(memberTimeOff.startsOn, day),
+				gte(memberTimeOff.endsOn, day)
+			)
+		)
+		.limit(1);
+	if (block)
+		error(
+			409,
+			`${block.name} is off ${block.startsOn === block.endsOn ? `on ${block.startsOn}` : `${block.startsOn} to ${block.endsOn}`}`
+		);
+}
+
+export async function listTimeOff(orgId: string) {
+	return db
+		.select({ timeOff: memberTimeOff, memberName: user.name })
+		.from(memberTimeOff)
+		.innerJoin(member, eq(memberTimeOff.memberId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(memberTimeOff.organizationId, orgId))
+		.orderBy(asc(memberTimeOff.startsOn));
+}
+
+export async function addTimeOff(ctx: OrgContext, input: v.InferOutput<typeof s.timeOffInput>) {
+	if (input.endsOn < input.startsOn) error(400, 'End date is before the start date');
+	const [m] = await db
+		.select({ id: member.id })
+		.from(member)
+		.where(and(eq(member.id, input.memberId), eq(member.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!m) error(404, 'Staff member not found');
+	const [row] = await db
+		.insert(memberTimeOff)
+		.values({
+			organizationId: ctx.orgId,
+			memberId: input.memberId,
+			startsOn: input.startsOn,
+			endsOn: input.endsOn,
+			reason: input.reason
+		})
+		.returning();
+	return row;
+}
+
+export async function deleteTimeOff(ctx: OrgContext, id: string) {
+	const [row] = await db
+		.delete(memberTimeOff)
+		.where(and(eq(memberTimeOff.id, id), eq(memberTimeOff.organizationId, ctx.orgId)))
+		.returning();
+	if (!row) error(404, 'Time-off entry not found');
+}

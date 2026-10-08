@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { getDispatchBoard } from '#lib/remote/jobs.remote.ts';
@@ -92,7 +93,14 @@
 		{#each byTech as [techId, group] (techId || 'unassigned')}
 			<Card.Root>
 				<Card.Header>
-					<Card.Title class="text-base">{group.name}</Card.Title>
+					<Card.Title class="flex items-center gap-2 text-base">
+						{group.name}
+						{#each board.timeOff.filter((t) => t.memberId === techId) as t (t.id)}
+							<Badge variant="secondary" class="font-normal text-amber-700 dark:text-amber-400">
+								Off {t.startsOn}{t.endsOn !== t.startsOn ? ` – ${t.endsOn}` : ''}
+							</Badge>
+						{/each}
+					</Card.Title>
 				</Card.Header>
 				<Card.Content class="px-4">
 					{#if group.jobs.length === 0}

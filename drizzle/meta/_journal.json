@@ -36,6 +36,13 @@
       "when": 1791412342576,
       "tag": "0004_add_review_url",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791429000000,
+      "tag": "0008_batch_b",
+      "breakpoints": true
     }
   ]
 }

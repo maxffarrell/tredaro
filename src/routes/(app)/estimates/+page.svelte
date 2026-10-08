@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -97,7 +98,12 @@
 				<Table.Body>
 					{#each estimates as e (e.estimate.id)}
 						<Table.Row class="cursor-pointer" onclick={() => goto(`/estimates/${e.estimate.id}`)}>
-							<Table.Cell class="font-medium">E-{e.estimate.number}</Table.Cell>
+							<Table.Cell class="font-medium">
+								E-{e.estimate.number}
+								{#if e.estimate.version > 1}
+									<Badge variant="secondary" class="ml-1 font-normal">v{e.estimate.version}</Badge>
+								{/if}
+							</Table.Cell>
 							<Table.Cell>{e.customerName}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{formatDate(e.estimate.createdAt)}</Table.Cell

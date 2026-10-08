@@ -374,3 +374,10 @@ export const portalRequestInput = v.object({
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
 });
+
+export const timeOffInput = v.object({
+	memberId: idSchema,
+	startsOn: isoDate,
+	endsOn: isoDate,
+	reason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
+});

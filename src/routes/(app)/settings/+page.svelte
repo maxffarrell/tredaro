@@ -29,6 +29,12 @@
 		seedDemo
 	} from '#lib/remote/workspace.remote.ts';
 	import {
+		getTechnicians,
+		getTimeOff,
+		addTimeOff,
+		deleteTimeOff
+	} from '#lib/remote/jobs.remote.ts';
+	import {
 		getPaymentProviders,
 		toggleProvider,
 		connectProvider,
@@ -52,6 +58,40 @@
 	let providerList = $state(await getPaymentProviders());
 	const staff = await getStaff();
 	let pending = $state(false);
+
+	// ------- time off -------
+	let timeOff = $state(await getTimeOff());
+	const techs = await getTechnicians();
+	let toMember = $state('');
+	let toStart = $state('');
+	let toEnd = $state('');
+	let toReason = $state('');
+	async function saveTimeOff(e: SubmitEvent) {
+		e.preventDefault();
+		pending = true;
+		try {
+			await addTimeOff({
+				memberId: toMember,
+				startsOn: toStart,
+				endsOn: toEnd,
+				reason: toReason
+			}).updates(getTimeOff);
+			toast.success('Time off added');
+			toStart = toEnd = toReason = '';
+			timeOff = await getTimeOff();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add time off'));
+		}
+		pending = false;
+	}
+	async function removeTimeOff(id: string) {
+		try {
+			await deleteTimeOff(id).updates(getTimeOff);
+			timeOff = await getTimeOff();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not remove'));
+		}
+	}
 
 	// ------- general -------
 	let timezone = $state(settings.timezone);
@@ -390,6 +430,62 @@
 							</Select.Content>
 						</Select.Root>
 						<Button type="submit" variant="secondary" disabled={pending}>Invite</Button>
+					</form>
+				</Card.Content>
+			</Card.Root>
+
+			<Card.Root class="max-w-2xl">
+				<Card.Header>
+					<Card.Title class="text-base">Time off</Card.Title>
+					<Card.Description
+						>Days a technician is unavailable — scheduling a job on those days is blocked.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="space-y-4 px-6">
+					<ul class="divide-y">
+						{#each timeOff as t (t.timeOff.id)}
+							<li class="flex items-center justify-between py-3 text-sm">
+								<div class="min-w-0">
+									<p class="font-medium">{t.memberName}</p>
+									<p class="text-xs text-muted-foreground">
+										{t.timeOff.startsOn}{t.timeOff.endsOn !== t.timeOff.startsOn
+											? ` – ${t.timeOff.endsOn}`
+											: ''}{t.timeOff.reason ? ` · ${t.timeOff.reason}` : ''}
+									</p>
+								</div>
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7"
+									onclick={() => removeTimeOff(t.timeOff.id)}><Trash class="size-4" /></Button
+								>
+							</li>
+						{:else}
+							<li class="py-2 text-sm text-muted-foreground">No time off scheduled.</li>
+						{/each}
+					</ul>
+					<form
+						class="grid grid-cols-2 gap-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto]"
+						onsubmit={saveTimeOff}
+					>
+						<Select.Root
+							type="single"
+							value={toMember}
+							onValueChange={(v: string) => (toMember = v)}
+						>
+							<Select.Trigger class="w-full"
+								>{techs.find((t) => t.id === toMember)?.name ?? 'Technician…'}</Select.Trigger
+							>
+							<Select.Content>
+								{#each techs as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Input type="date" required aria-label="First day off" bind:value={toStart} />
+						<Input type="date" required aria-label="Last day off" bind:value={toEnd} />
+						<Input placeholder="Reason (optional)" bind:value={toReason} />
+						<Button type="submit" variant="secondary" disabled={pending || !toMember}>Add</Button>
 					</form>
 				</Card.Content>
 			</Card.Root>
