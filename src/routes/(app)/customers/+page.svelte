@@ -14,7 +14,12 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { toast } from 'svelte-sonner';
-	import { getCustomers, createCustomer, importCustomers } from '#lib/remote/customers.remote.ts';
+	import {
+		getCustomers,
+		createCustomer,
+		importCustomers,
+		checkCustomerDuplicates
+	} from '#lib/remote/customers.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { parseCsv, toCsv } from '#lib/csv.ts';
 	import { getCurrency } from '#lib/remote/billing.remote.ts';
@@ -107,10 +112,25 @@
 		URL.revokeObjectURL(a.href);
 	}
 
+	let dupMatches = $state<{ customer: { id: string; name: string }; match: string }[]>([]);
+	let dupAcked = $state(false);
+
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
 		pending = true;
 		try {
+			if (!dupAcked) {
+				dupMatches = await checkCustomerDuplicates({
+					name: name || undefined,
+					email: email || undefined,
+					phone: phone || undefined
+				});
+				if (dupMatches.length) {
+					dupAcked = true;
+					pending = false;
+					return;
+				}
+			}
 			await createCustomer({
 				type,
 				companyName: companyName || undefined,
@@ -120,6 +140,8 @@
 			}).updates(getCustomers);
 			toast.success('Customer added');
 			open = false;
+			dupMatches = [];
+			dupAcked = false;
 			companyName = name = email = phone = '';
 			customers = await getCustomers({ q });
 		} catch (err) {
@@ -260,8 +282,22 @@
 				<Field.Label for="c-phone">Phone</Field.Label>
 				<Input id="c-phone" bind:value={phone} />
 			</Field.Field>
+			{#if dupMatches.length}
+				<div
+					class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:bg-amber-950/30"
+				>
+					<p class="font-medium">Possible duplicate — already on file:</p>
+					<ul class="mt-1 list-inside list-disc text-muted-foreground">
+						{#each dupMatches as d (d.customer.id ?? d.customer.name)}
+							<li>{d.customer.name} ({d.match})</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
 			<Dialog.Footer>
-				<Button type="submit" disabled={pending}>{pending ? 'Adding…' : 'Add customer'}</Button>
+				<Button type="submit" disabled={pending}
+					>{pending ? 'Adding…' : dupMatches.length ? 'Create anyway' : 'Add customer'}</Button
+				>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

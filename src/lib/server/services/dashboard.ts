@@ -224,6 +224,22 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(job.number))
 		.limit(4);
 
+	const uninvoicedJobs = await db
+		.select({ id: job.id, number: job.number, summary: job.summary, customerName: customer.name })
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt),
+				gte(job.completedAt, new Date(Date.now() - 30 * 86400_000)),
+				sql`not exists (select 1 from ${invoice} i where i.job_id = ${outer(job.id)})`
+			)
+		)
+		.orderBy(asc(job.completedAt))
+		.limit(4);
+
 	const lowStock = await db
 		.select()
 		.from(inventoryItem)
@@ -279,6 +295,13 @@ export async function dashboard(orgId: string) {
 				href: `/jobs/${b.id}`,
 				text: `${b.customerName} · J-${b.number} ${b.summary}`,
 				sub: 'waiting on parts',
+				amountCents: null as number | null
+			})),
+			...uninvoicedJobs.map((j) => ({
+				tone: 'amber' as const,
+				href: `/jobs/${j.id}`,
+				text: `${j.customerName} · J-${j.number} ${j.summary}`,
+				sub: 'completed — not invoiced yet',
 				amountCents: null as number | null
 			})),
 			...renewingAgreements.map((a) => ({

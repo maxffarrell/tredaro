@@ -456,6 +456,35 @@ export async function findDuplicates(orgId: string, customerId: string) {
 		});
 }
 
+/** Customers matching a not-yet-saved record's email/phone/name — for create-time warnings. */
+export async function findPotentialDuplicates(
+	orgId: string,
+	fields: { name?: string; email?: string; phone?: string }
+) {
+	const all = await db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			companyName: customer.companyName,
+			email: customer.email,
+			phone: customer.phone,
+			status: customer.status
+		})
+		.from(customer)
+		.where(eq(customer.organizationId, orgId));
+	return all.flatMap((c) => {
+		const match =
+			fields.email && c.email && normText(fields.email) === normText(c.email)
+				? ('same email' as const)
+				: digits(fields.phone ?? '').length >= 7 && digits(fields.phone ?? '') === digits(c.phone)
+					? ('same phone' as const)
+					: fields.name && normText(fields.name) === normText(c.name)
+						? ('same name' as const)
+						: null;
+		return match ? [{ customer: c, match }] : [];
+	});
+}
+
 /**
  * Merge `sourceId` into `targetId`: every record pointing at the duplicate moves to the
  * survivor, blank fields on the survivor fill from the duplicate, and the duplicate is

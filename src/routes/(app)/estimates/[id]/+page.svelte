@@ -25,6 +25,7 @@
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Send from '@lucide/svelte/icons/send';
 	import Receipt from '@lucide/svelte/icons/receipt';
+	import Printer from '@lucide/svelte/icons/printer';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -144,6 +145,7 @@
 		{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
 			<Button size="sm" variant="outline" onclick={invoice}><Receipt /> Invoice</Button>
 		{/if}
+		<Button size="sm" variant="outline" href="/estimates/{id}/print"><Printer /> Print</Button>
 	{/snippet}
 </PageHeader>
 

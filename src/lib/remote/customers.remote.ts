@@ -76,6 +76,15 @@ export const getPortalInvite = query(idSchema, async (customerId) => {
 export const getCustomerDuplicates = query(idSchema, async (id) =>
 	svc.findDuplicates((await requireOrg()).orgId, id)
 );
+
+export const checkCustomerDuplicates = query(
+	v.object({
+		name: v.optional(v.string()),
+		email: v.optional(v.string()),
+		phone: v.optional(v.string())
+	}),
+	async (fields) => svc.findPotentialDuplicates((await requireOrg()).orgId, fields)
+);
 export const mergeCustomers = command(mergeCustomerInput, async (input) => {
 	const c = await svc.mergeCustomers(await requireOrg('admin'), input.sourceId, input.targetId);
 	await refreshQuery(getCustomer, input.targetId);
