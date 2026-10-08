@@ -1143,7 +1143,8 @@ export async function notifyPaymentReceived(orgId: string, paymentIds: string[])
 		})
 		.from(payment)
 		.innerJoin(customer, eq(payment.customerId, customer.id))
-		.where(inArray(payment.id, paymentIds));
+		.where(inArray(payment.id, paymentIds))
+		.groupBy(payment.method, customer.email, customer.emailOptOut);
 	if (!row?.email || row.emailOptOut || row.amount <= 0) return;
 	if (!(await logOnce(orgId, 'payment_receipt', paymentIds[0], row.email))) return;
 	const name = await orgName(orgId);
