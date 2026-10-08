@@ -16,12 +16,15 @@
 	import { toast } from 'svelte-sonner';
 	import {
 		getCustomer,
+		getCustomers,
 		updateCustomer,
 		addServiceLocation,
 		updateServiceLocation,
 		createEquipment,
 		updateEquipment,
-		getPortalInvite
+		getPortalInvite,
+		getCustomerDuplicates,
+		mergeCustomers
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment } from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
@@ -32,6 +35,8 @@
 	import AirVent from '@lucide/svelte/icons/air-vent';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Wrench from '@lucide/svelte/icons/wrench';
+	import GitMerge from '@lucide/svelte/icons/git-merge';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	const id = page.params.id!;
 	const c = $derived(await getCustomer(id));
@@ -162,6 +167,29 @@
 		eqPending = false;
 	}
 
+	// ------- merge duplicates -------
+	const dupes = $derived(await getCustomerDuplicates(id));
+	let mergeOpen = $state(false);
+	let mergeSource = $state('');
+	let mergePending = $state(false);
+	const mergeTarget = $derived(dupes.find((d) => d.customer.id === mergeSource));
+	async function doMerge() {
+		if (!mergeTarget) return;
+		mergePending = true;
+		try {
+			await mergeCustomers({
+				sourceId: mergeTarget.customer.id,
+				targetId: id
+			}).updates(getCustomer, getCustomerDuplicates, getCustomers);
+			toast.success(`Merged ${mergeTarget.customer.name} into ${c.customer.name}`);
+			mergeOpen = false;
+			mergeSource = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not merge'));
+		}
+		mergePending = false;
+	}
+
 	// ------- portal link -------
 	async function copyPortal() {
 		try {
@@ -204,6 +232,19 @@
 <PageHeader title={c.customer.name} crumbs={[{ label: 'Customers', href: '/customers' }]}>
 	{#snippet actions()}
 		<StatusBadge status={c.customer.status} />
+		{#if dupes.length}
+			<Button
+				size="sm"
+				variant="outline"
+				class="border-amber-500/50 text-amber-600 dark:text-amber-400"
+				onclick={() => (mergeOpen = true)}
+				><TriangleAlert /> {dupes.length} possible duplicate{dupes.length > 1 ? 's' : ''}</Button
+			>
+		{:else}
+			<Button size="sm" variant="outline" onclick={() => (mergeOpen = true)}
+				><GitMerge /> Merge</Button
+			>
+		{/if}
 		<Button size="sm" variant="outline" onclick={copyPortal}><Link2 /> Portal link</Button>
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 	{/snippet}
@@ -659,5 +700,65 @@
 				>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={mergeOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Merge into {c.customer.name}</Dialog.Title>
+			<Dialog.Description>
+				Pick the duplicate to merge. Its jobs, invoices, charges, payments, agreements, equipment
+				and locations move to {c.customer.name}, and the duplicate is deleted — this can't be
+				undone.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-2">
+			{#each dupes as d (d.customer.id)}
+				<button
+					type="button"
+					class="flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors {mergeSource ===
+					d.customer.id
+						? 'border-primary bg-primary/5'
+						: 'hover:bg-accent/50'}"
+					onclick={() => (mergeSource = d.customer.id)}
+				>
+					<span
+						class="mt-1 size-3 shrink-0 rounded-full border {mergeSource === d.customer.id
+							? 'border-primary bg-primary'
+							: 'border-muted-foreground/40'}"
+					></span>
+					<span class="min-w-0 flex-1">
+						<span class="block font-medium">
+							{d.customer.name}
+							{#if d.customer.companyName}
+								<span class="text-muted-foreground">· {d.customer.companyName}</span>
+							{/if}
+						</span>
+						<span class="block text-xs text-muted-foreground">
+							{d.match}
+							{#if d.customer.email}
+								· {d.customer.email}{/if}
+							{#if d.customer.phone}
+								· {d.customer.phone}{/if}
+						</span>
+					</span>
+					<StatusBadge status={d.customer.status} />
+				</button>
+			{:else}
+				<p class="text-sm text-muted-foreground">
+					No duplicates found — no other customer shares this one's email, phone number, or name.
+				</p>
+			{/each}
+		</div>
+		{#if dupes.length}
+			<Dialog.Footer>
+				<Button variant="destructive" disabled={!mergeSource || mergePending} onclick={doMerge}>
+					{mergePending
+						? 'Merging…'
+						: `Merge ${mergeTarget?.customer.name ?? '…'} into this customer`}
+				</Button>
+			</Dialog.Footer>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>

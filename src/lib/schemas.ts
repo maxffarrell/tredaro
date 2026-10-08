@@ -174,6 +174,12 @@ export const jobMaterialInput = v.object({
 	unitPrice: v.optional(cents, 0)
 });
 
+/** `sourceId` (the duplicate) is deleted; `targetId` (the survivor) absorbs its records. */
+export const mergeCustomerInput = v.object({
+	sourceId: idSchema,
+	targetId: idSchema
+});
+
 export const jobTypeInput = v.object({
 	name: requiredText('Name'),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),

@@ -2,10 +2,12 @@ import { error } from '@sveltejs/kit';
 import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
+	activity,
 	agreementPlan,
 	charge,
 	customer,
 	equipment,
+	invoice,
 	job,
 	jobType,
 	office,
@@ -402,4 +404,116 @@ export async function portalCustomers(userId: string) {
 		.from(customer)
 		.innerJoin(organization, eq(organization.id, customer.organizationId))
 		.where(eq(customer.portalUserId, userId));
+}
+
+const normText = (s: string | null) => (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+const digits = (s: string | null) => (s ?? '').replace(/\D/g, '');
+
+/** Other customers that look like the same person — same email, phone digits, or name. */
+export async function findDuplicates(orgId: string, customerId: string) {
+	const all = await db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			companyName: customer.companyName,
+			email: customer.email,
+			phone: customer.phone,
+			status: customer.status
+		})
+		.from(customer)
+		.where(eq(customer.organizationId, orgId));
+	const me = all.find((c) => c.id === customerId);
+	if (!me) return [];
+	return all
+		.filter((c) => c.id !== customerId)
+		.flatMap((c) => {
+			const match =
+				me.email && c.email && normText(me.email) === normText(c.email)
+					? ('same email' as const)
+					: digits(me.phone).length >= 7 && digits(me.phone) === digits(c.phone)
+						? ('same phone' as const)
+						: normText(me.name) === normText(c.name)
+							? ('same name' as const)
+							: null;
+			return match ? [{ customer: c, match }] : [];
+		});
+}
+
+/**
+ * Merge `sourceId` into `targetId`: every record pointing at the duplicate moves to the
+ * survivor, blank fields on the survivor fill from the duplicate, and the duplicate is
+ * deleted. Runs in one transaction so a failure leaves both customers intact.
+ */
+export async function mergeCustomers(ctx: OrgContext, sourceId: string, targetId: string) {
+	if (sourceId === targetId) error(400, 'Pick two different customers');
+	const [target] = await db
+		.select()
+		.from(customer)
+		.where(and(eq(customer.id, targetId), eq(customer.organizationId, ctx.orgId)))
+		.limit(1);
+	const [source] = await db
+		.select()
+		.from(customer)
+		.where(and(eq(customer.id, sourceId), eq(customer.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!target || !source) error(404, 'Customer not found');
+
+	await db.transaction(async (tx) => {
+		for (const t of [
+			serviceLocation,
+			equipment,
+			serviceAgreement,
+			job,
+			estimate,
+			invoice,
+			charge,
+			payment
+		] as const)
+			await tx
+				.update(t)
+				.set({ customerId: targetId })
+				.where(and(eq(t.customerId, sourceId), eq(t.organizationId, ctx.orgId)));
+
+		// Fill gaps on the survivor from the duplicate; the survivor's own values always win.
+		await tx
+			.update(customer)
+			.set({
+				officeId: target.officeId ?? source.officeId,
+				portalUserId: target.portalUserId ?? source.portalUserId,
+				companyName: target.companyName ?? source.companyName,
+				email: target.email ?? source.email,
+				phone: target.phone ?? source.phone,
+				notes: target.notes ?? source.notes,
+				since: target.since ?? source.since,
+				updatedAt: new Date()
+			})
+			.where(eq(customer.id, targetId));
+
+		// Keep the audit trail — the duplicate's activity reads as the survivor's.
+		await tx
+			.update(activity)
+			.set({ entityId: targetId })
+			.where(
+				and(
+					eq(activity.entityType, 'customer'),
+					eq(activity.entityId, sourceId),
+					eq(activity.organizationId, ctx.orgId)
+				)
+			);
+
+		await tx
+			.delete(customer)
+			.where(and(eq(customer.id, sourceId), eq(customer.organizationId, ctx.orgId)));
+	});
+
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'customer',
+		entityId: targetId,
+		action: 'merged',
+		summary: `Merged ${source.name} into ${target.name}`,
+		data: { sourceId }
+	});
+	return target;
 }

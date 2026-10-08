@@ -13,6 +13,7 @@ import {
 	equipmentInput,
 	equipmentUpdate,
 	idSchema,
+	mergeCustomerInput,
 	serviceLocationInput,
 	serviceLocationUpdate
 } from '#lib/schemas.ts';
@@ -68,4 +69,16 @@ export const updateEquipment = command(equipmentUpdate, async (input) => {
 export const getPortalInvite = query(idSchema, async (customerId) => {
 	await requireOrg();
 	return { url: `${appOrigin()}/portal/claim/${portalToken(customerId)}` };
+});
+
+export const getCustomerDuplicates = query(idSchema, async (id) =>
+	svc.findDuplicates((await requireOrg()).orgId, id)
+);
+export const mergeCustomers = command(mergeCustomerInput, async (input) => {
+	const c = await svc.mergeCustomers(await requireOrg('admin'), input.sourceId, input.targetId);
+	await refreshQuery(getCustomer, input.targetId);
+	await refreshQuery(getCustomerDuplicates, input.targetId);
+	await refreshQuery(getCustomers, undefined);
+	await refreshQuery(getDashboard, undefined);
+	return c;
 });
