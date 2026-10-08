@@ -4,7 +4,11 @@
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
-	import { getStaffNotifications, markAllNotificationsRead } from '#lib/remote/workspace.remote.ts';
+	import {
+		getStaffNotifications,
+		getUnreadNotificationCount,
+		markAllNotificationsRead
+	} from '#lib/remote/workspace.remote.ts';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import CheckCheck from '@lucide/svelte/icons/check-check';
 	import { formatRelative } from '#lib/format.ts';
@@ -17,7 +21,7 @@
 
 	async function markAllRead() {
 		try {
-			await markAllNotificationsRead({}).updates(getStaffNotifications);
+			await markAllNotificationsRead({}).updates(getStaffNotifications, getUnreadNotificationCount);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not mark notifications read'));
 		}

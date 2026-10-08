@@ -27,6 +27,7 @@
 		onsearch: () => void;
 	};
 	let { user, org, onsearch }: Props = $props();
+	const unreadN = $derived(await getUnreadNotificationCount());
 
 	const sidebar = Sidebar.useSidebar();
 	$effect(() => {
@@ -90,10 +91,10 @@
 							{#snippet child({ props })}
 								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}"
 									><item.icon /><span>{item.label}</span
-									>{#if item.href === '/notifications'}{#await getUnreadNotificationCount() then n}{#if n > 0}<span
-													class="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground"
-													>{n > 99 ? '99+' : n}</span
-												>{/if}{/await}{/if}</a
+									>{#if item.href === '/notifications' && unreadN > 0}<span
+											class="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground"
+											>{unreadN > 99 ? '99+' : unreadN}</span
+										>{/if}</a
 								>
 							{/snippet}
 						</Sidebar.MenuButton>
