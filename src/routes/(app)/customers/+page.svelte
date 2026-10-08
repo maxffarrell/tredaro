@@ -93,7 +93,17 @@
 
 	function exportCsv() {
 		const csv = toCsv([
-			['Name', 'Company', 'Email', 'Phone', 'Status', 'Plan', 'Open balance', 'Since'],
+			[
+				'Name',
+				'Company',
+				'Email',
+				'Phone',
+				'Status',
+				'Plan',
+				'Last visit',
+				'Open balance',
+				'Since'
+			],
 			...customers.map((c) => [
 				c.name,
 				c.companyName,
@@ -101,6 +111,7 @@
 				c.phone,
 				c.status,
 				c.planName,
+				c.lastVisit ? formatDate(c.lastVisit) : '',
 				(c.openBalance / 100).toFixed(2),
 				c.since ? formatDate(c.since) : ''
 			])

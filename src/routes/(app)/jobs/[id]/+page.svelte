@@ -102,6 +102,13 @@
 	let officeId = $state(j.job.officeId ?? '');
 	let serviceLocationId = $state(j.job.serviceLocationId ?? '');
 	let equipmentId = $state(j.job.equipmentId ?? '');
+	const unitHistory = $derived(
+		equipmentId
+			? (await getJobs({ equipmentId }))
+					.filter((x) => x.job.id !== id && x.job.status === 'done')
+					.slice(0, 5)
+			: []
+	);
 	let summary = $state(j.job.summary);
 	let description = $state(j.job.description);
 	let priority = $state(j.job.priority);
@@ -652,6 +659,27 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
+						{#if equipmentId}
+							{@const unit = c.equipment.find((e) => e.equipment.id === equipmentId)?.equipment}
+							{#if unit}
+								<p class="pt-1 text-xs text-muted-foreground">
+									<a href="/customers/{j.job.customerId}" class="hover:underline"
+										>{[unit.brand, unit.model].filter(Boolean).join(' ') || 'Unit'}</a
+									>
+									{#if unit.serial}· s/n {unit.serial}{/if}
+								</p>
+							{/if}
+							{#if unitHistory.length}
+								<p class="pt-1 text-xs text-muted-foreground">
+									Last visits:
+									{#each unitHistory as h, i (h.job.id)}<!--
+										-->{#if i > 0},
+										{/if}<a href="/jobs/{h.job.id}" class="hover:underline">J-{h.job.number}</a
+										><!--
+									-->{/each}
+								</p>
+							{/if}
+						{/if}
 					</Field.Field>
 					<Field.Field>
 						<Field.Label>Job type</Field.Label>

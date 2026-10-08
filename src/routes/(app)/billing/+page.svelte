@@ -399,7 +399,9 @@
 											inv.total > 0 &&
 											inv.total - inv.paid <= 0
 												? 'paid'
-												: inv.invoice.status}
+												: inv.invoice.status === 'open' && inv.paid > 0
+													? 'partial'
+													: inv.invoice.status}
 										/></Table.Cell
 									>
 									<Table.Cell class="text-right">
