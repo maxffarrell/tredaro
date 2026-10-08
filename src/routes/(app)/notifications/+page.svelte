@@ -168,13 +168,13 @@
 							</Table.Cell>
 						</Table.Row>
 					{/each}
-					{#if hasMore}
-						<div class="flex justify-center pt-1">
-							<Button variant="outline" size="sm" onclick={() => (page += 50)}>Load more</Button>
-						</div>
-					{/if}
 				</Table.Body>
 			</Table.Root>
+			{#if hasMore}
+				<div class="flex justify-center pt-3">
+					<Button variant="outline" size="sm" onclick={() => (page += 50)}>Load more</Button>
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 </div>
