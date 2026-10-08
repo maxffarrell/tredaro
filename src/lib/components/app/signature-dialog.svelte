@@ -20,7 +20,8 @@
 	} = $props();
 
 	let canvas: HTMLCanvasElement | undefined = $state();
-	let name = $state('');
+	let nameEl: HTMLInputElement | undefined = $state();
+	let hasName = $state(false);
 	let drawn = $state(false);
 	let drawing = false;
 	let ctx2d: CanvasRenderingContext2D | null = null;
@@ -76,15 +77,19 @@
 
 	$effect(() => {
 		if (open) {
-			name = '';
+			hasName = false;
 			drawn = false;
-			requestAnimationFrame(setup);
+			requestAnimationFrame(() => {
+				setup();
+				if (nameEl) nameEl.value = '';
+			});
 		}
 	});
 
 	function save() {
-		if (!canvas || !drawn || !name.trim()) return;
-		onSave(name.trim(), canvas.toDataURL('image/png'));
+		const name = nameEl?.value.trim() ?? '';
+		if (!canvas || !drawn || !name) return;
+		onSave(name, canvas.toDataURL('image/png'));
 	}
 </script>
 
@@ -108,7 +113,12 @@
 			<div class="flex items-end justify-between gap-2">
 				<div class="grid flex-1 gap-1.5">
 					<Label for="sig-name">Printed name</Label>
-					<Input id="sig-name" bind:value={name} autocomplete="off" />
+					<Input
+						id="sig-name"
+						bind:ref={nameEl}
+						autocomplete="off"
+						oninput={() => (hasName = !!nameEl?.value.trim())}
+					/>
 				</div>
 				<Button variant="ghost" size="icon" onclick={clear} title="Clear"><Eraser /></Button>
 			</div>
@@ -117,8 +127,7 @@
 			{#if onSkip}
 				<Button variant="ghost" disabled={pending} onclick={onSkip}>{skipLabel ?? 'Skip'}</Button>
 			{/if}
-			<Button disabled={pending || !drawn || !name.trim()} onclick={save}>Sign &amp; confirm</Button
-			>
+			<Button disabled={pending || !drawn || !hasName} onclick={save}>Sign &amp; confirm</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
