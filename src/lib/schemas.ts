@@ -513,7 +513,8 @@ export const checklistToggleInput = v.object({
 	done: v.boolean()
 });
 export const activityFilter = v.object({
-	entityType: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)))
+	entityType: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40))),
+	limit: v.optional(v.number())
 });
 
 /** A recurring maintenance cadence on a customer. */

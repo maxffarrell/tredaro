@@ -267,7 +267,12 @@ export const seedDemo = command(v.object({}), async () => {
 // ---------- activity feed ----------
 
 export const getActivity = query(activityFilter, async (filter) =>
-	eventsSvc.listActivity((await requireOrg()).orgId, filter.entityType || undefined)
+	eventsSvc.listActivity(
+		(await requireOrg()).orgId,
+		filter.entityType || undefined,
+		undefined,
+		filter.limit
+	)
 );
 export const getActivityTypes = query(async () =>
 	eventsSvc.listActivityTypes((await requireOrg()).orgId)

@@ -92,7 +92,12 @@ async function deliverWebhooks(event: TredaroEvent) {
 // ---------- feed ----------
 
 /** Recent org activity for the /activity page — newest first, optional entity-type filter. */
-export async function listActivity(orgId: string, entityType?: string, entityId?: string) {
+export async function listActivity(
+	orgId: string,
+	entityType?: string,
+	entityId?: string,
+	limit = 200
+) {
 	const rows = await db
 		.select({
 			activity,
@@ -109,7 +114,7 @@ export async function listActivity(orgId: string, entityType?: string, entityId?
 			)
 		)
 		.orderBy(desc(activity.createdAt))
-		.limit(200);
+		.limit(limit);
 	return rows;
 }
 

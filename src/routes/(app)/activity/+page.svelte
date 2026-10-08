@@ -8,14 +8,17 @@
 	import { getActivity, getActivityTypes } from '#lib/remote/workspace.remote.ts';
 	import { formatRelative } from '#lib/format.ts';
 	import History from '@lucide/svelte/icons/history';
+	import { Button } from '#lib/components/ui/button/index.js';
 
 	const types = await getActivityTypes();
 	let entityType = $state('');
-	let rows = $state(await getActivity({}));
+	let limit = $state(200);
+	let rows = $state(await getActivity({ limit }));
+	const hasMore = $derived(rows.length >= limit);
 
 	async function refilter(v: string) {
 		entityType = v;
-		rows = await getActivity({ entityType: v || undefined });
+		rows = await getActivity({ entityType: v || undefined, limit });
 	}
 
 	/** Link to an entity's page when we know its route. */
@@ -99,6 +102,18 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+			{#if hasMore}
+				<div class="flex justify-center pt-3">
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={async () => {
+							limit += 200;
+							rows = await getActivity({ entityType: entityType || undefined, limit });
+						}}>Load more</Button
+					>
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 </div>

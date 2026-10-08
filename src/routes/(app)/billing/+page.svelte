@@ -74,6 +74,15 @@
 		charges.filter((ch) => !customerFilter || ch.charge.customerId === customerFilter)
 	);
 	const payments = $derived(await getPayments());
+	let payMethodFilter = $state('');
+	const payMethods = $derived([...new Set(payments.map((p) => p.payment.method))].sort());
+	const visiblePayments = $derived(
+		payments.filter(
+			(p) =>
+				(!customerFilter || p.payment.customerId === customerFilter) &&
+				(!payMethodFilter || p.payment.method === payMethodFilter)
+		)
+	);
 
 	// ------- invoice dialog -------
 	let invoiceOpen = $state(false);
@@ -542,6 +551,22 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="payments">
+			{#if payMethods.length > 1}
+				<Select.Root
+					type="single"
+					value={payMethodFilter}
+					onValueChange={(v: string) => (payMethodFilter = v)}
+				>
+					<Select.Trigger class="w-40 capitalize">{payMethodFilter || 'All methods'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="">All methods</Select.Item>
+						{#each payMethods as m (m)}
+							<Select.Item value={m} class="capitalize">{m}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			{/if}
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
 					<Table.Root>
@@ -555,7 +580,7 @@
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each payments.filter((p) => !customerFilter || p.payment.customerId === customerFilter) as p (p.payment.id)}
+							{#each visiblePayments as p (p.payment.id)}
 								<Table.Row>
 									<Table.Cell class="font-medium"
 										><a href="/customers/{p.payment.customerId}" class="hover:underline"
