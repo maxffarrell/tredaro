@@ -29,6 +29,9 @@
 	const currency = await getCurrency();
 	let q = $state('');
 	let items = $state(await getPricebook());
+	let catFilter = $state('');
+	const categories = $derived([...new Set(items.map((i) => i.category).filter(Boolean))].sort());
+	const shown = $derived(catFilter ? items.filter((i) => i.category === catFilter) : items);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	function search() {
 		clearTimeout(timer);
@@ -135,9 +138,26 @@
 </PageHeader>
 
 <div class="space-y-4 p-4 md:p-6">
-	<div class="relative max-w-sm">
-		<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-		<Input placeholder="Search name or category…" class="pl-9" bind:value={q} oninput={search} />
+	<div class="flex flex-wrap items-center gap-2">
+		<div class="relative max-w-sm flex-1">
+			<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+			<Input placeholder="Search name or category…" class="pl-9" bind:value={q} oninput={search} />
+		</div>
+		{#if categories.length}
+			<Select.Root
+				type="single"
+				value={catFilter || 'all'}
+				onValueChange={(v) => (catFilter = v === 'all' ? '' : v)}
+			>
+				<Select.Trigger class="w-44">{catFilter || 'All categories'}</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="all">All categories</Select.Item>
+					{#each categories as c (c)}
+						<Select.Item value={c}>{c}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
 	</div>
 
 	<Card.Root class="py-0">
@@ -153,7 +173,7 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each items as i (i.id)}
+					{#each shown as i (i.id)}
 						<Table.Row class="cursor-pointer" onclick={() => openItem(i)}>
 							<Table.Cell class="font-medium">{i.name}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">{i.kind}</Table.Cell>

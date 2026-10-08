@@ -19,6 +19,7 @@ import {
 	equipment,
 	inventoryItem,
 	job,
+	jobExpense,
 	jobMaterial,
 	jobChecklistItem,
 	jobEvent,
@@ -186,6 +187,10 @@ export async function getJob(orgId: string, id: string) {
 				),
 			billed:
 				sql<number>`(select coalesce(sum(c.amount), 0) from ${charge} c where c.job_id = ${outer(job.id)} and c.status != 'void')`.mapWith(
+					Number
+				),
+			expCost:
+				sql<number>`(select coalesce(sum(e.amount), 0) from ${jobExpense} e where e.job_id = ${outer(job.id)})`.mapWith(
 					Number
 				)
 		})
@@ -842,4 +847,77 @@ export async function getChecklistJobId(orgId: string, id: string) {
 		.where(and(eq(jobChecklistItem.id, id), eq(jobChecklistItem.organizationId, orgId)))
 		.limit(1);
 	return row?.jobId;
+}
+
+// ---------- Job expenses ----------
+
+/** Non-material costs logged on a job, newest first. */
+export async function listJobExpenses(orgId: string, jobId: string) {
+	return db
+		.select({ expense: jobExpense, memberName: user.name })
+		.from(jobExpense)
+		.leftJoin(member, eq(jobExpense.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(and(eq(jobExpense.organizationId, orgId), eq(jobExpense.jobId, jobId)))
+		.orderBy(sql`${jobExpense.createdAt} desc`);
+}
+
+/** Log a non-material cost (permit, subcontractor, misc) on a job. */
+export async function addJobExpense(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.jobExpenseInput>
+) {
+	const [j] = await db
+		.select({ id: job.id })
+		.from(job)
+		.where(and(eq(job.id, input.jobId), eq(job.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!j) error(404, 'Job not found');
+	const me = ctx.userId
+		? (
+				await db
+					.select({ id: member.id })
+					.from(member)
+					.where(and(eq(member.userId, ctx.userId), eq(member.organizationId, ctx.orgId)))
+					.limit(1)
+			)[0]
+		: null;
+	const [e] = await db
+		.insert(jobExpense)
+		.values({
+			organizationId: ctx.orgId,
+			jobId: input.jobId,
+			description: input.description,
+			vendor: input.vendor,
+			amount: input.amount,
+			incurredOn: input.incurredOn || null,
+			memberId: me?.id ?? null
+		})
+		.returning();
+	void emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: input.jobId,
+		action: 'expense_added',
+		summary: `Expense: ${input.description}`
+	});
+	return e;
+}
+
+export async function removeJobExpense(ctx: OrgContext, expenseId: string) {
+	const [e] = await db
+		.delete(jobExpense)
+		.where(and(eq(jobExpense.id, expenseId), eq(jobExpense.organizationId, ctx.orgId)))
+		.returning();
+	if (!e) error(404, 'Expense not found');
+	void emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: e.jobId,
+		action: 'expense_removed',
+		summary: `Removed expense: ${e.description}`
+	});
+	return e;
 }

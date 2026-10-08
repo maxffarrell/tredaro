@@ -707,6 +707,30 @@ export const jobMaterial = pgTable(
 	]
 );
 
+/** A non-material cost on a job — permits, subcontractors, dump fees, misc. */
+export const jobExpense = pgTable(
+	'job_expense',
+	{
+		id: id(),
+		organizationId: orgId(),
+		jobId: text('job_id')
+			.notNull()
+			.references(() => job.id, { onDelete: 'cascade' }),
+		description: text('description').notNull(),
+		vendor: text('vendor').notNull().default(''),
+		/** Cost in minor units. */
+		amount: integer('amount').notNull().default(0),
+		/** Date the cost was incurred (iso date). */
+		incurredOn: date('incurred_on', { mode: 'string' }),
+		memberId: text('member_id').references(() => member.id, { onDelete: 'set null' }),
+		...timestamps
+	},
+	(t) => [
+		index('job_expense_job_idx').on(t.jobId),
+		index('job_expense_org_idx').on(t.organizationId)
+	]
+);
+
 /** A to-do line on a job — seeded from the job type's checklist or added ad hoc. */
 export const jobChecklistItem = pgTable(
 	'job_checklist_item',

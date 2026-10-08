@@ -42,7 +42,10 @@
 		toggleChecklistItem,
 		deleteChecklistItem,
 		getJobPhotos,
-		deleteJobPhoto
+		deleteJobPhoto,
+		getJobExpenses,
+		addJobExpense,
+		removeJobExpense
 	} from '#lib/remote/jobs.remote.ts';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
@@ -55,6 +58,7 @@
 	import Ban from '@lucide/svelte/icons/ban';
 	import Timer from '@lucide/svelte/icons/timer';
 	import Package from '@lucide/svelte/icons/package';
+	import ReceiptText from '@lucide/svelte/icons/receipt-text';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
 	import Repeat from '@lucide/svelte/icons/repeat';
@@ -333,6 +337,42 @@
 			await removeJobMaterial(materialId).updates(getJobMaterials, getJob);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not remove material'));
+		}
+	}
+
+	// ------- expenses -------
+	const expenses = $derived(await getJobExpenses({ jobId: id }));
+	let addingExp = $state(false);
+	let expDesc = $state('');
+	let expVendor = $state('');
+	let expAmount = $state<number | null>(null);
+	let expOn = $state('');
+	async function logExpense(e: SubmitEvent) {
+		e.preventDefault();
+		if (!expDesc.trim()) return;
+		try {
+			await addJobExpense({
+				jobId: id,
+				description: expDesc.trim(),
+				vendor: expVendor.trim(),
+				amount: expAmount ?? 0,
+				incurredOn: expOn || null
+			}).updates(getJobExpenses, getJob);
+			addingExp = false;
+			expDesc = '';
+			expVendor = '';
+			expAmount = null;
+			expOn = '';
+			toast.success('Expense logged');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not log expense'));
+		}
+	}
+	async function removeExp(expenseId: string) {
+		try {
+			await removeJobExpense(expenseId).updates(getJobExpenses, getJob);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not remove expense'));
 		}
 	}
 
@@ -643,6 +683,11 @@
 						>{formatMoney(j.costing.matSell, settings.currency)}</span
 					>
 				</div>
+				<div class="flex justify-between">
+					<span class="text-muted-foreground">Expenses</span><span class="tabular-nums"
+						>{formatMoney(j.costing.expCost, settings.currency)}</span
+					>
+				</div>
 				<Separator />
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Invoiced</span><span class="tabular-nums"
@@ -651,9 +696,13 @@
 				</div>
 				<div class="flex justify-between font-medium">
 					<span>Margin</span><span
-						class="tabular-nums {j.costing.billed - j.costing.matCost < 0
+						class="tabular-nums {j.costing.billed - j.costing.matCost - j.costing.expCost < 0
 							? 'text-destructive'
-							: ''}">{formatMoney(j.costing.billed - j.costing.matCost, settings.currency)}</span
+							: ''}"
+						>{formatMoney(
+							j.costing.billed - j.costing.matCost - j.costing.expCost,
+							settings.currency
+						)}</span
 					>
 				</div>
 			</Card.Content>
@@ -840,6 +889,80 @@
 						>
 							<Plus />
 							{stock.length ? 'Log material' : 'Add stock items in Inventory first'}
+						</Button>
+					{/if}
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between space-y-0">
+				<Card.Title class="flex items-center gap-2 text-base"
+					><ReceiptText class="size-4" /> Expenses</Card.Title
+				>
+				{#if expenses.length}
+					<span class="text-sm text-muted-foreground tabular-nums">
+						{formatMoney(
+							expenses.reduce((s, x) => s + x.expense.amount, 0),
+							settings.currency
+						)}
+					</span>
+				{/if}
+			</Card.Header>
+			<Card.Content class="space-y-3 px-4">
+				<ul class="space-y-2">
+					{#each expenses as x (x.expense.id)}
+						<li class="flex items-start gap-2 text-sm">
+							<div class="min-w-0 flex-1">
+								<p>
+									{x.expense.description}
+									<span class="text-muted-foreground tabular-nums">
+										· {formatMoney(x.expense.amount, settings.currency)}
+									</span>
+								</p>
+								<p class="text-xs text-muted-foreground">
+									{#if x.expense.vendor}{x.expense.vendor} ·
+									{/if}{#if x.expense.incurredOn}{x.expense.incurredOn} ·
+									{/if}{#if x.memberName}{x.memberName} ·
+									{/if}{localDate(x.expense.createdAt, tz)}
+								</p>
+							</div>
+							{#if !locked}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 shrink-0 text-muted-foreground"
+									onclick={() => removeExp(x.expense.id)}
+								>
+									<Trash2 class="size-3.5" />
+								</Button>
+							{/if}
+						</li>
+					{:else}
+						<li class="text-sm text-muted-foreground">
+							No expenses — permits, subcontractors, dump fees.
+						</li>
+					{/each}
+				</ul>
+				{#if !locked}
+					{#if addingExp}
+						<form class="grid gap-2 border-t pt-3" onsubmit={logExpense}>
+							<Input placeholder="Description (e.g. City permit)" bind:value={expDesc} />
+							<Input placeholder="Vendor (optional)" bind:value={expVendor} />
+							<div class="grid grid-cols-2 gap-2">
+								<MoneyInput bind:value={expAmount} placeholder="Amount" />
+								<Input type="date" aria-label="Date incurred" bind:value={expOn} />
+							</div>
+							<div class="flex gap-2">
+								<Button type="submit" size="sm" disabled={!expDesc.trim()}>Log</Button>
+								<Button type="button" size="sm" variant="ghost" onclick={() => (addingExp = false)}
+									>Cancel</Button
+								>
+							</div>
+						</form>
+					{:else}
+						<Button size="sm" variant="ghost" class="w-full" onclick={() => (addingExp = true)}>
+							<Plus /> Log expense
 						</Button>
 					{/if}
 				{/if}

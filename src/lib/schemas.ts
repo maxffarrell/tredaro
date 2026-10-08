@@ -194,6 +194,13 @@ export const jobMaterialInput = v.object({
 	qty: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000)),
 	unitPrice: v.optional(cents, 0)
 });
+export const jobExpenseInput = v.object({
+	jobId: idSchema,
+	description: requiredText('Description'),
+	vendor: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ''),
+	amount: cents,
+	incurredOn: v.optional(v.nullable(isoDate), null)
+});
 
 /** `sourceId` (the duplicate) is deleted; `targetId` (the survivor) absorbs its records. */
 export const mergeCustomerInput = v.object({

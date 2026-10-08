@@ -6,6 +6,7 @@ import {
 	customer,
 	estimate,
 	inventoryItem,
+	jobExpense,
 	jobMaterial,
 	job,
 	jobTimeEntry,
@@ -265,7 +266,8 @@ export async function getReports(orgId: string) {
 		perf,
 		profit,
 		tops,
-		leads
+		leads,
+		aging
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -278,7 +280,8 @@ export async function getReports(orgId: string) {
 		techPerformance(orgId),
 		jobProfitability(orgId),
 		topCustomers(orgId),
-		leadsBySource(orgId)
+		leadsBySource(orgId),
+		receivablesAging(orgId)
 	]);
 	return {
 		completedJobs,
@@ -292,7 +295,8 @@ export async function getReports(orgId: string) {
 		perf,
 		profit,
 		topCustomers: tops,
-		leads
+		leads,
+		aging
 	};
 }
 
@@ -339,6 +343,10 @@ async function jobProfitability(orgId: string) {
 				sql<number>`(select coalesce(sum(m.qty * i.unit_cost), 0) from ${jobMaterial} m inner join ${inventoryItem} i on m.inventory_item_id = i.id where m.job_id = ${outer(job.id)})`.mapWith(
 					Number
 				),
+			expCost:
+				sql<number>`(select coalesce(sum(e.amount), 0) from ${jobExpense} e where e.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
 			laborMin:
 				sql<number>`(select coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60), 0) from ${jobTimeEntry} te where te.job_id = ${outer(job.id)})`.mapWith(
 					Number
@@ -348,6 +356,42 @@ async function jobProfitability(orgId: string) {
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.where(and(eq(job.organizationId, orgId), isNull(job.cancelledAt), gte(job.completedAt, since)))
 		.orderBy(desc(job.completedAt));
+}
+
+/** Open charge balances bucketed by days past due (or not yet due). */
+async function receivablesAging(orgId: string) {
+	const rows = await db
+		.select({
+			bucket: sql<string>`case
+				when ${charge.dueDate} is null or ${charge.dueDate} >= current_date then 'current'
+				when ${charge.dueDate} >= current_date - 30 then '1-30'
+				when ${charge.dueDate} >= current_date - 60 then '31-60'
+				when ${charge.dueDate} >= current_date - 90 then '61-90'
+				else '90+'
+			end`,
+			balance:
+				sql<number>`sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0))`.mapWith(
+					Number
+				),
+			count: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(charge)
+		.where(and(eq(charge.organizationId, orgId), sql`${charge.status} != 'void'`))
+		.groupBy(
+			sql`case
+				when ${charge.dueDate} is null or ${charge.dueDate} >= current_date then 'current'
+				when ${charge.dueDate} >= current_date - 30 then '1-30'
+				when ${charge.dueDate} >= current_date - 60 then '31-60'
+				when ${charge.dueDate} >= current_date - 90 then '61-90'
+				else '90+'
+			end`
+		);
+	const map = new Map(rows.map((r) => [r.bucket, r]));
+	return ['current', '1-30', '31-60', '61-90', '90+'].map((bucket) => ({
+		bucket,
+		balance: map.get(bucket)?.balance ?? 0,
+		count: map.get(bucket)?.count ?? 0
+	}));
 }
 
 /** Top 10 customers by payments collected in the last 12 months. */

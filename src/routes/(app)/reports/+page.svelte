@@ -284,6 +284,7 @@
 						<Table.Head>Customer</Table.Head>
 						<Table.Head class="text-right">Labor</Table.Head>
 						<Table.Head class="text-right">Materials</Table.Head>
+						<Table.Head class="text-right">Expenses</Table.Head>
 						<Table.Head class="text-right">Invoiced</Table.Head>
 						<Table.Head class="text-right">Margin</Table.Head>
 					</Table.Row>
@@ -301,19 +302,56 @@
 								>{formatMoney(j.matCost, currency, true)}</Table.Cell
 							>
 							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(j.expCost, currency, true)}</Table.Cell
+							>
+							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(j.billed, currency, true)}</Table.Cell
 							>
 							<Table.Cell
-								class="text-right tabular-nums {j.billed - j.matCost < 0 ? 'text-destructive' : ''}"
-								>{formatMoney(j.billed - j.matCost, currency, true)}</Table.Cell
+								class="text-right tabular-nums {j.billed - j.matCost - j.expCost < 0
+									? 'text-destructive'
+									: ''}">{formatMoney(j.billed - j.matCost - j.expCost, currency, true)}</Table.Cell
 							>
 						</Table.Row>
 					{:else}
 						<Table.Row
-							><Table.Cell colspan={6} class="text-muted-foreground"
+							><Table.Cell colspan={7} class="text-muted-foreground"
 								>No completed jobs in the last 90 days.</Table.Cell
 							></Table.Row
 						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Receivables aging</Card.Title>
+			<Card.Description>Open charge balances by days past due</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Bucket</Table.Head>
+						<Table.Head class="text-right">Charges</Table.Head>
+						<Table.Head class="text-right">Balance</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.aging as a (a.bucket)}
+						<Table.Row>
+							<Table.Cell class="font-medium"
+								>{a.bucket === 'current' ? 'Current / not due' : `${a.bucket} days`}</Table.Cell
+							>
+							<Table.Cell class="text-right tabular-nums">{a.count}</Table.Cell>
+							<Table.Cell
+								class="text-right tabular-nums {a.bucket !== 'current' && a.balance > 0
+									? 'text-destructive'
+									: ''}">{formatMoney(a.balance, currency, true)}</Table.Cell
+							>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>

@@ -24,7 +24,8 @@ import {
 	timeOffInput,
 	checklistItemInput,
 	checklistToggleInput,
-	jobSignatureInput
+	jobSignatureInput,
+	jobExpenseInput
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -243,4 +244,24 @@ export const deleteJobPhoto = command(idSchema, async (id) => {
 	const row = await photosSvc.deleteJobPhoto(await requireOrg(), id);
 	await refreshQuery(getJobPhotos, row.jobId);
 	return { id };
+});
+
+// ---------- Job expenses ----------
+
+export const getJobExpenses = query(v.object({ jobId: idSchema }), async ({ jobId }) =>
+	svc.listJobExpenses((await requireOrg()).orgId, jobId)
+);
+
+export const addJobExpense = command(jobExpenseInput, async (input) => {
+	const e = await svc.addJobExpense(await requireOrg(), input);
+	await refreshQuery(getJobExpenses, { jobId: input.jobId });
+	await refreshQuery(getJob, input.jobId);
+	return e;
+});
+
+export const removeJobExpense = command(idSchema, async (expenseId) => {
+	const e = await svc.removeJobExpense(await requireOrg(), expenseId);
+	await refreshQuery(getJobExpenses, { jobId: e.jobId });
+	await refreshQuery(getJob, e.jobId);
+	return e;
 });
