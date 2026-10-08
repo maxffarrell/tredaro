@@ -42,6 +42,9 @@
 			: board.unscheduled
 	);
 
+	const waitingDays = (created: Date | string) =>
+		Math.max(0, Math.floor((Date.now() - new Date(created).getTime()) / 86_400_000));
+
 	// ------- bulk assign -------
 	const selected = new SvelteSet<string>();
 	let bulkTech = $state('');
@@ -251,7 +254,12 @@
 							<StatusBadge status={j.job.priority} />
 						</div>
 						<p class="mt-1 text-xs text-muted-foreground">
-							J-{j.job.number} · {j.job.source}
+							J-{j.job.number} · {j.job.source} ·
+							<span
+								class={waitingDays(j.job.createdAt) >= 3
+									? 'font-medium text-amber-600 dark:text-amber-400'
+									: ''}>waiting {waitingDays(j.job.createdAt)}d</span
+							>
 							{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span
 								>{/if}
 							{#if j.city}· {j.city}{/if}

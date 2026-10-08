@@ -784,6 +784,60 @@ export async function runReminders(orgId: string) {
 		}
 	}
 
+	// Service-due reminder: active equipment with next_service_due inside 7 days —
+	// one email + one text per unit per due date (key includes the date so a new
+	// due date re-reminds).
+	{
+		const in7 = addDays(todayIso, 7);
+		const due = await db
+			.select({
+				equipment,
+				customerName: customer.name,
+				email: customer.email,
+				emailOptOut: customer.emailOptOut,
+				phone: customer.phone,
+				smsOptOut: customer.smsOptOut
+			})
+			.from(equipment)
+			.innerJoin(customer, eq(equipment.customerId, customer.id))
+			.where(
+				and(
+					eq(equipment.organizationId, orgId),
+					eq(equipment.active, true),
+					gte(equipment.nextServiceDue, todayIso),
+					lte(equipment.nextServiceDue, in7)
+				)
+			);
+		const flags = await notifFlags(orgId);
+		const name = await orgName(orgId);
+		for (const w of due) {
+			const key = `${w.equipment.id}:${w.equipment.nextServiceDue}`;
+			if (flags.email && w.email && !w.emailOptOut) {
+				if (await logOnce(orgId, 'service_due', key, w.email))
+					await sendEmail({
+						to: w.email,
+						subject: `Your ${w.equipment.name} is due for service — ${name}`,
+						...renderEmail({
+							orgName: name,
+							heading: `Hi ${w.customerName},`,
+							lines: [
+								`Your ${w.equipment.name}${w.equipment.brand ? ` (${[w.equipment.brand, w.equipment.model].filter(Boolean).join(' ')})` : ''} is due for maintenance on ${w.equipment.nextServiceDue}.`,
+								'Request service from your customer portal or reply to this email and we will get you on the schedule.'
+							],
+							action: { label: 'Request service', url: `${appOrigin()}/portal` }
+						})
+					});
+			}
+			if (flags.sms && w.phone && !w.smsOptOut) {
+				if (await logOnce(orgId, 'service_due_sms', key, w.phone))
+					await sendSmsQuiet(orgId, {
+						to: w.phone,
+						body: `${name}: your ${w.equipment.name} is due for service ${w.equipment.nextServiceDue}. Reply to book.`
+					});
+			}
+		}
+	}
+
 	// Agreement renewal heads-up: active agreements billing within 7 days — one email per billing date.
 	const in7 = addDays(todayIso, 7);
 	const renewing = await db

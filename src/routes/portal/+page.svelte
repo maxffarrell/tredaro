@@ -359,6 +359,17 @@
 											{#if u.locationLabel}
 												· {u.locationLabel}{/if}
 										</p>
+										{#if u.equipment.active && u.equipment.nextServiceDue}
+											{#if u.equipment.nextServiceDue <= todayIso}
+												<p class="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+													Due for service — request a visit below
+												</p>
+											{:else}
+												<p class="mt-0.5 text-xs text-muted-foreground">
+													Next service {formatDate(u.equipment.nextServiceDue)}
+												</p>
+											{/if}
+										{/if}
 									</Table.Cell>
 									<Table.Cell class="pr-6 text-right">
 										{#if u.equipment.warrantyUntil}
