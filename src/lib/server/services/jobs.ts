@@ -423,7 +423,13 @@ export async function updateJob(
 			startsAt: start,
 			endsAt,
 			status,
-			cancelledAt: set.cancelled === undefined ? undefined : set.cancelled ? new Date() : null
+			cancelledAt: set.cancelled === undefined ? undefined : set.cancelled ? new Date() : null,
+			cancelReason:
+				set.cancelled === true
+					? (set.cancelReason ?? null)
+					: set.cancelled === false
+						? null
+						: undefined
 		})
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)))
 		.returning();
@@ -444,7 +450,7 @@ export async function updateJob(
 			entityType: 'job',
 			entityId: id,
 			action: 'cancelled',
-			summary: `Job J-${existing.number} cancelled`
+			summary: `Job J-${existing.number} cancelled${set.cancelReason ? ` — ${set.cancelReason}` : ''}`
 		});
 	}
 	return row;

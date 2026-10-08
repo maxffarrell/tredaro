@@ -35,7 +35,7 @@
 		deleteSchedule
 	} from '#lib/remote/maintenance.remote.ts';
 	import { getJobTypes, getTechnicians } from '#lib/remote/jobs.remote.ts';
-	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
+	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -46,6 +46,9 @@
 	import Download from '@lucide/svelte/icons/download';
 	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import Phone from '@lucide/svelte/icons/phone';
+	import Mail from '@lucide/svelte/icons/mail';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import Repeat from '@lucide/svelte/icons/repeat';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
@@ -63,6 +66,30 @@
 	let scSummary = $state('');
 	let scInterval = $state<7 | 14 | 30 | 90 | 180 | 365>(90);
 	let scDate = $state('');
+	const KIND_LABELS: Record<string, string> = {
+		agreement_renewal: 'Agreement renewal reminder',
+		agreement_renewal_sms: 'Agreement renewal text',
+		appointment_reminder: 'Appointment reminder',
+		appointment_reminder_sms: 'Appointment reminder text',
+		booking_received: 'Booking request received',
+		estimate_followup: 'Estimate follow-up',
+		estimate_followup_sms: 'Estimate follow-up text',
+		estimate_sent: 'Estimate sent',
+		estimate_sent_sms: 'Estimate texted',
+		invoice_sent: 'Invoice sent',
+		invoice_texted: 'Invoice texted',
+		invoice_overdue: 'Overdue invoice reminder',
+		invoice_overdue_sms: 'Overdue invoice text',
+		job_scheduled: 'Job scheduled',
+		job_scheduled_sms: 'Job scheduled text',
+		job_en_route_sms: 'En-route text',
+		job_completed: 'Job completed follow-up',
+		job_completed_sms: 'Job completed text',
+		warranty_expiry: 'Warranty expiring reminder'
+	};
+	const kindLabel = (kind: string) =>
+		KIND_LABELS[kind] ?? kind.replace(/_/g, ' ').replace(/sms$/, 'text');
+
 	const intervalLabel = (d: number) =>
 		d === 7
 			? 'weekly'
@@ -360,6 +387,19 @@
 				><GitMerge /> Merge</Button
 			>
 		{/if}
+		{#if c.customer.phone}
+			<Button size="sm" variant="outline" href="tel:{c.customer.phone}" title="Call"
+				><Phone /></Button
+			>
+			<Button size="sm" variant="outline" href="sms:{c.customer.phone}" title="Text"
+				><MessageSquare /></Button
+			>
+		{/if}
+		{#if c.customer.email}
+			<Button size="sm" variant="outline" href="mailto:{c.customer.email}" title="Email"
+				><Mail /></Button
+			>
+		{/if}
 		<Button size="sm" variant="outline" onclick={copyPortal}><Link2 /> Portal link</Button>
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 		<Button
@@ -648,6 +688,28 @@
 						</div>
 					</form>
 				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header><Card.Title class="text-base">Communications</Card.Title></Card.Header>
+			<Card.Content class="px-4">
+				{#each c.communications as n (n.id)}
+					<div
+						class="flex items-baseline justify-between gap-3 border-b py-2 text-sm last:border-0"
+					>
+						<div class="min-w-0">
+							<p class="truncate font-medium">{kindLabel(n.kind)}</p>
+							<p class="truncate text-xs text-muted-foreground">
+								to {n.recipient.split(':')[0]}
+							</p>
+						</div>
+						<span class="shrink-0 text-xs text-muted-foreground">{formatRelative(n.createdAt)}</span
+						>
+					</div>
+				{:else}
+					<p class="py-3 text-sm text-muted-foreground">No automated emails or texts sent yet.</p>
+				{/each}
 			</Card.Content>
 		</Card.Root>
 	</div>

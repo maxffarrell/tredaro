@@ -341,6 +341,8 @@ export const job = pgTable(
 		maintenanceScheduleId: text('maintenance_schedule_id'),
 		schedulePeriod: date('schedule_period', { mode: 'string' }),
 		cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+		/** Optional note recorded when the job is cancelled. */
+		cancelReason: text('cancel_reason'),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
 		/** Customer sign-off captured on completion — PNG data URL (~tens of KB). */
 		signature: text('signature'),

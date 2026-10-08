@@ -155,13 +155,25 @@
 		pending = false;
 	}
 
-	async function cancel() {
+	let cancelOpen = $state(false);
+	let cancelReason = $state('');
+	let cancelling = $state(false);
+
+	async function cancel(e: SubmitEvent) {
+		e.preventDefault();
+		cancelling = true;
 		try {
-			await updateJob({ id, cancelled: true }).updates(getJob, getJobs, getDispatchBoard);
+			await updateJob({ id, cancelled: true, cancelReason: cancelReason.trim() }).updates(
+				getJob,
+				getJobs,
+				getDispatchBoard
+			);
+			cancelOpen = false;
 			toast.success('Job cancelled');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not cancel'));
 		}
+		cancelling = false;
 	}
 
 	async function event(kind: 'dispatched' | 'en_route' | 'on_site' | 'completed') {
@@ -490,7 +502,13 @@
 			title="Print work order"><Printer /></Button
 		>
 		{#if !locked}
-			<Button size="sm" variant="ghost" class="text-destructive" onclick={cancel}><Ban /></Button>
+			<Button
+				size="sm"
+				variant="ghost"
+				class="text-destructive"
+				title="Cancel job"
+				onclick={() => (cancelOpen = true)}><Ban /></Button
+			>
 		{/if}
 	{/snippet}
 </PageHeader>
@@ -681,6 +699,15 @@
 					<div class="flex justify-between">
 						<span class="text-muted-foreground">Completed</span><span
 							>{formatDate(j.job.completedAt)}</span
+						>
+					</div>
+				{/if}
+				{#if j.job.cancelledAt}
+					<div class="flex justify-between gap-4">
+						<span class="text-muted-foreground">Cancelled</span><span
+							>{formatDate(j.job.cancelledAt)}{j.job.cancelReason
+								? ` — ${j.job.cancelReason}`
+								: ''}</span
 						>
 					</div>
 				{/if}
@@ -1207,6 +1234,33 @@
 		signThenComplete = false;
 	}}
 />
+
+<!-- cancel reason -->
+<Dialog.Root bind:open={cancelOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Cancel J-{j.job.number}?</Dialog.Title>
+			<Dialog.Description>
+				The job is removed from the schedule and any open timers are stopped.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={cancel}>
+			<Field.Field>
+				<Field.Label for="cancel-reason">Reason (optional)</Field.Label>
+				<Input
+					id="cancel-reason"
+					bind:value={cancelReason}
+					placeholder="e.g. customer rescheduled, duplicate job"
+				/>
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" variant="destructive" disabled={cancelling}
+					>{cancelling ? 'Cancelling…' : 'Cancel job'}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- repeat series -->
 <Dialog.Root bind:open={repeatOpen}>

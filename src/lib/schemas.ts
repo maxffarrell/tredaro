@@ -294,7 +294,8 @@ export const jobUpdate = v.object({
 	/** Set to schedule; null unschedules. */
 	startsAt: v.optional(v.nullable(localDateTime)),
 	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440))),
-	cancelled: v.optional(v.boolean())
+	cancelled: v.optional(v.boolean()),
+	cancelReason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
 });
 
 /** Technician or dispatcher status ping on a job. */

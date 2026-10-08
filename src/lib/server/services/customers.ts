@@ -10,6 +10,7 @@ import {
 	invoice,
 	job,
 	jobType,
+	notificationLog,
 	office,
 	organization,
 	payment,
@@ -126,6 +127,29 @@ export async function getCustomer(orgId: string, id: string) {
 
 	const equipmentRows = await listEquipment(orgId, id);
 
+	// Every automated email/SMS we logged a send for, addressed to this
+	// customer's email or phone — a lightweight comms history for the CRM.
+	const recipients = [row.customer.email, row.customer.phone].filter((r): r is string =>
+		Boolean(r)
+	);
+	const communications = recipients.length
+		? await db
+				.select()
+				.from(notificationLog)
+				.where(
+					and(
+						eq(notificationLog.organizationId, orgId),
+						or(
+							inArray(notificationLog.recipient, recipients),
+							// Some sends dedupe on a composite key like `phone:renewsOn`.
+							...recipients.map((r) => ilike(notificationLog.recipient, `${r}:%`))
+						)
+					)
+				)
+				.orderBy(desc(notificationLog.createdAt))
+				.limit(25)
+		: [];
+
 	return {
 		...row,
 		locations,
@@ -133,6 +157,7 @@ export async function getCustomer(orgId: string, id: string) {
 		jobs,
 		estimates,
 		charges,
+		communications,
 		payments,
 		equipment: equipmentRows
 	};
