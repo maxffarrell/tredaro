@@ -105,6 +105,8 @@ const jobSelect = {
 	color: jobType.color,
 	customerName: customer.name,
 	companyName: customer.companyName,
+	customerPhone: customer.phone,
+	customerEmail: customer.email,
 	technicianName: user.name,
 	equipmentName: equipment.name,
 	locationLabel: serviceLocation.label,

@@ -62,6 +62,7 @@
 	import Navigation from '@lucide/svelte/icons/navigation';
 	import Navigation2 from '@lucide/svelte/icons/navigation-2';
 	import MapPin from '@lucide/svelte/icons/map-pin';
+	import Phone from '@lucide/svelte/icons/phone';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Ban from '@lucide/svelte/icons/ban';
@@ -614,6 +615,13 @@
 								>{j.customerName}</a
 							>
 							{#if j.companyName}<span class="text-muted-foreground"> · {j.companyName}</span>{/if}
+							{#if j.customerPhone}
+								<a
+									href="tel:{j.customerPhone}"
+									class="ml-1 inline-flex items-center gap-0.5 text-xs text-primary hover:underline"
+									title="Call {j.customerPhone}"><Phone class="size-3" /> {j.customerPhone}</a
+								>
+							{/if}
 						</p>
 					</Field.Field>
 					<Field.Field>

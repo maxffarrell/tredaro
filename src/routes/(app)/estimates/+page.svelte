@@ -114,6 +114,9 @@
 							>
 							<Table.Cell>
 								<StatusBadge status={e.estimate.status} />
+								{#if e.viewed && e.estimate.status === 'sent'}
+									<Badge variant="secondary" title="Customer opened this estimate">Viewed</Badge>
+								{/if}
 								{#if e.estimate.decisionNote?.includes('Changes requested')}
 									<Badge
 										variant="secondary"

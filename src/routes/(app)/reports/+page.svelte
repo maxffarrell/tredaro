@@ -599,4 +599,33 @@
 			</Table.Root>
 		</Card.Content>
 	</Card.Root>
+
+	<Card.Root>
+		<Card.Header><Card.Title class="text-base">Jobs by source</Card.Title></Card.Header>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Source</Table.Head>
+						<Table.Head class="text-right">Jobs</Table.Head>
+						<Table.Head class="text-right">Completed</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.jobSources as j (j.source)}
+						<Table.Row>
+							<Table.Cell class="font-medium capitalize">{j.source.replace('_', ' ')}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{j.count}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{j.done}</Table.Cell>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={3} class="text-muted-foreground">No jobs yet.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
 </div>

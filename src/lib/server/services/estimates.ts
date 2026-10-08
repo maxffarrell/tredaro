@@ -67,7 +67,8 @@ export async function listEstimates(orgId: string, status?: string) {
 			total:
 				sql<number>`coalesce((select sum(i.qty * i.unit_price) from ${estimateItem} i where i.estimate_id = ${outer(estimate.id)}), 0)`.mapWith(
 					Number
-				)
+				),
+			viewed: sql<boolean>`exists (select 1 from ${activity} a where a.entity_type = 'estimate' and a.entity_id = ${outer(estimate.id)} and a.action = 'viewed')`
 		})
 		.from(estimate)
 		.innerJoin(customer, eq(estimate.customerId, customer.id))
