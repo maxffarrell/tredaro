@@ -610,7 +610,11 @@
 			{/if}
 			<p class="text-sm text-muted-foreground">
 				{visiblePayments.length} payment{visiblePayments.length === 1 ? '' : 's'} ·
-				{formatMoney(visiblePaymentsTotal, currency)} collected{#if visiblePaymentsToday}
+				{formatMoney(visiblePaymentsTotal, currency)} collected{#if visiblePayments.length}
+					· avg {formatMoney(
+						visiblePaymentsTotal / visiblePayments.length,
+						currency
+					)}{/if}{#if visiblePaymentsToday}
 					· {visiblePaymentsToday} today{/if}
 			</p>
 			<Card.Root class="py-0">

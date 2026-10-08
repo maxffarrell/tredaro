@@ -144,6 +144,27 @@ async function estimateFunnel(orgId: string) {
 	return rows;
 }
 
+/** Avg invoiced revenue per job (90d, non-void invoices linked to a job). */
+async function avgJobValue(orgId: string) {
+	const [{ v }] = await db
+		.select({
+			v: sql<number>`coalesce(sum(${invoiceItem.qty} * ${invoiceItem.unitPrice}), 0) / nullif(count(distinct ${invoice.jobId}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(invoiceItem)
+		.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
+		.where(
+			and(
+				eq(invoice.organizationId, orgId),
+				ne(invoice.status, 'void'),
+				isNotNull(invoice.jobId),
+				gte(invoice.createdAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return v ?? null;
+}
+
 /** Repeat-customer rate: share of customers with a done job in 90d who have 2+ done jobs. */
 async function repeatRate(orgId: string) {
 	const rows = await db
@@ -590,7 +611,8 @@ export async function getReports(orgId: string) {
 		churned,
 		revByType,
 		decisionDays,
-		repeat
+		repeat,
+		jobValue
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -620,7 +642,8 @@ export async function getReports(orgId: string) {
 		churnedAgreements(orgId),
 		revenueByCustomerType(orgId),
 		avgDaysToEstimateDecision(orgId),
-		repeatRate(orgId)
+		repeatRate(orgId),
+		avgJobValue(orgId)
 	]);
 	return {
 		completedJobs,
@@ -651,7 +674,8 @@ export async function getReports(orgId: string) {
 		churnedAgreements: churned,
 		revByCustomerType: revByType,
 		estimateDecisionDays: decisionDays,
-		repeatRate: repeat
+		repeatRate: repeat,
+		avgJobValue: jobValue
 	};
 }
 

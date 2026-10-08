@@ -182,7 +182,10 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Jobs by type</Card.Title>
-			<Card.Description>Last 30 days, excluding cancelled</Card.Description>
+			<Card.Description
+				>Last 30 days, excluding cancelled{#if r.avgJobValue != null}
+					· avg {formatMoney(r.avgJobValue, currency, true)} invoiced per job (90d){/if}</Card.Description
+			>
 		</Card.Header>
 		<Card.Content class="px-0">
 			<Table.Root>
