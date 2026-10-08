@@ -27,7 +27,7 @@ function verifySignature(url: URL, fields: Map<string, string>, signature: strin
 	// GET params already live inside the URL; only POST body fields are appended.
 	let payload = url.toString();
 	for (const k of [...fields.keys()].sort()) payload += k + fields.get(k);
-	const expected = createHmac('sha1', TREDARO_TWILIO_AUTH_TOKEN).update(payload).digest();
+	const expected = createHmac('sha1', TREDARO_TWILIO_AUTH_TOKEN).update(payload).digest();, JSON.stringify(payload), 'expected=', expected.toString('base64'), 'got=', signature);
 	let given: Buffer;
 	try {
 		given = Buffer.from(signature, 'base64');
