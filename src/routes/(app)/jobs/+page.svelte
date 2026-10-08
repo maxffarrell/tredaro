@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -37,8 +38,19 @@
 		['in_progress', 'In progress'],
 		['done', 'Done']
 	] as const;
+	const now = $state(new Date());
 	let tab = $state(page.url.searchParams.get('status') ?? 'all');
-	const jobs = $derived(await getJobs(tab === 'all' ? undefined : { status: [tab] }));
+	let techId = $state(page.url.searchParams.get('tech') ?? '');
+	const jobs = $derived(
+		await getJobs(
+			tab === 'all' && !techId
+				? undefined
+				: {
+						...(tab === 'all' ? {} : { status: [tab] }),
+						...(techId ? { technicianId: techId } : {})
+					}
+		)
+	);
 
 	// ------- new job -------
 	let open = $state(page.url.searchParams.get('new') === '1');
@@ -96,13 +108,34 @@
 </PageHeader>
 
 <div class="space-y-4 p-4 md:p-6">
-	<Tabs.Root bind:value={tab}>
-		<Tabs.List class="flex-wrap">
-			{#each STATUS_TABS as [value, label] (value)}
-				<Tabs.Trigger {value}>{label}</Tabs.Trigger>
-			{/each}
-		</Tabs.List>
-	</Tabs.Root>
+	<div class="flex flex-wrap items-center gap-3">
+		<Tabs.Root bind:value={tab}>
+			<Tabs.List class="flex-wrap">
+				{#each STATUS_TABS as [value, label] (value)}
+					<Tabs.Trigger {value}>{label}</Tabs.Trigger>
+				{/each}
+			</Tabs.List>
+		</Tabs.Root>
+		{#if technicians.length}
+			<Select.Root
+				type="single"
+				value={techId || 'all'}
+				onValueChange={(v) => (techId = v === 'all' ? '' : v)}
+			>
+				<Select.Trigger class="h-8 w-44"
+					>{techId
+						? (technicians.find((t) => t.id === techId)?.name ?? 'Tech')
+						: 'All techs'}</Select.Trigger
+				>
+				<Select.Content>
+					<Select.Item value="all">All techs</Select.Item>
+					{#each technicians as t (t.id)}
+						<Select.Item value={t.id}>{t.name}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
+	</div>
 
 	<Card.Root class="py-0">
 		<Card.Content class="px-0">
@@ -130,6 +163,12 @@
 								{j.job.startsAt
 									? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 									: '—'}
+								{#if j.job.startsAt && j.job.startsAt < now && ['scheduled', 'dispatched', 'in_progress'].includes(j.job.status)}
+									<Badge
+										class="ml-1 border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
+										>overdue</Badge
+									>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{j.technicianName ?? '—'}</Table.Cell

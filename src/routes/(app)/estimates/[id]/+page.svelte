@@ -38,6 +38,8 @@
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FilePen from '@lucide/svelte/icons/file-pen';
 	import Eye from '@lucide/svelte/icons/eye';
@@ -220,7 +222,7 @@
 			{#if draft}
 				<form class="space-y-4" onsubmit={save}>
 					{#each items as item, i (i)}
-						<div class="grid grid-cols-[1fr_70px_120px_64px_32px] items-center gap-2">
+						<div class="grid grid-cols-[1fr_70px_120px_64px_24px_32px] items-center gap-2">
 							<Input placeholder="Description" bind:value={item.name} />
 							<Input type="number" min={0.01} step={0.01} max={9999} bind:value={item.qty} />
 							<MoneyInput bind:value={item.unitPrice} />
@@ -230,6 +232,30 @@
 							>
 								<Checkbox bind:checked={item.optional} /> Opt
 							</label>
+							<div class="flex flex-col">
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-4"
+									disabled={i === 0}
+									onclick={() => {
+										const [it] = items.splice(i, 1);
+										items.splice(i - 1, 0, it);
+										items = items;
+									}}><ChevronUp class="size-3" /></Button
+								>
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-4"
+									disabled={i === items.length - 1}
+									onclick={() => {
+										const [it] = items.splice(i, 1);
+										items.splice(i + 1, 0, it);
+										items = items;
+									}}><ChevronDown class="size-3" /></Button
+								>
+							</div>
 							<Button
 								variant="ghost"
 								size="icon"
