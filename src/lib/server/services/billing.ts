@@ -113,7 +113,13 @@ export async function listAgreements(orgId: string, status?: string[]) {
 			companyName: customer.companyName,
 			planName: agreementPlan.name,
 			amount: agreementPlan.amount,
-			interval: agreementPlan.interval
+			interval: agreementPlan.interval,
+			includedVisits: agreementPlan.includedVisits,
+			/** Visit jobs generated for the agreement's most recent billed period. */
+			visitsUsed:
+				sql<number>`(select count(*) from ${job} j where j.service_agreement_id = ${serviceAgreement.id} and j.agreement_period = (select max(j2.agreement_period) from ${job} j2 where j2.service_agreement_id = ${serviceAgreement.id}))`.mapWith(
+					Number
+				)
 		})
 		.from(serviceAgreement)
 		.innerJoin(customer, eq(serviceAgreement.customerId, customer.id))
@@ -806,6 +812,7 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		unitPrice: number;
 	}[] = [];
 	if (jt?.hourlyRate) {
+		const settings = await getSettings(orgId);
 		const [{ minutes }] = await db
 			.select({
 				minutes:
@@ -815,13 +822,18 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 			})
 			.from(jobTimeEntry)
 			.where(and(eq(jobTimeEntry.jobId, jobId), sql`${jobTimeEntry.endedAt} is not null`));
-		const hours = Math.round((minutes / 60) * 100) / 100;
+		const roundTo = settings.laborRoundingMin || 0;
+		const billed = roundTo > 0 ? Math.ceil(minutes / roundTo) * roundTo : minutes;
+		const hours = Math.round((billed / 60) * 100) / 100;
 		if (hours > 0)
 			labor = [
 				{
 					pricebookItemId: null,
 					name: 'Labor',
-					description: '',
+					description:
+						roundTo > 0 && billed !== minutes
+							? `${Math.round(minutes)} min on site, billed in ${roundTo}-min increments`
+							: '',
 					qty: hours,
 					unitPrice: jt.hourlyRate
 				}

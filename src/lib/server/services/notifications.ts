@@ -1130,6 +1130,34 @@ export async function notifyStaffEstimateDecision(orgId: string, estimateId: str
 	}
 }
 
+/** "Customer opened the estimate" staff alert — once per estimate per admin email. */
+export async function notifyStaffEstimateViewed(orgId: string, estimateId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ number: estimate.number, customerName: customer.name })
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(eq(estimate.id, estimateId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'estimate_viewed', estimateId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `E-${row.number} viewed — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Estimate E-${row.number} was opened`,
+				lines: [
+					`${row.customerName} just viewed estimate E-${row.number} — a good moment to follow up.`
+				],
+				action: { label: 'Open estimate', url: `${appOrigin()}/estimates/${estimateId}` }
+			})
+		});
+	}
+}
+
 /** "We received your payment" receipt email — once per batch of payment rows. */
 export async function notifyPaymentReceived(orgId: string, paymentIds: string[]) {
 	const flags = await notifFlags(orgId);

@@ -378,7 +378,7 @@ export async function publicEstimate(id: string) {
 				)
 			)
 			.limit(1);
-		if (!seen)
+		if (!seen) {
 			await emit({
 				orgId: row.estimate.organizationId,
 				entityType: 'estimate',
@@ -386,6 +386,11 @@ export async function publicEstimate(id: string) {
 				action: 'viewed',
 				summary: `${row.customerName} opened estimate E-${row.estimate.number}`
 			});
+			const { notifyStaffEstimateViewed } = await import('./notifications.ts');
+			notifyStaffEstimateViewed(row.estimate.organizationId, id).catch((err) =>
+				console.error('estimate-viewed alert failed', err)
+			);
+		}
 	}
 	return { ...row, items, currency: settings?.currency ?? 'usd' };
 }

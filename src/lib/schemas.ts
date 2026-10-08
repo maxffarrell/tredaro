@@ -430,7 +430,8 @@ export const settingsInput = v.object({
 	taxRateBps: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000))),
 	bookingDailyLimit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
 	lateFeeCents: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100000))),
-	estimateDepositPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)))
+	estimateDepositPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
+	laborRoundingMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(120)))
 });
 
 export const webhookInput = v.object({

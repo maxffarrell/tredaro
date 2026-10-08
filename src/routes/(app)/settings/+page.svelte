@@ -190,6 +190,7 @@
 	let taxRatePct = $state(settings.taxRateBps / 100);
 	let lateFeeDollars = $state(settings.lateFeeCents / 100);
 	let depositPct = $state(settings.estimateDepositPct);
+	let laborRounding = $state(settings.laborRoundingMin);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -226,7 +227,8 @@
 				bookingDailyLimit,
 				taxRateBps: Math.round((taxRatePct || 0) * 100),
 				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
-				estimateDepositPct: Math.round(depositPct || 0)
+				estimateDepositPct: Math.round(depositPct || 0),
+				laborRoundingMin: Math.round(laborRounding || 0)
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -556,6 +558,22 @@
 								<p class="text-xs text-muted-foreground">
 									When a customer approves an estimate, invoice this % up front and email the pay
 									link. 0 = no deposit.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="labor-round">Labor rounding (min)</Field.Label>
+								<Input
+									id="labor-round"
+									type="number"
+									min="0"
+									max="120"
+									step="1"
+									class="w-24"
+									bind:value={laborRounding}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Round billed time up to this increment on hourly invoices (e.g. 15 rounds
+									47&#8202;min up to 60). 0 = bill exact minutes.
 								</p>
 							</Field.Field>
 							<div class="flex items-center justify-between">

@@ -155,6 +155,7 @@
 								<Table.Head>Plan</Table.Head>
 								<Table.Head class="hidden md:table-cell">Started</Table.Head>
 								<Table.Head class="hidden md:table-cell">Next billing</Table.Head>
+								<Table.Head class="hidden md:table-cell">Visits</Table.Head>
 								<Table.Head>Status</Table.Head>
 								<Table.Head class="w-28 text-right"></Table.Head>
 							</Table.Row>
@@ -179,6 +180,11 @@
 									<Table.Cell class="hidden text-muted-foreground md:table-cell"
 										>{a.agreement.status === 'active'
 											? formatDate(a.agreement.nextChargeAt)
+											: '—'}</Table.Cell
+									>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell"
+										>{a.includedVisits
+											? `${a.visitsUsed ?? 0} of ${a.includedVisits}`
 											: '—'}</Table.Cell
 									>
 									<Table.Cell><StatusBadge status={a.agreement.status} /></Table.Cell>

@@ -76,6 +76,8 @@ export const companySettings = pgTable('company_settings', {
 	lateFeeCents: integer('late_fee_cents').notNull().default(0),
 	/** Deposit invoice created on estimate approval, % of the estimate total (0 = none). */
 	estimateDepositPct: integer('estimate_deposit_pct').notNull().default(0),
+	/** Round billed labor up to this many minutes on invoices (0 = exact). */
+	laborRoundingMin: integer('labor_rounding_min').notNull().default(0),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),
