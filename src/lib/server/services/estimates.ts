@@ -466,7 +466,35 @@ export async function decideEstimate(
 	if (input.approve && !input.name) error(400, 'Type your name to approve');
 
 	const [c] = await db.select().from(customer).where(eq(customer.id, est.customerId));
+	return applyDecision(est, c, input, `ip ${ip}`);
+}
 
+/**
+ * Staff records a verbal/phone approval or decline on a sent estimate — same
+ * conversion as the public link (job creation, deposit invoice, decision note).
+ */
+export async function decideEstimateStaff(
+	ctx: OrgContext,
+	id: string,
+	approve: boolean,
+	actor: string
+) {
+	const [est] = await db
+		.select()
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
+	if (!est) error(404, 'Estimate not found');
+	if (est.status !== 'sent') error(409, 'Only sent estimates can be decided');
+	const [c] = await db.select().from(customer).where(eq(customer.id, est.customerId));
+	return applyDecision(est, c, { approve, name: approve ? actor : null }, `staff ${actor}`);
+}
+
+async function applyDecision(
+	est: typeof estimate.$inferSelect,
+	c: typeof customer.$inferSelect | undefined,
+	input: { approve: boolean; name?: string | null; items?: string[]; note?: string | null },
+	via: string
+) {
 	let jobId: string | null = null;
 	const chosen = new Set(input.items ?? []);
 	if (input.approve) {
@@ -474,7 +502,7 @@ export async function decideEstimate(
 			await db
 				.select()
 				.from(estimateItem)
-				.where(eq(estimateItem.estimateId, estimateId))
+				.where(eq(estimateItem.estimateId, est.id))
 				.orderBy(asc(estimateItem.position))
 		).filter((i) => !i.optional || chosen.has(i.id));
 		const description = [
@@ -538,7 +566,7 @@ export async function decideEstimate(
 			decisionName: input.approve ? input.name : null,
 			decisionNote: [
 				input.approve ? 'approved' : 'declined',
-				`ip ${ip}`,
+				via,
 				input.note || null,
 				chosen.size ? `extras: ${[...chosen].join(',')}` : null
 			]
@@ -546,13 +574,13 @@ export async function decideEstimate(
 				.join(' · '),
 			jobId
 		})
-		.where(eq(estimate.id, estimateId))
+		.where(eq(estimate.id, est.id))
 		.returning();
 
 	await emit({
 		orgId: est.organizationId,
 		entityType: 'estimate',
-		entityId: estimateId,
+		entityId: est.id,
 		action: input.approve ? 'approved' : 'declined',
 		summary: `E-${est.number} ${input.approve ? `approved by ${input.name}` : 'declined'} — ${c?.name ?? 'customer'}`,
 		data: { jobId }

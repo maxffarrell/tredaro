@@ -6,7 +6,14 @@ import { command, query } from '$app/server';
 import { requireOrg, requireUser } from '#lib/server/context.ts';
 import { refreshQuery } from './_refresh.ts';
 import { db } from '#lib/server/db/index.ts';
-import { customer, member, notificationLog, user, webhook } from '#lib/server/db/schema.ts';
+import {
+	customer,
+	member,
+	notificationLog,
+	smsOutbox,
+	user,
+	webhook
+} from '#lib/server/db/schema.ts';
 import { dashboard } from '#lib/server/services/dashboard.ts';
 import { getReports as reports } from '#lib/server/services/reports.ts';
 import { search } from '#lib/server/services/search.ts';
@@ -60,6 +67,16 @@ export const getStaffNotifications = query(async () => {
 		.where(and(eq(notificationLog.organizationId, orgId), eq(notificationLog.recipient, me.email)))
 		.orderBy(desc(notificationLog.createdAt))
 		.limit(50);
+});
+
+export const getSmsOutbox = query(async () => {
+	const { orgId } = await requireOrg();
+	return db
+		.select()
+		.from(smsOutbox)
+		.where(eq(smsOutbox.organizationId, orgId))
+		.orderBy(desc(smsOutbox.createdAt))
+		.limit(15);
 });
 
 export const markAllNotificationsRead = command(v.object({}), async () => {

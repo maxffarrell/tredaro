@@ -85,11 +85,18 @@ export async function flushSmsOutbox(orgId: string) {
 		);
 	for (const m of due) {
 		try {
-			await sendSms({ to: m.to, body: m.body });
+			const sid = await sendSms({ to: m.to, body: m.body });
+			await db
+				.update(smsOutbox)
+				.set({ sentAt: new Date(), providerSid: sid, status: 'sent' })
+				.where(eq(smsOutbox.id, m.id));
 		} catch (err) {
 			console.error('sms outbox send failed', m.id, err);
+			await db
+				.update(smsOutbox)
+				.set({ sentAt: new Date(), status: 'failed', statusDetail: String(err).slice(0, 500) })
+				.where(eq(smsOutbox.id, m.id));
 		}
-		await db.update(smsOutbox).set({ sentAt: new Date() }).where(eq(smsOutbox.id, m.id));
 	}
 }
 

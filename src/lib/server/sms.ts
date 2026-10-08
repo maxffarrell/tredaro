@@ -15,11 +15,11 @@ const baseUrl = () =>
 	(TREDARO_TWILIO_BASE_URL ?? 'https://api.twilio.com/2010-04-01').replace(/\/$/, '');
 
 /** Sends through the org's own Twilio account (BYOK env). Without the vars, logs instead. Never sends in the public demo. */
-export async function sendSms({ to, body }: Sms) {
-	if (TREDARO_DEMO) return;
+export async function sendSms({ to, body }: Sms): Promise<string | null> {
+	if (TREDARO_DEMO) return null;
 	if (!smsProvider()) {
 		console.info(`[sms] no provider configured; not sent: "${body.slice(0, 60)}"`);
-		return;
+		return null;
 	}
 	const res = await fetch(`${baseUrl()}/Accounts/${TREDARO_TWILIO_ACCOUNT_SID}/Messages.json`, {
 		method: 'POST',
@@ -31,4 +31,6 @@ export async function sendSms({ to, body }: Sms) {
 		signal: AbortSignal.timeout(10_000)
 	});
 	if (!res.ok) throw new Error(`Twilio responded ${res.status}: ${await res.text()}`);
+	const json = (await res.json().catch(() => null)) as { sid?: string } | null;
+	return json?.sid ?? null;
 }

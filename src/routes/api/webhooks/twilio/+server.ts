@@ -1,9 +1,7 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import { error } from '@sveltejs/kit';
 import { and, eq, sql } from 'drizzle-orm';
-import { TREDARO_TWILIO_AUTH_TOKEN } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import { customer, notificationLog } from '#lib/server/db/schema.ts';
+import { verifyTwilioSignature } from '#lib/server/twilio.ts';
 import type { RequestHandler } from './$types';
 
 /**
@@ -21,36 +19,13 @@ import type { RequestHandler } from './$types';
  */
 const digits = (s: string) => s.replace(/\D/g, '');
 
-function verifySignature(url: URL, fields: Map<string, string>, signature: string | null) {
-	if (!TREDARO_TWILIO_AUTH_TOKEN) {
-		// Local dev/stub testing only — a deployed instance without the token
-		// must fail closed, not accept unsigned requests.
-		if (import.meta.env.DEV) return;
-		error(503, 'Twilio webhook is not configured');
-	}
-	if (!signature) error(403, 'Missing X-Twilio-Signature');
-	// GET params already live inside the URL; only POST body fields are appended.
-	let payload = url.toString();
-	for (const k of [...fields.keys()].sort()) payload += k + fields.get(k);
-	const expected = createHmac('sha1', TREDARO_TWILIO_AUTH_TOKEN).update(payload).digest();
-	let given: Buffer;
-	try {
-		given = Buffer.from(signature, 'base64');
-	} catch {
-		error(403, 'Invalid X-Twilio-Signature');
-	}
-	if (given!.length !== expected.length || !timingSafeEqual(given!, expected)) {
-		error(403, 'Invalid X-Twilio-Signature');
-	}
-}
-
 const handle = async (
 	url: URL,
 	fields: Map<string, string>,
 	signature: string | null,
 	signedFields: Map<string, string>
 ) => {
-	verifySignature(url, signedFields, signature);
+	verifyTwilioSignature(url, signedFields, signature);
 	const orgId = url.searchParams.get('org');
 	if (!orgId) return new Response('missing org', { status: 400 });
 	const from = fields.get('From') ?? fields.get('from') ?? '';

@@ -264,6 +264,7 @@
 	let payDollars = $state('');
 	let payMethod = $state<'cash' | 'card' | 'bank' | 'other'>('card');
 	let payNote = $state('');
+	let payReference = $state('');
 	const payCents = $derived(Math.round((parseFloat(payDollars) || 0) * 100));
 
 	async function submitPayment(e: SubmitEvent) {
@@ -274,11 +275,12 @@
 				customerId: payCustomerId,
 				amount: payCents,
 				method: payMethod,
+				reference: payReference || undefined,
 				notes: payNote
 			}).updates(getPayments, getCharges, getInvoices, getDashboard);
 			toast.success('Payment recorded');
 			payOpen = false;
-			payDollars = payNote = '';
+			payDollars = payNote = payReference = '';
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not record payment'));
 		}
@@ -526,7 +528,12 @@
 											>{p.customerName}</a
 										></Table.Cell
 									>
-									<Table.Cell class="capitalize">{p.payment.method}</Table.Cell>
+									<Table.Cell class="capitalize"
+										>{p.payment.method}{#if p.payment.reference}
+											<span class="text-muted-foreground">
+												· {p.payment.reference}</span
+											>{/if}</Table.Cell
+									>
 									<Table.Cell class="hidden text-muted-foreground md:table-cell"
 										>{formatDate(p.payment.paidAt)}</Table.Cell
 									>
@@ -749,6 +756,10 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="pp-ref">Reference</Field.Label>
+				<Input id="pp-ref" bind:value={payReference} placeholder="Check #, txn id…" />
 			</Field.Field>
 			<Field.Field>
 				<Field.Label for="pp-note">Note</Field.Label>

@@ -31,6 +31,7 @@
 		updateCommission,
 		updateLaborCost,
 		setStaffAlerts,
+		getSmsOutbox,
 		seedDemo
 	} from '#lib/remote/workspace.remote.ts';
 	import {
@@ -50,7 +51,7 @@
 	} from '#lib/remote/payments.remote.ts';
 	import { getApiKeys, createApiKey, deleteApiKey } from '#lib/remote/api-keys.remote.ts';
 	import { API_RESOURCES } from '#lib/api-permissions.ts';
-	import { errMsg, formatDate } from '#lib/format.ts';
+	import { errMsg, formatDate, formatRelative } from '#lib/format.ts';
 	import { tour } from '#lib/components/app/tour.svelte.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Copy from '@lucide/svelte/icons/copy';
@@ -64,6 +65,7 @@
 	import { userPrefersMode, setMode } from 'mode-watcher';
 
 	let settings = $state(await getSettings());
+	const smsLog = await getSmsOutbox();
 	let offices = $state(await getOffices());
 	let webhooks = $state(await getWebhooks());
 	let apiKeys = $state(await getApiKeys());
@@ -496,6 +498,22 @@
 								Manual Send buttons on invoices and estimates always work.
 							</p>
 							<div class="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+								<p class="mb-1 font-medium text-foreground">Delivery status (Twilio)</p>
+								To track sent/delivered/failed on the SMS log below, set your Twilio number's status-callback
+								URL to<b>HTTP GET</b>:
+								<button
+									type="button"
+									class="mt-1 block w-full truncate rounded bg-muted px-2 py-1 text-left font-mono text-[11px] text-foreground hover:bg-muted/80"
+									onclick={() =>
+										copyText(
+											`${page.url.origin}/api/webhooks/twilio-status?org=${page.data.org.id}`,
+											'Status callback URL copied'
+										)}
+								>
+									{page.url.origin}/api/webhooks/twilio-status?org={page.data.org.id}
+								</button>
+							</div>
+							<div class="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
 								<p class="mb-1 font-medium text-foreground">Inbound SMS (Twilio)</p>
 								To receive customer replies (and honor STOP/START), set your Twilio number's "A message
 								comes in" webhook to<b>HTTP GET</b>:
@@ -510,6 +528,38 @@
 								>
 									{page.url.origin}/api/webhooks/twilio?org={page.data.org.id}
 								</button>
+							</div>
+							<div>
+								<p class="mb-1.5 font-medium">SMS log</p>
+								{#if smsLog.length === 0}
+									<p class="text-xs text-muted-foreground">
+										Queued and sent texts will appear here.
+									</p>
+								{:else}
+									<div class="space-y-1.5">
+										{#each smsLog as m (m.id)}
+											<div
+												class="flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs"
+											>
+												<div class="min-w-0">
+													<p class="truncate">{m.to} — {m.body}</p>
+													<p class="text-muted-foreground">
+														{formatRelative(m.sendAfter)}{m.statusDetail
+															? ` — ${m.statusDetail}`
+															: ''}
+													</p>
+												</div>
+												<Badge
+													variant={m.status === 'delivered' || m.status === 'sent'
+														? 'secondary'
+														: m.status === 'failed' || m.status === 'undelivered'
+															? 'destructive'
+															: 'outline'}>{m.status}</Badge
+												>
+											</div>
+										{/each}
+									</div>
+								{/if}
 							</div>
 						</div>
 						<div class="space-y-3 rounded-lg border p-3 text-sm">

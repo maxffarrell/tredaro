@@ -1,7 +1,7 @@
 import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { refreshQuery } from './_refresh.ts';
-import { requireOrg } from '#lib/server/context.ts';
+import { requireOrg, requireUser } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/estimates.ts';
 import { notifyEstimateSent } from '#lib/server/services/notifications.ts';
 import { getCustomer } from './customers.remote.ts';
@@ -45,6 +45,24 @@ export const reviseEstimate = command(idSchema, async (id) => {
 	await refreshQuery(getEstimate, id);
 	await refreshQuery(getEstimates, undefined);
 	return rev;
+});
+
+export const approveEstimateStaff = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	const { user } = requireUser();
+	const row = await svc.decideEstimateStaff(ctx, id, true, user.name || user.email);
+	await refreshQuery(getEstimate, id);
+	await refreshQuery(getEstimates, undefined);
+	return row;
+});
+
+export const declineEstimateStaff = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	const { user } = requireUser();
+	const row = await svc.decideEstimateStaff(ctx, id, false, user.name || user.email);
+	await refreshQuery(getEstimate, id);
+	await refreshQuery(getEstimates, undefined);
+	return row;
 });
 
 export const duplicateEstimate = command(idSchema, async (id) => {

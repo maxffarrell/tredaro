@@ -939,6 +939,11 @@ export const smsOutbox = pgTable(
 		body: text('body').notNull(),
 		sendAfter: timestamp('send_after', { withTimezone: true }).notNull(),
 		sentAt: timestamp('sent_at', { withTimezone: true }),
+		/** Twilio MessageSid captured at send time; correlates status callbacks. */
+		providerSid: text('provider_sid'),
+		/** queued → sent → delivered / undelivered / failed (Twilio MessageStatus). */
+		status: text('status').notNull().default('queued'),
+		statusDetail: text('status_detail'),
 		...timestamps
 	},
 	(t) => [index('sms_outbox_pending_idx').on(t.organizationId, t.sendAfter)]

@@ -21,6 +21,8 @@
 		sendEstimate,
 		reviseEstimate,
 		duplicateEstimate,
+		approveEstimateStaff,
+		declineEstimateStaff,
 		invoiceEstimate
 	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
@@ -29,6 +31,8 @@
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Printer from '@lucide/svelte/icons/printer';
 	import CopyPlus from '@lucide/svelte/icons/copy-plus';
+	import Check from '@lucide/svelte/icons/check';
+	import X from '@lucide/svelte/icons/x';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -134,6 +138,18 @@
 		}
 	}
 
+	async function decide(approve: boolean) {
+		try {
+			await (approve ? approveEstimateStaff(id) : declineEstimateStaff(id)).updates(
+				getEstimate,
+				getEstimates
+			);
+			toast.success(approve ? 'Estimate approved (recorded by staff)' : 'Estimate declined');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not record decision'));
+		}
+	}
+
 	async function duplicate() {
 		try {
 			const copy = await duplicateEstimate(id).updates(getEstimates);
@@ -163,6 +179,10 @@
 			>
 		{:else if shareUrl}
 			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
+		{/if}
+		{#if est.estimate.status === 'sent'}
+			<Button size="sm" variant="outline" onclick={() => decide(true)}><Check /> Approve</Button>
+			<Button size="sm" variant="outline" onclick={() => decide(false)}><X /> Decline</Button>
 		{/if}
 		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
 			<Button size="sm" variant="outline" onclick={revise}><FilePen /> Revise</Button>
