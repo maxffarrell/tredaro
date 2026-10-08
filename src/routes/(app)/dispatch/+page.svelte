@@ -46,7 +46,7 @@
 		if (!jobId) return;
 		try {
 			if (techId === 'queue') {
-				await updateJob({ id: jobId, startsAt: null });
+				await updateJob({ id: jobId, startsAt: null }).updates(getDispatchBoard);
 				toast.success('Job unscheduled');
 			} else {
 				// Unscheduled jobs dropped on a tech get an 8am slot on the board's first day.
@@ -55,7 +55,7 @@
 					id: jobId,
 					technicianId: techId || null,
 					...(job ? { startsAt: `${start}T08:00` } : {})
-				});
+				}).updates(getDispatchBoard);
 				toast.success('Job reassigned');
 			}
 		} catch (err) {
