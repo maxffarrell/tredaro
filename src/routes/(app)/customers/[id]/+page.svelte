@@ -184,6 +184,15 @@
 			toast.success(`Merged ${mergeTarget.customer.name} into ${c.customer.name}`);
 			mergeOpen = false;
 			mergeSource = '';
+			// Merge may have filled blank contact fields — re-bind the record form.
+			const merged = (await getCustomer(id)).customer;
+			name = merged.name;
+			type = merged.type;
+			companyName = merged.companyName;
+			email = merged.email;
+			phone = merged.phone;
+			notes = merged.notes;
+			status = merged.status;
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not merge'));
 		}

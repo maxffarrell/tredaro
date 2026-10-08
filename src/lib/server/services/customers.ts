@@ -459,20 +459,34 @@ export async function mergeCustomers(ctx: OrgContext, sourceId: string, targetId
 	if (!target || !source) error(404, 'Customer not found');
 
 	await db.transaction(async (tx) => {
-		for (const t of [
-			serviceLocation,
-			equipment,
-			serviceAgreement,
-			job,
-			estimate,
-			invoice,
-			charge,
-			payment
-		] as const)
+		for (const t of [equipment, serviceAgreement, job, estimate, invoice, charge, payment] as const)
 			await tx
 				.update(t)
 				.set({ customerId: targetId })
 				.where(and(eq(t.customerId, sourceId), eq(t.organizationId, ctx.orgId)));
+
+		// Locations move too — but only one primary may survive. If the survivor already
+		// has one, the incoming locations lose theirs.
+		const targetHasPrimary =
+			(
+				await tx
+					.select({ id: serviceLocation.id })
+					.from(serviceLocation)
+					.where(
+						and(
+							eq(serviceLocation.organizationId, ctx.orgId),
+							eq(serviceLocation.customerId, targetId),
+							eq(serviceLocation.isPrimary, true)
+						)
+					)
+					.limit(1)
+			).length > 0;
+		await tx
+			.update(serviceLocation)
+			.set({ customerId: targetId, ...(targetHasPrimary ? { isPrimary: false } : {}) })
+			.where(
+				and(eq(serviceLocation.customerId, sourceId), eq(serviceLocation.organizationId, ctx.orgId))
+			);
 
 		// Fill gaps on the survivor from the duplicate; the survivor's own values always win.
 		await tx

@@ -41,6 +41,8 @@ export const updateCustomer = command(customerUpdate, async (input) => {
 	const c = await svc.updateCustomer(await requireOrg(), input);
 	await refreshQuery(getCustomer, c!.id);
 	await refreshQuery(getCustomers, undefined);
+	// Contact fields drive duplicate detection — a new shared email/phone flags it.
+	await refreshQuery(getCustomerDuplicates, c!.id);
 	return c;
 });
 
