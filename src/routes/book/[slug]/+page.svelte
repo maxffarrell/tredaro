@@ -26,6 +26,7 @@
 	let city = $state('');
 	let addrState = $state('');
 	let zip = $state('');
+	let preferredDate = $state('');
 	let preferredTime = $state('');
 	let description = $state('');
 	let website = $state(''); // honeypot — must stay empty
@@ -47,7 +48,9 @@
 					city,
 					state: addrState,
 					zip,
-					preferredTime,
+					preferredTime: preferredDate
+						? `${preferredDate}${preferredTime ? ` · ${preferredTime}` : ''}`
+						: preferredTime,
 					description,
 					website
 				}
@@ -188,14 +191,16 @@
 								<Input bind:value={addrState} placeholder="State" />
 								<Input bind:value={zip} placeholder="ZIP" />
 							</div>
-							<Field.Field>
-								<Field.Label for="b-when">Preferred time</Field.Label>
-								<Input
-									id="b-when"
-									bind:value={preferredTime}
-									placeholder="e.g. weekday mornings, ASAP"
-								/>
-							</Field.Field>
+							<div class="grid gap-4 sm:grid-cols-2">
+								<Field.Field>
+									<Field.Label for="b-date">Preferred date</Field.Label>
+									<Input id="b-date" type="date" bind:value={preferredDate} />
+								</Field.Field>
+								<Field.Field>
+									<Field.Label for="b-when">Preferred time</Field.Label>
+									<Input id="b-when" bind:value={preferredTime} placeholder="e.g. morning, ASAP" />
+								</Field.Field>
+							</div>
 							<Field.Field>
 								<Field.Label for="b-desc">Describe the work</Field.Label>
 								<Textarea

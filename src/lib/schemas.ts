@@ -368,6 +368,10 @@ export const invoiceUpdate = v.object({
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)))
 });
 
+export const refundInput = v.object({
+	paymentId: idSchema
+});
+
 export const chargeInput = v.object({
 	customerId: idSchema,
 	jobId: v.optional(v.nullable(idSchema)),

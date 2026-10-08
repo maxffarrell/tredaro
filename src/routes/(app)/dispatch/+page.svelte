@@ -6,7 +6,8 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { getDispatchBoard, updateJob } from '#lib/remote/jobs.remote.ts';
-	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { addDays } from '#lib/tz.ts';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -18,11 +19,16 @@
 	import Inbox from '@lucide/svelte/icons/inbox';
 
 	const settings = await getSettings();
+	const offices = await getOffices();
+	let officeId = $state(page.url.searchParams.get('office') ?? '');
+	const officeName = $derived(offices.find((o) => o.id === officeId)?.name ?? '');
 	const tz = settings.timezone;
 
 	const todayStr = localDate(new Date(), tz);
 	let start = $state(page.url.searchParams.get('from') ?? todayStr);
-	const board = $derived(await getDispatchBoard({ from: start, to: addDays(start, 7) }));
+	const board = $derived(
+		await getDispatchBoard({ from: start, to: addDays(start, 7), officeId: officeId || undefined })
+	);
 
 	function shift(days: number) {
 		start = addDays(start, days);
@@ -79,6 +85,26 @@
 <PageHeader title="Dispatch board">
 	{#snippet actions()}
 		<div class="flex items-center gap-1">
+			{#if offices.length > 1}
+				<Select.Root
+					type="single"
+					value={officeId}
+					onValueChange={(v) => {
+						officeId = v === 'all' ? '' : v;
+						goto(`?from=${start}${officeId ? `&office=${officeId}` : ''}`, {
+							replaceState: true
+						});
+					}}
+				>
+					<Select.Trigger class="h-8 w-40">{officeName || 'All offices'}</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="all">All offices</Select.Item>
+						{#each offices as o (o.id)}
+							<Select.Item value={o.id}>{o.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			{/if}
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(-7)}
 				><ChevronLeft /></Button
 			>

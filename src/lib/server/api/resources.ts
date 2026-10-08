@@ -141,6 +141,16 @@ export const resources: Record<string, Resource> = {
 	truck_stock: {
 		description: 'Per-technician truck inventory (read-only)',
 		list: (ctx) => inventory.listTruckStock(ctx.orgId)
+	},
+	refunds: {
+		description:
+			'Refund a recorded payment (POST `{paymentId}` — ledger-only, refund externally in the provider)',
+		list: async () => [],
+		create: {
+			schema: s.refundInput,
+			run: async (ctx: OrgContext, input: never) =>
+				billing.refundPayment(ctx, (input as { paymentId: string }).paymentId)
+		}
 	}
 };
 

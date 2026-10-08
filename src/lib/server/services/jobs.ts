@@ -116,6 +116,7 @@ export async function listJobs(
 		status?: string[];
 		technicianId?: string;
 		unscheduled?: boolean;
+		officeId?: string;
 	}
 ) {
 	return db
@@ -133,6 +134,7 @@ export async function listJobs(
 				opts.from ? gte(job.startsAt, opts.from) : undefined,
 				opts.to ? lt(job.startsAt, opts.to) : undefined,
 				opts.unscheduled ? eq(job.status, 'unscheduled') : undefined,
+				opts.officeId ? eq(job.officeId, opts.officeId) : undefined,
 				opts.status?.length
 					? sql`${outer(job.status)} in (${sql.join(
 							opts.status.map((x) => sql`${x}`),
@@ -730,12 +732,12 @@ export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
 // ---------- Dispatch board ----------
 
 /** Jobs in the window plus everything unscheduled — one payload for the dispatch board. */
-export async function dispatchBoard(orgId: string, from: Date, to: Date) {
+export async function dispatchBoard(orgId: string, from: Date, to: Date, officeId?: string) {
 	const fromIso = from.toISOString().slice(0, 10);
 	const toIso = to.toISOString().slice(0, 10);
 	const [scheduled, unscheduled, technicians, timeOff] = await Promise.all([
-		listJobs(orgId, { from, to }),
-		listJobs(orgId, { unscheduled: true }),
+		listJobs(orgId, { from, to, officeId }),
+		listJobs(orgId, { unscheduled: true, officeId }),
 		listTechnicians(orgId),
 		db
 			.select()

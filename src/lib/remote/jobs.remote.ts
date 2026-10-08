@@ -70,14 +70,20 @@ export const getJob = query(idSchema, async (id) => svc.getJob((await requireOrg
 
 /** Dispatch board payload for `[from, to]`: scheduled jobs, unscheduled queue, technicians. */
 export const getDispatchBoard = query(
-	v.optional(v.object({ from: v.optional(v.string()), to: v.optional(v.string()) })),
+	v.optional(
+		v.object({
+			from: v.optional(v.string()),
+			to: v.optional(v.string()),
+			officeId: v.optional(v.string())
+		})
+	),
 	async (opts) => {
 		const { orgId } = await requireOrg();
 		const from = opts?.from ? new Date(`${opts.from}T00:00:00Z`) : new Date();
 		const to = opts?.to
 			? new Date(`${opts.to}T00:00:00Z`)
 			: new Date(from.getTime() + 7 * 86400_000);
-		return svc.dispatchBoard(orgId, from, to);
+		return svc.dispatchBoard(orgId, from, to, opts?.officeId || undefined);
 	}
 );
 

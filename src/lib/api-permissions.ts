@@ -15,7 +15,8 @@ export const API_RESOURCES = [
 	'technicians',
 	'inventory',
 	'purchase_orders',
-	'truck_stock'
+	'truck_stock',
+	'refunds'
 ] as const;
 export type ApiResource = (typeof API_RESOURCES)[number];
 
@@ -41,7 +42,8 @@ export const API_RESOURCE_LABELS: Record<ApiResource, string> = {
 	technicians: 'Technicians',
 	inventory: 'Inventory',
 	purchase_orders: 'Purchase orders',
-	truck_stock: 'Truck stock'
+	truck_stock: 'Truck stock',
+	refunds: 'Refunds'
 };
 
 const actionsFor = (level: Exclude<AccessLevel, 'none'>): ApiAction[] =>
