@@ -79,6 +79,8 @@ export const companySettings = pgTable('company_settings', {
 	estimateDepositPct: integer('estimate_deposit_pct').notNull().default(0),
 	/** Round billed labor up to this many minutes on invoices (0 = exact). */
 	laborRoundingMin: integer('labor_rounding_min').notNull().default(0),
+	/** Comma-separated ZIPs the public booking page accepts (blank = anywhere). */
+	serviceZips: text('service_zips').notNull().default(''),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),

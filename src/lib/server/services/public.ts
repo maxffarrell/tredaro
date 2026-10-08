@@ -89,6 +89,17 @@ export async function requestBooking(
 		}
 	}
 
+	// Service-area check: when the org lists ZIPs, the site ZIP must be one of them.
+	const allowedZips = settings.serviceZips
+		.split(',')
+		.map((z) => z.trim())
+		.filter(Boolean);
+	if (allowedZips.length > 0) {
+		const z = input.zip.trim();
+		if (!z || !allowedZips.includes(z))
+			error(400, 'Sorry, that address is outside our service area.');
+	}
+
 	// Daily cap: at most bookingDailyLimit public bookings for the requested day.
 	if (settings.bookingDailyLimit > 0 && input.preferredTime) {
 		const m = /^(\d{4}-\d{2}-\d{2})/.exec(input.preferredTime);

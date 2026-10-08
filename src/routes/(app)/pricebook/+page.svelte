@@ -17,7 +17,8 @@
 		createPricebookItem,
 		updatePricebookItem,
 		getCurrency,
-		importPricebookItems
+		importPricebookItems,
+		adjustPricebookPrices
 	} from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -126,10 +127,32 @@
 		}
 		importPending = false;
 	}
+
+	let adjustOpen = $state(false);
+	let adjustPct = $state(0);
+	let adjustCat = $state('');
+	let adjustPending = $state(false);
+
+	async function submitAdjust() {
+		adjustPending = true;
+		try {
+			const r = await adjustPricebookPrices({
+				pct: adjustPct,
+				category: adjustCat || undefined
+			}).updates(getPricebook);
+			toast.success(`Adjusted ${r.adjusted} item${r.adjusted === 1 ? '' : 's'} by ${adjustPct}%`);
+			adjustOpen = false;
+			items = await getPricebook({ q });
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not adjust prices'));
+		}
+		adjustPending = false;
+	}
 </script>
 
 <PageHeader title="Pricebook">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" onclick={() => (adjustOpen = true)}>Adjust prices</Button>
 		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
 			><Upload /> Import</Button
 		>
@@ -296,6 +319,52 @@
 		<Dialog.Footer>
 			<Button disabled={importPending || !importRows.length} onclick={runImport}
 				>{importPending ? 'Importing…' : 'Import'}</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={adjustOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Adjust prices</Dialog.Title>
+			<Dialog.Description>
+				Apply a percent change to active items — e.g. 5 for a 5% increase, -10 for a 10% discount.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<Field.Field>
+				<Field.Label>Percent change</Field.Label>
+				<Field.Content>
+					<Input type="number" min={-90} max={500} step={0.5} bind:value={adjustPct} />
+				</Field.Content>
+			</Field.Field>
+			{#if categories.length}
+				<Field.Field>
+					<Field.Label>Category</Field.Label>
+					<Field.Content>
+						<Select.Root
+							type="single"
+							value={adjustCat || 'all'}
+							onValueChange={(v) => (adjustCat = v === 'all' ? '' : v)}
+						>
+							<Select.Trigger class="w-full">
+								{adjustCat || 'All categories'}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="all">All categories</Select.Item>
+								{#each categories as c (c)}
+									<Select.Item value={c}>{c}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</Field.Content>
+				</Field.Field>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button disabled={adjustPending || adjustPct === 0} onclick={submitAdjust}
+				>{adjustPending ? 'Applying…' : 'Apply'}</Button
 			>
 		</Dialog.Footer>
 	</Dialog.Content>

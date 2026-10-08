@@ -30,6 +30,7 @@
 		getStaff,
 		updateCommission,
 		updateLaborCost,
+		setStaffAlerts,
 		seedDemo
 	} from '#lib/remote/workspace.remote.ts';
 	import {
@@ -191,6 +192,7 @@
 	let lateFeeDollars = $state(settings.lateFeeCents / 100);
 	let depositPct = $state(settings.estimateDepositPct);
 	let laborRounding = $state(settings.laborRoundingMin);
+	let serviceZips = $state(settings.serviceZips);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -299,6 +301,18 @@
 				laborCostCents: Math.round(dollars * 100)
 			}).updates(getStaff);
 			toast.success(`Labor cost set`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+	}
+
+	async function saveStaffAlerts(s: (typeof staff)[number], el: Event) {
+		try {
+			await setStaffAlerts({
+				memberId: s.id,
+				staffAlerts: (el.target as HTMLInputElement).checked
+			}).updates(getStaff);
+			toast.success('Saved');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
 		}
@@ -659,6 +673,13 @@
 									Max bookings accepted per requested day — 0 = unlimited.
 								</p>
 							</Field.Field>
+							<Field.Field>
+								<Field.Label for="s-zips">Service ZIPs</Field.Label>
+								<Input id="s-zips" bind:value={serviceZips} placeholder="90210, 90211, 90212" />
+								<p class="text-xs text-muted-foreground">
+									Comma-separated ZIPs customers can book in — blank accepts anywhere.
+								</p>
+							</Field.Field>
 						{/if}
 						<Button type="submit" disabled={pending}>Save</Button>
 					</form>
@@ -776,6 +797,18 @@
 											onchange={(e) => saveLaborCost(s, e)}
 										/>
 										/hr cost
+									</label>
+									<label
+										class="flex items-center gap-1 text-xs text-muted-foreground"
+										title="Staff notification emails (bookings, decisions, digest)"
+									>
+										<input
+											type="checkbox"
+											class="accent-primary"
+											checked={s.staffAlerts}
+											onchange={(e) => saveStaffAlerts(s, e)}
+										/>
+										alerts
 									</label>
 									<Badge
 										variant={s.role === 'owner' || s.role === 'admin' ? 'default' : 'secondary'}

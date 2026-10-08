@@ -98,6 +98,8 @@ export const member = pgTable(
 		commissionPct: integer('commission_pct').default(0).notNull(),
 		/** Loaded cost per hour (cents) — turns logged time into a job margin cost. */
 		laborCostCents: integer('labor_cost_cents').default(0).notNull(),
+		/** Whether this member gets staff notification emails (bookings, decisions, digest). */
+		staffAlerts: boolean('staff_alerts').default(true).notNull(),
 		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => [

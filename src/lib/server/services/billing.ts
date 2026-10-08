@@ -490,6 +490,27 @@ export async function updatePricebookItem(
 	return row;
 }
 
+export async function adjustPricebookPrices(
+	ctx: OrgContext,
+	input: { pct: number; category?: string }
+) {
+	const cat = input.category?.trim();
+	const res = await db
+		.update(pricebookItem)
+		.set({
+			price: sql<number>`round(${pricebookItem.price} * (1 + ${input.pct}::float / 100))::int`
+		})
+		.where(
+			and(
+				eq(pricebookItem.organizationId, ctx.orgId),
+				eq(pricebookItem.active, true),
+				cat ? eq(pricebookItem.category, cat) : undefined
+			)
+		)
+		.returning({ id: pricebookItem.id });
+	return { adjusted: res.length };
+}
+
 // ---------- Invoices ----------
 
 type LineItems = v.InferOutput<typeof s.invoiceInput>['items'];

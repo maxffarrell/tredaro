@@ -62,6 +62,7 @@ export const getStaff = query(async () => {
 			role: member.role,
 			commissionPct: member.commissionPct,
 			laborCostCents: member.laborCostCents,
+			staffAlerts: member.staffAlerts,
 			createdAt: member.createdAt
 		})
 		.from(member)
@@ -98,6 +99,23 @@ export const updateLaborCost = command(laborCostInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ laborCostCents: input.laborCostCents })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const staffAlertsInput = v.object({
+	memberId: idSchema,
+	staffAlerts: v.boolean()
+});
+
+/** Turns staff notification emails (bookings, decisions, digest) on/off for a member. */
+export const setStaffAlerts = command(staffAlertsInput, async (input) => {
+	const { orgId } = await requireOrg('admin');
+	const [row] = await db
+		.update(member)
+		.set({ staffAlerts: input.staffAlerts })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');

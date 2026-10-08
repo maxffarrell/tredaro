@@ -117,7 +117,13 @@ async function adminEmails(orgId: string) {
 		.select({ email: user.email })
 		.from(member)
 		.innerJoin(user, eq(member.userId, user.id))
-		.where(and(eq(member.organizationId, orgId), inArray(member.role, ['owner', 'admin'])));
+		.where(
+			and(
+				eq(member.organizationId, orgId),
+				inArray(member.role, ['owner', 'admin']),
+				eq(member.staffAlerts, true)
+			)
+		);
 	return rows.map((r) => r.email).filter((e): e is string => !!e);
 }
 

@@ -92,6 +92,19 @@ export const updatePricebookItem = command(pricebookItemUpdate, async (input) =>
 	return i;
 });
 
+const adjustPricesInput = v.object({
+	/** Percent change, e.g. 5 or -10. */
+	pct: v.pipe(v.number(), v.minValue(-90), v.maxValue(500)),
+	category: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)))
+});
+
+/** Applies a % price change to active pricebook items, optionally one category. */
+export const adjustPricebookPrices = command(adjustPricesInput, async (input) => {
+	const r = await svc.adjustPricebookPrices(await requireOrg('admin'), input);
+	await refreshQuery(getPricebook, undefined);
+	return r;
+});
+
 export const getInvoices = query(
 	v.optional(v.object({ status: v.optional(v.string()) })),
 	async (opts) => svc.listInvoices((await requireOrg()).orgId, opts?.status)
