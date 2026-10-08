@@ -276,7 +276,13 @@ export const jobStatus = pgEnum('job_status', [
 	'cancelled'
 ]);
 export const jobPriority = pgEnum('job_priority', ['low', 'normal', 'high', 'urgent']);
-export const jobSource = pgEnum('job_source', ['manual', 'booking', 'estimate', 'agreement']);
+export const jobSource = pgEnum('job_source', [
+	'manual',
+	'booking',
+	'estimate',
+	'agreement',
+	'maintenance'
+]);
 
 /** One piece of work for a customer at a service location. */
 export const job = pgTable(
@@ -310,6 +316,9 @@ export const job = pgTable(
 		/** Billed period start (`YYYY-MM-DD`) the visit belongs to. */
 		agreementPeriod: text('agreement_period'),
 		agreementVisitNo: integer('agreement_visit_no'),
+		/** For maintenance-schedule jobs: the schedule + the due date it covers. */
+		maintenanceScheduleId: text('maintenance_schedule_id'),
+		schedulePeriod: date('schedule_period', { mode: 'string' }),
 		cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
 		...timestamps
@@ -324,7 +333,8 @@ export const job = pgTable(
 			t.serviceAgreementId,
 			t.agreementPeriod,
 			t.agreementVisitNo
-		)
+		),
+		uniqueIndex('job_schedule_period_idx').on(t.maintenanceScheduleId, t.schedulePeriod)
 	]
 );
 
@@ -774,4 +784,27 @@ export const jobPhoto = pgTable(
 		...timestamps
 	},
 	(t) => [index('job_photo_job_idx').on(t.jobId)]
+);
+
+/** A recurring maintenance cadence on a customer — cron generates unscheduled jobs when due. */
+export const maintenanceSchedule = pgTable(
+	'maintenance_schedule',
+	{
+		id: id(),
+		organizationId: orgId(),
+		customerId: text('customer_id')
+			.notNull()
+			.references(() => customer.id, { onDelete: 'cascade' }),
+		jobTypeId: text('job_type_id').references(() => jobType.id, { onDelete: 'set null' }),
+		summary: text('summary').notNull().default(''),
+		/** Days between visits (7, 30, 90, 180, 365 presets). */
+		intervalDays: integer('interval_days').notNull(),
+		nextDueOn: date('next_due_on', { mode: 'string' }).notNull(),
+		active: boolean('active').notNull().default(true),
+		...timestamps
+	},
+	(t) => [
+		index('maintenance_schedule_customer_idx').on(t.customerId),
+		index('maintenance_schedule_due_idx').on(t.organizationId, t.active, t.nextDueOn)
+	]
 );

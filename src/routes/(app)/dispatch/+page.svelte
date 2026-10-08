@@ -113,6 +113,11 @@
 					class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
 					draggable="true"
 					ondragstart={(e) => dragJob(e, j)}
+					ondragover={allowDrop}
+					ondrop={(e) => {
+						e.stopPropagation();
+						dropOn(e, 'queue');
+					}}
 					onclick={() => goto(`/jobs/${j.job.id}`)}
 				>
 					<div class="flex items-center justify-between gap-2">
@@ -163,6 +168,11 @@
 										class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
 										draggable="true"
 										ondragstart={(e) => dragJob(e, j)}
+										ondragover={allowDrop}
+										ondrop={(e) => {
+											e.stopPropagation();
+											dropOn(e, techId);
+										}}
 										onclick={() => goto(`/jobs/${j.job.id}`)}
 									>
 										<div class="flex items-center gap-2">

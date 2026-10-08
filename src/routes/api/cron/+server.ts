@@ -5,6 +5,7 @@ import { db } from '#lib/server/db/index.ts';
 import { organization } from '#lib/server/db/schema.ts';
 import { runBilling } from '#lib/server/services/billing.ts';
 import { runReminders } from '#lib/server/services/notifications.ts';
+import { runSchedules } from '#lib/server/services/maintenance.ts';
 import { purgeExpiredDemos } from '#lib/server/demo-mode.ts';
 import type { RequestHandler } from './$types';
 
@@ -23,6 +24,7 @@ export const GET: RequestHandler = async ({ request }) => {
 	for (const o of orgs) {
 		try {
 			await runBilling(o.id);
+			await runSchedules(o.id);
 			await runReminders(o.id);
 		} catch (err) {
 			failed++;

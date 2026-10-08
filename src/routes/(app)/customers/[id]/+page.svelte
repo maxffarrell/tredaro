@@ -28,6 +28,13 @@
 		mergeCustomers
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment } from '#lib/remote/billing.remote.ts';
+	import {
+		getSchedules,
+		createSchedule,
+		updateSchedule,
+		deleteSchedule
+	} from '#lib/remote/maintenance.remote.ts';
+	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
@@ -38,12 +45,68 @@
 	import Wrench from '@lucide/svelte/icons/wrench';
 	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import Repeat from '@lucide/svelte/icons/repeat';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	const id = page.params.id!;
 	const c = $derived(await getCustomer(id));
 	const settings = await getSettings();
 	const currency = settings.currency;
 	const tz = settings.timezone;
+
+	// ------- maintenance schedules -------
+	const schedules = $derived(await getSchedules(id));
+	const jobTypes = await getJobTypes();
+	let addingSc = $state(false);
+	let scType = $state('');
+	let scSummary = $state('');
+	let scInterval = $state<7 | 14 | 30 | 90 | 180 | 365>(90);
+	let scDate = $state('');
+	const intervalLabel = (d: number) =>
+		d === 7
+			? 'weekly'
+			: d === 14
+				? 'every 2 weeks'
+				: d === 30
+					? 'monthly'
+					: d === 90
+						? 'quarterly'
+						: d === 180
+							? 'every 6 months'
+							: 'yearly';
+	async function saveSchedule(e: SubmitEvent) {
+		e.preventDefault();
+		try {
+			await createSchedule({
+				customerId: id,
+				jobTypeId: scType || null,
+				summary: scSummary,
+				intervalDays: scInterval,
+				nextDueOn: scDate,
+				active: true
+			}).updates(getSchedules);
+			toast.success('Schedule added');
+			addingSc = false;
+			scType = scSummary = scDate = '';
+			scInterval = 90;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add schedule'));
+		}
+	}
+	async function toggleSchedule(sc: (typeof schedules)[number]['schedule'], active: boolean) {
+		try {
+			await updateSchedule({ id: sc.id, active }).updates(getSchedules);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update'));
+		}
+	}
+	async function removeSchedule(scId: string) {
+		try {
+			await deleteSchedule(scId).updates(getSchedules);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not delete'));
+		}
+	}
 
 	// ------- customer edit -------
 	let name = $state(c.customer.name);
@@ -420,6 +483,89 @@
 				{:else}
 					<p class="py-3 text-sm text-muted-foreground">No equipment on file.</p>
 				{/each}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base">Maintenance schedules</Card.Title>
+				<Button size="sm" variant="outline" onclick={() => (addingSc = !addingSc)}>
+					<Repeat /> Add
+				</Button>
+			</Card.Header>
+			<Card.Content class="space-y-2 px-4">
+				{#each schedules as sc (sc.schedule.id)}
+					<div
+						class="flex items-center gap-2 rounded-lg border p-3 text-sm {sc.schedule.active
+							? ''
+							: 'opacity-60'}"
+					>
+						<div class="min-w-0 flex-1">
+							<p class="truncate font-medium">
+								{sc.schedule.summary || sc.jobTypeName || 'Maintenance visit'}
+							</p>
+							<p class="mt-0.5 text-xs text-muted-foreground">
+								{intervalLabel(sc.schedule.intervalDays)} · next due {formatDate(
+									sc.schedule.nextDueOn
+								)}
+							</p>
+						</div>
+						<Switch
+							checked={sc.schedule.active}
+							onCheckedChange={(v) => toggleSchedule(sc.schedule, v)}
+							aria-label="Toggle schedule"
+						/>
+						<Button
+							variant="ghost"
+							size="icon"
+							class="size-7 shrink-0 text-muted-foreground"
+							onclick={() => removeSchedule(sc.schedule.id)}
+						>
+							<Trash2 class="size-3.5" />
+						</Button>
+					</div>
+				{:else}
+					<p class="py-3 text-sm text-muted-foreground">
+						No recurring schedules — e.g. a quarterly tune-up.
+					</p>
+				{/each}
+				{#if addingSc}
+					<form class="grid gap-2 border-t pt-3" onsubmit={saveSchedule}>
+						<Select.Root type="single" bind:value={scType}>
+							<Select.Trigger class="w-full"
+								>{jobTypes.find((t) => t.id === scType)?.name ??
+									'Job type (optional)'}</Select.Trigger
+							>
+							<Select.Content>
+								{#each jobTypes.filter((t) => t.active) as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Input placeholder="Summary (optional)" bind:value={scSummary} />
+						<div class="grid grid-cols-2 gap-2">
+							<Select.Root
+								type="single"
+								value={String(scInterval)}
+								onValueChange={(v) => (scInterval = Number(v) as typeof scInterval)}
+							>
+								<Select.Trigger class="w-full">{intervalLabel(scInterval)}</Select.Trigger>
+								<Select.Content>
+									{#each [7, 14, 30, 90, 180, 365] as d (d)}
+										<Select.Item value={String(d)}>{intervalLabel(d)}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+							<Input type="date" aria-label="First due date" bind:value={scDate} required />
+						</div>
+						<div class="flex gap-2">
+							<Button type="submit" size="sm" disabled={!scDate}>Save</Button>
+							<Button type="button" size="sm" variant="ghost" onclick={() => (addingSc = false)}
+								>Cancel</Button
+							>
+						</div>
+					</form>
+				{/if}
 			</Card.Content>
 		</Card.Root>
 	</div>

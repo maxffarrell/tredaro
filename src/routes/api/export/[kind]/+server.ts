@@ -113,8 +113,95 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				])
 			)
 		].join('\n');
+	} else if (kind === 'quickbooks') {
+		// QuickBooks Online invoice-import shape: one row per line item, invoice fields repeated.
+		const rows = await db
+			.select({
+				number: invoice.number,
+				customerName: customer.name,
+				issuedAt: invoice.issuedAt,
+				dueDate: invoice.dueDate,
+				name: invoiceItem.name,
+				description: invoiceItem.description,
+				qty: invoiceItem.qty,
+				unitPrice: invoiceItem.unitPrice
+			})
+			.from(invoiceItem)
+			.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
+			.innerJoin(customer, eq(invoice.customerId, customer.id))
+			.where(
+				and(
+					eq(invoice.organizationId, ctx.orgId),
+					from ? gte(invoice.issuedAt, new Date(`${from}T00:00:00Z`)) : undefined,
+					toBound ? lt(invoice.issuedAt, new Date(toBound)) : undefined
+				)
+			)
+			.orderBy(asc(invoice.number));
+		body = [
+			row([
+				'InvoiceNo',
+				'Customer',
+				'InvoiceDate',
+				'DueDate',
+				'Item',
+				'ItemDescription',
+				'ItemQuantity',
+				'ItemRate',
+				'ItemAmount'
+			]),
+			...rows.map((r) =>
+				row([
+					`INV-${r.number}`,
+					r.customerName,
+					r.issuedAt.toISOString().slice(0, 10),
+					r.dueDate,
+					r.name,
+					r.description,
+					r.qty,
+					money(r.unitPrice),
+					money(r.qty * r.unitPrice)
+				])
+			)
+		].join('\n');
+	} else if (kind === 'payments') {
+		const rows = await db
+			.select({
+				id: payment.id,
+				customerName: customer.name,
+				amount: payment.amount,
+				method: payment.method,
+				reference: payment.reference,
+				paidAt: payment.paidAt,
+				invoiceNumber: invoice.number
+			})
+			.from(payment)
+			.innerJoin(customer, eq(payment.customerId, customer.id))
+			.leftJoin(charge, eq(payment.chargeId, charge.id))
+			.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
+			.where(
+				and(
+					eq(payment.organizationId, ctx.orgId),
+					from ? gte(payment.paidAt, new Date(`${from}T00:00:00Z`)) : undefined,
+					toBound ? lt(payment.paidAt, new Date(toBound)) : undefined
+				)
+			)
+			.orderBy(asc(payment.paidAt));
+		body = [
+			row(['Payment', 'Customer', 'Date', 'Amount', 'Method', 'Invoice', 'Reference']),
+			...rows.map((r) =>
+				row([
+					r.id.slice(0, 8),
+					r.customerName,
+					r.paidAt.toISOString().slice(0, 10),
+					money(r.amount),
+					r.method,
+					r.invoiceNumber ? `INV-${r.invoiceNumber}` : '',
+					r.reference
+				])
+			)
+		].join('\n');
 	} else {
-		error(404, 'Unknown export — try invoices or time-entries');
+		error(404, 'Unknown export — try invoices, time-entries, quickbooks or payments');
 	}
 
 	return new Response(`${body}\n`, {

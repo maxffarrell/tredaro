@@ -396,3 +396,21 @@ export const checklistToggleInput = v.object({
 export const activityFilter = v.object({
 	entityType: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)))
 });
+
+/** A recurring maintenance cadence on a customer. */
+export const scheduleInput = v.object({
+	customerId: idSchema,
+	jobTypeId: v.optional(v.nullable(idSchema)),
+	summary: optionalText,
+	intervalDays: v.picklist([7, 14, 30, 90, 180, 365]),
+	nextDueOn: isoDate,
+	active: v.optional(v.boolean(), true)
+});
+export const scheduleUpdate = v.object({
+	id: idSchema,
+	jobTypeId: v.optional(v.nullable(idSchema)),
+	summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	intervalDays: v.optional(v.picklist([7, 14, 30, 90, 180, 365])),
+	nextDueOn: v.optional(isoDate),
+	active: v.optional(v.boolean())
+});

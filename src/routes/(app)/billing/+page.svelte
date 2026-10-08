@@ -10,6 +10,7 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import { toast } from 'svelte-sonner';
@@ -225,9 +226,24 @@
 			}}><Plus /> Post charge</Button
 		>
 		<Button size="sm" variant="outline" onclick={() => (payOpen = true)}>Record payment</Button>
-		<Button size="sm" variant="outline" href="/api/export/invoices.csv" download
-			><Download /> Export</Button
-		>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}
+					<Button size="sm" variant="outline" {...props}><Download /> Export</Button>
+				{/snippet}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end" class="w-52">
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/invoices.csv')}
+					>Invoices (CSV)</DropdownMenu.Item
+				>
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/quickbooks.csv')}
+					>QuickBooks invoices</DropdownMenu.Item
+				>
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/payments.csv')}
+					>Payments (CSV)</DropdownMenu.Item
+				>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 		<Button size="sm" onclick={openInvoice}><Plus /> New invoice</Button>
 	{/snippet}
 </PageHeader>

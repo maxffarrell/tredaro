@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
@@ -23,7 +24,8 @@
 		startTimer,
 		stopTimer,
 		addTimeEntry,
-		deleteTimeEntry
+		deleteTimeEntry,
+		createJob
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -54,6 +56,7 @@
 	import Package from '@lucide/svelte/icons/package';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
+	import Repeat from '@lucide/svelte/icons/repeat';
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -282,6 +285,28 @@
 		}
 	}
 
+	let rebooking = $state(false);
+	async function rebook() {
+		rebooking = true;
+		try {
+			const n = await createJob({
+				customerId: j.job.customerId,
+				jobTypeId: j.job.jobTypeId ?? null,
+				serviceLocationId: j.job.serviceLocationId ?? null,
+				equipmentId: j.job.equipmentId ?? null,
+				summary: j.job.summary,
+				description: j.job.description,
+				priority: j.job.priority,
+				startsAt: null
+			}).updates(getJobs);
+			toast.success(`Job J-${n!.number} booked`);
+			await goto(`/jobs/${n!.id}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not rebook'));
+		}
+		rebooking = false;
+	}
+
 	let note = $state('');
 	async function addNote(e: SubmitEvent) {
 		e.preventDefault();
@@ -314,6 +339,11 @@
 			>
 		{:else if j.job.status === 'in_progress'}
 			<Button size="sm" onclick={() => event('completed')}><CircleCheck /> Complete</Button>
+		{/if}
+		{#if j.job.status === 'done'}
+			<Button size="sm" variant="outline" disabled={rebooking} onclick={rebook}
+				><Repeat /> Book again</Button
+			>
 		{/if}
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
