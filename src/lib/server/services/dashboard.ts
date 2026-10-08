@@ -145,6 +145,14 @@ export async function dashboard(orgId: string) {
 	const twoWeeksOut = new Date(Date.now() + 14 * 86400_000);
 	const warrantyHorizon = `${localDate(new Date(Date.now() + 30 * 86400_000), tz)}`;
 
+	const newBookings7d = await db
+		.select({ count: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(eq(job.organizationId, orgId), eq(job.source, 'booking'), gte(job.createdAt, weekAgo))
+		)
+		.then((r) => r[0]?.count ?? 0);
+
 	const overdueCharges = await db
 		.select({
 			description: charge.description,
@@ -359,6 +367,7 @@ export async function dashboard(orgId: string) {
 		unscheduledJobs: jobStats?.unscheduled ?? 0,
 		inFlightJobs: jobStats?.inFlight ?? 0,
 		doneToday: jobStats?.doneToday ?? 0,
+		newBookings7d,
 		collectedToday: todayPayments?.total ?? 0,
 		activeAgreements: agreementStats?.active ?? 0,
 		openTotal: openStats?.openTotal ?? 0,

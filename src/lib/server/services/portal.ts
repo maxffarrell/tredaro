@@ -183,6 +183,22 @@ export async function portalOverview(customerId: string) {
 		token: estimateToken(row.estimate.id)
 	}));
 
+	const recentInvoices = await db
+		.select({
+			invoice,
+			total:
+				sql<number>`coalesce((select sum(i.qty * i.unit_price) from invoice_item i where i.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
+					Number
+				),
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on c.id = p.charge_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(invoice)
+		.where(and(eq(invoice.organizationId, orgId), eq(invoice.customerId, customerId)))
+		.orderBy(desc(invoice.createdAt))
+		.limit(5);
+
 	const techs = await db
 		.select({ id: member.id, name: user.name })
 		.from(member)
@@ -201,7 +217,8 @@ export async function portalOverview(customerId: string) {
 		openCharges,
 		locations,
 		units,
-		pendingEstimates
+		pendingEstimates,
+		recentInvoices
 	};
 }
 

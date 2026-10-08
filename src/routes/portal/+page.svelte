@@ -449,6 +449,40 @@
 			</Card.Root>
 		{/if}
 
+		{#if d.recentInvoices?.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Recent invoices</Card.Title></Card.Header>
+				<Card.Content class="px-0">
+					<Table.Root>
+						<Table.Body>
+							{#each d.recentInvoices as inv (inv.invoice.id)}
+								<Table.Row>
+									<Table.Cell class="pl-6 font-medium">INV-{inv.invoice.number}</Table.Cell>
+									<Table.Cell class="text-muted-foreground"
+										>{formatDate(inv.invoice.createdAt)}</Table.Cell
+									>
+									<Table.Cell
+										><StatusBadge
+											status={inv.invoice.status === 'open' &&
+											inv.total > 0 &&
+											inv.total - inv.paid <= 0
+												? 'paid'
+												: inv.invoice.status === 'open' && inv.paid > 0
+													? 'partial'
+													: inv.invoice.status}
+										/></Table.Cell
+									>
+									<Table.Cell class="pr-6 text-right tabular-nums"
+										>{formatMoney(inv.total, currency)}</Table.Cell
+									>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
 		<!-- contact info -->
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Your details</Card.Title></Card.Header>

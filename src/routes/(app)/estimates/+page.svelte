@@ -84,6 +84,17 @@
 		</Tabs.List>
 	</Tabs.Root>
 
+	{#if tab === 'sent' && estimates.length}
+		<p class="text-sm text-muted-foreground">
+			Open pipeline: <span class="font-medium text-foreground"
+				>{formatMoney(
+					estimates.reduce((s, e) => s + e.total, 0),
+					currency
+				)}</span
+			>
+			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'}
+		</p>
+	{/if}
 	<Card.Root class="py-0">
 		<Card.Content class="px-0">
 			<Table.Root>
@@ -107,7 +118,9 @@
 							</Table.Cell>
 							<Table.Cell>{e.customerName}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{formatDate(e.estimate.createdAt)}</Table.Cell
+								>{e.estimate.sentAt
+									? `sent ${formatDate(e.estimate.sentAt)}`
+									: formatDate(e.estimate.createdAt)}</Table.Cell
 							>
 							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(e.total, currency)}</Table.Cell
