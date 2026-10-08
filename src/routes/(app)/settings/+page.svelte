@@ -188,6 +188,7 @@
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
+	let bookingEnabled = $state(settings.bookingEnabled);
 	let taxRatePct = $state(settings.taxRateBps / 100);
 	let lateFeeDollars = $state(settings.lateFeeCents / 100);
 	let depositPct = $state(settings.estimateDepositPct);
@@ -227,6 +228,7 @@
 				autoInvoiceOnComplete,
 				bookingNoticeDays,
 				bookingDailyLimit,
+				bookingEnabled,
 				taxRateBps: Math.round((taxRatePct || 0) * 100),
 				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
 				estimateDepositPct: Math.round(depositPct || 0),
@@ -644,6 +646,15 @@
 										><Copy class="size-4" /></Button
 									>
 								</div>
+							</div>
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-sm font-medium">Accept online bookings</p>
+									<p class="text-xs text-muted-foreground">
+										Off shows visitors a "booking closed" notice instead of the form.
+									</p>
+								</div>
+								<Switch checked={bookingEnabled} onCheckedChange={(v) => (bookingEnabled = v)} />
 							</div>
 							<Field.Field>
 								<Field.Label for="s-notice">Minimum notice (days)</Field.Label>

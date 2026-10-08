@@ -41,12 +41,13 @@
 	let website = $state(''); // honeypot — must stay empty
 	let pending = $state(false);
 	let done = $state(false);
+	let reference = $state('');
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
 		pending = true;
 		try {
-			await requestBookingForm({
+			const r = await requestBookingForm({
 				slug: org.slug,
 				input: {
 					name,
@@ -65,6 +66,7 @@
 					website
 				}
 			});
+			reference = r.job?.number ? `J-${r.job.number}` : '';
 			done = true;
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not submit — try again'));
@@ -146,8 +148,21 @@
 				<Card.Root>
 					<Card.Content class="py-10 text-center">
 						<p class="text-lg font-semibold">Request received</p>
+						{#if reference}
+							<p class="mt-1 text-sm font-medium">Reference {reference}</p>
+						{/if}
 						<p class="mt-1 text-sm text-muted-foreground">
 							{org.name} will call or email you to confirm a time.
+						</p>
+					</Card.Content>
+				</Card.Root>
+			{:else if settings && !settings.bookingEnabled}
+				<Card.Root>
+					<Card.Content class="py-10 text-center">
+						<p class="text-lg font-semibold">Online booking is closed</p>
+						<p class="mt-1 text-sm text-muted-foreground">
+							{#if settings.phone}Call or text {settings.phone} to schedule.{:else}Contact {org.name}
+								to schedule.{/if}
 						</p>
 					</Card.Content>
 				</Card.Root>

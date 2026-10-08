@@ -81,6 +81,8 @@ export const companySettings = pgTable('company_settings', {
 	laborRoundingMin: integer('labor_rounding_min').notNull().default(0),
 	/** Comma-separated ZIPs the public booking page accepts (blank = anywhere). */
 	serviceZips: text('service_zips').notNull().default(''),
+	/** Master switch for the public /book/[slug] form. */
+	bookingEnabled: boolean('booking_enabled').notNull().default(true),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),
@@ -228,7 +230,12 @@ export const agreementPlan = pgTable(
 	(t) => [index('agreement_plan_org_idx').on(t.organizationId)]
 );
 
-export const agreementStatus = pgEnum('agreement_status', ['active', 'paused', 'cancelled']);
+export const agreementStatus = pgEnum('agreement_status', [
+	'active',
+	'paused',
+	'cancelled',
+	'completed'
+]);
 
 /** A customer's service agreement; drives recurring charges. */
 export const serviceAgreement = pgTable(
@@ -247,6 +254,8 @@ export const serviceAgreement = pgTable(
 		cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
 		/** When the next recurring agreement charge should be posted. */
 		nextChargeAt: timestamp('next_charge_at', { withTimezone: true }),
+		/** Fixed-term: auto-complete the agreement after this many billed periods (null = runs forever). */
+		maxPeriods: integer('max_periods'),
 		...timestamps
 	},
 	(t) => [

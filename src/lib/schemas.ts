@@ -15,7 +15,7 @@ export const idSchema = v.pipe(v.string(), v.nonEmpty());
 export const customerStatuses = ['active', 'inactive'] as const;
 export const customerTypes = ['residential', 'commercial'] as const;
 export const agreementIntervals = ['month', 'year'] as const;
-export const agreementStatuses = ['active', 'paused', 'cancelled'] as const;
+export const agreementStatuses = ['active', 'paused', 'cancelled', 'completed'] as const;
 export const pricebookKinds = ['service', 'material'] as const;
 export const jobStatuses = [
 	'unscheduled',
@@ -126,7 +126,11 @@ export const agreementPlanUpdate = v.object({
 export const agreementInput = v.object({
 	customerId: idSchema,
 	planId: idSchema,
-	startsAt: v.optional(isoDate)
+	startsAt: v.optional(isoDate),
+	/** Fixed-term agreements auto-complete after this many billed periods. */
+	maxPeriods: v.optional(
+		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1200)))
+	)
 });
 export const agreementUpdate = v.object({
 	id: idSchema,
@@ -432,7 +436,8 @@ export const settingsInput = v.object({
 	lateFeeCents: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100000))),
 	estimateDepositPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
 	laborRoundingMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(120))),
-	serviceZips: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)))
+	serviceZips: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000))),
+	bookingEnabled: v.optional(v.boolean())
 });
 
 export const webhookInput = v.object({

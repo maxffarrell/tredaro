@@ -94,6 +94,7 @@
 	let agCustomerId = $state(page.url.searchParams.get('customer') ?? '');
 	let agPlanId = $state('');
 	let agStart = $state(new Date().toISOString().slice(0, 10));
+	let agMaxPeriods = $state('');
 
 	async function saveAgreement(e: SubmitEvent) {
 		e.preventDefault();
@@ -102,7 +103,8 @@
 			await createAgreement({
 				customerId: agCustomerId,
 				planId: agPlanId,
-				startsAt: agStart
+				startsAt: agStart,
+				maxPeriods: agMaxPeriods ? Number(agMaxPeriods) : null
 			});
 			toast.success('Agreement created — initial charge posted');
 			agOpen = false;
@@ -156,6 +158,7 @@
 								<Table.Head class="hidden md:table-cell">Started</Table.Head>
 								<Table.Head class="hidden md:table-cell">Next billing</Table.Head>
 								<Table.Head class="hidden md:table-cell">Visits</Table.Head>
+								<Table.Head class="hidden lg:table-cell">Term</Table.Head>
 								<Table.Head>Status</Table.Head>
 								<Table.Head class="w-28 text-right"></Table.Head>
 							</Table.Row>
@@ -186,6 +189,11 @@
 										>{a.includedVisits
 											? `${a.visitsUsed ?? 0} of ${a.includedVisits}`
 											: '—'}</Table.Cell
+									>
+									<Table.Cell class="hidden text-muted-foreground lg:table-cell"
+										>{a.agreement.maxPeriods
+											? `${a.periodsBilled ?? '—'} of ${a.agreement.maxPeriods}`
+											: '∞'}</Table.Cell
 									>
 									<Table.Cell><StatusBadge status={a.agreement.status} /></Table.Cell>
 									<Table.Cell class="text-right">
@@ -387,6 +395,23 @@
 			<Field.Field>
 				<Field.Label for="ag-start">Start date</Field.Label>
 				<Input id="ag-start" type="date" bind:value={agStart} />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="ag-term"
+					>Fixed term <span class="text-muted-foreground">(optional)</span></Field.Label
+				>
+				<Input
+					id="ag-term"
+					type="number"
+					min={1}
+					max={1200}
+					placeholder="billed periods — blank runs forever"
+					bind:value={agMaxPeriods}
+				/>
+				<p class="text-xs text-muted-foreground">
+					e.g. 12 for a one-year monthly contract — agreement marks itself completed when fully
+					billed.
+				</p>
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={agPending || !agCustomerId || !agPlanId}

@@ -119,6 +119,11 @@ export async function listAgreements(orgId: string, status?: string[]) {
 			visitsUsed:
 				sql<number>`(select count(*) from ${job} j where j.service_agreement_id = ${serviceAgreement.id} and j.agreement_period = (select max(j2.agreement_period) from ${job} j2 where j2.service_agreement_id = ${serviceAgreement.id}))`.mapWith(
 					Number
+				),
+			/** Billed recurring periods so far (for fixed-term agreements). */
+			periodsBilled:
+				sql<number>`(select count(*) from ${charge} ch where ch.agreement_id = ${serviceAgreement.id} and ch.kind = 'agreement')`.mapWith(
+					Number
 				)
 		})
 		.from(serviceAgreement)
@@ -172,7 +177,8 @@ export async function createAgreement(
 			customerId: input.customerId,
 			planId: input.planId,
 			startsAt: new Date(`${start}T00:00:00Z`),
-			nextChargeAt: new Date(`${nextPeriod(start, p.interval)}T00:00:00Z`)
+			nextChargeAt: new Date(`${nextPeriod(start, p.interval)}T00:00:00Z`),
+			maxPeriods: input.maxPeriods ?? null
 		})
 		.returning();
 
@@ -200,6 +206,29 @@ export async function createAgreement(
 		summary: `${c.name} → ${p.name}`
 	});
 	return row;
+}
+
+/** Recurring periods billed so far (kind='agreement' charges carry periodStart). */
+async function billedPeriods(agreementId: string, q: typeof db = db): Promise<number> {
+	const [{ n }] = await q
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(charge)
+		.where(and(eq(charge.agreementId, agreementId), eq(charge.kind, 'agreement')));
+	return n;
+}
+
+/** Marks an agreement completed once its fixed term is fully billed. */
+async function completeIfTermDone(
+	m: { id: string; maxPeriods: number | null },
+	q: typeof db = db
+): Promise<boolean> {
+	if (!m.maxPeriods) return false;
+	if ((await billedPeriods(m.id, q)) < m.maxPeriods) return false;
+	await q
+		.update(serviceAgreement)
+		.set({ status: 'completed', nextChargeAt: null, cancelledAt: new Date() })
+		.where(eq(serviceAgreement.id, m.id));
+	return true;
 }
 
 /** Posts the recurring charge for one period. Idempotent via the period unique index. */
@@ -281,10 +310,12 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 	await db.transaction(async (tx) => {
 		if (p.amount > 0)
 			await postAgreementCharge(ctx.orgId, m.id, period, p, tx as unknown as typeof db);
-		await tx
-			.update(serviceAgreement)
-			.set({ nextChargeAt: new Date(`${next}T00:00:00Z`) })
-			.where(eq(serviceAgreement.id, m.id));
+		const done = await completeIfTermDone(m, tx as unknown as typeof db);
+		if (!done)
+			await tx
+				.update(serviceAgreement)
+				.set({ nextChargeAt: new Date(`${next}T00:00:00Z`) })
+				.where(eq(serviceAgreement.id, m.id));
 		await generateAgreementVisits(ctx.orgId, m, period, p, tx as unknown as typeof db);
 	});
 	await emit({
@@ -386,16 +417,22 @@ export async function runBilling(orgId: string) {
 		let period = m.nextChargeAt.toISOString().slice(0, 10);
 		let lastPosted: string | null = null;
 		// Catch up on any missed periods (install was offline).
+		let termDone = false;
 		while (new Date(`${period}T00:00:00Z`) < now) {
 			if (p.amount > 0) await postAgreementCharge(orgId, m.id, period, p);
 			lastPosted = period;
 			posted++;
+			if (await completeIfTermDone(m)) {
+				termDone = true;
+				break;
+			}
 			period = nextPeriod(period, p.interval);
 		}
-		await db
-			.update(serviceAgreement)
-			.set({ nextChargeAt: new Date(`${period}T00:00:00Z`) })
-			.where(eq(serviceAgreement.id, m.id));
+		if (!termDone)
+			await db
+				.update(serviceAgreement)
+				.set({ nextChargeAt: new Date(`${period}T00:00:00Z`) })
+				.where(eq(serviceAgreement.id, m.id));
 		// The last posted period is the current one — that is the only period whose
 		// visits should appear on the dispatch board now.
 		if (lastPosted) await generateAgreementVisits(orgId, m, lastPosted, p);

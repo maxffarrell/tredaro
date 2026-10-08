@@ -84,6 +84,8 @@ export async function requestBooking(
 	bookRate.set(ip, [...hits, now]);
 
 	const { org, settings } = await getPublicCompany(slug);
+	if (settings && !settings.bookingEnabled)
+		error(400, 'Online booking is currently closed — please call us directly.');
 
 	// Advance-notice rule: when set, the requested day must be at least
 	// bookingNoticeDays out. The UI prefixes preferredTime with YYYY-MM-DD.
