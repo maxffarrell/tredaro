@@ -29,6 +29,7 @@ import {
 } from '#lib/schemas.ts';
 import * as eventsSvc from '#lib/server/services/events.ts';
 import { assertNotDemo } from '#lib/server/demo-mode.ts';
+import { addDays, localDate, zonedToUtc } from '#lib/tz.ts';
 
 export const getDashboard = query(async () => dashboard((await requireOrg()).orgId));
 export const getReports = query(async () => reports((await requireOrg()).orgId));
@@ -277,3 +278,13 @@ export const getActivity = query(activityFilter, async (filter) =>
 export const getActivityTypes = query(async () =>
 	eventsSvc.listActivityTypes((await requireOrg()).orgId)
 );
+export const getActivityTodayCount = query(async () => {
+	const ctx = await requireOrg();
+	const tz = (await settingsSvc.getSettings(ctx.orgId)).timezone;
+	const today = localDate(new Date(), tz);
+	return eventsSvc.countActivity(
+		ctx.orgId,
+		zonedToUtc(`${today}T00:00`, tz),
+		zonedToUtc(`${addDays(today, 1)}T00:00`, tz)
+	);
+});

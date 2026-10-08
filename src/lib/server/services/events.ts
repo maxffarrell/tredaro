@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { activity, user, webhook } from '#lib/server/db/schema.ts';
 
@@ -116,6 +116,21 @@ export async function listActivity(
 		.orderBy(desc(activity.createdAt))
 		.limit(limit);
 	return rows;
+}
+
+/** Number of activity rows created within [dayStart, dayEnd) — caller supplies org-tz day bounds. */
+export async function countActivity(orgId: string, dayStart: Date, dayEnd: Date) {
+	const [{ n }] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(activity)
+		.where(
+			and(
+				eq(activity.organizationId, orgId),
+				gte(activity.createdAt, dayStart),
+				lt(activity.createdAt, dayEnd)
+			)
+		);
+	return n;
 }
 
 /** Distinct entity types seen in this org's feed (for the filter select). */

@@ -5,7 +5,11 @@
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
-	import { getActivity, getActivityTypes } from '#lib/remote/workspace.remote.ts';
+	import {
+		getActivity,
+		getActivityTodayCount,
+		getActivityTypes
+	} from '#lib/remote/workspace.remote.ts';
 	import { formatRelative } from '#lib/format.ts';
 	import History from '@lucide/svelte/icons/history';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -14,13 +18,7 @@
 	let entityType = $state('');
 	let limit = $state(200);
 	let rows = $state(await getActivity({ limit }));
-	const todayCount = $derived(
-		rows.filter(
-			(r) =>
-				new Date(r.activity.createdAt).toISOString().slice(0, 10) ===
-				new Date().toISOString().slice(0, 10)
-		).length
-	);
+	const todayCount = $derived(await getActivityTodayCount());
 	const hasMore = $derived(rows.length >= limit);
 
 	async function refilter(v: string) {
