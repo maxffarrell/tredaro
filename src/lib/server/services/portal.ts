@@ -14,6 +14,7 @@ import {
 	invoice,
 	job,
 	jobEvent,
+	jobPhoto,
 	jobType,
 	member,
 	payment,
@@ -123,6 +124,9 @@ export async function portalOverview(customerId: string) {
 		.select({
 			job,
 			jobTypeName: jobType.name,
+			photos: sql<
+				string[]
+			>`coalesce((select array_agg(p.id) from ${jobPhoto} p where p.job_id = ${job.id} and p.shared), '{}')`,
 			invoiceNumber:
 				sql<number>`(select i.number from ${invoice} i inner join ${charge} c2 on c2.invoice_id = i.id where c2.job_id = ${outer(job.id)} order by i.number limit 1)`.mapWith(
 					Number

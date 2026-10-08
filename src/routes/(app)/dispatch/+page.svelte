@@ -89,7 +89,7 @@
 		e.preventDefault();
 		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 	}
-	async function dropOn(e: DragEvent, techId: string | 'queue') {
+	async function dropOn(e: DragEvent, techId: string | 'queue', afterJobId?: string) {
 		e.preventDefault();
 		dropZone = null;
 		const jobId = e.dataTransfer?.getData('text/plain');
@@ -99,12 +99,30 @@
 				await updateJob({ id: jobId, startsAt: null }).updates(getDispatchBoard);
 				toast.success('Job unscheduled');
 			} else {
-				// Unscheduled jobs dropped on a tech get an 8am slot on the board's first day.
+				// Unscheduled jobs dropped on a tech slot in after that tech's last job of the
+				// day (or right after the job card it was dropped on), not always at 8am.
 				const job = board.unscheduled.find((j) => j.job.id === jobId);
+				const toInput = (d: Date | string) => `${localDate(new Date(d), tz)}T${localTime(d, tz)}`;
+				let when = `${start}T08:00`;
+				if (job) {
+					const group = byTech.find(([id]) => id === techId)?.[1];
+					const dayJobs = (group?.jobs ?? []).filter(
+						(j) => j.job.startsAt && localDate(new Date(j.job.startsAt), tz) === start
+					);
+					const after = afterJobId ? dayJobs.find((j) => j.job.id === afterJobId) : null;
+					const last = after?.job.endsAt
+						? after.job.endsAt
+						: dayJobs
+								.map((j) => j.job.endsAt)
+								.filter((d): d is Date => !!d)
+								.sort((a, b) => a.getTime() - b.getTime())
+								.at(-1);
+					if (last) when = toInput(last);
+				}
 				await updateJob({
 					id: jobId,
 					technicianId: techId || null,
-					...(job ? { startsAt: `${start}T08:00` } : {})
+					...(job ? { startsAt: when } : {})
 				}).updates(getDispatchBoard);
 				toast.success('Job reassigned');
 			}
@@ -285,7 +303,7 @@
 										ondragover={allowDrop}
 										ondrop={(e) => {
 											e.stopPropagation();
-											dropOn(e, techId);
+											dropOn(e, techId, j.job.id);
 										}}
 										onclick={() => goto(`/jobs/${j.job.id}`)}
 									>

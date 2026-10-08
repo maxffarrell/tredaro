@@ -49,6 +49,7 @@
 		deleteChecklistItem,
 		getJobPhotos,
 		deleteJobPhoto,
+		setJobPhotoShared,
 		getJobExpenses,
 		addJobExpense,
 		removeJobExpense
@@ -67,6 +68,7 @@
 	import ReceiptText from '@lucide/svelte/icons/receipt-text';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
+	import Eye from '@lucide/svelte/icons/eye';
 	import Repeat from '@lucide/svelte/icons/repeat';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Play from '@lucide/svelte/icons/play';
@@ -318,6 +320,16 @@
 		input.value = '';
 		uploading = false;
 	}
+	async function toggleShare(p: { id: string; shared: boolean }) {
+		try {
+			await setJobPhotoShared({ id: p.id, shared: !p.shared });
+			await getJobPhotos(id).refresh();
+			toast.success(p.shared ? 'Hidden from customer portal' : 'Shared on customer portal');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update photo'));
+		}
+	}
+
 	async function removePhoto(photoId: string) {
 		try {
 			await deleteJobPhoto(photoId).updates(getJobPhotos);
@@ -1134,15 +1146,37 @@
 									/>
 								</a>
 								{#if !locked}
-									<Button
-										variant="destructive"
-										size="icon"
-										class="absolute top-1 right-1 size-6 opacity-0 transition-opacity group-hover:opacity-100"
-										onclick={() => removePhoto(p.id)}
-										aria-label="Delete photo"
+									<div
+										class="absolute top-1 right-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
 									>
-										<Trash2 class="size-3" />
-									</Button>
+										<Button
+											variant="secondary"
+											size="icon"
+											class="size-6 {p.shared ? 'opacity-100 ring-2 ring-primary' : ''}"
+											title={p.shared
+												? 'Shared with customer — click to hide'
+												: 'Share on customer portal'}
+											aria-label={p.shared ? 'Hide from portal' : 'Share on portal'}
+											onclick={() => toggleShare(p)}
+										>
+											<Eye class="size-3" />
+										</Button>
+										<Button
+											variant="destructive"
+											size="icon"
+											class="size-6"
+											onclick={() => removePhoto(p.id)}
+											aria-label="Delete photo"
+										>
+											<Trash2 class="size-3" />
+										</Button>
+									</div>
+									{#if p.shared}
+										<Badge
+											class="absolute bottom-1 left-1 bg-primary text-[10px] text-primary-foreground"
+											>Portal</Badge
+										>
+									{/if}
 								{/if}
 							</li>
 						{/each}

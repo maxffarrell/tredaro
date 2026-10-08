@@ -881,6 +881,8 @@ export const jobPhoto = pgTable(
 		mime: text('mime').notNull(),
 		size: integer('size').notNull(),
 		path: text('path').notNull(),
+		/** Staff flag: show the photo on the customer portal visit. */
+		shared: boolean('shared').notNull().default(false),
 		...timestamps
 	},
 	(t) => [index('job_photo_job_idx').on(t.jobId)]

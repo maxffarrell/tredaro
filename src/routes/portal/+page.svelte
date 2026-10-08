@@ -244,6 +244,19 @@
 								<p class="text-xs text-muted-foreground">
 									{j.job.completedAt ? formatDate(j.job.completedAt) : ''}
 								</p>
+								{#if j.photos?.length}
+									<div class="mt-2 flex flex-wrap gap-2">
+										{#each j.photos as pid (pid)}
+											<a href="/files/portal-job-photo/{pid}" target="_blank" rel="noreferrer">
+												<img
+													src="/files/portal-job-photo/{pid}"
+													alt="Photo from your visit"
+													class="size-16 rounded-md border object-cover"
+												/>
+											</a>
+										{/each}
+									</div>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="pr-6 text-right text-sm text-muted-foreground">
 								{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}

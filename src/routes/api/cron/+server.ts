@@ -6,6 +6,7 @@ import { organization } from '#lib/server/db/schema.ts';
 import { runBilling } from '#lib/server/services/billing.ts';
 import { runReminders } from '#lib/server/services/notifications.ts';
 import { runSchedules } from '#lib/server/services/maintenance.ts';
+import { runRestock } from '#lib/server/services/inventory.ts';
 import { purgeExpiredDemos } from '#lib/server/demo-mode.ts';
 import type { RequestHandler } from './$types';
 
@@ -26,6 +27,7 @@ export const GET: RequestHandler = async ({ request }) => {
 			await runBilling(o.id);
 			await runSchedules(o.id);
 			await runReminders(o.id);
+			await runRestock(o.id);
 		} catch (err) {
 			failed++;
 			console.error(`daily cron failed for ${o.id}`, err);

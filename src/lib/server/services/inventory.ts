@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	inventoryItem,
@@ -561,5 +561,71 @@ export async function transferStock(
 			summary: `Moved ${input.qty} × ${item.name} ${input.direction === 'to_truck' ? 'to' : 'from'} ${tech.name}'s truck`
 		});
 		return { ok: true };
+	});
+}
+
+/**
+ * Daily cron: drafts a restock PO covering every low-stock item that isn't already
+ * on an open (draft/ordered) PO. Runs per org; no-op when nothing is short.
+ */
+export async function runRestock(orgId: string) {
+	const low = await db
+		.select()
+		.from(inventoryItem)
+		.where(
+			and(
+				eq(inventoryItem.organizationId, orgId),
+				sql`${inventoryItem.reorderPoint} is not null`,
+				sql`${inventoryItem.qtyOnHand} <= ${inventoryItem.reorderPoint}`
+			)
+		);
+	if (!low.length) return;
+
+	// Items already on an open PO don't get re-added.
+	const open = await db
+		.select({ inventoryItemId: purchaseOrderItem.inventoryItemId })
+		.from(purchaseOrderItem)
+		.innerJoin(purchaseOrder, eq(purchaseOrderItem.purchaseOrderId, purchaseOrder.id))
+		.where(
+			and(
+				eq(purchaseOrder.organizationId, orgId),
+				inArray(purchaseOrder.status, ['draft', 'ordered'])
+			)
+		);
+	const covered = new Set(open.map((r) => r.inventoryItemId));
+	const need = low.filter((i) => !covered.has(i.id));
+	if (!need.length) return;
+
+	const [max] = await db
+		.select({ n: sql<number>`coalesce(max(${purchaseOrder.number}), 0)`.mapWith(Number) })
+		.from(purchaseOrder)
+		.where(eq(purchaseOrder.organizationId, orgId));
+	const [po] = await db
+		.insert(purchaseOrder)
+		.values({
+			organizationId: orgId,
+			number: max.n + 1,
+			supplier: 'Auto-draft — pick a supplier',
+			notes: 'Auto-drafted by the daily restock check'
+		})
+		.returning();
+	await db.insert(purchaseOrderItem).values(
+		need.map((i) => ({
+			organizationId: orgId,
+			purchaseOrderId: po!.id,
+			inventoryItemId: i.id,
+			name: i.name,
+			unit: i.unit,
+			qty: Math.max(1, i.reorderPoint! * 2 - i.qtyOnHand),
+			unitCost: i.unitCost
+		}))
+	);
+	void emit({
+		orgId,
+		actorId: null,
+		entityType: 'purchase_order',
+		entityId: po!.id,
+		action: 'auto_drafted',
+		summary: `Restock check drafted PO-${po!.number} (${need.length} low items)`
 	});
 }
