@@ -355,7 +355,26 @@ async function completionStats(orgId: string) {
 		.where(
 			and(eq(job.organizationId, orgId), gte(job.createdAt, new Date(Date.now() - 90 * 86400_000)))
 		);
-	return row;
+	// Avg scheduled→completed span for jobs done in the window.
+	const [span] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			avgDays:
+				sql<number>`avg(extract(epoch from (${job.completedAt} - ${job.startsAt})) / 86400.0)`.mapWith(
+					Number
+				)
+		})
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				isNotNull(job.completedAt),
+				isNotNull(job.startsAt),
+				gte(job.completedAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return { ...row, avgDaysToComplete: span?.n ? span.avgDays : null };
 }
 
 /** Materials burned in the last 90 days — the restock list. */

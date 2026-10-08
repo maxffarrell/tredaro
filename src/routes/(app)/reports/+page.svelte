@@ -686,6 +686,15 @@
 					</Table.Row>
 				</Table.Body>
 			</Table.Root>
+			{#if r.completion.avgDaysToComplete != null}
+				<p class="px-6 pt-2 text-sm text-muted-foreground">
+					Avg time to complete: <span class="font-medium text-foreground"
+						>{r.completion.avgDaysToComplete < 1
+							? 'same day'
+							: `${r.completion.avgDaysToComplete.toFixed(1)} days`}</span
+					>
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

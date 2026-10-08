@@ -84,6 +84,18 @@
 		</Tabs.List>
 	</Tabs.Root>
 
+	{#if tab === 'approved' && estimates.length}
+		<p class="text-sm text-muted-foreground">
+			Won: <span class="font-medium text-foreground"
+				>{formatMoney(
+					estimates.reduce((s, e) => s + e.total, 0),
+					currency
+				)}</span
+			>
+			across {estimates.length} approved estimate{estimates.length === 1 ? '' : 's'}
+		</p>
+	{/if}
+
 	{#if tab === 'sent' && estimates.length}
 		<p class="text-sm text-muted-foreground">
 			Open pipeline: <span class="font-medium text-foreground"

@@ -265,9 +265,15 @@
 	{#if day.member && (day.jobs.length || day.minutesLogged > 0)}
 		{@const done = day.jobs.filter((j) => j.job.status === 'done').length}
 		{@const left = day.jobs.length - done}
+		{@const next = day.jobs.find((j) => j.job.status !== 'done' && j.job.startsAt)}
 		<div class="flex flex-wrap gap-4 rounded-lg border bg-card px-4 py-2.5 text-sm">
 			<span class="tabular-nums"><span class="font-semibold">{done}</span> done</span>
 			<span class="tabular-nums"><span class="font-semibold">{left}</span> left</span>
+			{#if next?.job.startsAt}
+				<span class="text-muted-foreground tabular-nums"
+					>next {localTime(next.job.startsAt, tz)}</span
+				>
+			{/if}
 			<span class="text-muted-foreground tabular-nums"
 				>{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged</span
 			>
