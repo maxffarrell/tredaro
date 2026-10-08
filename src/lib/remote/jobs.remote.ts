@@ -118,6 +118,13 @@ export const createJob = command(jobInput, async (input) => {
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
+export const markNoShow = command(idSchema, async (jobId) => {
+	const ctx = await requireOrg();
+	const copy = await svc.markNoShow(ctx, jobId);
+	await refreshQuery(getJob, jobId);
+	return copy;
+});
+
 export const duplicateJob = command(idSchema, async (jobId) => {
 	const ctx = await requireOrg();
 	const j = await svc.duplicateJob(ctx, jobId);

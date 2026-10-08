@@ -31,6 +31,7 @@
 		createJob,
 		repeatJob,
 		duplicateJob,
+		markNoShow,
 		signJob
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
@@ -63,6 +64,7 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Ban from '@lucide/svelte/icons/ban';
+	import UserX from '@lucide/svelte/icons/user-x';
 	import Timer from '@lucide/svelte/icons/timer';
 	import Package from '@lucide/svelte/icons/package';
 	import ReceiptText from '@lucide/svelte/icons/receipt-text';
@@ -475,6 +477,19 @@
 		rebooking = false;
 	}
 
+	let noShowing = $state(false);
+	async function noShow() {
+		noShowing = true;
+		try {
+			const n = await markNoShow(id).updates(getJob);
+			toast.success(`Marked no-show — rebooked as J-${n!.number} (unscheduled)`);
+			await goto(`/jobs/${n!.id}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not mark no-show'));
+		}
+		noShowing = false;
+	}
+
 	let duplicating = $state(false);
 	async function dupe() {
 		duplicating = true;
@@ -547,6 +562,14 @@
 			title="Print work order"><Printer /></Button
 		>
 		{#if !locked}
+			<Button
+				size="sm"
+				variant="ghost"
+				class="text-amber-600 dark:text-amber-500"
+				title="Customer no-show — cancel and rebook as unscheduled"
+				disabled={noShowing}
+				onclick={noShow}><UserX /></Button
+			>
 			<Button
 				size="sm"
 				variant="ghost"

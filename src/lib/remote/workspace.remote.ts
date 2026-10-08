@@ -96,6 +96,22 @@ export const getSmsOutbox = query(async () => {
 		.limit(15);
 });
 
+export const markNotificationRead = command(v.string(), async (id) => {
+	const { user: me } = requireUser();
+	const { orgId } = await requireOrg();
+	await db
+		.update(notificationLog)
+		.set({ readAt: new Date() })
+		.where(
+			and(
+				eq(notificationLog.id, id),
+				eq(notificationLog.organizationId, orgId),
+				eq(notificationLog.recipient, me.email)
+			)
+		);
+	return { ok: true };
+});
+
 export const markAllNotificationsRead = command(v.object({}), async () => {
 	const { user: me } = requireUser();
 	const { orgId } = await requireOrg();

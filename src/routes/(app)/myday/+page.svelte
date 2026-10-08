@@ -143,6 +143,16 @@
 							{j.address1}{j.city ? `, ${j.city}` : ''}{j.state ? ` ${j.state}` : ''}
 						</p>
 					{/if}
+					{#if j.address1}
+						<a
+							class="mt-0.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+							href="https://www.google.com/maps/search/{encodeURIComponent(
+								`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`
+							)}"
+							target="_blank"
+							rel="noreferrer"><MapPin class="size-3" /> Directions</a
+						>
+					{/if}
 					{#if j.accessNotes}
 						<p class="truncate text-xs font-medium text-amber-600 dark:text-amber-500">
 							{j.accessNotes}

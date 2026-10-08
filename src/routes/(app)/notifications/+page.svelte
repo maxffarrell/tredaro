@@ -7,7 +7,8 @@
 	import {
 		getStaffNotifications,
 		getUnreadNotificationCount,
-		markAllNotificationsRead
+		markAllNotificationsRead,
+		markNotificationRead
 	} from '#lib/remote/workspace.remote.ts';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import CheckCheck from '@lucide/svelte/icons/check-check';
@@ -18,6 +19,14 @@
 
 	const rows = $derived(await getStaffNotifications());
 	const unread = $derived(rows.filter((n) => !n.readAt).length);
+
+	async function markRead(id: string) {
+		try {
+			await markNotificationRead(id).updates(getStaffNotifications, getUnreadNotificationCount);
+		} catch {
+			/* non-fatal */
+		}
+	}
 
 	async function markAllRead() {
 		try {
@@ -97,8 +106,20 @@
 								>{n.recipient}</Table.Cell
 							>
 							<Table.Cell class="pr-6 text-right">
+								{#if !n.readAt}
+									<button
+										class="mr-3 text-xs text-muted-foreground hover:text-foreground hover:underline"
+										onclick={() => markRead(n.id)}>Mark read</button
+									>
+								{/if}
 								{#if link}
-									<a class="text-xs text-primary hover:underline" href={link}>Open</a>
+									<a
+										class="text-xs text-primary hover:underline"
+										href={link}
+										onclick={() => {
+											if (!n.readAt) void markRead(n.id);
+										}}>Open</a
+									>
 								{/if}
 							</Table.Cell>
 						</Table.Row>

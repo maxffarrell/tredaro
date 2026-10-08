@@ -111,6 +111,7 @@ const jobSelect = {
 	address1: serviceLocation.address1,
 	city: serviceLocation.city,
 	state: serviceLocation.state,
+	zip: serviceLocation.zip,
 	accessNotes: serviceLocation.accessNotes
 };
 
@@ -540,6 +541,34 @@ export async function updateJob(
 		});
 	}
 	return row;
+}
+
+/** Tech arrived to a no-show: cancels the visit and rebooks it as an unscheduled copy. */
+export async function markNoShow(ctx: OrgContext, jobId: string) {
+	const [src] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!src) error(404, 'Job not found');
+	if (src.status === 'done' || src.status === 'cancelled') error(409, `Job is ${src.status}`);
+	const tz = (await getSettings(ctx.orgId)).timezone;
+	await updateJob(ctx, tz, { id: jobId, cancelled: true, cancelReason: 'Customer no-show' });
+	const copy = await duplicateJob(ctx, jobId);
+	await db.insert(jobEvent).values({
+		organizationId: ctx.orgId,
+		jobId: copy.id,
+		kind: 'note',
+		note: `Rebooked after a no-show on J-${src.number}`
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: copy.id,
+		action: 'rebooked',
+		summary: `J-${src.number} no-show → rebooked as J-${copy.number}`
+	});
+	return copy;
 }
 
 // ---------- Status events (dispatch trail) ----------
