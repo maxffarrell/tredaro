@@ -1175,7 +1175,17 @@
 					>
 				</div>
 			{/if}
-			<Dialog.Footer>
+			<Dialog.Footer class="justify-between sm:justify-between">
+				{#if eqId && eqActive}
+					<Button
+						variant="ghost"
+						type="button"
+						onclick={() => goto(`/jobs?new=1&customer=${id}&equipment=${eqId}`)}
+						><Wrench /> Book service</Button
+					>
+				{:else}
+					<span></span>
+				{/if}
 				<Button type="submit" disabled={eqPending}>{eqPending ? 'Saving…' : 'Save'}</Button>
 			</Dialog.Footer>
 		</form>

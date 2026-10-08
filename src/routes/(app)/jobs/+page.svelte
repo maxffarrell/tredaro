@@ -15,7 +15,7 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { toast } from 'svelte-sonner';
 	import { getJobs, createJob, getJobTypes, getTechnicians } from '#lib/remote/jobs.remote.ts';
-	import { getCustomers } from '#lib/remote/customers.remote.ts';
+	import { getCustomers, getCustomer } from '#lib/remote/customers.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { errMsg } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
@@ -57,6 +57,10 @@
 	let summary = $state('');
 	let description = $state('');
 	let priority = $state<'low' | 'normal' | 'high' | 'urgent'>('normal');
+	let equipmentId = $state(page.url.searchParams.get('equipment') ?? 'none');
+	const customerEquipment = $derived(
+		customerId ? await getCustomer(customerId).then((c) => c.equipment) : []
+	);
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
@@ -69,6 +73,7 @@
 				summary,
 				description,
 				priority,
+				equipmentId: equipmentId === 'none' ? null : equipmentId || null,
 				startsAt: startsAt || null
 			}).updates(getJobs);
 			toast.success(`Job J-${j!.number} created`);
@@ -178,6 +183,25 @@
 					</Select.Content>
 				</Select.Root>
 			</Field.Field>
+			{#if customerEquipment.length}
+				<Field.Field>
+					<Field.Label>Equipment</Field.Label>
+					<Select.Root type="single" bind:value={equipmentId}>
+						<Select.Trigger class="w-full"
+							>{customerEquipment.find((e) => e.equipment.id === equipmentId)?.equipment.name ??
+								'No unit'}</Select.Trigger
+						>
+						<Select.Content>
+							<Select.Item value="none">No unit</Select.Item>
+							{#each customerEquipment.filter((e) => e.equipment.active) as e (e.equipment.id)}
+								<Select.Item value={e.equipment.id}
+									>{e.equipment.name}{e.locationLabel ? ` · ${e.locationLabel}` : ''}</Select.Item
+								>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+			{/if}
 			<div class="grid gap-4 sm:grid-cols-2">
 				<Field.Field>
 					<Field.Label>Job type</Field.Label>

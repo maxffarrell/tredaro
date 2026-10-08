@@ -29,15 +29,17 @@ export const getPortalOverview = query(idSchema, async (customerId) => {
 export const requestService = command(portalRequestInput, async (input) => {
 	const c = await myCustomer(input.customerId);
 	const { user } = requireUser();
-	const j = await svc.requestService(c.organizationId, user.id, {
+	const r = await svc.requestService(c.organizationId, user.id, {
 		...input,
 		customerId: c.id
 	});
-	void notifyStaffBooking(c.organizationId, j!.id).catch((err) =>
-		console.error('staff booking alert failed', err)
-	);
+	if (r.job) {
+		void notifyStaffBooking(c.organizationId, r.job.id).catch((err) =>
+			console.error('staff booking alert failed', err)
+		);
+	}
 	void getPortalOverview(c.id).refresh();
-	return j;
+	return r;
 });
 
 /** Customer confirms an upcoming visit — writes a 'confirmed' job event staff see on the timeline. */

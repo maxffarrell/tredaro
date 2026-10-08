@@ -130,6 +130,7 @@
 	let reqPreferred = $state('');
 	let reqMemberId = $state('any');
 	let reqEquipmentId = $state<string | null>(null);
+	let reqType = $state<'visit' | 'quote'>('visit');
 
 	function requestFor(u: {
 		equipment: { id: string; name: string; brand: string | null; model: string | null };
@@ -145,6 +146,7 @@
 		try {
 			await requestService({
 				customerId,
+				requestType: reqType,
 				equipmentId: reqEquipmentId,
 				serviceLocationId: reqLocationId || null,
 				jobTypeId: null,
@@ -152,7 +154,11 @@
 				preferredTime: reqPreferred,
 				preferredMemberId: reqMemberId !== 'any' ? reqMemberId : undefined
 			});
-			toast.success('Request sent — we will confirm a time');
+			toast.success(
+				reqType === 'quote'
+					? 'Quote request sent — we will follow up'
+					: 'Request sent — we will confirm a time'
+			);
 			reqOpen = false;
 			reqDescription = reqPreferred = '';
 			reqMemberId = 'any';
@@ -519,6 +525,18 @@
 			<Field.Field>
 				<Field.Label for="r-when">Preferred time</Field.Label>
 				<Input id="r-when" bind:value={reqPreferred} placeholder="e.g. tomorrow morning" />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label>What do you need?</Field.Label>
+				<Select.Root type="single" bind:value={reqType}>
+					<Select.Trigger class="w-full"
+						>{reqType === 'quote' ? 'A written quote first' : 'A service visit'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="visit">A service visit</Select.Item>
+						<Select.Item value="quote">A written quote first</Select.Item>
+					</Select.Content>
+				</Select.Root>
 			</Field.Field>
 			<Field.Field>
 				<Field.Label for="r-desc">What's going on?</Field.Label>

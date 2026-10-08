@@ -12,6 +12,7 @@
 	} from '#lib/remote/workspace.remote.ts';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import CheckCheck from '@lucide/svelte/icons/check-check';
+	import Filter from '@lucide/svelte/icons/filter';
 	import { formatRelative } from '#lib/format.ts';
 	import Bell from '@lucide/svelte/icons/bell';
 	import { toast } from 'svelte-sonner';
@@ -19,6 +20,8 @@
 
 	const rows = $derived(await getStaffNotifications());
 	const unread = $derived(rows.filter((n) => !n.readAt).length);
+	let unreadOnly = $state(false);
+	const shown = $derived(unreadOnly ? rows.filter((n) => !n.readAt) : rows);
 
 	async function markRead(id: string) {
 		try {
@@ -67,6 +70,11 @@
 
 <PageHeader title="Notifications" crumbs={[{ label: 'Home', href: '/dashboard' }]}>
 	{#snippet actions()}
+		<Button
+			size="sm"
+			variant={unreadOnly ? 'secondary' : 'ghost'}
+			onclick={() => (unreadOnly = !unreadOnly)}><Filter /> Unread</Button
+		>
 		{#if unread > 0}
 			<Button size="sm" variant="outline" onclick={markAllRead}
 				><CheckCheck /> Mark all read ({unread})</Button
@@ -88,7 +96,7 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each rows as n (n.id)}
+					{#each shown as n (n.id)}
 						{@const link = href(n.kind, n.entityId)}
 						<Table.Row class={n.readAt ? '' : 'bg-primary/5'}>
 							<Table.Cell class="pl-6 text-muted-foreground">

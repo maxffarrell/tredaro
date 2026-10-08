@@ -480,7 +480,9 @@ export const portalRequestInput = v.object({
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	preferredMemberId: v.optional(v.nullable(idSchema)),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
-	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
+	preferredTime: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ''),
+	/** 'visit' books a job; 'quote' drops a draft estimate for the office instead. */
+	requestType: v.optional(v.picklist(['visit', 'quote']), 'visit')
 });
 
 export const portalContactInput = v.object({

@@ -29,6 +29,7 @@ import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import { createJob } from './jobs.ts';
 import { emit } from './events.ts';
+import { nextNumber } from './settings.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
@@ -239,6 +240,29 @@ export async function requestService(
 		if (!m) error(400, 'Invalid technician');
 		techId = m.id;
 	}
+	if (input.requestType === 'quote') {
+		const estNumber = await nextNumber(orgId, 'estimate');
+		const [est] = await db
+			.insert(estimate)
+			.values({
+				organizationId: orgId,
+				number: estNumber,
+				customerId: c.id,
+				serviceLocationId: input.serviceLocationId ?? null,
+				notes: `Portal quote request — ${input.description || 'no details'}${input.preferredTime ? ` (preferred: ${input.preferredTime})` : ''}`
+			})
+			.returning();
+		await emit({
+			orgId,
+			actorId: userId,
+			entityType: 'estimate',
+			entityId: est!.id,
+			action: 'quote-requested',
+			summary: `${c.name} requested a quote via the portal`
+		});
+		return { job: null, estimate: est };
+	}
+
 	let equipmentId: string | null = null;
 	if (input.equipmentId) {
 		const [u] = await db
@@ -265,7 +289,7 @@ export async function requestService(
 		},
 		{ source: 'booking' }
 	);
-	return row;
+	return { job: row, estimate: null };
 }
 
 /** Starts a provider checkout for the customer's full open balance. */
