@@ -18,11 +18,13 @@
 		getEstimates,
 		updateEstimate,
 		sendEstimate,
-		reviseEstimate
+		reviseEstimate,
+		invoiceEstimate
 	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Send from '@lucide/svelte/icons/send';
+	import Receipt from '@lucide/svelte/icons/receipt';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -109,6 +111,16 @@
 		}
 	}
 
+	async function invoice() {
+		try {
+			const inv = await invoiceEstimate(id).updates(getEstimate, getEstimates);
+			toast.success(`Draft invoice INV-${inv!.number} created`);
+			goto('/billing');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not create invoice'));
+		}
+	}
+
 	async function copyLink() {
 		await navigator.clipboard.writeText(shareUrl);
 		toast.success('Link copied');
@@ -128,6 +140,9 @@
 		{/if}
 		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
 			<Button size="sm" variant="outline" onclick={revise}><FilePen /> Revise</Button>
+		{/if}
+		{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
+			<Button size="sm" variant="outline" onclick={invoice}><Receipt /> Invoice</Button>
 		{/if}
 	{/snippet}
 </PageHeader>

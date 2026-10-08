@@ -5,6 +5,7 @@ import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/estimates.ts';
 import { notifyEstimateSent } from '#lib/server/services/notifications.ts';
 import { getCustomer } from './customers.remote.ts';
+import { getInvoices, getCharges } from './billing.remote.ts';
 import { estimateInput, estimateUpdate, idSchema } from '#lib/schemas.ts';
 
 export const getEstimates = query(
@@ -44,4 +45,13 @@ export const reviseEstimate = command(idSchema, async (id) => {
 	await refreshQuery(getEstimate, id);
 	await refreshQuery(getEstimates, undefined);
 	return rev;
+});
+
+export const invoiceEstimate = command(idSchema, async (id) => {
+	const inv = await svc.invoiceEstimate(await requireOrg(), id);
+	await refreshQuery(getEstimate, id);
+	await refreshQuery(getEstimates, undefined);
+	await refreshQuery(getInvoices, undefined);
+	await refreshQuery(getCharges, undefined);
+	return inv;
 });

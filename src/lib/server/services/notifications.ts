@@ -532,6 +532,8 @@ export async function runReminders(orgId: string) {
 			amount: agreementPlan.amount,
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut,
 			customerName: customer.name
 		})
 		.from(serviceAgreement)
@@ -549,8 +551,20 @@ export async function runReminders(orgId: string) {
 		const flags = await notifFlags(orgId);
 		const name2 = await orgName(orgId);
 		for (const a of renewing) {
-			if (!flags.email || !a.email || a.emailOptOut || !a.nextChargeAt) continue;
+			if (!a.nextChargeAt) continue;
 			const renewsOn = a.nextChargeAt.toISOString().slice(0, 10);
+			if (
+				flags.sms &&
+				a.phone &&
+				!a.smsOptOut &&
+				smsProvider() &&
+				(await logOnce(orgId, 'agreement_renewal_sms', a.id, `${a.phone}:${renewsOn}`))
+			)
+				await sendSms({
+					to: a.phone,
+					body: `${name2}: your ${a.planName} plan renews ${renewsOn} for ${formatMoney(a.amount)}. Reply STOP to opt out.`
+				});
+			if (!flags.email || !a.email || a.emailOptOut) continue;
 			if (!(await logOnce(orgId, 'agreement_renewal', a.id, `${a.email}:${renewsOn}`))) continue;
 			await sendEmail({
 				to: a.email,

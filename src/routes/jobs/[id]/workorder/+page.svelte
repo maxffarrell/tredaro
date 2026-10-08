@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import Printer from '@lucide/svelte/icons/printer';
-	import { getJob, getJobChecklist } from '#lib/remote/jobs.remote.ts';
+	import { getJob, getJobChecklist, getJobPhotos } from '#lib/remote/jobs.remote.ts';
 	import { getJobMaterials } from '#lib/remote/inventory.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { formatMoney } from '#lib/format.ts';
@@ -12,6 +12,7 @@
 	const j = await getJob(id);
 	const checklist = await getJobChecklist(id);
 	const materials = await getJobMaterials({ jobId: id });
+	const photos = await getJobPhotos(id);
 	const settings = await getSettings();
 
 	const addr = [j.locationLabel ? `${j.locationLabel}:` : '', j.address1, j.city, j.state]
@@ -111,6 +112,24 @@
 						{/each}
 					</tbody>
 				</table>
+			</div>
+		{/if}
+
+		{#if photos.length}
+			<div class="mt-4 text-sm">
+				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Photos</p>
+				<div class="mt-1 grid grid-cols-3 gap-2">
+					{#each photos as p (p.id)}
+						<div class="overflow-hidden rounded border">
+							<img
+								src="/files/job-photo/{p.id}"
+								alt={p.fileName}
+								class="h-28 w-full object-cover"
+							/>
+							<p class="truncate px-1 py-0.5 text-xs text-neutral-500">{p.fileName}</p>
+						</div>
+					{/each}
+				</div>
 			</div>
 		{/if}
 

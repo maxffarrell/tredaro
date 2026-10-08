@@ -16,8 +16,10 @@ import {
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
-import { nextNumber } from './settings.ts';
+import { getSettings, nextNumber } from './settings.ts';
 import { createJob } from './jobs.ts';
+import { createInvoice } from './billing.ts';
+import { addDays, localDate } from '#lib/tz.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
@@ -229,6 +231,47 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 		summary: `Estimate E-${e.number} revised to v${e.version + 1}`
 	});
 	return row;
+}
+
+/** Turns an approved estimate straight into a draft invoice (skips job conversion). */
+export async function invoiceEstimate(ctx: OrgContext, id: string) {
+	const [e] = await db
+		.select()
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
+	if (!e) error(404, 'Estimate not found');
+	if (e.status !== 'approved' && e.status !== 'converted')
+		error(409, 'Only approved estimates can be invoiced');
+	const items = await db
+		.select()
+		.from(estimateItem)
+		.where(eq(estimateItem.estimateId, id))
+		.orderBy(asc(estimateItem.position));
+	if (!items.length) error(409, 'Estimate has no line items');
+	const settings = await getSettings(ctx.orgId);
+	const inv = await createInvoice(ctx, {
+		customerId: e.customerId,
+		jobId: e.jobId ?? null,
+		dueDate: addDays(localDate(new Date(), settings.timezone), settings.invoiceTermsDays),
+		notes: `From estimate E-${e.number}${e.version > 1 ? ` v${e.version}` : ''}`,
+		items: items.map((it) => ({
+			pricebookItemId: it.pricebookItemId,
+			name: it.name,
+			description: it.description,
+			qty: it.qty,
+			unitPrice: it.unitPrice
+		}))
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'estimate',
+		entityId: id,
+		action: 'invoiced',
+		summary: `Estimate E-${e.number} invoiced as INV-${inv.number}`,
+		data: { invoiceId: inv.id }
+	});
+	return inv;
 }
 
 /** Marks the estimate sent; the public link can now be shared with the customer. */
