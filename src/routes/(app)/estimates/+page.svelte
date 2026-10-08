@@ -115,6 +115,18 @@
 			{estimates.filter((e) => e.viewed).length} viewed
 		</p>
 	{/if}
+	{#if tab === 'draft' && estimates.length}
+		<p class="text-sm text-muted-foreground">
+			Draft pipeline: <span class="font-medium text-foreground"
+				>{formatMoney(
+					estimates.reduce((s, e) => s + e.total, 0),
+					currency
+				)}</span
+			>
+			across {estimates.length} draft estimate{estimates.length === 1 ? '' : 's'} — send them to start
+			the pipeline
+		</p>
+	{/if}
 	{#if tab === 'expired' && estimates.length}
 		<p class="text-sm text-muted-foreground">
 			Stale pipeline: <span class="font-medium text-foreground"

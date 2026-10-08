@@ -210,9 +210,13 @@
 									? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 									: '—'}
 								{#if j.job.startsAt && j.job.startsAt < now && ['scheduled', 'dispatched', 'in_progress'].includes(j.job.status)}
+									{@const days = Math.max(
+										1,
+										Math.floor((now.getTime() - new Date(j.job.startsAt).getTime()) / 86400_000)
+									)}
 									<Badge
 										class="ml-1 border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
-										>overdue</Badge
+										>{days}d overdue</Badge
 									>
 								{/if}
 							</Table.Cell>

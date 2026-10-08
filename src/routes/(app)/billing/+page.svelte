@@ -83,6 +83,11 @@
 				(!payMethodFilter || p.payment.method === payMethodFilter)
 		)
 	);
+	const visiblePaymentsToday = $derived(
+		visiblePayments.filter(
+			(p) => new Date(p.payment.paidAt).toISOString().slice(0, 10) === todayStr
+		).length
+	);
 	const visiblePaymentsTotal = $derived(
 		visiblePayments.reduce((sum, p) => sum + p.payment.amount, 0)
 	);
@@ -589,7 +594,8 @@
 			{/if}
 			<p class="text-sm text-muted-foreground">
 				{visiblePayments.length} payment{visiblePayments.length === 1 ? '' : 's'} ·
-				{formatMoney(visiblePaymentsTotal, currency)} collected
+				{formatMoney(visiblePaymentsTotal, currency)} collected{#if visiblePaymentsToday}
+					· {visiblePaymentsToday} today{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
