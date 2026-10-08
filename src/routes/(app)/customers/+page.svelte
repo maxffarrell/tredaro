@@ -36,6 +36,7 @@
 	let officeFilter = $state('');
 	let sourceFilter = $state('');
 	let statusFilter = $state('active');
+	let typeFilter = $state('');
 	let customers = $state(await getCustomers());
 	const officeOptions = $derived(
 		[
@@ -58,7 +59,8 @@
 				(!tagFilter || c.tags?.includes(tagFilter)) &&
 				(!officeFilter || (c.officeId ?? '') === officeFilter) &&
 				(!sourceFilter || c.leadSource === sourceFilter) &&
-				(!statusFilter || c.status === statusFilter)
+				(!statusFilter || c.status === statusFilter) &&
+				(!typeFilter || c.type === typeFilter)
 		)
 	);
 	const totalBalance = $derived(visible.reduce((sum, c) => sum + c.openBalance, 0));
@@ -239,6 +241,15 @@
 				</Select.Content>
 			</Select.Root>
 		{/if}
+		<Select.Root type="single" value={typeFilter} onValueChange={(v: string) => (typeFilter = v)}>
+			<Select.Trigger class="w-36 capitalize">{typeFilter || 'All types'}</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="">All types</Select.Item>
+				{#each ['residential', 'commercial'] as ty (ty)}
+					<Select.Item value={ty} class="capitalize">{ty}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
 		<Select.Root
 			type="single"
 			value={statusFilter}

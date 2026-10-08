@@ -448,6 +448,21 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+			{#if r.revByCustomerType.length}
+				<div class="mt-3 space-y-1.5">
+					<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+						By customer type (90d)
+					</p>
+					{#each r.revByCustomerType as t (t.type)}
+						<div class="flex items-center justify-between text-sm">
+							<span class="capitalize">{t.type}</span>
+							<span class="tabular-nums"
+								>{formatMoney(t.total, currency, true)} · {t.n} customer{t.n === 1 ? '' : 's'}</span
+							>
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

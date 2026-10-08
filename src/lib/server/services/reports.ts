@@ -423,6 +423,26 @@ async function avgDaysToInvoice(orgId: string) {
 	return row?.n ? row.avg : null;
 }
 
+/** Revenue collected in the last 90 days grouped by customer type. */
+async function revenueByCustomerType(orgId: string) {
+	return db
+		.select({
+			type: customer.type,
+			n: sql<number>`count(distinct ${customer.id})`.mapWith(Number),
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				gte(payment.paidAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		)
+		.groupBy(customer.type)
+		.orderBy(desc(sql`sum(${payment.amount})`));
+}
+
 /** Agreements cancelled over the last 90 days (churn signal). */
 async function churnedAgreements(orgId: string) {
 	const [row] = await db
@@ -524,7 +544,8 @@ export async function getReports(orgId: string) {
 		daysToInvoice,
 		openPOs,
 		refunds,
-		churned
+		churned,
+		revByType
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -551,7 +572,8 @@ export async function getReports(orgId: string) {
 		avgDaysToInvoice(orgId),
 		openPOValue(orgId),
 		refundsTotal(orgId),
-		churnedAgreements(orgId)
+		churnedAgreements(orgId),
+		revenueByCustomerType(orgId)
 	]);
 	return {
 		completedJobs,
@@ -579,7 +601,8 @@ export async function getReports(orgId: string) {
 		avgDaysToInvoice: daysToInvoice,
 		openPOs,
 		refunds,
-		churnedAgreements: churned
+		churnedAgreements: churned,
+		revByCustomerType: revByType
 	};
 }
 

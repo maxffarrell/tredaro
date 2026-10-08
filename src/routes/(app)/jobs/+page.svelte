@@ -62,6 +62,9 @@
 					}
 		)
 	);
+	const uninvoicedCount = $derived(
+		jobs.filter((j) => j.job.status === 'done' && !j.invoiced).length
+	);
 	const overdueCount = $derived(
 		jobs.filter(
 			(j) =>
@@ -155,6 +158,11 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
+		{/if}
+		{#if uninvoicedCount}
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				>{uninvoicedCount} uninvoiced</Badge
+			>
 		{/if}
 		{#if overdueCount}
 			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
