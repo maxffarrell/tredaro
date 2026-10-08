@@ -156,6 +156,9 @@
 							rel="noreferrer"><MapPin class="size-3" /> Directions</a
 						>
 					{/if}
+					{#if j.job.preferredTime}
+						<p class="truncate text-xs text-muted-foreground">Prefers {j.job.preferredTime}</p>
+					{/if}
 					{#if j.customerPhone}
 						<a
 							class="inline-flex items-center gap-1 text-primary hover:underline"

@@ -83,6 +83,9 @@
 				(!payMethodFilter || p.payment.method === payMethodFilter)
 		)
 	);
+	const visiblePaymentsTotal = $derived(
+		visiblePayments.reduce((sum, p) => sum + p.payment.amount, 0)
+	);
 
 	// ------- invoice dialog -------
 	let invoiceOpen = $state(false);
@@ -567,6 +570,10 @@
 					</Select.Content>
 				</Select.Root>
 			{/if}
+			<p class="text-sm text-muted-foreground">
+				{visiblePayments.length} payment{visiblePayments.length === 1 ? '' : 's'} ·
+				{formatMoney(visiblePaymentsTotal, currency)} collected
+			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
 					<Table.Root>

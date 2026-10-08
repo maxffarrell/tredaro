@@ -280,6 +280,12 @@
 										>portal</Badge
 									>
 								{/if}
+								{#if c.onHold}
+									<Badge
+										variant="outline"
+										class="ml-1 px-1 py-0 text-[10px] text-red-600 dark:text-red-400">hold</Badge
+									>
+								{/if}
 								{#if c.companyName}<span class="text-muted-foreground">
 										· {c.companyName}</span
 									>{/if}

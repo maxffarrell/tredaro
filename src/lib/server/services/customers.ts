@@ -40,6 +40,7 @@ export async function listCustomers(orgId: string, q?: string) {
 			preferredMemberId: customer.preferredMemberId,
 			officeId: customer.officeId,
 			portalLinked: sql<boolean>`${customer.portalUserId} is not null`.mapWith(Boolean),
+			onHold: customer.onHold,
 			leadSource: customer.leadSource,
 			officeName: office.name,
 			openBalance:
