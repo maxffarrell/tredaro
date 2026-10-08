@@ -29,7 +29,7 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FilePen from '@lucide/svelte/icons/file-pen';
 
-	const id = page.params.id!;
+	const id = $derived(page.params.id!);
 	const est = $derived(await getEstimate(id));
 	const settings = await getSettings();
 	const currency = settings.currency;
@@ -37,15 +37,23 @@
 	const draft = $derived(est.estimate.status === 'draft');
 	const linkedJob = $derived(est.linkedJob ?? null);
 
-	let notes = $state(est.estimate.notes);
-	let items = $state(
-		est.items.map((i) => ({
-			pricebookItemId: i.item.pricebookItemId,
-			name: i.item.name,
-			qty: i.item.qty,
-			unitPrice: i.item.unitPrice
-		}))
-	);
+	let notes = $state('');
+	let items = $state<
+		{ pricebookItemId: string | null; name: string; qty: number; unitPrice: number }[]
+	>([]);
+	let loadedId = '';
+	$effect(() => {
+		if (est.estimate.id !== loadedId) {
+			loadedId = est.estimate.id;
+			notes = est.estimate.notes;
+			items = est.items.map((i) => ({
+				pricebookItemId: i.item.pricebookItemId,
+				name: i.item.name,
+				qty: i.item.qty,
+				unitPrice: i.item.unitPrice
+			}));
+		}
+	});
 	let pending = $state(false);
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
 
@@ -73,7 +81,10 @@
 	}
 
 	let sending = $state(false);
-	let shareUrl = $state(est.token ? `${page.url.origin}/e/${est.token}` : '');
+	let shareUrl = $state('');
+	$effect(() => {
+		shareUrl = est.token ? `${page.url.origin}/e/${est.token}` : '';
+	});
 
 	async function send() {
 		sending = true;
