@@ -494,7 +494,13 @@
 				{formatMoney(
 					visibleCharges.reduce((sum, ch) => sum + (ch.charge.amount - ch.paid), 0),
 					currency
-				)} remaining
+				)} remaining{#if visibleCharges.filter((ch) => ch.charge.dueDate && ch.charge.dueDate < todayStr && ch.charge.amount - ch.paid > 0).length}
+					· <span class="text-amber-600 dark:text-amber-400"
+						>{visibleCharges.filter(
+							(ch) =>
+								ch.charge.dueDate && ch.charge.dueDate < todayStr && ch.charge.amount - ch.paid > 0
+						).length} overdue</span
+					>{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">

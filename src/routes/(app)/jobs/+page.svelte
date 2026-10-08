@@ -44,7 +44,8 @@
 		['dispatched', 'Dispatched'],
 		['in_progress', 'In progress'],
 		['done', 'Done'],
-		['blocked', 'Blocked']
+		['blocked', 'Blocked'],
+		['cancelled', 'Cancelled']
 	] as const;
 	const now = $state(new Date());
 	let tab = $state(page.url.searchParams.get('status') ?? 'all');
