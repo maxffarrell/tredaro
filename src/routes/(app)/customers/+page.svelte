@@ -69,6 +69,9 @@
 	const missingEmail = $derived(visible.filter((c) => !c.email).length);
 	const withPortal = $derived(visible.filter((c) => c.portalLinked).length);
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
+	const noUpcoming = $derived(
+		visible.filter((c) => c.status === 'active' && !c.hasUpcoming).length
+	);
 	const newThisMonth = $derived(
 		visible.filter((c) => c.since && c.since >= new Date().toISOString().slice(0, 8) + '01').length
 	);
@@ -293,7 +296,8 @@
 			· {withPortal} with portal{/if}{#if missingEmail}
 			· <span class="text-amber-600 dark:text-amber-400">{missingEmail} missing email</span
 			>{/if}{#if companyCount}
-			· {companyCount} companies{/if}
+			· {companyCount} companies{/if}{#if noUpcoming}
+			· {noUpcoming} without upcoming visit{/if}
 	</p>
 
 	<Card.Root class="py-0">

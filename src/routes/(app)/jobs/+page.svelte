@@ -71,6 +71,9 @@
 			(j) => j.job.startsAt && new Date(j.job.startsAt).toISOString().slice(0, 10) === todayIso
 		).length
 	);
+	const unassignedCount = $derived(
+		jobs.filter((j) => !j.job.technicianId && !['done', 'cancelled'].includes(j.job.status)).length
+	);
 	const overdueCount = $derived(
 		jobs.filter(
 			(j) =>
@@ -164,6 +167,11 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
+		{/if}
+		{#if unassignedCount}
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				>{unassignedCount} unassigned</Badge
+			>
 		{/if}
 		{#if todayCount}
 			<Badge variant="outline">{todayCount} today</Badge>

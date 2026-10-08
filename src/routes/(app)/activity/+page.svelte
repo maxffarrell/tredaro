@@ -14,6 +14,13 @@
 	let entityType = $state('');
 	let limit = $state(200);
 	let rows = $state(await getActivity({ limit }));
+	const todayCount = $derived(
+		rows.filter(
+			(r) =>
+				new Date(r.activity.createdAt).toISOString().slice(0, 10) ===
+				new Date().toISOString().slice(0, 10)
+		).length
+	);
 	const hasMore = $derived(rows.length >= limit);
 
 	async function refilter(v: string) {
@@ -49,6 +56,11 @@
 				{/each}
 			</Select.Content>
 		</Select.Root>
+	{/if}
+	{#if todayCount}
+		<p class="text-sm text-muted-foreground">
+			{todayCount} event{todayCount === 1 ? '' : 's'} today
+		</p>
 	{/if}
 
 	<Card.Root class="py-0">
