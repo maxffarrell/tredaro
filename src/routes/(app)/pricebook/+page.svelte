@@ -25,6 +25,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Search from '@lucide/svelte/icons/search';
 	import Upload from '@lucide/svelte/icons/upload';
+	import Download from '@lucide/svelte/icons/download';
 	import { parseCsv } from '#lib/csv.ts';
 
 	const currency = await getCurrency();
@@ -156,6 +157,9 @@
 		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
 			><Upload /> Import</Button
 		>
+		<Button size="sm" variant="outline" href="/api/export/pricebook.csv" download>
+			<Download /> Export
+		</Button>
 		<Button size="sm" onclick={() => openItem()}><Plus /> New item</Button>
 	{/snippet}
 </PageHeader>

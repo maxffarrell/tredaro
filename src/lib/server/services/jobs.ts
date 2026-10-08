@@ -949,7 +949,7 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
 	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
-	const [jobs, unscheduled, overdue, openEntries, dayEntries] = await Promise.all([
+	const [jobs, unscheduled, overdue, openEntries, dayEntries, tomorrow] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
 		listJobs(ctx.orgId, {
@@ -982,7 +982,13 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					gte(jobTimeEntry.startedAt, from),
 					lt(jobTimeEntry.startedAt, to)
 				)
-			)
+			),
+		// Tomorrow's roster — jobs scheduled in the day after the [from,to) window.
+		listJobs(ctx.orgId, {
+			from: to,
+			to: new Date(to.getTime() + 24 * 60 * 60 * 1000),
+			technicianId: me.id
+		})
 	]);
 	const now = Date.now();
 	const minutesLogged = Math.round(
@@ -997,7 +1003,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		unscheduled,
 		overdue,
 		openEntry: openEntries[0] ?? null,
-		minutesLogged
+		minutesLogged,
+		tomorrow
 	};
 }
 

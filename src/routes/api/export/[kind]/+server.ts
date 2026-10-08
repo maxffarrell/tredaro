@@ -13,6 +13,7 @@ import {
 	member,
 	outer,
 	payment,
+	pricebookItem,
 	charge,
 	user
 } from '#lib/server/db/schema.ts';
@@ -400,10 +401,30 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				])
 			)
 		].join('\n');
+	} else if (kind === 'pricebook') {
+		const rows = await db
+			.select()
+			.from(pricebookItem)
+			.where(eq(pricebookItem.organizationId, ctx.orgId))
+			.orderBy(asc(pricebookItem.category), asc(pricebookItem.name));
+		body = [
+			row(['Name', 'Category', 'Kind', 'Price', 'Duration min', 'Description', 'Active']),
+			...rows.map((r) =>
+				row([
+					r.name,
+					r.category,
+					r.kind,
+					money(r.price),
+					r.durationMin ?? '',
+					r.description,
+					r.active ? 'yes' : 'no'
+				])
+			)
+		].join('\n');
 	} else {
 		error(
 			404,
-			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers, inventory or statement'
+			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers, inventory, pricebook or statement'
 		);
 	}
 

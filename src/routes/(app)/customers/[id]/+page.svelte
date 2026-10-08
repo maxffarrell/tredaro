@@ -845,7 +845,17 @@
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
 				<Card.Title class="text-base">Jobs</Card.Title>
-				<Button size="sm" variant="outline" href="/jobs?new=1&customer={id}"><Plus /> New</Button>
+				<div class="flex items-center gap-3">
+					{#if c.nextJob}
+						<a
+							href="/jobs/{c.nextJob.job.id}"
+							class="text-xs text-muted-foreground underline-offset-2 hover:underline"
+							>Next: {localDate(c.nextJob.job.startsAt!, tz)}
+							{localTime(c.nextJob.job.startsAt!, tz)}</a
+						>
+					{/if}
+					<Button size="sm" variant="outline" href="/jobs?new=1&customer={id}"><Plus /> New</Button>
+				</div>
 			</Card.Header>
 			<Card.Content class="px-0">
 				<Table.Root>

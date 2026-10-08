@@ -251,6 +251,14 @@
 			<span class="text-muted-foreground tabular-nums"
 				>{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged</span
 			>
+			{#if day.tomorrow.length}
+				{@const first = day.tomorrow.find((j) => j.job.startsAt)}
+				<span class="text-muted-foreground tabular-nums"
+					>· tomorrow: <span class="font-semibold text-foreground">{day.tomorrow.length}</span>
+					job{day.tomorrow.length === 1 ? '' : 's'}{#if first?.job.startsAt}
+						— first at {localTime(first.job.startsAt, tz)}{/if}</span
+				>
+			{/if}
 		</div>
 	{/if}
 

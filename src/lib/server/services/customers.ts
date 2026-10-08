@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -110,6 +110,21 @@ export async function getCustomer(orgId: string, id: string) {
 		.orderBy(desc(estimate.createdAt))
 		.limit(50);
 
+	const [nextJob] = await db
+		.select({ job, jobTypeName: jobType.name })
+		.from(job)
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.customerId, id),
+				gte(job.startsAt, new Date()),
+				sql`${job.status} in ('scheduled', 'dispatched', 'in_progress')`
+			)
+		)
+		.orderBy(asc(job.startsAt))
+		.limit(1);
+
 	const charges = await db
 		.select({
 			charge,
@@ -190,6 +205,7 @@ export async function getCustomer(orgId: string, id: string) {
 		communications,
 		payments,
 		equipment: equipmentRows,
+		nextJob,
 		stats: { jobCount: stats.jobCount, invoiced: money.invoiced, collected: money.collected }
 	};
 }
