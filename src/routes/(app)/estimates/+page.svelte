@@ -127,6 +127,17 @@
 			the pipeline
 		</p>
 	{/if}
+	{#if tab === 'declined' && estimates.length}
+		<p class="text-sm text-muted-foreground">
+			Lost pipeline: <span class="font-medium text-foreground"
+				>{formatMoney(
+					estimates.reduce((s, e) => s + e.total, 0),
+					currency
+				)}</span
+			>
+			across {estimates.length} declined estimate{estimates.length === 1 ? '' : 's'}
+		</p>
+	{/if}
 	{#if tab === 'expired' && estimates.length}
 		<p class="text-sm text-muted-foreground">
 			Stale pipeline: <span class="font-medium text-foreground"
