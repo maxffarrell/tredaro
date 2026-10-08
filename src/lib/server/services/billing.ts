@@ -195,6 +195,7 @@ export async function createAgreement(
 	}
 	if (p.amount > 0) {
 		await postAgreementCharge(ctx.orgId, row!.id, start, p);
+		await completeIfTermDone(row!);
 	}
 	await generateAgreementVisits(ctx.orgId, row!, start, p);
 	await emit({
@@ -302,6 +303,10 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 	const { agreement: m, plan: p } = row;
 	if (m.status !== 'active') error(409, `Agreement is ${m.status}`);
 	if (!m.nextChargeAt) error(409, 'Agreement has no upcoming charge');
+	if (m.maxPeriods && (await billedPeriods(m.id)) >= m.maxPeriods) {
+		await completeIfTermDone(m);
+		error(409, 'Agreement term is fully billed');
+	}
 
 	const period = m.nextChargeAt.toISOString().slice(0, 10);
 	const next = nextPeriod(period, p.interval);
