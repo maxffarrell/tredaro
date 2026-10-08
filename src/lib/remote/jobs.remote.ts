@@ -70,6 +70,11 @@ export const getJobs = query(
 		});
 	}
 );
+export const getJobCounts = query(
+	v.optional(v.object({ technicianId: v.optional(v.string()) })),
+	async (opts) => svc.jobCounts((await requireOrg()).orgId, opts?.technicianId)
+);
+
 export const getJob = query(idSchema, async (id) => svc.getJob((await requireOrg()).orgId, id));
 
 /** Dispatch board payload for `[from, to]`: scheduled jobs, unscheduled queue, technicians. */

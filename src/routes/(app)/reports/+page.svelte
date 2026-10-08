@@ -688,4 +688,32 @@
 			</Table.Root>
 		</Card.Content>
 	</Card.Root>
+
+	{#if r.topMaterials.length}
+		<Card.Root>
+			<Card.Header
+				><Card.Title class="text-base">Top materials used — last 90 days</Card.Title></Card.Header
+			>
+			<Card.Content class="px-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head class="pl-6">Item</Table.Head>
+							<Table.Head class="text-right">Qty used</Table.Head>
+							<Table.Head class="pr-6 text-right">Jobs</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each r.topMaterials as m (m.name)}
+							<Table.Row>
+								<Table.Cell class="pl-6 font-medium">{m.name}</Table.Cell>
+								<Table.Cell class="text-right tabular-nums">{m.qty} {m.unit}</Table.Cell>
+								<Table.Cell class="pr-6 text-right tabular-nums">{m.jobs}</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 </div>

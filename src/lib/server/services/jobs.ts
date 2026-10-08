@@ -177,6 +177,24 @@ export async function listJobs(
 		);
 }
 
+/** Per-status job counts for the /jobs tab badges (respects the tech filter). */
+export async function jobCounts(orgId: string, technicianId?: string) {
+	const rows = await db
+		.select({
+			status: job.status,
+			n: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				technicianId ? eq(job.technicianId, technicianId) : undefined
+			)
+		)
+		.groupBy(job.status);
+	return Object.fromEntries(rows.map((r) => [r.status, r.n]));
+}
+
 export async function getJob(orgId: string, id: string) {
 	const [row] = await db
 		.select({ ...jobSelect, officeName: office.name })

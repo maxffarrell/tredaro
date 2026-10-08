@@ -15,7 +15,13 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { toast } from 'svelte-sonner';
-	import { getJobs, createJob, getJobTypes, getTechnicians } from '#lib/remote/jobs.remote.ts';
+	import {
+		getJobs,
+		getJobCounts,
+		createJob,
+		getJobTypes,
+		getTechnicians
+	} from '#lib/remote/jobs.remote.ts';
 	import { getCustomers, getCustomer } from '#lib/remote/customers.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { errMsg } from '#lib/format.ts';
@@ -28,6 +34,7 @@
 	const tz = settings.timezone;
 	const jobTypes = await getJobTypes();
 	const technicians = await getTechnicians();
+
 	const customers = await getCustomers();
 
 	const STATUS_TABS = [
@@ -41,6 +48,7 @@
 	const now = $state(new Date());
 	let tab = $state(page.url.searchParams.get('status') ?? 'all');
 	let techId = $state(page.url.searchParams.get('tech') ?? '');
+	const counts = $derived(await getJobCounts(techId ? { technicianId: techId } : undefined));
 	const jobs = $derived(
 		await getJobs(
 			tab === 'all' && !techId
@@ -112,7 +120,9 @@
 		<Tabs.Root bind:value={tab}>
 			<Tabs.List class="flex-wrap">
 				{#each STATUS_TABS as [value, label] (value)}
-					<Tabs.Trigger {value}>{label}</Tabs.Trigger>
+					<Tabs.Trigger {value}
+						>{label}{#if value !== 'all' && counts[value]}&nbsp;({counts[value]}){/if}</Tabs.Trigger
+					>
 				{/each}
 			</Tabs.List>
 		</Tabs.Root>

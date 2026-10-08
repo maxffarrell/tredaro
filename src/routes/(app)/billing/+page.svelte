@@ -70,6 +70,9 @@
 	}
 	const invoices = $derived(await getInvoices({ status: statusParam }));
 	const charges = $derived(await getCharges({ status: 'open' }));
+	const visibleCharges = $derived(
+		charges.filter((ch) => !customerFilter || ch.charge.customerId === customerFilter)
+	);
 	const payments = $derived(await getPayments());
 
 	// ------- invoice dialog -------
@@ -474,6 +477,13 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="charges">
+			<p class="text-sm text-muted-foreground">
+				{visibleCharges.length} open charge{visibleCharges.length === 1 ? '' : 's'} ·
+				{formatMoney(
+					visibleCharges.reduce((sum, ch) => sum + (ch.charge.amount - ch.paid), 0),
+					currency
+				)} remaining
+			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
 					<Table.Root>
@@ -488,7 +498,7 @@
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each charges.filter((ch) => !customerFilter || ch.charge.customerId === customerFilter) as ch (ch.charge.id)}
+							{#each visibleCharges as ch (ch.charge.id)}
 								<Table.Row>
 									<Table.Cell class="font-medium"
 										>{ch.charge.description || `Invoice #${ch.invoiceNumber}`}</Table.Cell

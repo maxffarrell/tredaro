@@ -358,6 +358,28 @@ async function completionStats(orgId: string) {
 	return row;
 }
 
+/** Materials burned in the last 90 days — the restock list. */
+async function topMaterials(orgId: string) {
+	return db
+		.select({
+			name: inventoryItem.name,
+			unit: inventoryItem.unit,
+			qty: sql<number>`sum(${jobMaterial.qty})`.mapWith(Number),
+			jobs: sql<number>`count(distinct ${jobMaterial.jobId})`.mapWith(Number)
+		})
+		.from(jobMaterial)
+		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+		.where(
+			and(
+				eq(jobMaterial.organizationId, orgId),
+				gte(jobMaterial.createdAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		)
+		.groupBy(inventoryItem.id, inventoryItem.name, inventoryItem.unit)
+		.orderBy(desc(sql`sum(${jobMaterial.qty})`))
+		.limit(8);
+}
+
 export async function getReports(orgId: string) {
 	const [
 		completedJobs,
@@ -379,7 +401,8 @@ export async function getReports(orgId: string) {
 		payMethodRows,
 		jobSourceRows,
 		completion,
-		daysToPay
+		daysToPay,
+		topMaterialRows
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -400,7 +423,8 @@ export async function getReports(orgId: string) {
 		paymentsByMethod(orgId),
 		jobsBySource(orgId),
 		completionStats(orgId),
-		avgDaysToPay(orgId)
+		avgDaysToPay(orgId),
+		topMaterials(orgId)
 	]);
 	return {
 		completedJobs,
@@ -422,7 +446,8 @@ export async function getReports(orgId: string) {
 		payMethods: payMethodRows,
 		jobSources: jobSourceRows,
 		completion,
-		daysToPay
+		daysToPay,
+		topMaterials: topMaterialRows
 	};
 }
 
