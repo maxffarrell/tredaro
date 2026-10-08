@@ -51,14 +51,20 @@
 		job_completed: 'Job completed',
 		payment_receipt: 'Payment received',
 		inbound_sms_staff: 'Text from customer',
-		estimate_changes: 'Change request'
+		estimate_changes: 'Change request',
+		quote_request: 'Quote request'
 	};
 
 	/** Where each kind's entity usually lives. */
 	function href(kind: string, entityId: string) {
 		if (kind === 'booking_staff_alert' || kind === 'daily_digest') return '/dispatch';
 		if (kind === 'low_stock') return '/inventory';
-		if (kind === 'estimate_viewed' || kind === 'estimate_decision' || kind === 'estimate_changes')
+		if (
+			kind === 'estimate_viewed' ||
+			kind === 'estimate_decision' ||
+			kind === 'estimate_changes' ||
+			kind === 'quote_request'
+		)
 			return `/estimates/${entityId}`;
 		if (kind === 'parts_delay' || kind === 'tech_assigned') return `/jobs/${entityId}`;
 		if (kind === 'agreement_renewal') return '/agreements';

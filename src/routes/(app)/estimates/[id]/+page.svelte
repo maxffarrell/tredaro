@@ -19,6 +19,7 @@
 		getEstimates,
 		updateEstimate,
 		sendEstimate,
+		resendEstimate,
 		reviseEstimate,
 		duplicateEstimate,
 		approveEstimateStaff,
@@ -28,6 +29,7 @@
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Send from '@lucide/svelte/icons/send';
+	import Mail from '@lucide/svelte/icons/mail';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Printer from '@lucide/svelte/icons/printer';
 	import CopyPlus from '@lucide/svelte/icons/copy-plus';
@@ -118,6 +120,19 @@
 		sending = false;
 	}
 
+	let resending = $state(false);
+	async function resend() {
+		resending = true;
+		try {
+			const r = await resendEstimate(id).updates(getEstimate, getEstimates);
+			if (r?.url) await navigator.clipboard.writeText(r.url);
+			toast.success('Reminder sent — link copied');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not resend'));
+		}
+		resending = false;
+	}
+
 	async function revise() {
 		try {
 			const rev = await reviseEstimate(id).updates(getEstimate, getEstimates);
@@ -181,6 +196,9 @@
 			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
 		{/if}
 		{#if est.estimate.status === 'sent'}
+			<Button size="sm" variant="outline" onclick={resend} disabled={resending}
+				><Mail /> {resending ? 'Resending…' : 'Resend'}</Button
+			>
 			<Button size="sm" variant="outline" onclick={() => decide(true)}><Check /> Approve</Button>
 			<Button size="sm" variant="outline" onclick={() => decide(false)}><X /> Decline</Button>
 		{/if}

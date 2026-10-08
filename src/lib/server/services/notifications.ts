@@ -204,6 +204,56 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 	});
 }
 
+/** Re-send of an already-sent estimate — dedupes per resend (sentAt timestamp in entityId). */
+export async function notifyEstimateResent(orgId: string, estimateId: string) {
+	const flags = await notifFlags(orgId);
+	const name = await orgName(orgId);
+	const stamp = `${estimateId}:${Date.now()}`;
+	const [row] = await db
+		.select({
+			number: estimate.number,
+			total:
+				sql<number>`coalesce((select sum(i.qty * i.unit_price) from estimate_item i where i.estimate_id = ${estimate.id}), 0)`.mapWith(
+					Number
+				),
+			email: customer.email,
+			phone: customer.phone,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
+			customerName: customer.name
+		})
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(eq(estimate.id, estimateId));
+	if (!row) return;
+	if (
+		flags.sms &&
+		row.phone &&
+		!row.smsOptOut &&
+		smsProvider() &&
+		(await logOnce(orgId, 'estimate_resent_sms', stamp, row.phone))
+	)
+		await sendSmsQuiet(orgId, {
+			to: row.phone,
+			body: `${name}: reminder — estimate E-${row.number} for ${formatMoney(row.total)} is waiting for your answer: ${estimateUrl(estimateId)}`
+		});
+	if (!flags.email || !row.email || row.emailOptOut) return;
+	if (!(await logOnce(orgId, 'estimate_resent', stamp, row.email))) return;
+	await sendEmail({
+		to: row.email,
+		subject: `Reminder — estimate E-${row.number} from ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Just checking in, ${row.customerName}`,
+			lines: [
+				`${name} is still waiting on your answer for estimate E-${row.number} (${formatMoney(row.total)}).`,
+				'Open it to review the work and approve or decline online.'
+			],
+			action: { label: 'Review estimate', url: estimateUrl(estimateId) }
+		})
+	});
+}
+
 /** "We got your request" after a public /book submission creates the job. */
 export async function notifyBookingReceived(orgId: string, jobId: string) {
 	if (!(await notifFlags(orgId)).email) return;
@@ -1386,6 +1436,31 @@ export async function notifyStaffEstimateChanges(orgId: string, estimateId: stri
 				orgName: name,
 				heading: `${row.customerName} asked for changes on E-${row.number}`,
 				lines: [note.slice(0, 500), 'The estimate stays in sent status until you revise it.'],
+				action: { label: 'Open estimate', url: `${appOrigin()}/estimates/${estimateId}` }
+			})
+		});
+	}
+}
+
+export async function notifyStaffQuoteRequest(orgId: string, estimateId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ number: estimate.number, customerName: customer.name })
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(eq(estimate.id, estimateId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'quote_request', estimateId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Quote requested — ${row.customerName} (E-${row.number})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} asked for a quote`,
+				lines: ['A draft estimate was created from their portal request — price it and send.'],
 				action: { label: 'Open estimate', url: `${appOrigin()}/estimates/${estimateId}` }
 			})
 		});

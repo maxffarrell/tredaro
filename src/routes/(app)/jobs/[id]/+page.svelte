@@ -60,6 +60,7 @@
 	import { localDate, localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
 	import Navigation from '@lucide/svelte/icons/navigation';
+	import Navigation2 from '@lucide/svelte/icons/navigation-2';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileText from '@lucide/svelte/icons/file-text';
@@ -561,6 +562,17 @@
 			target="_blank"
 			title="Print work order"><Printer /></Button
 		>
+		{#if j.address1}
+			<Button
+				size="sm"
+				variant="ghost"
+				href="https://www.google.com/maps/search/{encodeURIComponent(
+					`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`
+				)}"
+				target="_blank"
+				title="Directions"><Navigation2 /></Button
+			>
+		{/if}
 		{#if !locked}
 			<Button
 				size="sm"

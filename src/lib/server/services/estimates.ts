@@ -368,6 +368,27 @@ export async function sendEstimate(ctx: OrgContext, id: string) {
 	return { ...row, url: estimateUrl(row.id) };
 }
 
+/** Re-emails the link for an already-sent estimate and refreshes sentAt (extends the 30d window). */
+export async function resendEstimate(ctx: OrgContext, id: string) {
+	const [row] = await db
+		.update(estimate)
+		.set({ sentAt: new Date() })
+		.where(
+			and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id), eq(estimate.status, 'sent'))
+		)
+		.returning();
+	if (!row) error(409, 'Only a sent estimate can be resent');
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'estimate',
+		entityId: id,
+		action: 'resent',
+		summary: `Estimate E-${row.number} resent`
+	});
+	return { ...row, url: estimateUrl(row.id) };
+}
+
 // ---------- Public side ----------
 
 const todayIso = () => new Date().toISOString().slice(0, 10);

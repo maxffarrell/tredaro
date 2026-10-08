@@ -40,6 +40,18 @@ export const sendEstimate = command(idSchema, async (id) => {
 	return r;
 });
 
+export const resendEstimate = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	const r = await svc.resendEstimate(ctx, id);
+	const { notifyEstimateResent } = await import('#lib/server/services/notifications.ts');
+	void notifyEstimateResent(ctx.orgId, id).catch((err) =>
+		console.error('estimate resend email failed', err)
+	);
+	await refreshQuery(getEstimate, id);
+	await refreshQuery(getEstimates, undefined);
+	return r;
+});
+
 export const reviseEstimate = command(idSchema, async (id) => {
 	const rev = await svc.reviseEstimate(await requireOrg(), id);
 	await refreshQuery(getEstimate, id);

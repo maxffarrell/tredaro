@@ -37,6 +37,11 @@ export const requestService = command(portalRequestInput, async (input) => {
 		void notifyStaffBooking(c.organizationId, r.job.id).catch((err) =>
 			console.error('staff booking alert failed', err)
 		);
+	} else if (r.estimate) {
+		const { notifyStaffQuoteRequest } = await import('#lib/server/services/notifications.ts');
+		void notifyStaffQuoteRequest(c.organizationId, r.estimate.id).catch((err) =>
+			console.error('quote-request alert failed', err)
+		);
 	}
 	void getPortalOverview(c.id).refresh();
 	return r;
