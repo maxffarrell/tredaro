@@ -7,7 +7,9 @@ import {
 	inventoryAdjustInput,
 	inventoryItemInput,
 	inventoryItemUpdate,
-	jobMaterialInput
+	jobMaterialInput,
+	purchaseOrderInput,
+	purchaseOrderUpdate
 } from '#lib/schemas.ts';
 import { refreshQuery } from './_refresh.ts';
 import { getDashboard } from './workspace.remote.ts';
@@ -64,4 +66,40 @@ export const removeJobMaterial = command(idSchema, async (materialId) => {
 	await refreshQuery(getInventory, undefined);
 	void getDashboard().refresh();
 	return m;
+});
+
+// ---------- Purchase orders ----------
+
+export const getPurchaseOrders = query(async () =>
+	svc.listPurchaseOrders((await requireOrg()).orgId)
+);
+
+export const createPurchaseOrder = command(purchaseOrderInput, async (input) => {
+	const po = await svc.createPurchaseOrder(await requireOrg('admin'), input);
+	await refreshQuery(getPurchaseOrders, undefined);
+	return po;
+});
+
+export const updatePurchaseOrder = command(purchaseOrderUpdate, async (input) => {
+	const po = await svc.updatePurchaseOrder(await requireOrg('admin'), input);
+	await refreshQuery(getPurchaseOrders, undefined);
+	return po;
+});
+
+const poTransition = v.object({
+	id: idSchema,
+	to: v.picklist(['ordered', 'received', 'cancelled'])
+});
+export const transitionPurchaseOrder = command(poTransition, async (input) => {
+	const r = await svc.transitionPurchaseOrder(await requireOrg('admin'), input.id, input.to);
+	await refreshQuery(getPurchaseOrders, undefined);
+	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getDashboard, undefined);
+	return r;
+});
+
+export const deletePurchaseOrder = command(idSchema, async (id) => {
+	await svc.deletePurchaseOrder(await requireOrg('admin'), id);
+	await refreshQuery(getPurchaseOrders, undefined);
+	return { id };
 });

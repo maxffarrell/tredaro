@@ -1,7 +1,14 @@
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { inventoryItem, jobMaterial, member, user } from '#lib/server/db/schema.ts';
+import {
+	inventoryItem,
+	jobMaterial,
+	member,
+	purchaseOrder,
+	purchaseOrderItem,
+	user
+} from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
 import type * as s from '#lib/schemas.ts';
@@ -221,4 +228,165 @@ export async function lowStock(orgId: string) {
 		)
 		.orderBy(asc(inventoryItem.qtyOnHand))
 		.limit(4);
+}
+
+// ---------- Purchase orders ----------
+
+/** All POs with their lines, newest first. */
+export async function listPurchaseOrders(orgId: string) {
+	const pos = await db
+		.select()
+		.from(purchaseOrder)
+		.where(eq(purchaseOrder.organizationId, orgId))
+		.orderBy(sql`${purchaseOrder.number} desc`)
+		.limit(100);
+	if (!pos.length) return [];
+	const items = await db
+		.select()
+		.from(purchaseOrderItem)
+		.where(eq(purchaseOrderItem.organizationId, orgId));
+	return pos.map((po) => ({
+		po,
+		items: items.filter((i) => i.purchaseOrderId === po.id),
+		total: items
+			.filter((i) => i.purchaseOrderId === po.id)
+			.reduce((s, i) => s + i.qty * i.unitCost, 0)
+	}));
+}
+
+export async function createPurchaseOrder(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.purchaseOrderInput>
+) {
+	if (!input.items.length) error(400, 'Add at least one line');
+	const [max] = await db
+		.select({ n: sql<number>`coalesce(max(${purchaseOrder.number}), 0)`.mapWith(Number) })
+		.from(purchaseOrder)
+		.where(eq(purchaseOrder.organizationId, ctx.orgId));
+	const stock = await db
+		.select()
+		.from(inventoryItem)
+		.where(eq(inventoryItem.organizationId, ctx.orgId));
+	const byId = new Map(stock.map((i) => [i.id, i]));
+	const [po] = await db
+		.insert(purchaseOrder)
+		.values({
+			organizationId: ctx.orgId,
+			number: max.n + 1,
+			supplier: input.supplier,
+			expectedOn: input.expectedOn || null,
+			notes: input.notes
+		})
+		.returning();
+	await db.insert(purchaseOrderItem).values(
+		input.items.map((i) => {
+			const item = byId.get(i.inventoryItemId);
+			if (!item) error(404, 'Stock item not found');
+			return {
+				organizationId: ctx.orgId,
+				purchaseOrderId: po!.id,
+				inventoryItemId: item.id,
+				name: item.name,
+				unit: item.unit,
+				qty: i.qty,
+				unitCost: i.unitCost
+			};
+		})
+	);
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'purchase_order',
+		entityId: po!.id,
+		action: 'created',
+		summary: `PO-${po!.number} to ${po!.supplier} (${input.items.length} items)`
+	});
+	return po;
+}
+
+export async function updatePurchaseOrder(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.purchaseOrderUpdate>
+) {
+	const [po] = await db
+		.select()
+		.from(purchaseOrder)
+		.where(and(eq(purchaseOrder.id, input.id), eq(purchaseOrder.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!po) error(404, 'Purchase order not found');
+	if (po.status !== 'draft') error(409, 'Only draft POs can be edited');
+	const { id, ...rest } = input;
+	const [row] = await db
+		.update(purchaseOrder)
+		.set({ ...rest, expectedOn: rest.expectedOn || null, updatedAt: new Date() })
+		.where(eq(purchaseOrder.id, id))
+		.returning();
+	return row;
+}
+
+/** draft → ordered stamps it; ordered → received applies qty to stock. Cancel anytime pre-receipt. */
+export async function transitionPurchaseOrder(
+	ctx: OrgContext,
+	id: string,
+	to: 'ordered' | 'received' | 'cancelled'
+) {
+	const [po] = await db
+		.select()
+		.from(purchaseOrder)
+		.where(and(eq(purchaseOrder.id, id), eq(purchaseOrder.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!po) error(404, 'Purchase order not found');
+	const ok =
+		(po.status === 'draft' && to === 'ordered') ||
+		(po.status === 'ordered' && (to === 'received' || to === 'cancelled')) ||
+		(po.status === 'draft' && to === 'cancelled');
+	if (!ok) error(409, `Can't move a ${po.status} PO to ${to}`);
+
+	await db.transaction(async (tx) => {
+		await tx
+			.update(purchaseOrder)
+			.set({
+				status: to,
+				orderedAt: to === 'ordered' ? new Date() : po.orderedAt,
+				receivedAt: to === 'received' ? new Date() : po.receivedAt,
+				updatedAt: new Date()
+			})
+			.where(eq(purchaseOrder.id, id));
+		if (to === 'received') {
+			const lines = await tx
+				.select()
+				.from(purchaseOrderItem)
+				.where(eq(purchaseOrderItem.purchaseOrderId, id));
+			for (const l of lines) {
+				if (!l.inventoryItemId) continue;
+				await tx
+					.update(inventoryItem)
+					.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${l.qty}` })
+					.where(eq(inventoryItem.id, l.inventoryItemId));
+			}
+		}
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'purchase_order',
+		entityId: id,
+		action: to,
+		summary: `PO-${po.number} ${to}`
+	});
+	return { id, status: to };
+}
+
+export async function deletePurchaseOrder(ctx: OrgContext, id: string) {
+	const [po] = await db
+		.delete(purchaseOrder)
+		.where(
+			and(
+				eq(purchaseOrder.id, id),
+				eq(purchaseOrder.organizationId, ctx.orgId),
+				eq(purchaseOrder.status, 'draft')
+			)
+		)
+		.returning();
+	if (!po) error(409, 'Only draft POs can be deleted');
 }

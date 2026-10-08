@@ -10,13 +10,18 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { toast } from 'svelte-sonner';
 	import {
 		getInventory,
 		createInventoryItem,
 		updateInventoryItem,
 		adjustInventoryQty,
-		deleteInventoryItem
+		deleteInventoryItem,
+		getPurchaseOrders,
+		createPurchaseOrder,
+		transitionPurchaseOrder,
+		deletePurchaseOrder
 	} from '#lib/remote/inventory.remote.ts';
 	import { getCurrency } from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatMoney } from '#lib/format.ts';
@@ -26,6 +31,7 @@
 	import Minus from '@lucide/svelte/icons/minus';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 
 	const currency = await getCurrency();
 	let rows = $state(await getInventory());
@@ -94,6 +100,75 @@
 			rows = await getInventory();
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not adjust stock'));
+		}
+	}
+
+	// ------- purchase orders -------
+	let pos = $state(await getPurchaseOrders());
+	let poOpen = $state(false);
+	let poPending = $state(false);
+	let poSupplier = $state('');
+	let poExpected = $state('');
+	let poNotes = $state('');
+	let poLines = $state<{ inventoryItemId: string; qty: number; unitCost: number | null }[]>([
+		{ inventoryItemId: '', qty: 1, unitCost: 0 }
+	]);
+
+	function openPo() {
+		poSupplier = '';
+		poExpected = '';
+		poNotes = '';
+		poLines = [{ inventoryItemId: '', qty: 1, unitCost: 0 }];
+		poOpen = true;
+	}
+	function pickPoItem(i: number, v: string) {
+		poLines[i].inventoryItemId = v;
+		poLines[i].unitCost = rows.find((r) => r.item.id === v)?.item.unitCost ?? 0;
+	}
+	async function savePo(e: SubmitEvent) {
+		e.preventDefault();
+		if (poLines.some((l) => !l.inventoryItemId)) return;
+		poPending = true;
+		try {
+			await createPurchaseOrder({
+				supplier: poSupplier,
+				expectedOn: poExpected,
+				notes: poNotes,
+				items: poLines.map((l) => ({
+					inventoryItemId: l.inventoryItemId,
+					qty: l.qty,
+					unitCost: l.unitCost ?? 0
+				}))
+			}).updates(getPurchaseOrders);
+			toast.success('Purchase order created');
+			poOpen = false;
+			pos = await getPurchaseOrders();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not create PO'));
+		}
+		poPending = false;
+	}
+
+	let poView: (typeof pos)[number] | null = $state(null);
+	async function transitionPo(id: string, to: 'ordered' | 'received' | 'cancelled') {
+		try {
+			await transitionPurchaseOrder({ id, to }).updates(getPurchaseOrders, getInventory);
+			toast.success(to === 'received' ? 'Stock received' : `PO ${to}`);
+			poView = null;
+			pos = await getPurchaseOrders();
+			rows = await getInventory();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update PO'));
+		}
+	}
+	async function removePo(id: string) {
+		try {
+			await deletePurchaseOrder(id).updates(getPurchaseOrders);
+			toast.success('PO deleted');
+			poView = null;
+			pos = await getPurchaseOrders();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not delete PO'));
 		}
 	}
 
@@ -199,6 +274,50 @@
 			</Table.Root>
 		</Card.Content>
 	</Card.Root>
+	<Card.Root class="py-0">
+		<Card.Header class="flex-row items-center justify-between space-y-0">
+			<Card.Title class="text-base">Purchase orders</Card.Title>
+			<Button size="sm" variant="outline" onclick={openPo}><Plus /> New PO</Button>
+		</Card.Header>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>PO</Table.Head>
+						<Table.Head>Supplier</Table.Head>
+						<Table.Head class="hidden md:table-cell">Expected</Table.Head>
+						<Table.Head class="hidden md:table-cell">Lines</Table.Head>
+						<Table.Head class="text-right">Total</Table.Head>
+						<Table.Head>Status</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each pos as p (p.po.id)}
+						<Table.Row class="cursor-pointer" onclick={() => (poView = p)}>
+							<Table.Cell class="font-medium">PO-{p.po.number}</Table.Cell>
+							<Table.Cell>{p.po.supplier}</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell"
+								>{p.po.expectedOn ?? '—'}</Table.Cell
+							>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell"
+								>{p.items.length} item{p.items.length > 1 ? 's' : ''}</Table.Cell
+							>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(p.total, currency)}</Table.Cell
+							>
+							<Table.Cell><StatusBadge status={p.po.status} /></Table.Cell>
+						</Table.Row>
+					{:else}
+						<Table.Row>
+							<Table.Cell colspan={6} class="text-center text-muted-foreground">
+								No purchase orders yet — create one for items running low.
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
 </div>
 
 <Dialog.Root bind:open>
@@ -266,5 +385,145 @@
 			>
 			<Button onclick={() => adjust('in')} disabled={adjQty < 1}><Plus /> Add</Button>
 		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- new purchase order -->
+<Dialog.Root bind:open={poOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>New purchase order</Dialog.Title>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={savePo}>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="po-supplier">Supplier</Field.Label>
+					<Input id="po-supplier" required bind:value={poSupplier} placeholder="Johnstone Supply" />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="po-expected">Expected</Field.Label>
+					<Input id="po-expected" type="date" bind:value={poExpected} />
+				</Field.Field>
+			</div>
+			<div class="space-y-2">
+				<p class="text-sm font-medium">Lines</p>
+				{#each poLines as l, i (i)}
+					<div class="grid grid-cols-[1fr_5rem_7rem_2rem] items-center gap-2">
+						<Select.Root
+							type="single"
+							value={l.inventoryItemId}
+							onValueChange={(v: string) => pickPoItem(i, v)}
+						>
+							<Select.Trigger class="w-full">
+								{rows.find((r) => r.item.id === l.inventoryItemId)?.item.name ?? 'Pick an item…'}
+							</Select.Trigger>
+							<Select.Content>
+								{#each rows as r (r.item.id)}
+									<Select.Item value={r.item.id}
+										>{r.item.name}
+										<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span
+										></Select.Item
+									>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Input
+							type="number"
+							min={1}
+							placeholder="Qty"
+							aria-label="Quantity"
+							bind:value={l.qty}
+						/>
+						<MoneyInput bind:value={l.unitCost} />
+						<Button
+							variant="ghost"
+							size="icon"
+							class="size-8 text-muted-foreground"
+							disabled={poLines.length === 1}
+							onclick={() => poLines.splice(i, 1)}
+						>
+							<Trash2 class="size-3.5" />
+						</Button>
+					</div>
+				{/each}
+				<Button
+					type="button"
+					size="sm"
+					variant="ghost"
+					onclick={() => poLines.push({ inventoryItemId: '', qty: 1, unitCost: 0 })}
+				>
+					<Plus /> Add line
+				</Button>
+			</div>
+			<Field.Field>
+				<Field.Label for="po-notes">Notes</Field.Label>
+				<Input id="po-notes" bind:value={poNotes} placeholder="Optional" />
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={poPending || poLines.some((l) => !l.inventoryItemId)}
+					>{poPending ? 'Saving…' : 'Create PO'}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- purchase order detail -->
+<Dialog.Root
+	open={poView != null}
+	onOpenChange={(o) => {
+		if (!o) poView = null;
+	}}
+>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title class="flex items-center gap-2">
+				PO-{poView?.po.number} · {poView?.po.supplier}
+				<StatusBadge status={poView?.po.status ?? 'draft'} />
+			</Dialog.Title>
+			<Dialog.Description>
+				{#if poView?.po.expectedOn}Expected {poView.po.expectedOn} ·
+				{/if}
+				Total {formatMoney(poView?.total ?? 0, currency)}
+				{#if poView?.po.notes}<br />{poView.po.notes}{/if}
+			</Dialog.Description>
+		</Dialog.Header>
+		<Table.Root>
+			<Table.Body>
+				{#each poView?.items ?? [] as i (i.id)}
+					<Table.Row>
+						<Table.Cell class="font-medium">{i.name}</Table.Cell>
+						<Table.Cell class="text-right tabular-nums">{i.qty} {i.unit}</Table.Cell>
+						<Table.Cell class="text-right tabular-nums"
+							>{i.unitCost ? formatMoney(i.qty * i.unitCost, currency) : '—'}</Table.Cell
+						>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+		{#if poView}
+			<Dialog.Footer class="gap-2 sm:justify-between">
+				{#if poView.po.status === 'draft'}
+					<Button variant="ghost" class="text-destructive" onclick={() => removePo(poView!.po.id)}
+						><Trash2 /> Delete</Button
+					>
+					<div class="flex gap-2">
+						<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}
+							>Cancel</Button
+						>
+						<Button onclick={() => transitionPo(poView!.po.id, 'ordered')}>Mark ordered</Button>
+					</div>
+				{:else if poView.po.status === 'ordered'}
+					<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}
+						>Cancel PO</Button
+					>
+					<Button onclick={() => transitionPo(poView!.po.id, 'received')}
+						><ClipboardList /> Receive stock</Button
+					>
+				{:else}
+					<span></span>
+				{/if}
+			</Dialog.Footer>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>

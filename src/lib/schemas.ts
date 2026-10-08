@@ -181,6 +181,30 @@ export const mergeCustomerInput = v.object({
 	targetId: idSchema
 });
 
+export const purchaseOrderInput = v.object({
+	supplier: requiredText('Supplier'),
+	expectedOn: v.optional(v.union([isoDate, v.literal('')]), ''),
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	items: v.pipe(
+		v.array(
+			v.object({
+				inventoryItemId: idSchema,
+				qty: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000)),
+				unitCost: v.optional(cents, 0)
+			})
+		),
+		v.minLength(1, 'Add at least one line')
+	)
+});
+export const purchaseOrderUpdate = v.object({
+	id: idSchema,
+	supplier: v.optional(
+		v.pipe(v.string(), v.trim(), v.nonEmpty('Supplier is required'), v.maxLength(200))
+	),
+	expectedOn: v.optional(v.union([isoDate, v.literal('')])),
+	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)))
+});
+
 export const jobTypeInput = v.object({
 	name: requiredText('Name'),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
