@@ -444,6 +444,17 @@ export async function updateJob(
 		});
 	if (set.cancelled === true) {
 		await stopOpenTimers(ctx.orgId, id);
+		const [memberRow] = await db
+			.select({ id: member.id })
+			.from(member)
+			.where(and(eq(member.organizationId, ctx.orgId), eq(member.userId, ctx.userId)));
+		await db.insert(jobEvent).values({
+			organizationId: ctx.orgId,
+			jobId: id,
+			kind: 'note',
+			memberId: memberRow?.id ?? null,
+			note: `Job cancelled${set.cancelReason ? ` — ${set.cancelReason}` : ''}`
+		});
 		await emit({
 			orgId: ctx.orgId,
 			actorId: ctx.userId,
