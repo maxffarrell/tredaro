@@ -174,6 +174,7 @@
 	let staffDigest = $state(settings.staffDigest);
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
+	let bookingNoticeDays = $state(settings.bookingNoticeDays);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -205,7 +206,8 @@
 				smsNotifications,
 				staffDigest,
 				invoiceTermsDays,
-				autoInvoiceOnComplete
+				autoInvoiceOnComplete,
+				bookingNoticeDays
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -520,6 +522,19 @@
 									>
 								</div>
 							</div>
+							<Field.Field>
+								<Field.Label for="s-notice">Minimum notice (days)</Field.Label>
+								<Input
+									id="s-notice"
+									type="number"
+									min={0}
+									max={90}
+									bind:value={bookingNoticeDays}
+								/>
+								<p class="text-xs text-muted-foreground">
+									How far ahead customers must book — 0 allows same-day requests.
+								</p>
+							</Field.Field>
 						{/if}
 						<Button type="submit" disabled={pending}>Save</Button>
 					</form>

@@ -547,6 +547,13 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
+						{@const notes =
+							c.locations.find((l) => l.id === serviceLocationId)?.accessNotes ?? j.accessNotes}
+						{#if notes}
+							<p class="pt-1.5 text-xs font-medium text-amber-600 dark:text-amber-500">
+								Access: {notes}
+							</p>
+						{/if}
 					</Field.Field>
 					<Field.Field>
 						<Field.Label>Equipment</Field.Label>

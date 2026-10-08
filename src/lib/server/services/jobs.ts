@@ -105,7 +105,8 @@ const jobSelect = {
 	locationLabel: serviceLocation.label,
 	address1: serviceLocation.address1,
 	city: serviceLocation.city,
-	state: serviceLocation.state
+	state: serviceLocation.state,
+	accessNotes: serviceLocation.accessNotes
 };
 
 export async function listJobs(
@@ -117,6 +118,7 @@ export async function listJobs(
 		technicianId?: string;
 		unscheduled?: boolean;
 		officeId?: string;
+		equipmentId?: string;
 	}
 ) {
 	return db
@@ -141,7 +143,8 @@ export async function listJobs(
 							sql`, `
 						)})`
 					: undefined,
-				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined
+				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined,
+				opts.equipmentId ? eq(job.equipmentId, opts.equipmentId) : undefined
 			)
 		)
 		.orderBy(

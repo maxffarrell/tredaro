@@ -53,6 +53,9 @@
 					{j.companyName ? `${j.companyName} — ` : ''}{j.customerName}
 				</p>
 				{#if addr}<p>{addr}</p>{/if}
+				{#if j.accessNotes}
+					<p class="mt-1 font-medium">Access: {j.accessNotes}</p>
+				{/if}
 			</div>
 			<div>
 				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Schedule</p>

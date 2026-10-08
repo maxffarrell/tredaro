@@ -71,6 +71,18 @@ export async function requestBooking(
 
 	const { org, settings } = await getPublicCompany(slug);
 
+	// Advance-notice rule: when set, the requested day must be at least
+	// bookingNoticeDays out. The UI prefixes preferredTime with YYYY-MM-DD.
+	if (settings.bookingNoticeDays > 0 && input.preferredTime) {
+		const m = /^(\d{4}-\d{2}-\d{2})/.exec(input.preferredTime);
+		if (m) {
+			const min = new Date();
+			min.setDate(min.getDate() + settings.bookingNoticeDays);
+			const minDay = min.toISOString().slice(0, 10);
+			if (m[1] < minDay) error(400, `Earliest available day is ${minDay} — pick a later date`);
+		}
+	}
+
 	// Reuse an existing customer with the same email rather than duplicating.
 	const [existing] = await db
 		.select()

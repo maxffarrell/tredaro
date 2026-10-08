@@ -66,6 +66,8 @@ export const companySettings = pgTable('company_settings', {
 	invoiceTermsDays: integer('invoice_terms_days').notNull().default(30),
 	/** When on, completing a job with materials drafts an invoice automatically. */
 	autoInvoiceOnComplete: boolean('auto_invoice_on_complete').notNull().default(false),
+	/** Minimum days of advance notice required on the public booking page (0 = same-day ok). */
+	bookingNoticeDays: integer('booking_notice_days').notNull().default(0),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),

@@ -32,6 +32,10 @@
 	let zip = $state('');
 	let preferredDate = $state('');
 	let preferredTime = $state('');
+	const noticeDays = $derived(settings?.bookingNoticeDays ?? 0);
+	const minDate = $derived(
+		new Date(Date.now() + noticeDays * 86400_000).toISOString().slice(0, 10)
+	);
 	let description = $state('');
 	let website = $state(''); // honeypot — must stay empty
 	let pending = $state(false);
@@ -198,7 +202,12 @@
 							<div class="grid gap-4 sm:grid-cols-2">
 								<Field.Field>
 									<Field.Label for="b-date">Preferred date</Field.Label>
-									<Input id="b-date" type="date" bind:value={preferredDate} />
+									<Input id="b-date" type="date" min={minDate} bind:value={preferredDate} />
+									{#if noticeDays > 0}
+										<p class="text-xs text-muted-foreground">
+											Earliest available day is {minDate}.
+										</p>
+									{/if}
 								</Field.Field>
 								<Field.Field>
 									<Field.Label for="b-when">Preferred time</Field.Label>

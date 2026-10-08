@@ -122,6 +122,11 @@
 							{j.address1}{j.city ? `, ${j.city}` : ''}{j.state ? ` ${j.state}` : ''}
 						</p>
 					{/if}
+					{#if j.accessNotes}
+						<p class="truncate text-xs font-medium text-amber-600 dark:text-amber-500">
+							{j.accessNotes}
+						</p>
+					{/if}
 				</div>
 				<StatusBadge status={j.job.status} />
 			</div>

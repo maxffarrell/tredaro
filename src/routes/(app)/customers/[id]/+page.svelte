@@ -27,7 +27,8 @@
 		getCustomerDuplicates,
 		mergeCustomers,
 		textCustomerCmd,
-		emailStatementCmd
+		emailStatementCmd,
+		getEquipmentJobs
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment } from '#lib/remote/billing.remote.ts';
 	import {
@@ -303,6 +304,7 @@
 		eqWarranty = e?.equipment.warrantyUntil ?? '';
 		eqNotes = e?.equipment.notes ?? '';
 		eqActive = e?.equipment.active ?? true;
+		if (eqId) void getEquipmentJobs(eqId).refresh();
 		eqOpen = true;
 	}
 
@@ -1029,6 +1031,28 @@
 				<Textarea id="eq-notes" rows={2} bind:value={eqNotes} />
 			</Field.Field>
 			{#if eqId}
+				<div>
+					<p class="pb-1.5 text-sm font-medium">Service history</p>
+					{#await getEquipmentJobs(eqId) then eqJobs}
+						<div class="max-h-40 space-y-1 overflow-y-auto text-sm">
+							{#each eqJobs.slice().reverse() as ej (ej.job.id)}
+								<div class="flex items-center justify-between gap-2">
+									<a
+										href="/jobs/{ej.job.id}"
+										class="truncate hover:underline"
+										data-sveltekit-preload-data="tap"
+										>J-{ej.job.number} {ej.job.summary || ej.jobTypeName || 'Visit'}</a
+									>
+									<span class="shrink-0 text-xs text-muted-foreground"
+										>{ej.job.startsAt ? formatDate(ej.job.startsAt) : ej.job.status}</span
+									>
+								</div>
+							{:else}
+								<p class="text-xs text-muted-foreground">No jobs on this unit yet.</p>
+							{/each}
+						</div>
+					{/await}
+				</div>
 				<div class="flex items-center gap-2 text-sm">
 					<Switch bind:checked={eqActive} id="eq-active" />
 					<Field.Label for="eq-active" class="font-normal"

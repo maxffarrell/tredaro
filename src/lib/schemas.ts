@@ -418,7 +418,8 @@ export const settingsInput = v.object({
 	smsNotifications: v.optional(v.boolean()),
 	staffDigest: v.optional(v.boolean()),
 	invoiceTermsDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(365))),
-	autoInvoiceOnComplete: v.optional(v.boolean())
+	autoInvoiceOnComplete: v.optional(v.boolean()),
+	bookingNoticeDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(90)))
 });
 
 export const webhookInput = v.object({
