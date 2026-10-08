@@ -157,6 +157,9 @@
 								></span>
 								J-{j.job.number}
 								{j.job.summary || j.jobTypeName}
+								{#if j.job.source && j.job.source !== 'manual'}
+									<Badge variant="outline" class="ml-1 capitalize">{j.job.source}</Badge>
+								{/if}
 							</Table.Cell>
 							<Table.Cell>{j.customerName}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">

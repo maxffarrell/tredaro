@@ -990,6 +990,29 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			technicianId: me.id
 		})
 	]);
+	const materials = jobs.length
+		? await db
+				.select({
+					name: inventoryItem.name,
+					unit: inventoryItem.unit,
+					sku: inventoryItem.sku,
+					qty: sql<number>`sum(${jobMaterial.qty})`.mapWith(Number)
+				})
+				.from(jobMaterial)
+				.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+				.where(
+					and(
+						eq(jobMaterial.organizationId, ctx.orgId),
+						inArray(
+							jobMaterial.jobId,
+							jobs.map((j) => j.job.id)
+						)
+					)
+				)
+				.groupBy(inventoryItem.id, inventoryItem.name, inventoryItem.unit, inventoryItem.sku)
+				.orderBy(asc(inventoryItem.name))
+		: [];
+
 	const now = Date.now();
 	const minutesLogged = Math.round(
 		dayEntries.reduce(
@@ -1004,7 +1027,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		overdue,
 		openEntry: openEntries[0] ?? null,
 		minutesLogged,
-		tomorrow
+		tomorrow,
+		materials
 	};
 }
 

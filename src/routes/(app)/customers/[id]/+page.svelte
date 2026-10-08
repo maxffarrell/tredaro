@@ -102,6 +102,7 @@
 	let textOpen = $state(false);
 	let textMsg = $state('');
 	let textPending = $state(false);
+	let commFilter = $state<'all' | 'email' | 'sms'>('all');
 	async function sendText(e: SubmitEvent) {
 		e.preventDefault();
 		textPending = true;
@@ -811,6 +812,15 @@
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
 				<Card.Title class="text-base">Communications</Card.Title>
+				<div class="flex gap-1">
+					{#each [['all', 'All'], ['email', 'Email'], ['sms', 'SMS']] as [v, label] (v)}
+						<Button
+							size="sm"
+							variant={commFilter === v ? 'secondary' : 'ghost'}
+							onclick={() => (commFilter = v as typeof commFilter)}>{label}</Button
+						>
+					{/each}
+				</div>
 				{#if c.customer.phone}
 					<Button size="sm" variant="outline" onclick={() => (textOpen = true)}
 						><MessageSquare /> Text</Button
@@ -818,7 +828,7 @@
 				{/if}
 			</Card.Header>
 			<Card.Content class="px-4">
-				{#each c.communications as n (n.id)}
+				{#each c.communications.filter((n) => commFilter === 'all' || (commFilter === 'sms' ? n.kind.includes('sms') : !n.kind.includes('sms'))) as n (n.id)}
 					<div
 						class="flex items-baseline justify-between gap-3 border-b py-2 text-sm last:border-0"
 					>

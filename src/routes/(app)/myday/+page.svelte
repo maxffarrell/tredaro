@@ -5,6 +5,7 @@
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
 	import { toast } from 'svelte-sonner';
 	import {
 		getMyDay,
@@ -322,6 +323,27 @@
 				</Card.Content>
 			</Card.Root>
 		{/each}
+
+		{#if day.materials.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Today's materials</Card.Title></Card.Header>
+				<Card.Content class="px-0">
+					<Table.Root>
+						<Table.Body>
+							{#each day.materials as m (m.name)}
+								<Table.Row>
+									<Table.Cell class="pl-6 font-medium"
+										>{m.name}{#if m.sku}
+											<span class="text-muted-foreground">· {m.sku}</span>{/if}</Table.Cell
+									>
+									<Table.Cell class="pr-6 text-right tabular-nums">{m.qty} {m.unit}</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 
 		{#if day.unscheduled.length}
 			<h2 class="mt-2 text-sm font-medium text-muted-foreground">
