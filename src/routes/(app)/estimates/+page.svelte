@@ -96,6 +96,14 @@
 		</Tabs.List>
 	</Tabs.Root>
 
+	{#if tab === 'all' && estimates.length}
+		<p class="text-sm text-muted-foreground">
+			{formatMoney(
+				estimates.reduce((s, e) => s + e.total, 0),
+				currency
+			)} across {estimates.length} estimate{estimates.length === 1 ? '' : 's'}
+		</p>
+	{/if}
 	{#if tab === 'approved' && estimates.length}
 		<p class="text-sm text-muted-foreground">
 			Won: <span class="font-medium text-foreground"
