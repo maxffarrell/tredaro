@@ -1046,10 +1046,10 @@ export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof
 				.returning();
 			out.push(row!);
 		}
-		// Mark fully-covered charges paid.
+		// Mark fully-covered charges paid (credits have negative amounts and never flip).
 		await tx.execute(sql`
 			update ${charge} c set status = 'paid', updated_at = now()
-			where c.organization_id = ${ctx.orgId} and c.status = 'open'
+			where c.organization_id = ${ctx.orgId} and c.status = 'open' and c.amount > 0
 			  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id) >= c.amount
 		`);
 		return out;
