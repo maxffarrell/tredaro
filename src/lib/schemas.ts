@@ -32,7 +32,9 @@ export const jobEventKinds = [
 	'en_route',
 	'on_site',
 	'completed',
-	'note'
+	'note',
+	/** Customer tapped "Confirm" on the portal — no status change. */
+	'confirmed'
 ] as const;
 export const estimateStatuses = ['draft', 'sent', 'approved', 'declined', 'converted'] as const;
 export const invoiceStatuses = ['open', 'void'] as const;

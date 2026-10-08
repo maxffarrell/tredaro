@@ -13,6 +13,7 @@ import {
 	estimateItem,
 	invoice,
 	job,
+	jobEvent,
 	jobType,
 	member,
 	payment,
@@ -26,6 +27,7 @@ import { estimateToken } from './estimates.ts';
 import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import { createJob } from './jobs.ts';
+import { emit } from './events.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
@@ -93,6 +95,10 @@ export async function portalOverview(customerId: string) {
 		.select({
 			job,
 			jobTypeName: jobType.name,
+			confirmed:
+				sql<boolean>`exists (select 1 from ${jobEvent} e where e.job_id = ${job.id} and e.kind = 'confirmed')`.mapWith(
+					Boolean
+				),
 			technicianName: user.name,
 			address1: serviceLocation.address1,
 			city: serviceLocation.city,
@@ -240,4 +246,39 @@ export async function availableProviders(orgId: string, currency: string) {
 		if (p.ready(row)) out.push({ id: p.id, name: p.name, payLabel: p.payLabel, newTab: p.newTab });
 	}
 	return out;
+}
+
+/** Customer confirms a scheduled visit from the portal — writes a 'confirmed' job event. */
+export async function confirmVisit(orgId: string, customerId: string, jobId: string) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.id, jobId),
+				eq(job.customerId, customerId),
+				inArray(job.status, ['scheduled', 'dispatched']),
+				isNull(job.cancelledAt)
+			)
+		);
+	if (!j) error(404, 'Visit not found or not confirmable');
+	const [already] = await db
+		.select({ id: jobEvent.id })
+		.from(jobEvent)
+		.where(and(eq(jobEvent.jobId, jobId), eq(jobEvent.kind, 'confirmed')))
+		.limit(1);
+	if (already) error(409, 'Already confirmed');
+	await db
+		.insert(jobEvent)
+		.values({ organizationId: orgId, jobId, kind: 'confirmed', memberId: null });
+	await emit({
+		orgId,
+		actorId: null,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'confirmed',
+		summary: `J-${j.number} confirmed by customer`
+	});
+	return { confirmed: true };
 }

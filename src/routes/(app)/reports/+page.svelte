@@ -453,4 +453,41 @@
 			{/each}
 		</Card.Content>
 	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Office performance</Card.Title>
+			<Card.Description>Jobs and revenue collected by office — all time</Card.Description>
+		</Card.Header>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Office</Table.Head>
+						<Table.Head class="text-right">Jobs</Table.Head>
+						<Table.Head class="text-right">Done</Table.Head>
+						<Table.Head class="text-right">Collected</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.offices as o (o.id || 'unassigned')}
+						<Table.Row>
+							<Table.Cell class="font-medium">{o.name}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{o.jobs}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{o.done}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(o.revenue, currency)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={4} class="text-muted-foreground"
+								>No offices or jobs yet.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
 </div>

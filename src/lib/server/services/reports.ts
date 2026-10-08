@@ -12,6 +12,7 @@ import {
 	jobTimeEntry,
 	jobType,
 	member,
+	office,
 	payment,
 	serviceAgreement,
 	user,
@@ -267,7 +268,8 @@ export async function getReports(orgId: string) {
 		profit,
 		tops,
 		leads,
-		aging
+		aging,
+		offices
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -281,7 +283,8 @@ export async function getReports(orgId: string) {
 		jobProfitability(orgId),
 		topCustomers(orgId),
 		leadsBySource(orgId),
-		receivablesAging(orgId)
+		receivablesAging(orgId),
+		officePerformance(orgId)
 	]);
 	return {
 		completedJobs,
@@ -296,7 +299,8 @@ export async function getReports(orgId: string) {
 		profit,
 		topCustomers: tops,
 		leads,
-		aging
+		aging,
+		offices
 	};
 }
 
@@ -412,4 +416,46 @@ async function topCustomers(orgId: string) {
 		.groupBy(customer.id, customer.name)
 		.orderBy(desc(sql`sum(${payment.amount})`))
 		.limit(10);
+}
+
+/** Jobs + collected revenue per office (all time); offices with none still listed. */
+async function officePerformance(orgId: string) {
+	const offices = await db
+		.select()
+		.from(office)
+		.where(eq(office.organizationId, orgId))
+		.orderBy(asc(office.name));
+	const jobs = await db
+		.select({
+			officeId: job.officeId,
+			total: sql<number>`count(*)`.mapWith(Number),
+			done: sql<number>`count(*) filter (where ${job.status} = 'done')`.mapWith(Number)
+		})
+		.from(job)
+		.where(and(eq(job.organizationId, orgId), isNull(job.cancelledAt)))
+		.groupBy(job.officeId);
+	const collected = await db
+		.select({
+			officeId: job.officeId,
+			total: sql<number>`sum(${payment.amount})`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(job, eq(charge.jobId, job.id))
+		.where(eq(payment.organizationId, orgId))
+		.groupBy(job.officeId);
+	const jobsMap = new Map(jobs.map((r) => [r.officeId, r]));
+	const revMap = new Map(collected.map((r) => [r.officeId ?? '', r.total]));
+	const names = new Map(offices.map((o) => [o.id, o.name]));
+	const ids = new Set([...jobsMap.keys(), ...names.keys(), ...revMap.keys()]);
+	return [...ids]
+		.filter((id) => id !== undefined)
+		.map((id) => ({
+			id: (id ?? '') as string,
+			name: id ? (names.get(id) ?? 'Former office') : 'Unassigned',
+			jobs: jobsMap.get(id as string)?.total ?? 0,
+			done: jobsMap.get(id as string)?.done ?? 0,
+			revenue: revMap.get((id ?? '') as string) ?? 0
+		}))
+		.sort((a, b) => b.revenue - a.revenue || b.jobs - a.jobs);
 }

@@ -36,6 +36,17 @@ export const requestService = command(portalRequestInput, async (input) => {
 	return j;
 });
 
+/** Customer confirms an upcoming visit — writes a 'confirmed' job event staff see on the timeline. */
+export const confirmVisit = command(
+	v.object({ customerId: idSchema, jobId: idSchema }),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		const r = await svc.confirmVisit(c.organizationId, c.id, input.jobId);
+		void getPortalOverview(c.id).refresh();
+		return r;
+	}
+);
+
 export const getProviders = query(idSchema, async (customerId) => {
 	const c = await myCustomer(customerId);
 	const overview = await svc.portalOverview(c.id);

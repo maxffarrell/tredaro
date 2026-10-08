@@ -365,7 +365,8 @@ export const jobEventKind = pgEnum('job_event_kind', [
 	'en_route',
 	'on_site',
 	'completed',
-	'note'
+	'note',
+	'confirmed'
 ]);
 
 /** Technician status pings and notes on a job — the audit trail ServiceTitan calls dispatch history. */

@@ -4,9 +4,11 @@ import {
 	companySettings,
 	customer,
 	equipment,
+	agreementPlan,
 	estimate,
 	invoice,
 	job,
+	serviceAgreement,
 	jobType,
 	notificationLog,
 	organization
@@ -513,6 +515,52 @@ export async function runReminders(orgId: string) {
 					lines: [
 						`Your ${w.equipment.name}${w.equipment.brand ? ` (${[w.equipment.brand, w.equipment.model].filter(Boolean).join(' ')})` : ''} warranty ends on ${w.equipment.warrantyUntil}.`,
 						'If anything needs attention before coverage runs out, reply to this email or request service from your customer portal and we will take a look.'
+					],
+					action: { label: 'Open customer portal', url: `${appOrigin()}/portal` }
+				})
+			});
+		}
+	}
+
+	// Agreement renewal heads-up: active agreements billing within 7 days — one email per billing date.
+	const in7 = addDays(todayIso, 7);
+	const renewing = await db
+		.select({
+			id: serviceAgreement.id,
+			nextChargeAt: serviceAgreement.nextChargeAt,
+			planName: agreementPlan.name,
+			amount: agreementPlan.amount,
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			customerName: customer.name
+		})
+		.from(serviceAgreement)
+		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
+		.innerJoin(customer, eq(serviceAgreement.customerId, customer.id))
+		.where(
+			and(
+				eq(serviceAgreement.organizationId, orgId),
+				eq(serviceAgreement.status, 'active'),
+				gte(serviceAgreement.nextChargeAt, new Date(`${todayIso}T00:00:00Z`)),
+				lte(serviceAgreement.nextChargeAt, new Date(`${in7}T23:59:59.999Z`))
+			)
+		);
+	{
+		const flags = await notifFlags(orgId);
+		const name2 = await orgName(orgId);
+		for (const a of renewing) {
+			if (!flags.email || !a.email || a.emailOptOut || !a.nextChargeAt) continue;
+			const renewsOn = a.nextChargeAt.toISOString().slice(0, 10);
+			if (!(await logOnce(orgId, 'agreement_renewal', a.id, `${a.email}:${renewsOn}`))) continue;
+			await sendEmail({
+				to: a.email,
+				subject: `Your ${a.planName} plan renews ${renewsOn} — ${name2}`,
+				...renderEmail({
+					orgName: name2,
+					heading: `Hi ${a.customerName},`,
+					lines: [
+						`Your ${a.planName} service plan renews on ${renewsOn} for ${formatMoney(a.amount)}.`,
+						'Your portal shows the visits, balance and invoices under this plan.'
 					],
 					action: { label: 'Open customer portal', url: `${appOrigin()}/portal` }
 				})

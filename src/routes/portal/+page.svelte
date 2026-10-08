@@ -15,6 +15,7 @@
 	import {
 		getPortalOverview,
 		requestService,
+		confirmVisit,
 		getProviders,
 		startCheckout
 	} from '#lib/remote/portal.remote.ts';
@@ -48,6 +49,18 @@
 			paying = false;
 			toast.error(errMsg(err, 'Could not start payment'));
 		}
+	}
+
+	let confirmingId = $state('');
+	async function confirm(jobId: string) {
+		confirmingId = jobId;
+		try {
+			await confirmVisit({ customerId, jobId }).updates(getPortalOverview);
+			toast.success('Visit confirmed — see you then');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not confirm'));
+		}
+		confirmingId = '';
 	}
 
 	// ------- request service -------
@@ -127,7 +140,21 @@
 									? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 									: 'Scheduling'}
 							</Table.Cell>
-							<Table.Cell class="pr-6 text-right"><StatusBadge status={j.job.status} /></Table.Cell>
+							<Table.Cell class="pr-6 text-right">
+								{#if j.confirmed}
+									<StatusBadge status="approved" label="Confirmed" />
+								{:else if j.job.status === 'scheduled' && j.job.startsAt}
+									<Button
+										size="sm"
+										variant="outline"
+										disabled={confirmingId === j.job.id}
+										onclick={() => confirm(j.job.id)}
+										>{confirmingId === j.job.id ? 'Confirming…' : 'Confirm'}</Button
+									>
+								{:else}
+									<StatusBadge status={j.job.status} />
+								{/if}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
 						<Table.Row
