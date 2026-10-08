@@ -2,6 +2,7 @@ import * as v from 'valibot';
 
 export const API_RESOURCES = [
 	'customers',
+	'equipment',
 	'jobs',
 	'job_types',
 	'estimates',
@@ -10,7 +11,11 @@ export const API_RESOURCES = [
 	'plans',
 	'pricebook',
 	'charges',
-	'payments'
+	'payments',
+	'technicians',
+	'inventory',
+	'purchase_orders',
+	'truck_stock'
 ] as const;
 export type ApiResource = (typeof API_RESOURCES)[number];
 
@@ -23,6 +28,7 @@ type RawPermissions = Record<string, readonly string[] | undefined> | null | und
 
 export const API_RESOURCE_LABELS: Record<ApiResource, string> = {
 	customers: 'Customers',
+	equipment: 'Equipment',
 	jobs: 'Jobs',
 	job_types: 'Job types',
 	estimates: 'Estimates',
@@ -31,7 +37,11 @@ export const API_RESOURCE_LABELS: Record<ApiResource, string> = {
 	plans: 'Agreement plans',
 	pricebook: 'Pricebook',
 	charges: 'Charges',
-	payments: 'Payments'
+	payments: 'Payments',
+	technicians: 'Technicians',
+	inventory: 'Inventory',
+	purchase_orders: 'Purchase orders',
+	truck_stock: 'Truck stock'
 };
 
 const actionsFor = (level: Exclude<AccessLevel, 'none'>): ApiAction[] =>
