@@ -192,7 +192,15 @@ export const jobMaterialInput = v.object({
 	jobId: idSchema,
 	inventoryItemId: idSchema,
 	qty: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000)),
-	unitPrice: v.optional(cents, 0)
+	unitPrice: v.optional(cents, 0),
+	/** Set to take the units from this tech's truck stock instead of the warehouse. */
+	truckMemberId: v.optional(v.nullable(idSchema), null)
+});
+export const truckTransferInput = v.object({
+	inventoryItemId: idSchema,
+	memberId: idSchema,
+	qty: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000)),
+	direction: v.picklist(['to_truck', 'to_warehouse'])
 });
 export const jobExpenseInput = v.object({
 	jobId: idSchema,

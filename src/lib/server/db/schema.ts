@@ -699,11 +699,36 @@ export const jobMaterial = pgTable(
 		/** Sell price per unit at the time it was logged, minor units. */
 		unitPrice: integer('unit_price').notNull().default(0),
 		memberId: text('member_id').references(() => member.id, { onDelete: 'set null' }),
+		/** When set, the units came from this tech's truck rather than warehouse stock. */
+		sourceMemberId: text('source_member_id').references(() => member.id, {
+			onDelete: 'set null'
+		}),
 		...timestamps
 	},
 	(t) => [
 		index('job_material_job_idx').on(t.jobId),
 		index('job_material_item_idx').on(t.organizationId, t.inventoryItemId)
+	]
+);
+
+/** Units loaded onto a technician's truck — separate stock from the warehouse. */
+export const truckStock = pgTable(
+	'truck_stock',
+	{
+		id: id(),
+		organizationId: orgId(),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => member.id, { onDelete: 'cascade' }),
+		inventoryItemId: text('inventory_item_id')
+			.notNull()
+			.references(() => inventoryItem.id, { onDelete: 'cascade' }),
+		qty: integer('qty').notNull().default(0),
+		...timestamps
+	},
+	(t) => [
+		uniqueIndex('truck_stock_member_item_idx').on(t.memberId, t.inventoryItemId),
+		index('truck_stock_org_idx').on(t.organizationId)
 	]
 );
 

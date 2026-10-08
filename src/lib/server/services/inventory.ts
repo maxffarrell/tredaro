@@ -7,6 +7,7 @@ import {
 	member,
 	purchaseOrder,
 	purchaseOrderItem,
+	truckStock,
 	user
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
@@ -152,7 +153,7 @@ export async function addMaterial(
 			)
 			.limit(1);
 		if (!item) error(404, 'Item not found');
-		if (item.qtyOnHand < input.qty)
+		if (!input.truckMemberId && item.qtyOnHand < input.qty)
 			error(409, `Only ${item.qtyOnHand} ${item.unit} of ${item.name} on hand`);
 		const me = ctx.userId
 			? (
@@ -163,6 +164,31 @@ export async function addMaterial(
 						.limit(1)
 				)[0]
 			: null;
+		const truckMemberId = input.truckMemberId ?? null;
+		if (truckMemberId) {
+			const [ts] = await tx
+				.select()
+				.from(truckStock)
+				.where(
+					and(
+						eq(truckStock.memberId, truckMemberId),
+						eq(truckStock.inventoryItemId, input.inventoryItemId),
+						eq(truckStock.organizationId, ctx.orgId)
+					)
+				)
+				.limit(1);
+			if (!ts || ts.qty < input.qty)
+				error(409, `Only ${ts?.qty ?? 0} ${item.unit} of ${item.name} on that truck`);
+			await tx
+				.update(truckStock)
+				.set({ qty: sql`${truckStock.qty} - ${input.qty}` })
+				.where(eq(truckStock.id, ts.id));
+		} else {
+			await tx
+				.update(inventoryItem)
+				.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} - ${input.qty}` })
+				.where(eq(inventoryItem.id, item.id));
+		}
 		const [m] = await tx
 			.insert(jobMaterial)
 			.values({
@@ -171,13 +197,10 @@ export async function addMaterial(
 				inventoryItemId: input.inventoryItemId,
 				qty: input.qty,
 				unitPrice: input.unitPrice,
-				memberId: me?.id ?? null
+				memberId: me?.id ?? null,
+				sourceMemberId: truckMemberId
 			})
 			.returning();
-		await tx
-			.update(inventoryItem)
-			.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} - ${input.qty}` })
-			.where(eq(inventoryItem.id, item.id));
 		void emit({
 			orgId: ctx.orgId,
 			actorId: ctx.userId,
@@ -198,10 +221,25 @@ export async function removeMaterial(ctx: OrgContext, materialId: string) {
 			.where(and(eq(jobMaterial.id, materialId), eq(jobMaterial.organizationId, ctx.orgId)))
 			.returning();
 		if (!m) error(404, 'Material not found');
-		await tx
-			.update(inventoryItem)
-			.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${m.qty}` })
-			.where(eq(inventoryItem.id, m.inventoryItemId));
+		if (m.sourceMemberId) {
+			await tx
+				.insert(truckStock)
+				.values({
+					organizationId: ctx.orgId,
+					memberId: m.sourceMemberId,
+					inventoryItemId: m.inventoryItemId,
+					qty: m.qty
+				})
+				.onConflictDoUpdate({
+					target: [truckStock.memberId, truckStock.inventoryItemId],
+					set: { qty: sql`${truckStock.qty} + ${m.qty}` }
+				});
+		} else {
+			await tx
+				.update(inventoryItem)
+				.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${m.qty}` })
+				.where(eq(inventoryItem.id, m.inventoryItemId));
+		}
 		void emit({
 			orgId: ctx.orgId,
 			actorId: ctx.userId,
@@ -389,4 +427,100 @@ export async function deletePurchaseOrder(ctx: OrgContext, id: string) {
 		)
 		.returning();
 	if (!po) error(409, 'Only draft POs can be deleted');
+}
+
+// ---------- Truck stock ----------
+
+/** Every tech's truck load, grouped client-side — rows {stock, itemName, unit, memberName}. */
+export async function listTruckStock(orgId: string) {
+	return db
+		.select({
+			stock: truckStock,
+			itemName: inventoryItem.name,
+			itemUnit: inventoryItem.unit,
+			memberName: user.name
+		})
+		.from(truckStock)
+		.innerJoin(inventoryItem, eq(truckStock.inventoryItemId, inventoryItem.id))
+		.innerJoin(member, eq(truckStock.memberId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(truckStock.organizationId, orgId))
+		.orderBy(asc(user.name), asc(inventoryItem.name));
+}
+
+/** Move units between the warehouse and a tech's truck. `direction: 'to_truck' | 'to_warehouse'`. */
+export async function transferStock(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.truckTransferInput>
+) {
+	return db.transaction(async (tx) => {
+		const [item] = await tx
+			.select()
+			.from(inventoryItem)
+			.where(
+				and(
+					eq(inventoryItem.id, input.inventoryItemId),
+					eq(inventoryItem.organizationId, ctx.orgId)
+				)
+			)
+			.limit(1);
+		if (!item) error(404, 'Item not found');
+		const [tech] = await tx
+			.select({ id: member.id, name: user.name })
+			.from(member)
+			.innerJoin(user, eq(member.userId, user.id))
+			.where(and(eq(member.id, input.memberId), eq(member.organizationId, ctx.orgId)))
+			.limit(1);
+		if (!tech) error(404, 'Team member not found');
+		const [ts] = await tx
+			.select()
+			.from(truckStock)
+			.where(
+				and(
+					eq(truckStock.memberId, input.memberId),
+					eq(truckStock.inventoryItemId, input.inventoryItemId)
+				)
+			)
+			.limit(1);
+		if (input.direction === 'to_truck') {
+			if (item.qtyOnHand < input.qty)
+				error(409, `Only ${item.qtyOnHand} ${item.unit} of ${item.name} on hand`);
+			await tx
+				.update(inventoryItem)
+				.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} - ${input.qty}` })
+				.where(eq(inventoryItem.id, item.id));
+			await tx
+				.insert(truckStock)
+				.values({
+					organizationId: ctx.orgId,
+					memberId: input.memberId,
+					inventoryItemId: input.inventoryItemId,
+					qty: input.qty
+				})
+				.onConflictDoUpdate({
+					target: [truckStock.memberId, truckStock.inventoryItemId],
+					set: { qty: sql`${truckStock.qty} + ${input.qty}` }
+				});
+		} else {
+			if (!ts || ts.qty < input.qty)
+				error(409, `Only ${ts?.qty ?? 0} ${item.unit} of ${item.name} on that truck`);
+			await tx
+				.update(truckStock)
+				.set({ qty: sql`${truckStock.qty} - ${input.qty}` })
+				.where(eq(truckStock.id, ts.id));
+			await tx
+				.update(inventoryItem)
+				.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${input.qty}` })
+				.where(eq(inventoryItem.id, item.id));
+		}
+		void emit({
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'inventory_item',
+			entityId: item.id,
+			action: 'transferred',
+			summary: `Moved ${input.qty} × ${item.name} ${input.direction === 'to_truck' ? 'to' : 'from'} ${tech.name}'s truck`
+		});
+		return { ok: true };
+	});
 }

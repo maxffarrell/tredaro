@@ -21,8 +21,11 @@
 		getPurchaseOrders,
 		createPurchaseOrder,
 		transitionPurchaseOrder,
-		deletePurchaseOrder
+		deletePurchaseOrder,
+		getTruckStock,
+		transferTruckStock
 	} from '#lib/remote/inventory.remote.ts';
+	import { getTechnicians } from '#lib/remote/jobs.remote.ts';
 	import { getCurrency } from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -33,6 +36,8 @@
 	import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+	import Truck from '@lucide/svelte/icons/truck';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
 
 	const currency = await getCurrency();
 	let rows = $state(await getInventory());
@@ -101,6 +106,53 @@
 			rows = await getInventory();
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not adjust stock'));
+		}
+	}
+
+	// ------- truck stock -------
+	const techs = $derived(await getTechnicians());
+	let truckRows = $state(await getTruckStock());
+	let trOpen = $state(false);
+	let trPending = $state(false);
+	let trItem = $state('');
+	let trMember = $state('');
+	let trQty = $state(1);
+	async function saveTransfer(e: SubmitEvent) {
+		e.preventDefault();
+		if (!trItem || !trMember) return;
+		trPending = true;
+		try {
+			await transferTruckStock({
+				inventoryItemId: trItem,
+				memberId: trMember,
+				qty: trQty,
+				direction: 'to_truck'
+			});
+			truckRows = await getTruckStock();
+			rows = await getInventory();
+			trOpen = false;
+			trItem = '';
+			trMember = '';
+			trQty = 1;
+			toast.success('Transferred to truck');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not transfer'));
+		}
+		trPending = false;
+	}
+	async function returnToWarehouse(s: (typeof truckRows)[number]) {
+		try {
+			await transferTruckStock({
+				inventoryItemId: s.stock.inventoryItemId,
+				memberId: s.stock.memberId,
+				qty: s.stock.qty,
+				direction: 'to_warehouse'
+			});
+			truckRows = await getTruckStock();
+			rows = await getInventory();
+			toast.success('Returned to warehouse');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not return'));
 		}
 	}
 
@@ -287,6 +339,52 @@
 									<Empty.Content><Button onclick={() => openItem()}>New item</Button></Empty.Content
 									>
 								</Empty.Root>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+	<Card.Root class="py-0">
+		<Card.Header class="flex-row items-center justify-between space-y-0">
+			<Card.Title class="flex items-center gap-2 text-base"
+				><Truck class="size-4" /> Truck stock</Card.Title
+			>
+			<Button size="sm" variant="outline" onclick={() => (trOpen = true)}
+				><Plus /> Transfer to truck</Button
+			>
+		</Card.Header>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Tech</Table.Head>
+						<Table.Head>Item</Table.Head>
+						<Table.Head class="text-right">Qty</Table.Head>
+						<Table.Head class="w-10"></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each truckRows.filter((r) => r.stock.qty > 0) as r (r.stock.id)}
+						<Table.Row>
+							<Table.Cell class="font-medium">{r.memberName}</Table.Cell>
+							<Table.Cell>{r.itemName}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{r.stock.qty} {r.itemUnit}</Table.Cell>
+							<Table.Cell class="text-right">
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 text-muted-foreground"
+									title="Return all to warehouse"
+									onclick={() => returnToWarehouse(r)}><Undo2 class="size-3.5" /></Button
+								>
+							</Table.Cell>
+						</Table.Row>
+					{:else}
+						<Table.Row>
+							<Table.Cell colspan={4} class="text-center text-muted-foreground">
+								No stock loaded on trucks — transfer warehouse items to a tech.
 							</Table.Cell>
 						</Table.Row>
 					{/each}
@@ -545,5 +643,53 @@
 				{/if}
 			</Dialog.Footer>
 		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- transfer to truck -->
+<Dialog.Root bind:open={trOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header><Dialog.Title>Transfer to truck</Dialog.Title></Dialog.Header>
+		<form class="space-y-4" onsubmit={saveTransfer}>
+			<Field.Field>
+				<Field.Label>Item</Field.Label>
+				<Select.Root type="single" bind:value={trItem}>
+					<Select.Trigger class="w-full"
+						>{rows.find((r) => r.item.id === trItem)?.item.name ?? 'Pick an item…'}</Select.Trigger
+					>
+					<Select.Content>
+						{#each rows as r (r.item.id)}
+							<Select.Item value={r.item.id}
+								>{r.item.name}
+								<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span
+								></Select.Item
+							>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
+			<Field.Field>
+				<Field.Label>Technician</Field.Label>
+				<Select.Root type="single" bind:value={trMember}>
+					<Select.Trigger class="w-full"
+						>{techs.find((t) => t.id === trMember)?.name ?? 'Pick a tech…'}</Select.Trigger
+					>
+					<Select.Content>
+						{#each techs as t (t.id)}
+							<Select.Item value={t.id}>{t.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="tr-qty">Quantity</Field.Label>
+				<Input id="tr-qty" type="number" min={1} bind:value={trQty} />
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={trPending || !trItem || !trMember || trQty < 1}
+					>{trPending ? 'Transferring…' : 'Transfer'}</Button
+				>
+			</Dialog.Footer>
+		</form>
 	</Dialog.Content>
 </Dialog.Root>

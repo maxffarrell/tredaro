@@ -4,6 +4,7 @@
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
@@ -34,7 +35,8 @@
 		getInventory,
 		getJobMaterials,
 		addJobMaterial,
-		removeJobMaterial
+		removeJobMaterial,
+		getTruckStock
 	} from '#lib/remote/inventory.remote.ts';
 	import {
 		getJobChecklist,
@@ -74,6 +76,9 @@
 	const j = $derived(await getJob(id));
 	const jobTypes = $derived(await getJobTypes());
 	const technicians = $derived(await getTechnicians());
+	const matTechName = $derived(
+		technicians.find((t) => t.id === j.job.technicianId)?.name ?? 'Tech'
+	);
 	const offices = $derived(await getOffices());
 	const settings = $derived(await getSettings());
 	const c = $derived(await getCustomer(j.job.customerId));
@@ -305,13 +310,23 @@
 	}
 
 	const stock = $derived(await getInventory());
+	const truckRows = $derived(await getTruckStock());
 	let addingMat = $state(false);
 	let matItem = $state('');
 	let matQty = $state(1);
 	let matPrice = $state<number | null>(null);
+	let matSource = $state<'warehouse' | 'truck'>('warehouse');
+	const truckQty = $derived(
+		j.job.technicianId && matItem
+			? (truckRows.find(
+					(r) => r.stock.memberId === j.job.technicianId && r.stock.inventoryItemId === matItem
+				)?.stock.qty ?? 0)
+			: 0
+	);
 	function pickMat(v: string) {
 		matItem = v;
 		matPrice = stock.find((s) => s.item.id === v)?.item.unitCost ?? 0;
+		matSource = 'warehouse';
 	}
 	async function logMaterial(e: SubmitEvent) {
 		e.preventDefault();
@@ -321,7 +336,8 @@
 				jobId: id,
 				inventoryItemId: matItem,
 				qty: matQty,
-				unitPrice: matPrice ?? 0
+				unitPrice: matPrice ?? 0,
+				truckMemberId: matSource === 'truck' ? j.job.technicianId : null
 			}).updates(getJobMaterials, getJob);
 			addingMat = false;
 			matItem = '';
@@ -827,6 +843,9 @@
 								<p class="text-xs text-muted-foreground">
 									{#if m.memberName}{m.memberName} ·
 									{/if}{localDate(m.material.createdAt, tz)}
+									{#if m.material.sourceMemberId}
+										<Badge variant="outline" class="ml-1">from truck</Badge>
+									{/if}
 								</p>
 							</div>
 							{#if !locked}
@@ -872,6 +891,27 @@
 								/>
 								<MoneyInput bind:value={matPrice} placeholder="Unit price" />
 							</div>
+							{#if j.job.technicianId && matItem}
+								<Select.Root
+									type="single"
+									value={matSource}
+									onValueChange={(v) => (matSource = v as 'warehouse' | 'truck')}
+								>
+									<Select.Trigger class="w-full"
+										>From: {matSource === 'truck'
+											? `${matTechName}'s truck`
+											: 'Warehouse'}</Select.Trigger
+									>
+									<Select.Content>
+										<Select.Item value="warehouse"
+											>Warehouse ({stock.find((s) => s.item.id === matItem)?.item.qtyOnHand ?? 0} on hand)</Select.Item
+										>
+										<Select.Item value="truck" disabled={truckQty < 1}
+											>{matTechName}'s truck ({truckQty})</Select.Item
+										>
+									</Select.Content>
+								</Select.Root>
+							{/if}
 							<div class="flex gap-2">
 								<Button type="submit" size="sm" disabled={!matItem || matQty < 1}>Log</Button>
 								<Button type="button" size="sm" variant="ghost" onclick={() => (addingMat = false)}

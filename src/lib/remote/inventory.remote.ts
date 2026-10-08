@@ -8,6 +8,7 @@ import {
 	inventoryItemInput,
 	inventoryItemUpdate,
 	jobMaterialInput,
+	truckTransferInput,
 	purchaseOrderInput,
 	purchaseOrderUpdate
 } from '#lib/schemas.ts';
@@ -105,4 +106,16 @@ export const deletePurchaseOrder = command(idSchema, async (id) => {
 	await svc.deletePurchaseOrder(await requireOrg('admin'), id);
 	await refreshQuery(getPurchaseOrders, undefined);
 	return { id };
+});
+
+// ---------- Truck stock ----------
+
+export const getTruckStock = query(async () => svc.listTruckStock((await requireOrg()).orgId));
+
+export const transferTruckStock = command(truckTransferInput, async (input) => {
+	const r = await svc.transferStock(await requireOrg('admin'), input);
+	await refreshQuery(getTruckStock, undefined);
+	await refreshQuery(getInventory, undefined);
+	void getDashboard().refresh();
+	return r;
 });
