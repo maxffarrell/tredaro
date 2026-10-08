@@ -373,7 +373,10 @@ async function receivablesAging(orgId: string) {
 				sql<number>`sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0))`.mapWith(
 					Number
 				),
-			count: sql<number>`count(*)`.mapWith(Number)
+			count:
+				sql<number>`count(*) filter (where ${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0) > 0)`.mapWith(
+					Number
+				)
 		})
 		.from(charge)
 		.where(and(eq(charge.organizationId, orgId), sql`${charge.status} != 'void'`))
