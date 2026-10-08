@@ -265,12 +265,14 @@
 			{formatMoney(totalValue, currency)} on hand</Badge
 		>
 		{@const lowCount = items.filter((i) => i.low).length}
-		{@const openPoCount = pos.filter(
-			(p) => p.po.status === 'draft' || p.po.status === 'ordered'
-		).length}
-		{#if openPoCount}
+		{@const openPos = pos.filter((p) => p.po.status === 'draft' || p.po.status === 'ordered')}
+		{#if openPos.length}
 			<Badge variant="outline" class="mr-2"
-				>{openPoCount} open PO{openPoCount === 1 ? '' : 's'}</Badge
+				>{openPos.length} open PO{openPos.length === 1 ? '' : 's'} ·
+				{formatMoney(
+					openPos.reduce((m, p) => m + p.total, 0),
+					currency
+				)} on order</Badge
 			>
 		{/if}
 		{#if lowCount}

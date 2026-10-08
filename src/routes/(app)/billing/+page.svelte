@@ -516,7 +516,8 @@
 							(ch) =>
 								ch.charge.dueDate && ch.charge.dueDate < todayStr && ch.charge.amount - ch.paid > 0
 						).length} overdue</span
-					>{/if}
+					>{/if}{#if visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length}
+					· {visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length} partial{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
