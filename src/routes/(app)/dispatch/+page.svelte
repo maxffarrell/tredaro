@@ -290,6 +290,22 @@
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2 text-base">
 						{group.name}
+						{#if group.jobs.length}
+							<Badge variant="outline" class="font-normal text-muted-foreground"
+								>{group.jobs.length} job{group.jobs.length === 1 ? '' : 's'} ·
+								{(
+									group.jobs.reduce(
+										(m, j) =>
+											m +
+											(j.job.startsAt && j.job.endsAt
+												? (new Date(j.job.endsAt).getTime() - new Date(j.job.startsAt).getTime()) /
+													60_000
+												: 0),
+										0
+									) / 60
+								).toFixed(1)}h</Badge
+							>
+						{/if}
 						{#each board.timeOff.filter((t) => t.memberId === techId) as t (t.id)}
 							<Badge variant="secondary" class="font-normal text-amber-700 dark:text-amber-400">
 								Off {t.startsOn}{t.endsOn !== t.startsOn ? ` – ${t.endsOn}` : ''}

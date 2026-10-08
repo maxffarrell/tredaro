@@ -81,6 +81,19 @@ export async function dashboard(orgId: string) {
 		.from(charge)
 		.where(eq(charge.organizationId, orgId));
 
+	const [todayPayments] = await db
+		.select({
+			total: sql<number>`coalesce(sum(${outer(payment.amount)}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				gte(payment.paidAt, dayStart),
+				lt(payment.paidAt, dayEnd)
+			)
+		);
+
 	const mrr = await monthlyRecurring(orgId);
 
 	const todayJobs = await db
@@ -315,6 +328,7 @@ export async function dashboard(orgId: string) {
 		unscheduledJobs: jobStats?.unscheduled ?? 0,
 		inFlightJobs: jobStats?.inFlight ?? 0,
 		doneToday: jobStats?.doneToday ?? 0,
+		collectedToday: todayPayments?.total ?? 0,
 		activeAgreements: agreementStats?.active ?? 0,
 		openTotal: openStats?.openTotal ?? 0,
 		overdueTotal: openStats?.overdueTotal ?? 0,

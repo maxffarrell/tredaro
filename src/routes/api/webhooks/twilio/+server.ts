@@ -78,6 +78,8 @@ const handle = async (
 			.from(member)
 			.innerJoin(user, eq(user.id, member.userId))
 			.where(and(eq(member.organizationId, orgId), eq(member.staffAlerts, true)));
+		const { ackInboundSms } = await import('#lib/server/services/notifications.ts');
+		await ackInboundSms(orgId, cust.id, cust.phone ?? from);
 		if (staff.length)
 			await db.insert(notificationLog).values(
 				staff

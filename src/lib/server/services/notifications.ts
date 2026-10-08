@@ -71,6 +71,17 @@ async function sendSmsQuiet(orgId: string, msg: { to: string; body: string }) {
 	await sendSms(msg);
 }
 
+/** Auto-acknowledgement when a customer texts in — once per customer per day. */
+export async function ackInboundSms(orgId: string, customerId: string, to: string) {
+	const day = new Date().toISOString().slice(0, 10);
+	if (!(await logOnce(orgId, 'inbound_sms_ack', `${customerId}:${day}`, to))) return;
+	const name = await orgName(orgId);
+	await sendSmsQuiet(orgId, {
+		to,
+		body: `${name}: thanks — we got your message and will be in touch shortly.`
+	});
+}
+
 /** Delivers queued texts whose quiet-hours window has passed (called from runReminders). */
 export async function flushSmsOutbox(orgId: string) {
 	const due = await db

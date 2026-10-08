@@ -11,6 +11,7 @@
 
 	import Inbox from '@lucide/svelte/icons/inbox';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import Wallet from '@lucide/svelte/icons/wallet';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { goto } from '$app/navigation';
 
@@ -35,6 +36,12 @@
 			href: '/jobs?status=in_progress'
 		},
 		{ label: 'Done today', value: String(d.doneToday), icon: Wrench, href: '/jobs' },
+		{
+			label: 'Collected today',
+			value: formatMoney(d.collectedToday, d.currency, true),
+			icon: Wallet,
+			href: '/billing'
+		},
 		{
 			label: 'Agreements MRR',
 			value: formatMoney(d.mrr, d.currency, true),
