@@ -12,7 +12,7 @@
 	import { toast } from 'svelte-sonner';
 	import { errMsg } from '#lib/format.ts';
 
-	const rows = await getStaffNotifications();
+	const rows = $derived(await getStaffNotifications());
 	const unread = $derived(rows.filter((n) => !n.readAt).length);
 
 	async function markAllRead() {
