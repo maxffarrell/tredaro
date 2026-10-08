@@ -6,6 +6,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import Printer from '@lucide/svelte/icons/printer';
 	import { toast } from 'svelte-sonner';
 	import { decidePublicEstimate } from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
@@ -53,7 +54,7 @@
 </svelte:head>
 
 <div class="min-h-svh bg-muted/30">
-	<header class="border-b bg-background">
+	<header class="border-b bg-background print:hidden">
 		<div class="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
 			<Logo />
 			<span class="truncate font-semibold">{orgName}</span>
@@ -61,7 +62,7 @@
 	</header>
 
 	<main class="mx-auto max-w-3xl space-y-6 p-4 py-8">
-		<div class="flex items-center justify-between">
+		<div class="flex items-center justify-between gap-3">
 			<div>
 				<h1 class="text-2xl font-semibold tracking-tight">Estimate E-{est.number}</h1>
 				<p class="text-sm text-muted-foreground">
@@ -69,7 +70,12 @@
 					{#if loc?.address1}· {loc.address1}, {loc.city}{/if}
 				</p>
 			</div>
-			<StatusBadge status={decided ?? est.status} />
+			<div class="flex items-center gap-2">
+				<StatusBadge status={decided ?? est.status} />
+				<Button size="sm" variant="outline" class="print:hidden" onclick={() => window.print()}
+					><Printer /> Print</Button
+				>
+			</div>
 		</div>
 
 		<Card.Root>
@@ -130,7 +136,7 @@
 				</Card.Content>
 			</Card.Root>
 		{:else}
-			<Card.Root>
+			<Card.Root class="print:hidden">
 				<Card.Header>
 					<Card.Title class="text-base">Your decision</Card.Title>
 					<Card.Description

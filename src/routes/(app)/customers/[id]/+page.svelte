@@ -49,7 +49,7 @@
 	import Repeat from '@lucide/svelte/icons/repeat';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
-	const id = page.params.id!;
+	const id = $derived(page.params.id!);
 	const c = $derived(await getCustomer(id));
 	const settings = await getSettings();
 	const currency = settings.currency;
@@ -119,6 +119,20 @@
 	let status = $state(c.customer.status);
 	let tagsInput = $state((c.customer.tags ?? []).join(', '));
 	let saving = $state(false);
+	let loadedId = '';
+	$effect(() => {
+		if (c.customer.id !== loadedId) {
+			loadedId = c.customer.id;
+			name = c.customer.name;
+			type = c.customer.type;
+			companyName = c.customer.companyName;
+			email = c.customer.email;
+			phone = c.customer.phone;
+			notes = c.customer.notes;
+			status = c.customer.status;
+			tagsInput = (c.customer.tags ?? []).join(', ');
+		}
+	});
 
 	async function saveCustomer(e: SubmitEvent) {
 		e.preventDefault();

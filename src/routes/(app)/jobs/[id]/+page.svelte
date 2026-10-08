@@ -25,7 +25,8 @@
 		stopTimer,
 		addTimeEntry,
 		deleteTimeEntry,
-		createJob
+		createJob,
+		signJob
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -61,6 +62,8 @@
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Plus from '@lucide/svelte/icons/plus';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 
 	const id = $derived(page.params.id!);
 	const j = $derived(await getJob(id));
@@ -155,6 +158,28 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
 		}
+	}
+
+	// ------- signature -------
+	let signOpen = $state(false);
+	let signThenComplete = $state(false);
+	let signPending = $state(false);
+	async function saveSignature(name: string, dataUrl: string) {
+		signPending = true;
+		try {
+			await signJob({ jobId: id, name, signature: dataUrl }).updates(getJob);
+			signOpen = false;
+			toast.success('Signature saved');
+			if (signThenComplete) await event('completed');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save signature'));
+		}
+		signPending = false;
+		signThenComplete = false;
+	}
+	function openSign(complete: boolean) {
+		signThenComplete = complete;
+		signOpen = true;
 	}
 
 	// ------- checklist -------
@@ -359,7 +384,7 @@
 				><MapPin /> On site</Button
 			>
 		{:else if j.job.status === 'in_progress'}
-			<Button size="sm" onclick={() => event('completed')}><CircleCheck /> Complete</Button>
+			<Button size="sm" onclick={() => openSign(true)}><CircleCheck /> Complete</Button>
 		{/if}
 		{#if j.job.status === 'done'}
 			<Button size="sm" variant="outline" disabled={rebooking} onclick={rebook}
@@ -559,6 +584,36 @@
 				{/if}
 			</Card.Content>
 		</Card.Root>
+
+		{#if j.job.signature || j.job.status !== 'cancelled'}
+			<Card.Root>
+				<Card.Header class="flex-row items-center justify-between space-y-0">
+					<Card.Title class="text-base">Signature</Card.Title>
+					{#if j.job.status !== 'cancelled'}
+						<Button size="sm" variant="ghost" onclick={() => openSign(false)}
+							><PenLine class="size-4" /> {j.job.signature ? 'Re-capture' : 'Capture'}</Button
+						>
+					{/if}
+				</Card.Header>
+				<Card.Content class="space-y-2">
+					{#if j.job.signature}
+						<img
+							src={j.job.signature}
+							alt="Customer signature"
+							class="w-full rounded-md border bg-white"
+						/>
+						<p class="text-sm text-muted-foreground">
+							Signed by {j.job.signedName}{#if j.job.signedAt}
+								on {formatDate(j.job.signedAt)}{/if}
+						</p>
+					{:else}
+						<p class="text-sm text-muted-foreground">
+							No signature yet — capture the customer's sign-off on site.
+						</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+		{/if}
 
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Costing</Card.Title></Card.Header>
@@ -919,3 +974,15 @@
 		</Card.Root>
 	</div>
 </div>
+
+<SignatureDialog
+	bind:open={signOpen}
+	pending={signPending}
+	onSave={saveSignature}
+	skipLabel="Complete without signature"
+	onSkip={() => {
+		signOpen = false;
+		if (signThenComplete) event('completed');
+		signThenComplete = false;
+	}}
+/>

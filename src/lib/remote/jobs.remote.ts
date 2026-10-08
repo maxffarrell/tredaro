@@ -23,7 +23,8 @@ import {
 	timeEntryInput,
 	timeOffInput,
 	checklistItemInput,
-	checklistToggleInput
+	checklistToggleInput,
+	jobSignatureInput
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -141,6 +142,13 @@ export const recordJobEvent = command(jobEventInput, async (input) => {
 	await refreshQuery(getDashboard, undefined);
 	await refreshQuery(getMyDay, undefined);
 	return e;
+});
+
+export const signJob = command(jobSignatureInput, async (input) => {
+	const j = await svc.signJob(await requireOrg(), input);
+	await refreshQuery(getJob, input.jobId);
+	await refreshQuery(getMyDay, undefined);
+	return j;
 });
 
 // ---------- Time tracking ----------

@@ -6,7 +6,14 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { toast } from 'svelte-sonner';
-	import { getMyDay, recordJobEvent, startTimer, stopTimer } from '#lib/remote/jobs.remote.ts';
+	import {
+		getMyDay,
+		recordJobEvent,
+		signJob,
+		startTimer,
+		stopTimer
+	} from '#lib/remote/jobs.remote.ts';
+	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import { errMsg } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
@@ -38,6 +45,22 @@
 	};
 
 	let pending = $state<string | null>(null);
+	let signJobId = $state<string | null>(null);
+
+	async function completeWithSignature(name: string, dataUrl: string) {
+		const jobId = signJobId;
+		if (!jobId) return;
+		pending = `${jobId}:completed`;
+		try {
+			await signJob({ jobId, name, signature: dataUrl });
+			signJobId = null;
+			await recordJobEvent({ jobId, kind: 'completed' }).updates(getMyDay);
+			toast.success('Job done');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update'));
+		}
+		pending = null;
+	}
 
 	async function advance(jobId: string, kind: EventKind) {
 		pending = `${jobId}:${kind}`;
@@ -116,7 +139,9 @@
 						size="sm"
 						variant={action.kind === 'completed' ? 'default' : 'outline'}
 						disabled={pending !== null}
-						onclick={() => advance(j.job.id, action.kind)}><Icon /> {action.label}</Button
+						onclick={() =>
+							action.kind === 'completed' ? (signJobId = j.job.id) : advance(j.job.id, action.kind)}
+						><Icon /> {action.label}</Button
 					>
 				{/each}
 				{#if j.job.status !== 'done' && j.job.status !== 'cancelled'}
@@ -203,3 +228,15 @@
 		{/if}
 	{/if}
 </div>
+
+<SignatureDialog
+	bind:open={() => signJobId !== null, (v) => (signJobId = v ? signJobId : null)}
+	pending={pending !== null}
+	onSave={completeWithSignature}
+	skipLabel="Complete without signature"
+	onSkip={() => {
+		const jobId = signJobId;
+		signJobId = null;
+		if (jobId) advance(jobId, 'completed');
+	}}
+/>

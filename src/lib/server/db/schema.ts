@@ -321,6 +321,10 @@ export const job = pgTable(
 		schedulePeriod: date('schedule_period', { mode: 'string' }),
 		cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
+		/** Customer sign-off captured on completion — PNG data URL (~tens of KB). */
+		signature: text('signature'),
+		signedName: text('signed_name'),
+		signedAt: timestamp('signed_at', { withTimezone: true }),
 		...timestamps
 	},
 	(t) => [

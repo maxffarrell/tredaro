@@ -483,6 +483,31 @@ export async function recordJobEvent(
 	return row;
 }
 
+/** Store the customer's sign-off on a job — PNG data URL + printed name. */
+export async function signJob(ctx: OrgContext, input: v.InferOutput<typeof s.jobSignatureInput>) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, input.jobId)));
+	if (!j) error(404, 'Job not found');
+	if (j.status === 'cancelled') error(409, 'Job is cancelled');
+
+	const [row] = await db
+		.update(job)
+		.set({ signature: input.signature, signedName: input.name, signedAt: new Date() })
+		.where(eq(job.id, input.jobId))
+		.returning();
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: input.jobId,
+		action: 'signature',
+		summary: `J-${j.number} signed by ${input.name}`
+	});
+	return row;
+}
+
 // ---------- Time tracking ----------
 
 const memberFor = async (ctx: OrgContext) =>

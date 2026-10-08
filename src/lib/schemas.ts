@@ -275,6 +275,17 @@ export const jobEventInput = v.object({
 	note: optionalText
 });
 
+/** Customer signature captured on job completion — PNG data URL from the signature pad. */
+export const jobSignatureInput = v.object({
+	jobId: idSchema,
+	name: requiredText('Name'),
+	signature: v.pipe(
+		v.string(),
+		v.maxLength(200_000, 'Signature image is too large'),
+		v.check((s) => s.startsWith('data:image/png;base64,'), 'Signature must be a PNG data URL')
+	)
+});
+
 /** Manually logged time on a job (start/end are wall-clock in the workspace timezone). */
 export const timeEntryInput = v.object({
 	jobId: idSchema,
