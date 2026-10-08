@@ -949,47 +949,61 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
 	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
-	const [jobs, unscheduled, overdue, openEntries, dayEntries, tomorrow] = await Promise.all([
-		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
-		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
-		listJobs(ctx.orgId, {
-			to: from,
-			technicianId: me.id,
-			status: ['scheduled', 'dispatched', 'in_progress']
-		}),
-		db
-			.select({ entry: jobTimeEntry, jobNumber: job.number })
-			.from(jobTimeEntry)
-			.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
-			.where(
-				and(
-					eq(jobTimeEntry.organizationId, ctx.orgId),
-					eq(jobTimeEntry.memberId, me.id),
-					isNull(jobTimeEntry.endedAt)
+	const [jobs, unscheduled, overdue, openEntries, dayEntries, tomorrow, offToday] =
+		await Promise.all([
+			listJobs(ctx.orgId, { from, to, technicianId: me.id }),
+			listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
+			listJobs(ctx.orgId, {
+				to: from,
+				technicianId: me.id,
+				status: ['scheduled', 'dispatched', 'in_progress']
+			}),
+			db
+				.select({ entry: jobTimeEntry, jobNumber: job.number })
+				.from(jobTimeEntry)
+				.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+				.where(
+					and(
+						eq(jobTimeEntry.organizationId, ctx.orgId),
+						eq(jobTimeEntry.memberId, me.id),
+						isNull(jobTimeEntry.endedAt)
+					)
 				)
-			)
-			.limit(1),
-		db
-			.select({
-				startedAt: jobTimeEntry.startedAt,
-				endedAt: jobTimeEntry.endedAt
-			})
-			.from(jobTimeEntry)
-			.where(
-				and(
-					eq(jobTimeEntry.organizationId, ctx.orgId),
-					eq(jobTimeEntry.memberId, me.id),
-					gte(jobTimeEntry.startedAt, from),
-					lt(jobTimeEntry.startedAt, to)
+				.limit(1),
+			db
+				.select({
+					startedAt: jobTimeEntry.startedAt,
+					endedAt: jobTimeEntry.endedAt
+				})
+				.from(jobTimeEntry)
+				.where(
+					and(
+						eq(jobTimeEntry.organizationId, ctx.orgId),
+						eq(jobTimeEntry.memberId, me.id),
+						gte(jobTimeEntry.startedAt, from),
+						lt(jobTimeEntry.startedAt, to)
+					)
+				),
+			// Tomorrow's roster — jobs scheduled in the day after the [from,to) window.
+			listJobs(ctx.orgId, {
+				from: to,
+				to: new Date(to.getTime() + 24 * 60 * 60 * 1000),
+				technicianId: me.id
+			}),
+			// PTO covering today — shown as an off-day banner on My Day.
+			db
+				.select({ reason: memberTimeOff.reason })
+				.from(memberTimeOff)
+				.where(
+					and(
+						eq(memberTimeOff.organizationId, ctx.orgId),
+						eq(memberTimeOff.memberId, me.id),
+						lte(memberTimeOff.startsOn, from.toISOString().slice(0, 10)),
+						gte(memberTimeOff.endsOn, from.toISOString().slice(0, 10))
+					)
 				)
-			),
-		// Tomorrow's roster — jobs scheduled in the day after the [from,to) window.
-		listJobs(ctx.orgId, {
-			from: to,
-			to: new Date(to.getTime() + 24 * 60 * 60 * 1000),
-			technicianId: me.id
-		})
-	]);
+				.limit(1)
+		]);
 	const materials = jobs.length
 		? await db
 				.select({
@@ -1028,6 +1042,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		openEntry: openEntries[0] ?? null,
 		minutesLogged,
 		tomorrow,
+		offToday: offToday[0] ?? null,
 		materials
 	};
 }

@@ -40,6 +40,7 @@
 	const visible = $derived(
 		tagFilter ? customers.filter((c) => c.tags?.includes(tagFilter)) : customers
 	);
+	const totalBalance = $derived(visible.reduce((sum, c) => sum + c.openBalance, 0));
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	function search() {
 		clearTimeout(timer);
@@ -197,6 +198,11 @@
 		{/if}
 	</div>
 
+	<p class="text-sm text-muted-foreground">
+		{visible.length} customer{visible.length === 1 ? '' : 's'} ·
+		{formatMoney(totalBalance, currency)} open balance
+	</p>
+
 	<Card.Root class="py-0">
 		<Card.Content class="px-0">
 			<Table.Root>
@@ -233,7 +239,11 @@
 							<Table.Cell class="text-muted-foreground">{c.planName ?? '—'}</Table.Cell>
 							<Table.Cell><StatusBadge status={c.status} /></Table.Cell>
 							<Table.Cell class="text-right tabular-nums">
-								{c.openBalance > 0 ? formatMoney(c.openBalance, currency) : '—'}
+								{#if c.openBalance < 0}
+									<span class="text-emerald-600">-{formatMoney(-c.openBalance, currency)}</span>
+								{:else}
+									{c.openBalance > 0 ? formatMoney(c.openBalance, currency) : '—'}
+								{/if}
 							</Table.Cell>
 						</Table.Row>
 					{:else}

@@ -351,6 +351,22 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(inventoryItem.name))
 		.limit(4);
 
+	// Customers holding unapplied credit (negative open charges) — money the org owes back.
+	const creditOnFile = await db
+		.select({
+			customerId: charge.customerId,
+			customerName: customer.name,
+			credit: sql<number>`sum(${charge.amount})`.mapWith(Number)
+		})
+		.from(charge)
+		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.where(
+			and(eq(charge.organizationId, orgId), eq(charge.status, 'open'), sql`${charge.amount} < 0`)
+		)
+		.groupBy(charge.customerId, customer.name)
+		.orderBy(asc(sql`sum(${charge.amount})`))
+		.limit(4);
+
 	const staleUnscheduled = await db
 		.select({
 			id: job.id,
@@ -486,6 +502,13 @@ export async function dashboard(orgId: string) {
 				text: `${c.memberName ?? 'Someone'} still clocked in · J-${c.jobNumber}`,
 				sub: `${c.customerName} — since ${localTime(c.startedAt, tz)}`,
 				amountCents: null as number | null
+			})),
+			...creditOnFile.map((c) => ({
+				tone: 'amber' as const,
+				href: `/customers/${c.customerId}`,
+				text: `Credit on file · ${c.customerName}`,
+				sub: 'unapplied — apply to an invoice or refund',
+				amountCents: c.credit
 			})),
 			...lowStock.map((i) => ({
 				tone: 'amber' as const,

@@ -251,6 +251,17 @@
 		})}
 	</p>
 
+	{#if day.offToday}
+		<div
+			class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/40 dark:bg-amber-950/30"
+		>
+			<span class="font-medium"
+				>You're off today{day.offToday.reason ? `: ${day.offToday.reason}` : ''}.</span
+			>
+			Anything below was already on your schedule — coordinate with the office if it needs reassigning.
+		</div>
+	{/if}
+
 	{#if day.member && (day.jobs.length || day.minutesLogged > 0)}
 		{@const done = day.jobs.filter((j) => j.job.status === 'done').length}
 		{@const left = day.jobs.length - done}
