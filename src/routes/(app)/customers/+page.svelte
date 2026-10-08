@@ -66,6 +66,8 @@
 	const totalBalance = $derived(visible.reduce((sum, c) => sum + c.openBalance, 0));
 	const onHoldCount = $derived(visible.filter((c) => c.onHold).length);
 	const withBalance = $derived(visible.filter((c) => c.openBalance > 0).length);
+	const missingEmail = $derived(visible.filter((c) => !c.email).length);
+	const withPortal = $derived(visible.filter((c) => c.portalLinked).length);
 	const newThisMonth = $derived(
 		visible.filter((c) => c.since && c.since >= new Date().toISOString().slice(0, 8) + '01').length
 	);
@@ -285,7 +287,10 @@
 		{formatMoney(totalBalance, currency)} open balance{#if newThisMonth}
 			· <span class="text-foreground">{newThisMonth} new this month</span>{/if}{#if withBalance}
 			· {withBalance} with balance{/if}{#if onHoldCount}
-			· <span class="text-red-600 dark:text-red-400">{onHoldCount} on hold</span>{/if}
+			· <span class="text-red-600 dark:text-red-400">{onHoldCount} on hold</span
+			>{/if}{#if withPortal}
+			· {withPortal} with portal{/if}{#if missingEmail}
+			· <span class="text-amber-600 dark:text-amber-400">{missingEmail} missing email</span>{/if}
 	</p>
 
 	<Card.Root class="py-0">

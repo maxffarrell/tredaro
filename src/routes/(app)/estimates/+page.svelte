@@ -115,6 +115,18 @@
 			{estimates.filter((e) => e.viewed).length} viewed
 		</p>
 	{/if}
+	{#if tab === 'expired' && estimates.length}
+		<p class="text-sm text-muted-foreground">
+			Stale pipeline: <span class="font-medium text-foreground"
+				>{formatMoney(
+					estimates.reduce((s, e) => s + e.total, 0),
+					currency
+				)}</span
+			>
+			across {estimates.length} expired estimate{estimates.length === 1 ? '' : 's'} — consider revising
+			or following up
+		</p>
+	{/if}
 	<Card.Root class="py-0">
 		<Card.Content class="px-0">
 			<Table.Root>
