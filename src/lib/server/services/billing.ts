@@ -783,7 +783,7 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		const [{ minutes }] = await db
 			.select({
 				minutes:
-					sql<number>`coalesce(sum(extract(epoch from (te.ended_at - te.started_at)) / 60), 0)`.mapWith(
+					sql<number>`coalesce(sum(extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60), 0)`.mapWith(
 						Number
 					)
 			})
