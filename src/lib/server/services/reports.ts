@@ -382,6 +382,10 @@ async function jobProfitability(orgId: string) {
 				sql<number>`(select coalesce(sum(e.amount), 0) from ${jobExpense} e where e.job_id = ${outer(job.id)})`.mapWith(
 					Number
 				),
+			laborCost:
+				sql<number>`(select coalesce(round(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 3600.0 * m.labor_cost_cents)), 0) from ${jobTimeEntry} te join ${member} m on m.id = te.member_id where te.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
 			laborMin:
 				sql<number>`(select coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60), 0) from ${jobTimeEntry} te where te.job_id = ${outer(job.id)})`.mapWith(
 					Number

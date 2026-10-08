@@ -29,6 +29,7 @@
 		deleteWebhook,
 		getStaff,
 		updateCommission,
+		updateLaborCost,
 		seedDemo
 	} from '#lib/remote/workspace.remote.ts';
 	import {
@@ -272,6 +273,18 @@
 		try {
 			await updateCommission({ memberId: s.id, commissionPct: pct }).updates(getStaff);
 			toast.success(`Commission set to ${pct}%`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+	}
+	async function saveLaborCost(s: (typeof staff)[number], el: Event) {
+		const dollars = Number((el.target as HTMLInputElement).value) || 0;
+		try {
+			await updateLaborCost({
+				memberId: s.id,
+				laborCostCents: Math.round(dollars * 100)
+			}).updates(getStaff);
+			toast.success(`Labor cost set`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
 		}
@@ -657,6 +670,22 @@
 											onchange={(e) => saveCommission(s, e)}
 										/>
 										% comm.
+									</label>
+									<label
+										class="flex items-center gap-1 text-xs text-muted-foreground"
+										title="Loaded cost per hour — turns logged time into a job margin cost"
+									>
+										$
+										<Input
+											type="number"
+											min={0}
+											max={500}
+											step="0.5"
+											class="h-7 w-16"
+											value={s.laborCostCents / 100}
+											onchange={(e) => saveLaborCost(s, e)}
+										/>
+										/hr cost
 									</label>
 									<Badge
 										variant={s.role === 'owner' || s.role === 'admin' ? 'default' : 'secondary'}

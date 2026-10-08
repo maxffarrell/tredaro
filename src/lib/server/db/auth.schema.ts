@@ -96,6 +96,8 @@ export const member = pgTable(
 		role: text('role').default('member').notNull(),
 		/** % of collected revenue on their jobs, for the commission report. */
 		commissionPct: integer('commission_pct').default(0).notNull(),
+		/** Loaded cost per hour (cents) — turns logged time into a job margin cost. */
+		laborCostCents: integer('labor_cost_cents').default(0).notNull(),
 		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => [

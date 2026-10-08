@@ -38,7 +38,12 @@ export async function getPublicCompany(slug: string) {
 		.orderBy(asc(agreementPlan.amount));
 
 	const jobTypes = await db
-		.select({ id: jobType.id, name: jobType.name, description: jobType.description })
+		.select({
+			id: jobType.id,
+			name: jobType.name,
+			description: jobType.description,
+			defaultAmount: jobType.defaultAmount
+		})
 		.from(jobType)
 		.where(and(eq(jobType.organizationId, org.id), eq(jobType.active, true)))
 		.orderBy(asc(jobType.name));

@@ -4,6 +4,7 @@ import { and, asc, desc, eq, lt, sql } from 'drizzle-orm';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import {
+	activity,
 	companySettings,
 	customer,
 	estimate,
@@ -100,7 +101,25 @@ export async function getEstimate(orgId: string, id: string) {
 					.where(eq(job.id, row.estimate.jobId))
 			)[0]
 		: null;
-	return { ...row, items, linkedJob, token: estimateToken(row.estimate.id) };
+	const [viewed] = await db
+		.select({ at: activity.createdAt })
+		.from(activity)
+		.where(
+			and(
+				eq(activity.entityType, 'estimate'),
+				eq(activity.entityId, row.estimate.id),
+				eq(activity.action, 'viewed')
+			)
+		)
+		.orderBy(desc(activity.createdAt))
+		.limit(1);
+	return {
+		...row,
+		items,
+		linkedJob,
+		viewedAt: viewed?.at ?? null,
+		token: estimateToken(row.estimate.id)
+	};
 }
 
 async function writeItems(
@@ -345,6 +364,28 @@ export async function publicEstimate(id: string) {
 		.from(companySettings)
 		.where(eq(companySettings.organizationId, row.estimate.organizationId));
 	row.estimate = withExpiry(row.estimate);
+	// First customer open of a sent estimate leaves a 'viewed' trail for staff.
+	if (row.estimate.status === 'sent') {
+		const [seen] = await db
+			.select({ id: activity.id })
+			.from(activity)
+			.where(
+				and(
+					eq(activity.entityType, 'estimate'),
+					eq(activity.entityId, id),
+					eq(activity.action, 'viewed')
+				)
+			)
+			.limit(1);
+		if (!seen)
+			await emit({
+				orgId: row.estimate.organizationId,
+				entityType: 'estimate',
+				entityId: id,
+				action: 'viewed',
+				summary: `${row.customerName} opened estimate E-${row.estimate.number}`
+			});
+	}
 	return { ...row, items, currency: settings?.currency ?? 'usd' };
 }
 

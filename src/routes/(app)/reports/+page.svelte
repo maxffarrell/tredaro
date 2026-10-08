@@ -273,7 +273,7 @@
 		<Card.Header>
 			<Card.Title class="text-base">Job profitability</Card.Title>
 			<Card.Description
-				>Completed jobs, last 90 days — invoiced vs materials cost and logged labor</Card.Description
+				>Completed jobs, last 90 days — invoiced vs labor, materials, and expense cost</Card.Description
 			>
 		</Card.Header>
 		<Card.Content>
@@ -283,6 +283,7 @@
 						<Table.Head>Job</Table.Head>
 						<Table.Head>Customer</Table.Head>
 						<Table.Head class="text-right">Labor</Table.Head>
+						<Table.Head class="text-right">Labor cost</Table.Head>
 						<Table.Head class="text-right">Materials</Table.Head>
 						<Table.Head class="text-right">Expenses</Table.Head>
 						<Table.Head class="text-right">Invoiced</Table.Head>
@@ -299,6 +300,9 @@
 							<Table.Cell>{j.customerName}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{fmtHours(j.laborMin)}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(j.laborCost, currency, true)}</Table.Cell
+							>
+							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(j.matCost, currency, true)}</Table.Cell
 							>
 							<Table.Cell class="text-right tabular-nums"
@@ -308,14 +312,19 @@
 								>{formatMoney(j.billed, currency, true)}</Table.Cell
 							>
 							<Table.Cell
-								class="text-right tabular-nums {j.billed - j.matCost - j.expCost < 0
+								class="text-right tabular-nums {j.billed - j.matCost - j.expCost - j.laborCost < 0
 									? 'text-destructive'
-									: ''}">{formatMoney(j.billed - j.matCost - j.expCost, currency, true)}</Table.Cell
+									: ''}"
+								>{formatMoney(
+									j.billed - j.matCost - j.expCost - j.laborCost,
+									currency,
+									true
+								)}</Table.Cell
 							>
 						</Table.Row>
 					{:else}
 						<Table.Row
-							><Table.Cell colspan={7} class="text-muted-foreground"
+							><Table.Cell colspan={8} class="text-muted-foreground"
 								>No completed jobs in the last 90 days.</Table.Cell
 							></Table.Row
 						>

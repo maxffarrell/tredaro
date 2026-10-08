@@ -31,6 +31,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FilePen from '@lucide/svelte/icons/file-pen';
+	import Eye from '@lucide/svelte/icons/eye';
 
 	const id = $derived(page.params.id!);
 	const est = $derived(await getEstimate(id));
@@ -131,6 +132,9 @@
 <PageHeader title="E-{est.estimate.number}" crumbs={[{ label: 'Estimates', href: '/estimates' }]}>
 	{#snippet actions()}
 		<StatusBadge status={est.estimate.status} />
+		{#if est.viewedAt}<Badge variant="secondary" title="Customer opened this estimate"
+				><Eye /> Viewed</Badge
+			>{/if}
 		{#if est.estimate.version > 1}<Badge variant="secondary">v{est.estimate.version}</Badge>{/if}
 		{#if draft}
 			<Button size="sm" onclick={send} disabled={sending}

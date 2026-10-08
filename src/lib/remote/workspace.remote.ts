@@ -61,6 +61,7 @@ export const getStaff = query(async () => {
 			image: user.image,
 			role: member.role,
 			commissionPct: member.commissionPct,
+			laborCostCents: member.laborCostCents,
 			createdAt: member.createdAt
 		})
 		.from(member)
@@ -80,6 +81,23 @@ export const updateCommission = command(commissionInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ commissionPct: input.commissionPct })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const laborCostInput = v.object({
+	memberId: idSchema,
+	laborCostCents: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(50000))
+});
+
+/** Sets a technician's loaded hourly cost used by the job-profitability margin. */
+export const updateLaborCost = command(laborCostInput, async (input) => {
+	const { orgId } = await requireOrg();
+	const [row] = await db
+		.update(member)
+		.set({ laborCostCents: input.laborCostCents })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');
