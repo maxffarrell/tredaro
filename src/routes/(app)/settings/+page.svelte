@@ -306,12 +306,9 @@
 		}
 	}
 
-	async function saveStaffAlerts(s: (typeof staff)[number], el: Event) {
+	async function saveStaffAlerts(s: (typeof staff)[number], on: boolean) {
 		try {
-			await setStaffAlerts({
-				memberId: s.id,
-				staffAlerts: (el.target as HTMLInputElement).checked
-			}).updates(getStaff);
+			await setStaffAlerts({ memberId: s.id, staffAlerts: on }).updates(getStaff);
 			toast.success('Saved');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
@@ -802,11 +799,9 @@
 										class="flex items-center gap-1 text-xs text-muted-foreground"
 										title="Staff notification emails (bookings, decisions, digest)"
 									>
-										<input
-											type="checkbox"
-											class="accent-primary"
+										<Switch
 											checked={s.staffAlerts}
-											onchange={(e) => saveStaffAlerts(s, e)}
+											onCheckedChange={(v) => saveStaffAlerts(s, v)}
 										/>
 										alerts
 									</label>
