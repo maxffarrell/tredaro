@@ -420,7 +420,8 @@ export const settingsInput = v.object({
 	staffDigest: v.optional(v.boolean()),
 	invoiceTermsDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(365))),
 	autoInvoiceOnComplete: v.optional(v.boolean()),
-	bookingNoticeDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(90)))
+	bookingNoticeDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(90))),
+	taxRateBps: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000)))
 });
 
 export const webhookInput = v.object({

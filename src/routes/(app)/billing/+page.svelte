@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
@@ -57,7 +58,14 @@
 	);
 	const customerFilter = $state(page.url.searchParams.get('customer') ?? '');
 
-	const statusParam = $state(page.url.searchParams.get('status') ?? '');
+	let statusParam = $state(page.url.searchParams.get('status') ?? '');
+	function setStatus(s: string) {
+		statusParam = s;
+		const p = new SvelteURLSearchParams();
+		if (s) p.set('status', s);
+		if (customerFilter) p.set('customer', customerFilter);
+		goto(p.size ? `/billing?${p}` : '/billing');
+	}
 	const invoices = $derived(await getInvoices({ status: statusParam }));
 	const charges = $derived(await getCharges({ status: 'open' }));
 	const payments = $derived(await getPayments());
@@ -298,6 +306,15 @@
 		</Tabs.List>
 
 		<Tabs.Content value="invoices">
+			<div class="mb-2 flex gap-1.5">
+				{#each [['', 'All'], ['open', 'Open'], ['overdue', 'Overdue'], ['void', 'Void']] as [s, label] (s)}
+					<Button
+						size="sm"
+						variant={statusParam === s ? 'default' : 'outline'}
+						onclick={() => setStatus(s)}>{label}</Button
+					>
+				{/each}
+			</div>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
 					<Table.Root>

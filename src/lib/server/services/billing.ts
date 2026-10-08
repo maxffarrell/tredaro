@@ -25,7 +25,7 @@ import {
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
-import { nextNumber } from './settings.ts';
+import { getSettings, nextNumber } from './settings.ts';
 import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import { appOrigin } from '#lib/server/email.ts';
@@ -511,7 +511,17 @@ export async function listInvoices(orgId: string, status?: string) {
 		.where(
 			and(
 				eq(invoice.organizationId, orgId),
-				status ? eq(invoice.status, status as never) : undefined
+				status === 'overdue'
+					? sql`${invoice.status} = 'open' and exists (
+						select 1 from ${charge} c
+						where c.invoice_id = ${invoice.id}
+							and c.status = 'open'
+							and c.due_date < current_date
+							and coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0) < c.amount
+					)`
+					: status
+						? eq(invoice.status, status as never)
+						: undefined
 			)
 		)
 		.orderBy(desc(invoice.number));
@@ -561,7 +571,20 @@ export async function createInvoice(ctx: OrgContext, input: v.InferOutput<typeof
 	}
 
 	const number = await nextNumber(ctx.orgId, 'invoice');
-	const total = lineTotal(input.items);
+	const settings = await getSettings(ctx.orgId);
+	const items = [...input.items];
+	if (settings.taxRateBps > 0) {
+		const tax = Math.round((lineTotal(input.items) * settings.taxRateBps) / 10000);
+		if (tax > 0)
+			items.push({
+				pricebookItemId: null,
+				name: `Sales tax (${settings.taxRateBps / 100}%)`,
+				description: '',
+				qty: 1,
+				unitPrice: tax
+			});
+	}
+	const total = lineTotal(items);
 	const inv = await db.transaction(async (tx) => {
 		const [row] = await tx
 			.insert(invoice)
@@ -575,7 +598,7 @@ export async function createInvoice(ctx: OrgContext, input: v.InferOutput<typeof
 			})
 			.returning();
 		await tx.insert(invoiceItem).values(
-			input.items.map((it, i) => ({
+			items.map((it, i) => ({
 				invoiceId: row!.id,
 				pricebookItemId: it.pricebookItemId ?? null,
 				name: it.name,

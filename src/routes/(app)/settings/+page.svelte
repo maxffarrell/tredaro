@@ -179,6 +179,7 @@
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
+	let taxRatePct = $state(settings.taxRateBps / 100);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -211,7 +212,8 @@
 				staffDigest,
 				invoiceTermsDays,
 				autoInvoiceOnComplete,
-				bookingNoticeDays
+				bookingNoticeDays,
+				taxRateBps: Math.round((taxRatePct || 0) * 100)
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -467,6 +469,21 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									New invoices are due this many days after they're issued.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="tax-rate">Sales tax (%)</Field.Label>
+								<Input
+									id="tax-rate"
+									type="number"
+									min="0"
+									max="30"
+									step="0.01"
+									class="w-24"
+									bind:value={taxRatePct}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Appended as a Sales tax line on every new invoice. 0 = untaxed.
 								</p>
 							</Field.Field>
 							<div class="flex items-center justify-between">

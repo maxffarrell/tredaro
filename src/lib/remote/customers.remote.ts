@@ -61,6 +61,11 @@ export const updateCustomer = command(customerUpdate, async (input) => {
 	return c;
 });
 
+export const revokePortalAccess = command(idSchema, async (customerId) => {
+	await svc.revokePortalAccess(await requireOrg(), customerId);
+	await refreshQuery(getCustomer, customerId);
+});
+
 export const addServiceLocation = command(serviceLocationInput, async (input) => {
 	const l = await svc.addServiceLocation(await requireOrg(), input);
 	await refreshQuery(getCustomer, input.customerId);

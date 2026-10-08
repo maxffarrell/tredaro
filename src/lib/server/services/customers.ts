@@ -275,6 +275,25 @@ export async function importCustomers(
 	return { created: toInsert.length, skipped: rows.length - toInsert.length };
 }
 
+/** Detaches the customer's portal login — the claim link can re-link a new account later. */
+export async function revokePortalAccess(ctx: OrgContext, customerId: string) {
+	const [row] = await db
+		.update(customer)
+		.set({ portalUserId: null })
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)))
+		.returning({ id: customer.id, name: customer.name });
+	if (!row) error(404, 'Customer not found');
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'customer',
+		entityId: row.id,
+		action: 'portal_revoked',
+		summary: `Portal access revoked for ${row.name}`
+	});
+	return row;
+}
+
 export async function updateCustomer(
 	ctx: OrgContext,
 	input: v.InferOutput<typeof s.customerUpdate>

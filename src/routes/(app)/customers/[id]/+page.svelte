@@ -28,7 +28,8 @@
 		mergeCustomers,
 		textCustomerCmd,
 		emailStatementCmd,
-		getEquipmentJobs
+		getEquipmentJobs,
+		revokePortalAccess
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment } from '#lib/remote/billing.remote.ts';
 	import {
@@ -382,6 +383,18 @@
 		}
 	}
 
+	let revokePending = $state(false);
+	async function revokePortal() {
+		revokePending = true;
+		try {
+			await revokePortalAccess(id).updates(getCustomer);
+			toast.success('Portal access revoked');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not revoke'));
+		}
+		revokePending = false;
+	}
+
 	// ------- record payment -------
 	let payOpen = $state(false);
 	let payPending = $state(false);
@@ -443,6 +456,11 @@
 			>
 		{/if}
 		<Button size="sm" variant="outline" onclick={copyPortal}><Link2 /> Portal link</Button>
+		{#if c.customer.portalUserId}
+			<Button size="sm" variant="outline" onclick={revokePortal} disabled={revokePending}
+				>Revoke portal</Button
+			>
+		{/if}
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 		<Button
 			size="sm"
