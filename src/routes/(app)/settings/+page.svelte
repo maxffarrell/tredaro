@@ -1195,7 +1195,7 @@
 						onclick={async () => {
 							pending = true;
 							try {
-								await seedDemo();
+								await seedDemo({});
 								toast.success('Demo company loaded — look around');
 								await goto('/dashboard', { invalidateAll: true });
 							} catch (err) {

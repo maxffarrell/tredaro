@@ -62,7 +62,7 @@ export const getStaffNotifications = query(async () => {
 		.limit(50);
 });
 
-export const markAllNotificationsRead = command(async () => {
+export const markAllNotificationsRead = command(v.object({}), async () => {
 	const { user: me } = requireUser();
 	const { orgId } = await requireOrg();
 	await db
@@ -193,7 +193,7 @@ export const deleteWebhook = command(idSchema, async (id) => {
 	void getWebhooks().refresh();
 });
 
-export const seedDemo = command(async () => {
+export const seedDemo = command(v.object({}), async () => {
 	const ctx = await requireOrg('admin');
 	const [existing] = await db
 		.select({ id: customer.id })

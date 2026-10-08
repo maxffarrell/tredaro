@@ -9,15 +9,17 @@
 	import CheckCheck from '@lucide/svelte/icons/check-check';
 	import { formatRelative } from '#lib/format.ts';
 	import Bell from '@lucide/svelte/icons/bell';
+	import { toast } from 'svelte-sonner';
+	import { errMsg } from '#lib/format.ts';
 
 	const rows = await getStaffNotifications();
 	const unread = $derived(rows.filter((n) => !n.readAt).length);
 
 	async function markAllRead() {
 		try {
-			await markAllNotificationsRead().updates(getStaffNotifications);
-		} catch {
-			// noop — row state will reconcile on next refresh
+			await markAllNotificationsRead({}).updates(getStaffNotifications);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not mark notifications read'));
 		}
 	}
 
