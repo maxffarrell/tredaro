@@ -35,6 +35,7 @@
 	let tagFilter = $state('');
 	let officeFilter = $state('');
 	let sourceFilter = $state('');
+	let statusFilter = $state('active');
 	let customers = $state(await getCustomers());
 	const officeOptions = $derived(
 		[
@@ -56,7 +57,8 @@
 			(c) =>
 				(!tagFilter || c.tags?.includes(tagFilter)) &&
 				(!officeFilter || (c.officeId ?? '') === officeFilter) &&
-				(!sourceFilter || c.leadSource === sourceFilter)
+				(!sourceFilter || c.leadSource === sourceFilter) &&
+				(!statusFilter || c.status === statusFilter)
 		)
 	);
 	const totalBalance = $derived(visible.reduce((sum, c) => sum + c.openBalance, 0));
@@ -236,6 +238,19 @@
 				</Select.Content>
 			</Select.Root>
 		{/if}
+		<Select.Root
+			type="single"
+			value={statusFilter}
+			onValueChange={(v: string) => (statusFilter = v)}
+		>
+			<Select.Trigger class="w-32 capitalize">{statusFilter || 'All statuses'}</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="">All statuses</Select.Item>
+				{#each ['active', 'inactive'] as st (st)}
+					<Select.Item value={st} class="capitalize">{st}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
 		{#if allSources.length}
 			<Select.Root
 				type="single"

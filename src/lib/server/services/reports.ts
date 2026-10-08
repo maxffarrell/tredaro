@@ -423,6 +423,21 @@ async function avgDaysToInvoice(orgId: string) {
 	return row?.n ? row.avg : null;
 }
 
+/** Agreements cancelled over the last 90 days (churn signal). */
+async function churnedAgreements(orgId: string) {
+	const [row] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(serviceAgreement)
+		.where(
+			and(
+				eq(serviceAgreement.organizationId, orgId),
+				eq(serviceAgreement.status, 'cancelled'),
+				gte(serviceAgreement.updatedAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return row?.n ?? 0;
+}
+
 /** Refunds issued over the last 90 days (negative payments). */
 async function refundsTotal(orgId: string) {
 	const [row] = await db
@@ -508,7 +523,8 @@ export async function getReports(orgId: string) {
 		ticket,
 		daysToInvoice,
 		openPOs,
-		refunds
+		refunds,
+		churned
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -534,7 +550,8 @@ export async function getReports(orgId: string) {
 		avgTicket(orgId),
 		avgDaysToInvoice(orgId),
 		openPOValue(orgId),
-		refundsTotal(orgId)
+		refundsTotal(orgId),
+		churnedAgreements(orgId)
 	]);
 	return {
 		completedJobs,
@@ -561,7 +578,8 @@ export async function getReports(orgId: string) {
 		avgTicket: ticket,
 		avgDaysToInvoice: daysToInvoice,
 		openPOs,
-		refunds
+		refunds,
+		churnedAgreements: churned
 	};
 }
 

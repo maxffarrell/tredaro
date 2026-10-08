@@ -139,6 +139,13 @@
 			{:else}
 				<p class="text-sm text-muted-foreground">No active agreements.</p>
 			{/each}
+			{#if r.churnedAgreements > 0}
+				<p class="pt-2 text-sm text-muted-foreground">
+					Cancelled in last 90d: <span class="font-medium text-foreground"
+						>{r.churnedAgreements}</span
+					>
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

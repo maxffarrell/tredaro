@@ -62,6 +62,14 @@
 					}
 		)
 	);
+	const overdueCount = $derived(
+		jobs.filter(
+			(j) =>
+				j.job.startsAt &&
+				new Date(j.job.startsAt) < now &&
+				['scheduled', 'dispatched', 'in_progress'].includes(j.job.status)
+		).length
+	);
 
 	// ------- new job -------
 	let open = $state(page.url.searchParams.get('new') === '1');
@@ -147,6 +155,11 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
+		{/if}
+		{#if overdueCount}
+			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
+				>{overdueCount} overdue</Badge
+			>
 		{/if}
 	</div>
 
