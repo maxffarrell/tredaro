@@ -316,7 +316,11 @@ export async function listEquipment(orgId: string, customerId?: string) {
 			locationAddress: serviceLocation.address1,
 			lastService: sql<
 				string | null
-			>`(select max(j.completed_at) from ${job} j where j.equipment_id = ${outer(equipment.id)})`
+			>`(select max(j.completed_at) from ${job} j where j.equipment_id = ${outer(equipment.id)})`,
+			serviceCount:
+				sql<number>`(select count(*) from ${job} j where j.equipment_id = ${outer(equipment.id)} and j.status = 'done' and j.cancelled_at is null)`.mapWith(
+					Number
+				)
 		})
 		.from(equipment)
 		.innerJoin(customer, eq(equipment.customerId, customer.id))

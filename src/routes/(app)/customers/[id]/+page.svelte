@@ -557,6 +557,8 @@
 									·
 								{/if}
 								{#if e.lastService}last serviced {formatDate(e.lastService)}{/if}
+								{#if e.serviceCount}
+									· {e.serviceCount} visit{e.serviceCount === 1 ? '' : 's'}{/if}
 							</p>
 						{/if}
 					</button>

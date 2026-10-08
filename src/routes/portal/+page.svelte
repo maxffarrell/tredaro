@@ -167,6 +167,34 @@
 		</Card.Content>
 	</Card.Root>
 
+	<!-- visit history -->
+	<Card.Root>
+		<Card.Header><Card.Title class="text-base">Past visits</Card.Title></Card.Header>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Body>
+					{#each d.history as j (j.job.id)}
+						<Table.Row>
+							<Table.Cell class="pl-6">
+								<p class="font-medium">{j.job.summary || j.jobTypeName || 'Service visit'}</p>
+								<p class="text-xs text-muted-foreground">
+									{j.job.completedAt ? formatDate(j.job.completedAt) : ''}
+								</p>
+							</Table.Cell>
+							<Table.Cell class="pr-6 text-right text-sm text-muted-foreground">
+								{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}
+							</Table.Cell>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell class="pl-6 text-muted-foreground">No visits yet.</Table.Cell></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
 	<div class="space-y-6">
 		<!-- balance / pay -->
 		<Card.Root>

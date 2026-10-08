@@ -119,6 +119,21 @@ export async function portalOverview(customerId: string) {
 		)
 		.orderBy(asc(job.startsAt));
 
+	const history = await db
+		.select({
+			job,
+			jobTypeName: jobType.name,
+			invoiceNumber:
+				sql<number>`(select i.number from ${invoice} i inner join ${charge} c2 on c2.invoice_id = i.id where c2.job_id = ${outer(job.id)} order by i.number limit 1)`.mapWith(
+					Number
+				)
+		})
+		.from(job)
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(and(eq(job.customerId, customerId), eq(job.status, 'done'), isNull(job.cancelledAt)))
+		.orderBy(desc(job.completedAt))
+		.limit(12);
+
 	const balance = await customerBalance(orgId, customerId);
 
 	const openCharges = await db
@@ -168,6 +183,7 @@ export async function portalOverview(customerId: string) {
 		settings,
 		agreements,
 		upcoming,
+		history,
 		balance,
 		openCharges,
 		locations,

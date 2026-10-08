@@ -5,6 +5,7 @@ import * as customers from '#lib/server/services/customers.ts';
 import * as billing from '#lib/server/services/billing.ts';
 import * as jobs from '#lib/server/services/jobs.ts';
 import * as estimates from '#lib/server/services/estimates.ts';
+import * as inventory from '#lib/server/services/inventory.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import * as s from '#lib/schemas.ts';
 
@@ -118,6 +119,28 @@ export const resources: Record<string, Resource> = {
 		description: 'Record received payments',
 		list: (ctx) => billing.listPayments(ctx.orgId),
 		create: { schema: s.paymentInput, run: billing.recordPayment as never }
+	},
+	technicians: {
+		description: 'Org technicians (read-only)',
+		list: (ctx) => jobs.listTechnicians(ctx.orgId)
+	},
+	inventory: {
+		description: 'Warehouse stock items (`?low=1` for at/below reorder point)',
+		list: async (ctx, url) =>
+			url.searchParams.get('low') ? inventory.lowStock(ctx.orgId) : inventory.listItems(ctx.orgId),
+		create: { schema: s.inventoryItemInput, run: inventory.createItem as never },
+		update: { schema: s.inventoryItemUpdate, run: inventory.updateItem as never }
+	},
+	purchase_orders: {
+		description:
+			'Purchase orders to suppliers (create/update status via `?` — see /inventory UI for receive flow)',
+		list: (ctx) => inventory.listPurchaseOrders(ctx.orgId),
+		create: { schema: s.purchaseOrderInput, run: inventory.createPurchaseOrder as never },
+		update: { schema: s.purchaseOrderUpdate, run: inventory.updatePurchaseOrder as never }
+	},
+	truck_stock: {
+		description: 'Per-technician truck inventory (read-only)',
+		list: (ctx) => inventory.listTruckStock(ctx.orgId)
 	}
 };
 
