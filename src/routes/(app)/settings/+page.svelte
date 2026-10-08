@@ -11,6 +11,7 @@
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
@@ -29,6 +30,9 @@
 		seedDemo
 	} from '#lib/remote/workspace.remote.ts';
 	import {
+		getJobTypes,
+		createJobType,
+		updateJobType,
 		getTechnicians,
 		getTimeOff,
 		addTimeOff,
@@ -90,6 +94,64 @@
 			timeOff = await getTimeOff();
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not remove'));
+		}
+	}
+
+	// ------- job types -------
+	let jobTypes = $state(await getJobTypes());
+	let jtOpen = $state(false);
+	let jtEdit: (typeof jobTypes)[number] | null = $state(null);
+	let jtName = $state('');
+	let jtDescription = $state('');
+	let jtDuration = $state(60);
+	let jtAmount = $state<number | null>(null);
+	let jtTech = $state('');
+	let jtChecklist = $state('');
+	let jtActive = $state(true);
+
+	function openJt(t?: (typeof jobTypes)[number]) {
+		jtEdit = t ?? null;
+		jtName = t?.name ?? '';
+		jtDescription = t?.description ?? '';
+		jtDuration = t?.durationMin ?? 60;
+		jtAmount = t?.defaultAmount ?? null;
+		jtTech = t?.technicianId ?? '';
+		jtChecklist = (t?.checklist ?? []).join('\n');
+		jtActive = t?.active ?? true;
+		jtOpen = true;
+	}
+	async function saveJt(e: SubmitEvent) {
+		e.preventDefault();
+		pending = true;
+		const body = {
+			name: jtName,
+			description: jtDescription,
+			durationMin: jtDuration,
+			defaultAmount: jtAmount,
+			technicianId: jtTech || null,
+			checklist: jtChecklist
+				.split('\n')
+				.map((l) => l.trim())
+				.filter(Boolean),
+			active: jtActive
+		};
+		try {
+			if (jtEdit) await updateJobType({ id: jtEdit.id, ...body }).updates(getJobTypes);
+			else await createJobType(body).updates(getJobTypes);
+			jobTypes = await getJobTypes();
+			toast.success(jtEdit ? 'Job type updated' : 'Job type created');
+			jtOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save job type'));
+		}
+		pending = false;
+	}
+	async function toggleJt(t: (typeof jobTypes)[number], active: boolean) {
+		try {
+			await updateJobType({ id: t.id, active }).updates(getJobTypes);
+			jobTypes = await getJobTypes();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update job type'));
 		}
 	}
 
@@ -240,6 +302,7 @@
 			<Tabs.Trigger value="general">General</Tabs.Trigger>
 			<Tabs.Trigger value="offices">Offices</Tabs.Trigger>
 			<Tabs.Trigger value="team">Team</Tabs.Trigger>
+			<Tabs.Trigger value="jobtypes">Job types</Tabs.Trigger>
 			<Tabs.Trigger value="payments">Payments</Tabs.Trigger>
 			<Tabs.Trigger value="api">API</Tabs.Trigger>
 			<Tabs.Trigger value="webhooks">Webhooks</Tabs.Trigger>
@@ -487,6 +550,59 @@
 						<Input placeholder="Reason (optional)" bind:value={toReason} />
 						<Button type="submit" variant="secondary" disabled={pending || !toMember}>Add</Button>
 					</form>
+				</Card.Content>
+			</Card.Root>
+		</Tabs.Content>
+
+		<Tabs.Content value="jobtypes">
+			<Card.Root class="max-w-2xl">
+				<Card.Header class="flex-row items-center justify-between space-y-0">
+					<div>
+						<Card.Title class="text-base">Job types</Card.Title>
+						<Card.Description>
+							Service catalog for dispatch — default tech, duration, price, and a checklist copied
+							onto each new job.
+						</Card.Description>
+					</div>
+					<Button size="sm" onclick={() => openJt()}><Plus /> New type</Button>
+				</Card.Header>
+				<Card.Content class="px-0">
+					<Table.Root>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Name</Table.Head>
+								<Table.Head class="hidden md:table-cell">Duration</Table.Head>
+								<Table.Head class="hidden md:table-cell">Checklist</Table.Head>
+								<Table.Head class="hidden md:table-cell">Default tech</Table.Head>
+								<Table.Head class="text-right">Active</Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each jobTypes as t (t.id)}
+								<Table.Row class="cursor-pointer" onclick={() => openJt(t)}>
+									<Table.Cell class="font-medium">{t.name}</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell"
+										>{t.durationMin} min</Table.Cell
+									>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell"
+										>{t.checklist?.length ? `${t.checklist.length} steps` : '—'}</Table.Cell
+									>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell"
+										>{techs.find((x) => x.id === t.technicianId)?.name ?? '—'}</Table.Cell
+									>
+									<Table.Cell class="text-right" onclick={(e) => e.stopPropagation()}>
+										<Switch checked={t.active} onCheckedChange={(v) => toggleJt(t, v)} />
+									</Table.Cell>
+								</Table.Row>
+							{:else}
+								<Table.Row>
+									<Table.Cell colspan={5} class="text-center text-muted-foreground">
+										No job types yet — create one to speed up dispatch.
+									</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
 				</Card.Content>
 			</Card.Root>
 		</Tabs.Content>
@@ -752,6 +868,64 @@
 				/></Field.Field
 			>
 			<Dialog.Footer><Button type="submit" disabled={pending}>Add</Button></Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- job type editor -->
+<Dialog.Root bind:open={jtOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>{jtEdit ? `Edit ${jtEdit.name}` : 'New job type'}</Dialog.Title>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={saveJt}>
+			<Field.Field>
+				<Field.Label for="jt-name">Name</Field.Label>
+				<Input id="jt-name" required bind:value={jtName} placeholder="AC tune-up" autofocus />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="jt-desc">Description</Field.Label>
+				<Input id="jt-desc" bind:value={jtDescription} placeholder="Optional" />
+			</Field.Field>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="jt-duration">Duration (min)</Field.Label>
+					<Input id="jt-duration" type="number" min={5} required bind:value={jtDuration} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label>Default tech</Field.Label>
+					<Select.Root type="single" value={jtTech} onValueChange={(v: string) => (jtTech = v)}>
+						<Select.Trigger class="w-full"
+							>{techs.find((t) => t.id === jtTech)?.name ?? 'None'}</Select.Trigger
+						>
+						<Select.Content>
+							<Select.Item value="">None</Select.Item>
+							{#each techs as t (t.id)}
+								<Select.Item value={t.id}>{t.name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+			</div>
+			<Field.Field>
+				<Field.Label for="jt-checklist">Checklist — one step per line</Field.Label>
+				<Textarea
+					id="jt-checklist"
+					rows={4}
+					placeholder="Inspect unit, check refrigerant… (one per line)"
+					bind:value={jtChecklist}
+				/>
+				<Field.Description
+					>New jobs of this type get these steps on their Checklist card.</Field.Description
+				>
+			</Field.Field>
+			<div class="flex items-center justify-between">
+				<label for="jt-active" class="text-sm font-medium">Active</label>
+				<Switch id="jt-active" checked={jtActive} onCheckedChange={(v) => (jtActive = v)} />
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
+			</Dialog.Footer>
 		</form>
 	</Dialog.Content>
 </Dialog.Root>

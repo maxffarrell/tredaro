@@ -49,7 +49,8 @@ export const customerInput = v.object({
 	officeId: v.optional(v.nullable(idSchema)),
 	status: v.optional(v.picklist(customerStatuses), 'active'),
 	notes: optionalText,
-	since: v.optional(v.nullable(isoDate))
+	since: v.optional(v.nullable(isoDate)),
+	tags: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(40))), [])
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),
@@ -212,6 +213,8 @@ export const jobTypeInput = v.object({
 	defaultAmount: v.optional(v.nullable(cents)),
 	officeId: v.optional(v.nullable(idSchema)),
 	technicianId: v.optional(v.nullable(idSchema)),
+	/** One checklist line per entry; copied onto new jobs of this type. */
+	checklist: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(200))), []),
 	active: v.optional(v.boolean(), true)
 });
 export const jobTypeUpdate = v.object({ id: idSchema, ...v.partial(jobTypeInput).entries });
@@ -380,4 +383,16 @@ export const timeOffInput = v.object({
 	startsOn: isoDate,
 	endsOn: isoDate,
 	reason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
+});
+
+export const checklistItemInput = v.object({
+	jobId: idSchema,
+	label: requiredText('Label')
+});
+export const checklistToggleInput = v.object({
+	id: idSchema,
+	done: v.boolean()
+});
+export const activityFilter = v.object({
+	entityType: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)))
 });

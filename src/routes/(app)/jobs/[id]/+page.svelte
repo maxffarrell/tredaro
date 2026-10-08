@@ -33,6 +33,13 @@
 		addJobMaterial,
 		removeJobMaterial
 	} from '#lib/remote/inventory.remote.ts';
+	import {
+		getJobChecklist,
+		addChecklistItem,
+		toggleChecklistItem,
+		deleteChecklistItem
+	} from '#lib/remote/jobs.remote.ts';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
@@ -43,6 +50,7 @@
 	import Ban from '@lucide/svelte/icons/ban';
 	import Timer from '@lucide/svelte/icons/timer';
 	import Package from '@lucide/svelte/icons/package';
+	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -119,6 +127,36 @@
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
+		}
+	}
+
+	// ------- checklist -------
+	const checklist = $derived(await getJobChecklist(id));
+	const checkDone = $derived(checklist.filter((i) => i.done).length);
+	let newCheck = $state('');
+	async function addCheck(e: SubmitEvent) {
+		e.preventDefault();
+		const label = newCheck.trim();
+		if (!label) return;
+		try {
+			await addChecklistItem({ jobId: id, label }).updates(getJobChecklist);
+			newCheck = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add item'));
+		}
+	}
+	async function toggleCheck(item: (typeof checklist)[number]) {
+		try {
+			await toggleChecklistItem({ id: item.id, done: !item.done }).updates(getJobChecklist);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update item'));
+		}
+	}
+	async function delCheck(itemId: string) {
+		try {
+			await deleteChecklistItem(itemId).updates(getJobChecklist);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not remove item'));
 		}
 	}
 
@@ -618,6 +656,57 @@
 							{stock.length ? 'Log material' : 'Add stock items in Inventory first'}
 						</Button>
 					{/if}
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between space-y-0">
+				<Card.Title class="flex items-center gap-2 text-base"
+					><ListChecks class="size-4" /> Checklist</Card.Title
+				>
+				{#if checklist.length}
+					<span class="text-sm text-muted-foreground tabular-nums"
+						>{checkDone}/{checklist.length} done</span
+					>
+				{/if}
+			</Card.Header>
+			<Card.Content class="space-y-2 px-4">
+				<ul class="space-y-1.5">
+					{#each checklist as item (item.id)}
+						<li class="flex items-center gap-2 text-sm">
+							<Checkbox
+								checked={item.done}
+								disabled={locked}
+								onCheckedChange={() => toggleCheck(item)}
+							/>
+							<span class="min-w-0 flex-1 {item.done ? 'text-muted-foreground line-through' : ''}"
+								>{item.label}</span
+							>
+							{#if !locked}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 shrink-0 text-muted-foreground"
+									onclick={() => delCheck(item.id)}
+								>
+									<Trash2 class="size-3.5" />
+								</Button>
+							{/if}
+						</li>
+					{:else}
+						<li class="text-sm text-muted-foreground">
+							No checklist items — add one, or set a template on the job type.
+						</li>
+					{/each}
+				</ul>
+				{#if !locked}
+					<form class="flex gap-2 border-t pt-3" onsubmit={addCheck}>
+						<Input placeholder="Add a step…" bind:value={newCheck} />
+						<Button type="submit" size="sm" variant="outline" disabled={!newCheck.trim()}
+							>Add</Button
+						>
+					</form>
 				{/if}
 			</Card.Content>
 		</Card.Root>

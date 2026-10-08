@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { activity, webhook } from '#lib/server/db/schema.ts';
+import { activity, user, webhook } from '#lib/server/db/schema.ts';
 
 export type EventInput = {
 	orgId: string;
@@ -87,4 +87,36 @@ async function deliverWebhooks(event: TredaroEvent) {
 				}
 			})
 	);
+}
+
+// ---------- feed ----------
+
+/** Recent org activity for the /activity page — newest first, optional entity-type filter. */
+export async function listActivity(orgId: string, entityType?: string) {
+	const rows = await db
+		.select({
+			activity,
+			actorName: user.name,
+			actorEmail: user.email
+		})
+		.from(activity)
+		.leftJoin(user, eq(activity.actorId, user.id))
+		.where(
+			and(
+				eq(activity.organizationId, orgId),
+				entityType ? eq(activity.entityType, entityType) : undefined
+			)
+		)
+		.orderBy(desc(activity.createdAt))
+		.limit(200);
+	return rows;
+}
+
+/** Distinct entity types seen in this org's feed (for the filter select). */
+export async function listActivityTypes(orgId: string) {
+	const rows = await db
+		.selectDistinct({ t: activity.entityType })
+		.from(activity)
+		.where(eq(activity.organizationId, orgId));
+	return rows.map((r) => r.t).sort();
 }

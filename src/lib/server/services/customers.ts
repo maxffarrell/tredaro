@@ -35,6 +35,7 @@ export async function listCustomers(orgId: string, q?: string) {
 			phone: customer.phone,
 			status: customer.status,
 			since: customer.since,
+			tags: customer.tags,
 			officeName: office.name,
 			openBalance:
 				sql<number>`coalesce((select sum(c.amount - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0)) from ${charge} c where c.customer_id = ${outer(customer.id)} and c.status = 'open'), 0)`.mapWith(
@@ -152,7 +153,8 @@ export async function createCustomer(
 			officeId: input.officeId ?? null,
 			status: input.status,
 			notes: input.notes ?? null,
-			since: input.since ?? null
+			since: input.since ?? null,
+			tags: input.tags
 		})
 		.returning();
 	await emit({
@@ -232,7 +234,8 @@ export async function updateCustomer(
 			officeId: set.officeId,
 			status: set.status,
 			notes: set.notes,
-			since: set.since
+			since: set.since,
+			tags: set.tags
 		})
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, id)))
 		.returning();

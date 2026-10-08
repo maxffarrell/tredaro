@@ -20,7 +20,9 @@ import {
 	jobTypeUpdate,
 	jobUpdate,
 	timeEntryInput,
-	timeOffInput
+	timeOffInput,
+	checklistItemInput,
+	checklistToggleInput
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -185,5 +187,35 @@ export const addTimeOff = command(timeOffInput, async (input) => {
 export const deleteTimeOff = command(idSchema, async (id) => {
 	await svc.deleteTimeOff(await requireOrg('admin'), id);
 	await refreshQuery(getTimeOff, undefined);
+	return { id };
+});
+
+// ---------- checklists ----------
+
+export const getJobChecklist = query(idSchema, async (jobId) =>
+	svc.listChecklist((await requireOrg()).orgId, jobId)
+);
+
+export const addChecklistItem = command(checklistItemInput, async (input) => {
+	const item = await svc.addChecklistItem(await requireOrg(), input);
+	await refreshQuery(getJobChecklist, input.jobId);
+	await refreshQuery(getJob, input.jobId);
+	return item;
+});
+
+export const toggleChecklistItem = command(checklistToggleInput, async (input) => {
+	const item = await svc.toggleChecklistItem(await requireOrg(), input);
+	await refreshQuery(getJobChecklist, item.jobId);
+	await refreshQuery(getJob, item.jobId);
+	return item;
+});
+
+export const deleteChecklistItem = command(idSchema, async (id) => {
+	const jobId = await svc.getChecklistJobId((await requireOrg()).orgId, id);
+	await svc.deleteChecklistItem(await requireOrg(), id);
+	if (jobId) {
+		await refreshQuery(getJobChecklist, jobId);
+		await refreshQuery(getJob, jobId);
+	}
 	return { id };
 });
