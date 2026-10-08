@@ -29,6 +29,7 @@
 	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
+	import ListChecks from '@lucide/svelte/icons/list-checks';
 
 	const day = $derived(await getMyDay());
 	const tz = $derived(day.tz);

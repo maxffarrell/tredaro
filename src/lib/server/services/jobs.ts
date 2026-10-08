@@ -114,7 +114,15 @@ const jobSelect = {
 	city: serviceLocation.city,
 	state: serviceLocation.state,
 	zip: serviceLocation.zip,
-	accessNotes: serviceLocation.accessNotes
+	accessNotes: serviceLocation.accessNotes,
+	checklistTotal:
+		sql<number>`(select count(*) from ${jobChecklistItem} ci where ci.job_id = ${outer(job.id)})`.mapWith(
+			Number
+		),
+	checklistDone:
+		sql<number>`(select count(*) from ${jobChecklistItem} ci where ci.job_id = ${outer(job.id)} and ci.done)`.mapWith(
+			Number
+		)
 };
 
 export async function listJobs(

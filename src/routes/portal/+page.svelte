@@ -12,6 +12,7 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
 	import {
 		getPortalOverview,
@@ -474,6 +475,37 @@
 									>
 									<Table.Cell class="pr-6 text-right tabular-nums"
 										>{formatMoney(inv.total, currency)}</Table.Cell
+									>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#if d.recentPayments?.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Recent payments</Card.Title></Card.Header>
+				<Card.Content class="px-0">
+					<Table.Root>
+						<Table.Body>
+							{#each d.recentPayments as p (p.payment.id)}
+								<Table.Row>
+									<Table.Cell class="pl-6 font-medium">
+										{formatMoney(p.payment.amount, currency)}
+										{#if p.payment.amount < 0}
+											<Badge variant="secondary" class="ml-1">refund</Badge>
+										{/if}
+									</Table.Cell>
+									<Table.Cell class="text-muted-foreground capitalize"
+										>{p.payment.method}</Table.Cell
+									>
+									<Table.Cell class="text-muted-foreground"
+										>{p.invoiceNumber ? `INV-${p.invoiceNumber}` : '—'}</Table.Cell
+									>
+									<Table.Cell class="pr-6 text-right text-muted-foreground"
+										>{formatDate(p.payment.paidAt)}</Table.Cell
 									>
 								</Table.Row>
 							{/each}

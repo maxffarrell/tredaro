@@ -199,6 +199,18 @@ export async function portalOverview(customerId: string) {
 		.orderBy(desc(invoice.createdAt))
 		.limit(5);
 
+	const recentPayments = await db
+		.select({
+			payment,
+			invoiceNumber: invoice.number
+		})
+		.from(payment)
+		.leftJoin(charge, eq(payment.chargeId, charge.id))
+		.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
+		.where(eq(payment.customerId, customerId))
+		.orderBy(desc(payment.createdAt))
+		.limit(8);
+
 	const techs = await db
 		.select({ id: member.id, name: user.name })
 		.from(member)
@@ -218,7 +230,8 @@ export async function portalOverview(customerId: string) {
 		locations,
 		units,
 		pendingEstimates,
-		recentInvoices
+		recentInvoices,
+		recentPayments
 	};
 }
 
