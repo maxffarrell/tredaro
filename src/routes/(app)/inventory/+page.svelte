@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -51,6 +52,9 @@
 				r.item.name.toLowerCase().includes(q.toLowerCase()) ||
 				r.item.sku.toLowerCase().includes(q.toLowerCase())
 		)
+	);
+	const totalValue = $derived(
+		items.reduce((sum, i) => sum + i.item.qtyOnHand * i.item.unitCost, 0)
 	);
 
 	// ------- item history -------
@@ -252,6 +256,8 @@
 
 <PageHeader title="Inventory">
 	{#snippet actions()}
+		<Badge variant="secondary" class="mr-2">On-hand value {formatMoney(totalValue, currency)}</Badge
+		>
 		<Button size="sm" onclick={() => openItem()}><Plus /> New item</Button>
 	{/snippet}
 </PageHeader>
@@ -272,6 +278,7 @@
 						<Table.Head class="text-right">On hand</Table.Head>
 						<Table.Head class="hidden text-right md:table-cell">Reorder at</Table.Head>
 						<Table.Head class="hidden text-right md:table-cell">Unit cost</Table.Head>
+						<Table.Head class="hidden text-right md:table-cell">Value</Table.Head>
 						<Table.Head class="w-28 text-right">Stock</Table.Head>
 					</Table.Row>
 				</Table.Header>
@@ -295,6 +302,11 @@
 							>
 							<Table.Cell class="hidden text-right tabular-nums md:table-cell"
 								>{i.item.unitCost ? formatMoney(i.item.unitCost, currency) : '—'}</Table.Cell
+							>
+							<Table.Cell class="hidden text-right tabular-nums md:table-cell"
+								>{i.item.unitCost
+									? formatMoney(i.item.qtyOnHand * i.item.unitCost, currency)
+									: '—'}</Table.Cell
 							>
 							<Table.Cell class="text-right" onclick={(e: MouseEvent) => e.stopPropagation()}>
 								<div class="flex justify-end gap-1">

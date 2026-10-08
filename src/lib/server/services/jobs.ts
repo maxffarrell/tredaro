@@ -494,6 +494,20 @@ export async function updateJob(
 		})
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)))
 		.returning();
+	// Rescheduled (not reassigned): when the same tech's start time moves, email
+	// them the new slot. Assignment emails cover first assignment; the notify fn
+	// skips jobs that were never tech-assigned.
+	if (
+		start !== undefined &&
+		row?.technicianId &&
+		existing.technicianId === row.technicianId &&
+		existing.startsAt?.getTime() !== row.startsAt?.getTime()
+	) {
+		const { notifyTechRescheduled } = await import('./notifications.ts');
+		notifyTechRescheduled(ctx.orgId, id, row.technicianId).catch((err) =>
+			console.error('tech reschedule email failed', err)
+		);
+	}
 	if (set.blocked !== undefined && set.blocked !== existing.blocked)
 		await emit({
 			orgId: ctx.orgId,

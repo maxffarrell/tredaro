@@ -901,6 +901,8 @@ export const jobPhoto = pgTable(
 		path: text('path').notNull(),
 		/** Staff flag: show the photo on the customer portal visit. */
 		shared: boolean('shared').notNull().default(false),
+		/** Visit phase tag: 'before' | 'during' | 'after'. */
+		phase: text('phase'),
 		...timestamps
 	},
 	(t) => [index('job_photo_job_idx').on(t.jobId)]

@@ -10,11 +10,16 @@ export const POST: RequestHandler = async ({ params, request }) => {
 	if (!(file instanceof File) || file.size === 0) {
 		return json({ message: 'Attach a file to upload' }, { status: 400 });
 	}
-	const row = await saveJobPhoto(ctx, params.id!, {
-		name: file.name,
-		type: file.type,
-		size: file.size,
-		bytes: new Uint8Array(await file.arrayBuffer())
-	});
+	const row = await saveJobPhoto(
+		ctx,
+		params.id!,
+		{
+			name: file.name,
+			type: file.type,
+			size: file.size,
+			bytes: new Uint8Array(await file.arrayBuffer())
+		},
+		typeof form.get('phase') === 'string' ? String(form.get('phase')) : null
+	);
 	return json(row, { status: 201 });
 };

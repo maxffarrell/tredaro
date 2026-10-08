@@ -297,7 +297,17 @@
 	const materials = $derived(await getJobMaterials({ jobId: id }));
 
 	// ------- photos -------
-	const photos = $derived(await getJobPhotos(id));
+	let photoPhase = $state<'before' | 'during' | 'after'>('during');
+	const PHASE_ORDER: Record<string, number> = { before: 0, during: 1, after: 2 };
+	const photos = $derived(
+		(await getJobPhotos(id))
+			.slice()
+			.sort(
+				(a, b) =>
+					(PHASE_ORDER[a.phase ?? 'during'] ?? 1) - (PHASE_ORDER[b.phase ?? 'during'] ?? 1) ||
+					a.createdAt.getTime() - b.createdAt.getTime()
+			)
+	);
 	let uploading = $state(false);
 	async function uploadPhoto(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
@@ -307,6 +317,7 @@
 		try {
 			const form = new FormData();
 			form.set('file', file);
+			form.set('phase', photoPhase);
 			const res = await fetch(`/api/jobs/${id}/photos`, { method: 'POST', body: form });
 			if (!res.ok) {
 				const body = await res.json().catch(() => null);
@@ -1171,9 +1182,14 @@
 											<Trash2 class="size-3" />
 										</Button>
 									</div>
+									{#if p.phase}
+										<Badge class="absolute bottom-1 left-1 bg-background/90 text-[10px] capitalize"
+											>{p.phase}</Badge
+										>
+									{/if}
 									{#if p.shared}
 										<Badge
-											class="absolute bottom-1 left-1 bg-primary text-[10px] text-primary-foreground"
+											class="absolute top-1 left-1 bg-primary text-[10px] text-primary-foreground"
 											>Portal</Badge
 										>
 									{/if}
@@ -1185,8 +1201,16 @@
 					<p class="text-sm text-muted-foreground">No photos yet.</p>
 				{/if}
 				{#if !locked}
+					<Select.Root type="single" bind:value={photoPhase}>
+						<Select.Trigger class="mt-3 h-8 w-28 text-xs capitalize">{photoPhase}</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="before">Before</Select.Item>
+							<Select.Item value="during">During</Select.Item>
+							<Select.Item value="after">After</Select.Item>
+						</Select.Content>
+					</Select.Root>
 					<label
-						class="mt-3 flex items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground transition-colors hover:bg-accent {uploading
+						class="mt-2 flex items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground transition-colors hover:bg-accent {uploading
 							? 'pointer-events-none opacity-60'
 							: 'cursor-pointer'}"
 					>

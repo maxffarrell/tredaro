@@ -1162,6 +1162,77 @@ export async function notifyTechAssigned(orgId: string, jobId: string, memberId:
 	});
 }
 
+/** "Your job moved" — emails the assigned tech, once per (job,tech,new-start). */
+export async function notifyTechRescheduled(orgId: string, jobId: string, memberId: string) {
+	const m = await db
+		.select({ email: user.email, staffAlerts: member.staffAlerts })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(eq(member.organizationId, orgId), eq(member.id, memberId), eq(member.staffAlerts, true))
+		)
+		.limit(1);
+	const j = await db
+		.select({
+			number: job.number,
+			summary: job.summary,
+			startsAt: job.startsAt,
+			customerId: job.customerId
+		})
+		.from(job)
+		.where(eq(job.id, jobId))
+		.limit(1);
+	if (!m.length || !j.length || !m[0].email || !j[0].startsAt) return;
+	// Only reschedules: jobs that were never assigned don't get this email.
+	const assigned = await db
+		.select({ id: notificationLog.id })
+		.from(notificationLog)
+		.where(
+			and(
+				eq(notificationLog.organizationId, orgId),
+				eq(notificationLog.kind, 'tech_assigned'),
+				eq(notificationLog.entityId, `${jobId}:${memberId}`)
+			)
+		)
+		.limit(1);
+	if (!assigned.length) return;
+	if (
+		!(await logOnce(
+			orgId,
+			'tech_rescheduled',
+			`${jobId}:${memberId}:${new Date(j[0].startsAt).toISOString()}`,
+			m[0].email
+		))
+	)
+		return;
+	const [name, c] = await Promise.all([
+		orgName(orgId),
+		db
+			.select({ name: customer.name })
+			.from(customer)
+			.where(eq(customer.id, j[0].customerId))
+			.limit(1)
+			.then((r) => r[0])
+	]);
+	const when = new Date(j[0].startsAt).toLocaleString('en-US', {
+		dateStyle: 'medium',
+		timeStyle: 'short'
+	});
+	await sendEmail({
+		to: m[0].email,
+		subject: `Job rescheduled — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `J-${j[0].number} moved to ${when}`,
+			lines: [
+				`${j[0].summary} — ${c?.name ?? 'customer'}.`,
+				'See the updated slot in My Day or the dispatch board.'
+			],
+			action: { label: 'Open My Day', url: `${appOrigin()}/myday` }
+		})
+	});
+}
+
 /** "Customer answered your estimate" — emails owner/admins, once per estimate. */
 export async function notifyStaffEstimateDecision(orgId: string, estimateId: string) {
 	const flags = await notifFlags(orgId);

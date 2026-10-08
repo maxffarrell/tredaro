@@ -27,7 +27,8 @@ export async function listJobPhotos(orgId: string, jobId: string) {
 export async function saveJobPhoto(
 	ctx: OrgContext,
 	jobId: string,
-	file: { name: string; type: string; size: number; bytes: Uint8Array }
+	file: { name: string; type: string; size: number; bytes: Uint8Array },
+	phase?: string | null
 ) {
 	const [j] = await db
 		.select({ id: job.id, number: job.number })
@@ -62,7 +63,8 @@ export async function saveJobPhoto(
 			fileName: safe,
 			mime: file.type,
 			size: file.size,
-			path: rel
+			path: rel,
+			phase: ['before', 'during', 'after'].includes(phase ?? '') ? phase : null
 		})
 		.returning();
 	await emit({
