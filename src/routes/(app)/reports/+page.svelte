@@ -397,6 +397,13 @@
 					across {r.openPOs.pos} purchase order{r.openPOs.pos === 1 ? '' : 's'}
 				</p>
 			{/if}
+			{#if r.refunds < 0}
+				<p class="pt-1 text-sm text-muted-foreground">
+					Refunds issued (90d): <span class="font-medium text-foreground"
+						>{formatMoney(r.refunds, currency)}</span
+					>
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

@@ -108,7 +108,8 @@
 					currency
 				)}</span
 			>
-			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'}
+			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'} ·
+			{estimates.filter((e) => e.viewed).length} viewed
 		</p>
 	{/if}
 	<Card.Root class="py-0">

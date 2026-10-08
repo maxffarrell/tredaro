@@ -423,6 +423,24 @@ async function avgDaysToInvoice(orgId: string) {
 	return row?.n ? row.avg : null;
 }
 
+/** Refunds issued over the last 90 days (negative payments). */
+async function refundsTotal(orgId: string) {
+	const [row] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				lt(payment.amount, 0),
+				gte(payment.paidAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return row?.n ? row.total : 0;
+}
+
 /** Spend committed on open purchase orders (draft + ordered). */
 async function openPOValue(orgId: string) {
 	const [row] = await db
@@ -489,7 +507,8 @@ export async function getReports(orgId: string) {
 		topMaterialRows,
 		ticket,
 		daysToInvoice,
-		openPOs
+		openPOs,
+		refunds
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -514,7 +533,8 @@ export async function getReports(orgId: string) {
 		topMaterials(orgId),
 		avgTicket(orgId),
 		avgDaysToInvoice(orgId),
-		openPOValue(orgId)
+		openPOValue(orgId),
+		refundsTotal(orgId)
 	]);
 	return {
 		completedJobs,
@@ -540,7 +560,8 @@ export async function getReports(orgId: string) {
 		topMaterials: topMaterialRows,
 		avgTicket: ticket,
 		avgDaysToInvoice: daysToInvoice,
-		openPOs
+		openPOs,
+		refunds
 	};
 }
 
