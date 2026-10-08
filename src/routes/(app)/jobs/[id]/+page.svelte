@@ -531,6 +531,9 @@
 >
 	{#snippet actions()}
 		<StatusBadge status={j.job.status} />
+		{#if j.job.source && j.job.source !== 'manual'}
+			<Badge variant="secondary" class="capitalize">via {j.job.source}</Badge>
+		{/if}
 		{#if j.job.status === 'scheduled'}
 			<Button size="sm" variant="outline" onclick={() => event('dispatched')}
 				><Truck /> Dispatch</Button

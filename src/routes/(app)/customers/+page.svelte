@@ -28,6 +28,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Download from '@lucide/svelte/icons/download';
 	import Upload from '@lucide/svelte/icons/upload';
+	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
 
 	const currency = await getCurrency();
 	let q = $state('');
@@ -216,6 +217,9 @@
 								{#if c.companyName}<span class="text-muted-foreground">
 										· {c.companyName}</span
 									>{/if}
+								{#if c.hasUpcoming}
+									<CalendarCheck class="ml-1 inline size-3.5 align-text-top text-primary" />
+								{/if}
 								{#if c.tags?.length}
 									<span class="ml-1 inline-flex gap-1 align-middle">
 										{#each c.tags as t (t)}<Badge variant="secondary" class="font-normal">{t}</Badge

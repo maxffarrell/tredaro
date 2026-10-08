@@ -11,6 +11,7 @@
 		markNotificationRead
 	} from '#lib/remote/workspace.remote.ts';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import CheckCheck from '@lucide/svelte/icons/check-check';
 	import Filter from '@lucide/svelte/icons/filter';
 	import { formatRelative } from '#lib/format.ts';
@@ -21,7 +22,13 @@
 	const rows = $derived(await getStaffNotifications());
 	const unread = $derived(rows.filter((n) => !n.readAt).length);
 	let unreadOnly = $state(false);
-	const shown = $derived(unreadOnly ? rows.filter((n) => !n.readAt) : rows);
+	let kindFilter = $state('all');
+	const kinds = $derived([...new Set(rows.map((n) => n.kind))]);
+	const shown = $derived(
+		rows.filter(
+			(n) => (!unreadOnly || !n.readAt) && (kindFilter === 'all' || n.kind === kindFilter)
+		)
+	);
 
 	async function markRead(id: string) {
 		try {
@@ -76,6 +83,15 @@
 
 <PageHeader title="Notifications" crumbs={[{ label: 'Home', href: '/dashboard' }]}>
 	{#snippet actions()}
+		<Select.Root type="single" value={kindFilter} onValueChange={(v) => (kindFilter = v ?? 'all')}>
+			<Select.Trigger class="h-8 w-40 text-sm">
+				{kindFilter === 'all' ? 'All types' : (KIND_LABELS[kindFilter] ?? kindFilter)}
+			</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="all">All types</Select.Item>
+				{#each kinds as k (k)}<Select.Item value={k}>{KIND_LABELS[k] ?? k}</Select.Item>{/each}
+			</Select.Content>
+		</Select.Root>
 		<Button
 			size="sm"
 			variant={unreadOnly ? 'secondary' : 'ghost'}

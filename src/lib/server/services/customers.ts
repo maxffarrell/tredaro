@@ -43,6 +43,10 @@ export async function listCustomers(orgId: string, q?: string) {
 				sql<number>`coalesce((select sum(c.amount - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0)) from ${charge} c where c.customer_id = ${outer(customer.id)} and c.status = 'open'), 0)`.mapWith(
 					Number
 				),
+			hasUpcoming:
+				sql<boolean>`exists (select 1 from ${job} j where j.customer_id = ${outer(customer.id)} and j.status in ('scheduled', 'dispatched', 'in_progress') and j.starts_at > now())`.mapWith(
+					Boolean
+				),
 			lastVisit: sql<
 				string | null
 			>`(select max(j.completed_at)::text from job j where j.customer_id = ${outer(customer.id)} and j.status = 'done')`,
