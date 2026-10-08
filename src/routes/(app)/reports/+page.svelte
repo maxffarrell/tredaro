@@ -114,6 +114,13 @@
 					>
 				</p>
 			{/if}
+			{#if r.avgDaysToInvoice != null}
+				<p class="pt-1 text-sm text-muted-foreground">
+					Avg days to invoice (90d): <span class="font-medium text-foreground"
+						>{r.avgDaysToInvoice < 1 ? 'same day' : r.avgDaysToInvoice.toFixed(1) + ' days'}</span
+					> after completion
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -380,6 +387,14 @@
 					Avg days to pay (last 90d, settled invoices):
 					<span class="font-medium text-foreground">{r.daysToPay.avgDays}</span> days across
 					{r.daysToPay.n} invoice{r.daysToPay.n === 1 ? '' : 's'}
+				</p>
+			{/if}
+			{#if r.openPOs.pos > 0}
+				<p class="pt-1 text-sm text-muted-foreground">
+					Open POs: <span class="font-medium text-foreground"
+						>{formatMoney(r.openPOs.total, currency)}</span
+					>
+					across {r.openPOs.pos} purchase order{r.openPOs.pos === 1 ? '' : 's'}
 				</p>
 			{/if}
 		</Card.Content>

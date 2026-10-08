@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	agreementPlan,
@@ -16,6 +16,8 @@ import {
 	member,
 	office,
 	payment,
+	purchaseOrder,
+	purchaseOrderItem,
 	serviceAgreement,
 	user,
 	outer
@@ -399,6 +401,49 @@ async function topMaterials(orgId: string) {
 		.limit(8);
 }
 
+/** Average days from job completion to invoice issuance (invoices linked to jobs, last 90d). */
+async function avgDaysToInvoice(orgId: string) {
+	const [row] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			avg: sql<number>`avg(extract(epoch from (${invoice.issuedAt} - ${job.completedAt})) / 86400.0)`.mapWith(
+				Number
+			)
+		})
+		.from(invoice)
+		.innerJoin(job, eq(invoice.jobId, job.id))
+		.where(
+			and(
+				eq(invoice.organizationId, orgId),
+				ne(invoice.status, 'void'),
+				isNotNull(job.completedAt),
+				gte(invoice.issuedAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return row?.n ? row.avg : null;
+}
+
+/** Spend committed on open purchase orders (draft + ordered). */
+async function openPOValue(orgId: string) {
+	const [row] = await db
+		.select({
+			pos: sql<number>`count(distinct ${purchaseOrder.id})`.mapWith(Number),
+			total:
+				sql<number>`coalesce(sum(${purchaseOrderItem.qty} * ${purchaseOrderItem.unitCost}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(purchaseOrderItem)
+		.innerJoin(purchaseOrder, eq(purchaseOrderItem.purchaseOrderId, purchaseOrder.id))
+		.where(
+			and(
+				eq(purchaseOrder.organizationId, orgId),
+				inArray(purchaseOrder.status, ['draft', 'ordered'])
+			)
+		);
+	return row ?? { pos: 0, total: 0 };
+}
+
 /** Average issued-invoice total over the last 90 days. */
 async function avgTicket(orgId: string) {
 	const [row] = await db
@@ -442,7 +487,9 @@ export async function getReports(orgId: string) {
 		completion,
 		daysToPay,
 		topMaterialRows,
-		ticket
+		ticket,
+		daysToInvoice,
+		openPOs
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -465,7 +512,9 @@ export async function getReports(orgId: string) {
 		completionStats(orgId),
 		avgDaysToPay(orgId),
 		topMaterials(orgId),
-		avgTicket(orgId)
+		avgTicket(orgId),
+		avgDaysToInvoice(orgId),
+		openPOValue(orgId)
 	]);
 	return {
 		completedJobs,
@@ -489,7 +538,9 @@ export async function getReports(orgId: string) {
 		completion,
 		daysToPay,
 		topMaterials: topMaterialRows,
-		avgTicket: ticket
+		avgTicket: ticket,
+		avgDaysToInvoice: daysToInvoice,
+		openPOs
 	};
 }
 

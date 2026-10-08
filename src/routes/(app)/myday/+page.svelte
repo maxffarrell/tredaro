@@ -266,12 +266,25 @@
 		{@const done = day.jobs.filter((j) => j.job.status === 'done').length}
 		{@const left = day.jobs.length - done}
 		{@const next = day.jobs.find((j) => j.job.status !== 'done' && j.job.startsAt)}
+		{@const schedMin = day.jobs.reduce(
+			(m, j) =>
+				m +
+				(j.job.startsAt && j.job.endsAt && j.job.status !== 'cancelled'
+					? (new Date(j.job.endsAt).getTime() - new Date(j.job.startsAt).getTime()) / 60_000
+					: 0),
+			0
+		)}
 		<div class="flex flex-wrap gap-4 rounded-lg border bg-card px-4 py-2.5 text-sm">
 			<span class="tabular-nums"><span class="font-semibold">{done}</span> done</span>
 			<span class="tabular-nums"><span class="font-semibold">{left}</span> left</span>
 			{#if next?.job.startsAt}
 				<span class="text-muted-foreground tabular-nums"
 					>next {localTime(next.job.startsAt, tz)}</span
+				>
+			{/if}
+			{#if schedMin > 0}
+				<span class="text-muted-foreground tabular-nums"
+					>{Math.floor(schedMin / 60)}h {Math.round(schedMin % 60)}m scheduled</span
 				>
 			{/if}
 			<span class="text-muted-foreground tabular-nums"
