@@ -12,6 +12,7 @@ import {
 	invoice,
 	job,
 	jobType,
+	jobTimeEntry,
 	member,
 	payment,
 	purchaseOrder,
@@ -20,7 +21,7 @@ import {
 	outer
 } from '#lib/server/db/schema.ts';
 import { monthlyRecurring } from './billing.ts';
-import { localDate, zonedToUtc } from '#lib/tz.ts';
+import { localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 
 /** KPIs, today's route and unscheduled queue for the dashboard. */
 export async function dashboard(orgId: string) {
@@ -312,6 +313,23 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(job.completedAt))
 		.limit(4);
 
+	const openClocks = await db
+		.select({
+			memberName: user.name,
+			jobId: job.id,
+			jobNumber: job.number,
+			customerName: customer.name,
+			startedAt: jobTimeEntry.startedAt
+		})
+		.from(jobTimeEntry)
+		.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(and(eq(jobTimeEntry.organizationId, orgId), isNull(jobTimeEntry.endedAt)))
+		.orderBy(asc(jobTimeEntry.startedAt))
+		.limit(5);
+
 	const lowStock = await db
 		.select()
 		.from(inventoryItem)
@@ -460,6 +478,13 @@ export async function dashboard(orgId: string) {
 				href: '/inventory',
 				text: `Out of stock · ${i.name}`,
 				sub: `${i.sku || 'item'} — none on hand`,
+				amountCents: null as number | null
+			})),
+			...openClocks.map((c) => ({
+				tone: 'amber' as const,
+				href: `/jobs/${c.jobId}`,
+				text: `${c.memberName ?? 'Someone'} still clocked in · J-${c.jobNumber}`,
+				sub: `${c.customerName} — since ${localTime(c.startedAt, tz)}`,
 				amountCents: null as number | null
 			})),
 			...lowStock.map((i) => ({

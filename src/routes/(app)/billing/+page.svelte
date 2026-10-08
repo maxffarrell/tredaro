@@ -352,6 +352,20 @@
 		</Tabs.List>
 
 		<Tabs.Content value="invoices">
+			{@const openRows = invoices.filter(
+				(i) => i.invoice.status === 'open' && i.total - i.paid > 0
+			)}
+			{#if openRows.length}
+				<p class="mb-2 text-sm text-muted-foreground">
+					Open receivables: <span class="font-medium text-foreground"
+						>{formatMoney(
+							openRows.reduce((sum, i) => sum + i.total - i.paid, 0),
+							currency
+						)}</span
+					>
+					across {openRows.length} invoice{openRows.length === 1 ? '' : 's'}
+				</p>
+			{/if}
 			<div class="mb-2 flex gap-1.5">
 				{#each [['', 'All'], ['open', 'Open'], ['overdue', 'Overdue'], ['void', 'Void']] as [s, label] (s)}
 					<Button

@@ -368,6 +368,13 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+			{#if r.daysToPay.n > 0}
+				<p class="mt-3 text-sm text-muted-foreground">
+					Avg days to pay (last 90d, settled invoices):
+					<span class="font-medium text-foreground">{r.daysToPay.avgDays}</span> days across
+					{r.daysToPay.n} invoice{r.daysToPay.n === 1 ? '' : 's'}
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

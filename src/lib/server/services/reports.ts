@@ -5,6 +5,8 @@ import {
 	charge,
 	customer,
 	estimate,
+	invoice,
+	invoiceItem,
 	inventoryItem,
 	jobExpense,
 	jobMaterial,
@@ -307,6 +309,34 @@ async function techPerformance(orgId: string) {
 		.sort((a, b) => b.revenue - a.revenue || b.jobsDone - a.jobsDone);
 }
 
+async function avgDaysToPay(orgId: string) {
+	// Average days issued→fully-paid for invoices settled in the last 90d.
+	const rows = await db
+		.select({
+			issuedAt: invoice.issuedAt,
+			lastPaid: sql<string>`(select max(p.paid_at) from ${payment} p join ${charge} c on p.charge_id = c.id where c.invoice_id = ${outer(invoice.id)})`,
+			covered:
+				sql<boolean>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on p.charge_id = c.id where c.invoice_id = ${outer(invoice.id)}), 0) >= coalesce((select sum(it.qty * it.unit_price) from ${invoiceItem} it where it.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
+					Boolean
+				)
+		})
+		.from(invoice)
+		.where(
+			and(
+				eq(invoice.organizationId, orgId),
+				gte(invoice.issuedAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	const settled = rows.filter((r) => r.covered && r.lastPaid);
+	if (!settled.length) return { n: 0, avgDays: 0 };
+	const total = settled.reduce(
+		(sum, r) =>
+			sum + Math.max(0, (new Date(r.lastPaid!).getTime() - r.issuedAt.getTime()) / 86400_000),
+		0
+	);
+	return { n: settled.length, avgDays: Math.round(total / settled.length) };
+}
+
 async function completionStats(orgId: string) {
 	const [row] = await db
 		.select({
@@ -348,7 +378,8 @@ export async function getReports(orgId: string) {
 		salesByType,
 		payMethodRows,
 		jobSourceRows,
-		completion
+		completion,
+		daysToPay
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -368,7 +399,8 @@ export async function getReports(orgId: string) {
 		salesByJobType(orgId),
 		paymentsByMethod(orgId),
 		jobsBySource(orgId),
-		completionStats(orgId)
+		completionStats(orgId),
+		avgDaysToPay(orgId)
 	]);
 	return {
 		completedJobs,
@@ -389,7 +421,8 @@ export async function getReports(orgId: string) {
 		salesByType,
 		payMethods: payMethodRows,
 		jobSources: jobSourceRows,
-		completion
+		completion,
+		daysToPay
 	};
 }
 
