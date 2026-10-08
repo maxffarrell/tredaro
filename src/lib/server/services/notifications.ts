@@ -281,13 +281,14 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 		});
 }
 
-/** "Still interested?" email when a sent estimate has sat untouched for a week. */
+/** "Still interested?" email + SMS when a sent estimate has sat untouched for a week. */
 export async function notifyEstimateFollowup(orgId: string, estimateId: string) {
-	if (!(await notifFlags(orgId)).email) return;
+	const flags = await notifFlags(orgId);
 	const [row] = await db
 		.select({
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
+			phone: customer.phone,
 			smsOptOut: customer.smsOptOut,
 			customerName: customer.name,
 			number: estimate.number,
@@ -300,22 +301,38 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 		.from(estimate)
 		.innerJoin(customer, eq(estimate.customerId, customer.id))
 		.where(eq(estimate.id, estimateId));
-	if (!row?.email || row.emailOptOut || row.status !== 'sent') return;
-	if (!(await logOnce(orgId, 'estimate_followup', estimateId, row.email))) return;
+	if (!row || row.status !== 'sent') return;
 	const name = await orgName(orgId);
-	await sendEmail({
-		to: row.email,
-		subject: `Following up on estimate E-${row.number} — ${name}`,
-		...renderEmail({
-			orgName: name,
-			heading: `Still interested, ${row.customerName}?`,
-			lines: [
-				`${name} sent you estimate E-${row.number} for ${formatMoney(row.total)} and it's still open.`,
-				"Approve or decline it online whenever you're ready."
-			],
-			action: { label: 'Review estimate', url: estimateUrl(estimateId) }
-		})
-	});
+	if (
+		flags.email &&
+		row.email &&
+		!row.emailOptOut &&
+		(await logOnce(orgId, 'estimate_followup', estimateId, row.email))
+	)
+		await sendEmail({
+			to: row.email,
+			subject: `Following up on estimate E-${row.number} — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Still interested, ${row.customerName}?`,
+				lines: [
+					`${name} sent you estimate E-${row.number} for ${formatMoney(row.total)} and it's still open.`,
+					"Approve or decline it online whenever you're ready."
+				],
+				action: { label: 'Review estimate', url: estimateUrl(estimateId) }
+			})
+		});
+	if (
+		flags.sms &&
+		row.phone &&
+		!row.smsOptOut &&
+		smsProvider() &&
+		(await logOnce(orgId, 'estimate_followup_sms', estimateId, row.phone))
+	)
+		await sendSms({
+			to: row.phone,
+			body: `${name}: estimate E-${row.number} for ${formatMoney(row.total)} is still open. Review it here: ${estimateUrl(estimateId)}`
+		});
 }
 
 /** "Invoice INV-n is past due" — at 3 and 10 days overdue, deduped per stage. */

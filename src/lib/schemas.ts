@@ -197,6 +197,12 @@ export const jobMaterialInput = v.object({
 	/** Set to take the units from this tech's truck stock instead of the warehouse. */
 	truckMemberId: v.optional(v.nullable(idSchema), null)
 });
+export const jobRepeatInput = v.object({
+	jobId: idSchema,
+	/** Repeat every N weeks from the job's scheduled time (unscheduled jobs clone into the queue). */
+	everyWeeks: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(52)),
+	count: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(24))
+});
 export const truckTransferInput = v.object({
 	inventoryItemId: idSchema,
 	memberId: idSchema,
@@ -268,6 +274,7 @@ export const jobInput = v.object({
 	summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)), ''),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000)), ''),
 	priority: v.optional(v.picklist(jobPriorities), 'normal'),
+	preferredTime: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(200))), null),
 	/** Omit for an unscheduled job. */
 	startsAt: v.optional(v.nullable(localDateTime))
 });

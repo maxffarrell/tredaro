@@ -25,7 +25,8 @@ import {
 	checklistItemInput,
 	checklistToggleInput,
 	jobSignatureInput,
-	jobExpenseInput
+	jobExpenseInput,
+	jobRepeatInput
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -108,6 +109,20 @@ export const createJob = command(jobInput, async (input) => {
 	await refreshQuery(getMyDay, undefined);
 	void getCustomer(input.customerId).refresh();
 	return j;
+});
+export const repeatJob = command(jobRepeatInput, async (input) => {
+	const ctx = await requireOrg();
+	const made = await svc.repeatJob(ctx, await tz(), input);
+	// One notification per generated scheduled job — same dedupe as single creates.
+	for (const j of made)
+		if (j.startsAt)
+			void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
+				console.error('job scheduled email failed', err)
+			);
+	await refreshQuery(getJobs, undefined);
+	await refreshQuery(getDispatchBoard, undefined);
+	await refreshQuery(getDashboard, undefined);
+	return made.map((j) => j.id);
 });
 export const updateJob = command(jobUpdate, async (input) => {
 	const ctx = await requireOrg();

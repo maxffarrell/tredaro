@@ -319,6 +319,8 @@ export const job = pgTable(
 		description: text('description').notNull().default(''),
 		status: jobStatus('status').notNull().default('unscheduled'),
 		priority: jobPriority('priority').notNull().default('normal'),
+		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
+		preferredTime: text('preferred_time'),
 		/** Visit window; null while unscheduled. */
 		startsAt: timestamp('starts_at', { withTimezone: true }),
 		endsAt: timestamp('ends_at', { withTimezone: true }),

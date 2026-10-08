@@ -38,7 +38,7 @@ import {
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
 import { nextNumber } from './settings.ts';
-import { addDays, localDate, zonedToUtc } from '#lib/tz.ts';
+import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
@@ -256,6 +256,7 @@ export async function createJob(
 			summary: input.summary || jt?.name || '',
 			description: input.description,
 			priority: input.priority,
+			preferredTime: input.preferredTime ?? null,
 			source: opts.source ?? 'manual',
 			status: start ? 'scheduled' : 'unscheduled',
 			startsAt: start,
@@ -937,4 +938,44 @@ export async function calendarFeed(ctx: OrgContext) {
 	return `/api/cal/${me.id}.${createHmac('sha256', BETTER_AUTH_SECRET)
 		.update(`cal:${me.id}`)
 		.digest('base64url')}`;
+}
+
+/** Clone a job `count` times, each `everyWeeks` weeks apart — unscheduled sources clone into the queue. */
+export async function repeatJob(
+	ctx: OrgContext,
+	tz: string,
+	input: v.InferOutput<typeof s.jobRepeatInput>
+) {
+	const src = await getJob(ctx.orgId, input.jobId);
+	if (!src.job.customerId) error(400, 'Job has no customer');
+	const made: (typeof job.$inferSelect)[] = [];
+	for (let i = 1; i <= input.count; i++) {
+		const startsAt = src.job.startsAt
+			? (() => {
+					const d = new Date(src.job.startsAt!.getTime() + i * input.everyWeeks * 7 * 86400_000);
+					return `${localDate(d, tz)}T${localTime(d, tz)}`;
+				})()
+			: null;
+		made.push(
+			await createJob(
+				ctx,
+				tz,
+				{
+					customerId: src.job.customerId,
+					jobTypeId: src.job.jobTypeId ?? null,
+					serviceLocationId: src.job.serviceLocationId ?? null,
+					equipmentId: src.job.equipmentId ?? null,
+					officeId: src.job.officeId ?? null,
+					technicianId: src.job.technicianId ?? null,
+					summary: src.job.summary,
+					description: src.job.description,
+					priority: src.job.priority,
+					preferredTime: null,
+					startsAt
+				},
+				{ source: src.job.source ?? 'manual' }
+			)
+		);
+	}
+	return made;
 }

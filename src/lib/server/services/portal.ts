@@ -203,9 +203,8 @@ export async function requestService(
 			serviceLocationId: input.serviceLocationId ?? null,
 			jobTypeId: input.jobTypeId ?? null,
 			summary: 'Portal request',
-			description: [input.description, input.preferredTime && `Preferred: ${input.preferredTime}`]
-				.filter(Boolean)
-				.join('\n\n'),
+			description: input.description,
+			preferredTime: input.preferredTime || null,
 			priority: 'normal'
 		},
 		{ source: 'booking' }

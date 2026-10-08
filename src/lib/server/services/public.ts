@@ -125,6 +125,7 @@ export async function requestBooking(
 			jobTypeId: input.jobTypeId ?? null,
 			summary: 'Website booking request',
 			description: input.description,
+			preferredTime: input.preferredTime || null,
 			priority: 'normal'
 		},
 		{ source: 'booking' }

@@ -353,6 +353,7 @@ export async function decideEstimate(
 				serviceLocationId: est.serviceLocationId,
 				summary: `From estimate E-${est.number}`,
 				description,
+				preferredTime: null,
 				priority: 'normal'
 			},
 			{ source: 'estimate' }

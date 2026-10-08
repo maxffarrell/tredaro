@@ -6,6 +6,7 @@
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -27,6 +28,7 @@
 		addTimeEntry,
 		deleteTimeEntry,
 		createJob,
+		repeatJob,
 		signJob
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
@@ -393,6 +395,27 @@
 	}
 
 	let rebooking = $state(false);
+	let repeatOpen = $state(false);
+	let repeatWeeks = $state(4);
+	let repeatCount = $state(4);
+	let repeating = $state(false);
+	async function repeat(e: SubmitEvent) {
+		e.preventDefault();
+		repeating = true;
+		try {
+			await repeatJob({ jobId: id, everyWeeks: repeatWeeks, count: repeatCount }).updates(
+				getJobs,
+				getDispatchBoard
+			);
+			repeatOpen = false;
+			toast.success(
+				`Booked ${repeatCount} visit${repeatCount > 1 ? 's' : ''} every ${repeatWeeks}w`
+			);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not repeat'));
+		}
+		repeating = false;
+	}
 	async function rebook() {
 		rebooking = true;
 		try {
@@ -447,10 +470,13 @@
 		{:else if j.job.status === 'in_progress'}
 			<Button size="sm" onclick={() => openSign(true)}><CircleCheck /> Complete</Button>
 		{/if}
-		{#if j.job.status === 'done'}
-			<Button size="sm" variant="outline" disabled={rebooking} onclick={rebook}
-				><Repeat /> Book again</Button
+		{#if j.job.status === 'done' || j.job.status === 'unscheduled' || j.job.status === 'scheduled'}
+			<Button size="sm" variant="outline" onclick={() => (repeatOpen = true)}
+				><Repeat /> Repeat…</Button
 			>
+		{/if}
+		{#if j.job.status === 'done'}
+			<Button size="sm" variant="outline" disabled={rebooking} onclick={rebook}>Book again</Button>
 		{/if}
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
@@ -624,6 +650,13 @@
 						>{j.job.source}</span
 					>
 				</div>
+				{#if j.job.preferredTime}
+					<div class="flex justify-between gap-3">
+						<span class="text-muted-foreground">Customer asked for</span><span class="text-right"
+							>{j.job.preferredTime}</span
+						>
+					</div>
+				{/if}
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Scheduled</span><span
 						>{j.job.startsAt
@@ -1161,3 +1194,35 @@
 		signThenComplete = false;
 	}}
 />
+
+<!-- repeat series -->
+<Dialog.Root bind:open={repeatOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Repeat this job</Dialog.Title>
+			<Dialog.Description>
+				Creates copies of J-{j.job.number}
+				{j.job.startsAt ? ' at the same time of day' : ' in the unscheduled queue'}.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={repeat}>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="rp-every">Every N weeks</Field.Label>
+					<Input id="rp-every" type="number" min={1} max={52} bind:value={repeatWeeks} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="rp-count">Visits</Field.Label>
+					<Input id="rp-count" type="number" min={1} max={24} bind:value={repeatCount} />
+				</Field.Field>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={repeating}
+					>{repeating
+						? 'Booking…'
+						: `Book ${repeatCount} visit${repeatCount > 1 ? 's' : ''}`}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>

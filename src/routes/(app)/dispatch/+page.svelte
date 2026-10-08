@@ -129,6 +129,11 @@
 					<p class="mt-1 text-xs text-muted-foreground">
 						J-{j.job.number} · {j.job.source}
 						{#if j.city}· {j.city}{/if}
+						{#if j.job.preferredTime}
+							<br /><span class="text-amber-600 dark:text-amber-400"
+								>Asked: {j.job.preferredTime}</span
+							>
+						{/if}
 					</p>
 				</button>
 			{:else}
