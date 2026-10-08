@@ -284,6 +284,44 @@ export async function updatePortalContact(
 	return row;
 }
 
+/** Customer asks for a different time — lands on the job timeline for staff to act on. */
+export async function requestReschedule(
+	orgId: string,
+	customerId: string,
+	jobId: string,
+	preferredTime: string
+) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.id, jobId),
+				eq(job.customerId, customerId),
+				inArray(job.status, ['scheduled', 'dispatched']),
+				isNull(job.cancelledAt)
+			)
+		);
+	if (!j) error(404, 'Visit not found');
+	await db.insert(jobEvent).values({
+		organizationId: orgId,
+		jobId,
+		kind: 'note',
+		memberId: null,
+		note: `Customer requested a different time — ${preferredTime}`
+	});
+	await emit({
+		orgId,
+		actorId: null,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'reschedule_requested',
+		summary: `J-${j.number} reschedule requested by customer`
+	});
+	return { ok: true };
+}
+
 /** Customer confirms a scheduled visit from the portal — writes a 'confirmed' job event. */
 export async function confirmVisit(orgId: string, customerId: string, jobId: string) {
 	const [j] = await db

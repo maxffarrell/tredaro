@@ -56,7 +56,9 @@ export const customerInput = v.object({
 	smsOptOut: v.optional(v.boolean(), false),
 	emailOptOut: v.optional(v.boolean(), false),
 	leadSource: optionalText,
-	preferredMemberId: v.optional(v.nullable(idSchema))
+	preferredMemberId: v.optional(v.nullable(idSchema)),
+	/** Credit hold — blocks new jobs until cleared. */
+	onHold: v.optional(v.boolean(), false)
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),

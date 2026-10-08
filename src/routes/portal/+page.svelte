@@ -17,6 +17,7 @@
 		getPortalOverview,
 		requestService,
 		confirmVisit,
+		requestReschedule,
 		getProviders,
 		startCheckout,
 		updatePortalContact
@@ -51,6 +52,28 @@
 			paying = false;
 			toast.error(errMsg(err, 'Could not start payment'));
 		}
+	}
+
+	// ------- reschedule request -------
+	let reschedJobId = $state('');
+	let reschedWhen = $state('');
+	let reschedPending = $state(false);
+	async function submitReschedule(e: SubmitEvent) {
+		e.preventDefault();
+		reschedPending = true;
+		try {
+			await requestReschedule({
+				customerId,
+				jobId: reschedJobId,
+				preferredTime: reschedWhen.trim()
+			}).updates(getPortalOverview);
+			toast.success('Request sent — we will confirm a new time');
+			reschedJobId = '';
+			reschedWhen = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send request'));
+		}
+		reschedPending = false;
 	}
 
 	let confirmingId = $state('');
@@ -180,13 +203,18 @@
 								{#if j.confirmed}
 									<StatusBadge status="approved" label="Confirmed" />
 								{:else if j.job.status === 'scheduled' && j.job.startsAt}
-									<Button
-										size="sm"
-										variant="outline"
-										disabled={confirmingId === j.job.id}
-										onclick={() => confirm(j.job.id)}
-										>{confirmingId === j.job.id ? 'Confirming…' : 'Confirm'}</Button
-									>
+									<div class="flex items-center justify-end gap-1">
+										<Button
+											size="sm"
+											variant="outline"
+											disabled={confirmingId === j.job.id}
+											onclick={() => confirm(j.job.id)}
+											>{confirmingId === j.job.id ? 'Confirming…' : 'Confirm'}</Button
+										>
+										<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}
+											>Different time</Button
+										>
+									</div>
 								{:else}
 									<StatusBadge status={j.job.status} />
 								{/if}
@@ -432,6 +460,38 @@
 			<Dialog.Footer>
 				<Button type="submit" disabled={reqPending}
 					>{reqPending ? 'Sending…' : 'Send request'}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- reschedule request dialog -->
+<Dialog.Root
+	open={!!reschedJobId}
+	onOpenChange={(o: boolean) => {
+		if (!o) reschedJobId = '';
+	}}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Request a different time</Dialog.Title>
+			<Dialog.Description>
+				Tell us when works better and we'll confirm a new slot.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={submitReschedule}>
+			<Field.Field>
+				<Field.Label for="resched-when">Preferred time</Field.Label>
+				<Input
+					id="resched-when"
+					bind:value={reschedWhen}
+					placeholder="e.g. Friday afternoon, or after 3pm weekdays"
+				/>
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={reschedPending || !reschedWhen.trim()}
+					>{reschedPending ? 'Sending…' : 'Send request'}</Button
 				>
 			</Dialog.Footer>
 		</form>

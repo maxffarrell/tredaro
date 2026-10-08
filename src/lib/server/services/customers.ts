@@ -269,6 +269,7 @@ export async function updateCustomer(
 			smsOptOut: set.smsOptOut,
 			emailOptOut: set.emailOptOut,
 			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null,
+			onHold: set.onHold,
 			preferredMemberId:
 				set.preferredMemberId === undefined ? undefined : set.preferredMemberId || null
 		})

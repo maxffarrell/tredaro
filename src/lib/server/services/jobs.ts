@@ -225,6 +225,7 @@ export async function createJob(
 		.from(customer)
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
 	if (!c) error(404, 'Customer not found');
+	if (c.onHold) error(409, 'Customer is on credit hold — resolve the balance first');
 
 	const jt = input.jobTypeId
 		? (

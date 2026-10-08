@@ -47,6 +47,21 @@ export const confirmVisit = command(
 	}
 );
 
+/** Customer asks for a different time on an upcoming visit. */
+export const requestReschedule = command(
+	v.object({
+		customerId: idSchema,
+		jobId: idSchema,
+		preferredTime: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200))
+	}),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		const r = await svc.requestReschedule(c.organizationId, c.id, input.jobId, input.preferredTime);
+		void getPortalOverview(c.id).refresh();
+		return r;
+	}
+);
+
 /** Portal self-service: customer updates their own email/phone. */
 export const updatePortalContact = command(portalContactInput, async (input) => {
 	const c = await myCustomer(input.customerId);

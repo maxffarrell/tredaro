@@ -3,6 +3,7 @@ import { and, asc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { OrgContext } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
+	charge,
 	companySettings,
 	customer,
 	equipment,
@@ -10,6 +11,7 @@ import {
 	estimate,
 	invoice,
 	job,
+	payment,
 	serviceAgreement,
 	jobType,
 	notificationLog,
@@ -30,6 +32,14 @@ async function orgName(orgId: string) {
 		.from(organization)
 		.where(eq(organization.id, orgId));
 	return o?.name ?? 'your service company';
+}
+
+async function orgCurrencyOf(orgId: string) {
+	const [s] = await db
+		.select({ currency: companySettings.currency })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	return s?.currency ?? 'usd';
 }
 
 async function orgTimezone(orgId: string) {
@@ -232,6 +242,64 @@ export async function textCustomer(ctx: OrgContext, customerId: string, message:
 			kind: 'manual_sms',
 			entityId: `${customerId}:${Date.now()}`,
 			recipient: c.phone
+		})
+		.onConflictDoNothing();
+}
+
+/** Emails the customer a statement of open charges with a portal link. */
+export async function emailStatement(ctx: OrgContext, customerId: string) {
+	const [c] = await db
+		.select({ name: customer.name, email: customer.email, emailOptOut: customer.emailOptOut })
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)));
+	if (!c) error(404, 'Customer not found');
+	if (!c.email) error(400, 'Customer has no email address');
+	if (c.emailOptOut) error(409, 'Customer has opted out of emails');
+	const rows = await db
+		.select({
+			description: charge.description,
+			dueDate: charge.dueDate,
+			balance:
+				sql<number>`${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${charge.id}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, ctx.orgId),
+				eq(charge.customerId, customerId),
+				eq(charge.status, 'open')
+			)
+		)
+		.orderBy(asc(charge.dueDate));
+	if (!rows.length) error(400, 'Nothing owed — no open charges');
+	const total = rows.reduce((s, r) => s + r.balance, 0);
+	const name = await orgName(ctx.orgId);
+	const currency = await orgCurrencyOf(ctx.orgId);
+	await sendEmail({
+		to: c.email,
+		subject: `Your statement from ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Your statement, ${c.name}`,
+			lines: [
+				...rows.map(
+					(r) =>
+						`${r.description ?? 'Charge'} — ${formatMoney(r.balance, currency)} due ${r.dueDate}`
+				),
+				`Total due: ${formatMoney(total, currency)}. Pay online any time from your portal.`
+			],
+			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+		})
+	});
+	await db
+		.insert(notificationLog)
+		.values({
+			organizationId: ctx.orgId,
+			kind: 'statement',
+			entityId: `${customerId}:${Date.now()}`,
+			recipient: c.email
 		})
 		.onConflictDoNothing();
 }

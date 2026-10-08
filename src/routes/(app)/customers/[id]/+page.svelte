@@ -26,7 +26,8 @@
 		getPortalInvite,
 		getCustomerDuplicates,
 		mergeCustomers,
-		textCustomerCmd
+		textCustomerCmd,
+		emailStatementCmd
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment } from '#lib/remote/billing.remote.ts';
 	import {
@@ -87,7 +88,8 @@
 		job_completed: 'Job completed follow-up',
 		job_completed_sms: 'Job completed text',
 		warranty_expiry: 'Warranty expiring reminder',
-		manual_sms: 'Texted customer'
+		manual_sms: 'Texted customer',
+		statement: 'Statement emailed'
 	};
 	const kindLabel = (kind: string) =>
 		KIND_LABELS[kind] ?? kind.replace(/_/g, ' ').replace(/sms$/, 'text');
@@ -108,6 +110,18 @@
 			toast.error(errMsg(err, 'Could not send text'));
 		}
 		textPending = false;
+	}
+
+	let stmtPending = $state(false);
+	async function emailStatementNow() {
+		stmtPending = true;
+		try {
+			await emailStatementCmd(id);
+			toast.success('Statement sent');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send statement'));
+		}
+		stmtPending = false;
 	}
 
 	const intervalLabel = (d: number) =>
@@ -167,6 +181,7 @@
 	let tagsInput = $state((c.customer.tags ?? []).join(', '));
 	let smsOptOut = $state(c.customer.smsOptOut);
 	let emailOptOut = $state(c.customer.emailOptOut);
+	let onHold = $state(c.customer.onHold);
 	let leadSource = $state(c.customer.leadSource);
 	let preferredMemberId = $state(c.customer.preferredMemberId ?? '');
 	const technicians = $derived(await getTechnicians());
@@ -185,6 +200,7 @@
 			tagsInput = (c.customer.tags ?? []).join(', ');
 			smsOptOut = c.customer.smsOptOut;
 			emailOptOut = c.customer.emailOptOut;
+			onHold = c.customer.onHold;
 			leadSource = c.customer.leadSource;
 			preferredMemberId = c.customer.preferredMemberId ?? '';
 		}
@@ -209,6 +225,7 @@
 					.filter(Boolean),
 				smsOptOut,
 				emailOptOut,
+				onHold,
 				leadSource,
 				preferredMemberId: preferredMemberId || null
 			});
@@ -394,6 +411,9 @@
 <PageHeader title={c.customer.name} crumbs={[{ label: 'Customers', href: '/customers' }]}>
 	{#snippet actions()}
 		<StatusBadge status={c.customer.status} />
+		{#if c.customer.onHold}
+			<StatusBadge status="overdue" label="credit hold" />
+		{/if}
 		{#if dupes.length}
 			<Button
 				size="sm"
@@ -428,6 +448,15 @@
 			href="/api/export/statement.csv?customer={c.customer.id}"
 			download><Download /> Statement</Button
 		>
+		{#if c.customer.email}
+			<Button
+				size="sm"
+				variant="outline"
+				title="Email open-balance statement"
+				disabled={stmtPending}
+				onclick={emailStatementNow}><Mail /> {stmtPending ? 'Sending…' : 'Email statement'}</Button
+			>
+		{/if}
 	{/snippet}
 </PageHeader>
 
@@ -529,6 +558,9 @@
 						</label>
 						<label class="flex items-center gap-2 text-sm">
 							<Switch bind:checked={emailOptOut} /> Don't send automated emails
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<Switch bind:checked={onHold} /> Credit hold — block new jobs
 						</label>
 						<p class="text-xs text-muted-foreground">
 							Suppresses appointment reminders, follow-ups, and invoices/estimate emails for this
