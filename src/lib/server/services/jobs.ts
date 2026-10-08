@@ -936,7 +936,7 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
 	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
-	const [jobs, unscheduled, overdue, openEntries] = await Promise.all([
+	const [jobs, unscheduled, overdue, openEntries, dayEntries] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
 		listJobs(ctx.orgId, {
@@ -955,12 +955,62 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					isNull(jobTimeEntry.endedAt)
 				)
 			)
-			.limit(1)
+			.limit(1),
+		db
+			.select({
+				startedAt: jobTimeEntry.startedAt,
+				endedAt: jobTimeEntry.endedAt
+			})
+			.from(jobTimeEntry)
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					eq(jobTimeEntry.memberId, me.id),
+					gte(jobTimeEntry.startedAt, from),
+					lt(jobTimeEntry.startedAt, to)
+				)
+			)
 	]);
-	return { member: me, jobs, unscheduled, overdue, openEntry: openEntries[0] ?? null };
+	const now = Date.now();
+	const minutesLogged = Math.round(
+		dayEntries.reduce(
+			(sum, e) => sum + ((e.endedAt?.getTime() ?? now) - e.startedAt.getTime()) / 60000,
+			0
+		)
+	);
+	return {
+		member: me,
+		jobs,
+		unscheduled,
+		overdue,
+		openEntry: openEntries[0] ?? null,
+		minutesLogged
+	};
 }
 
 export { addDays };
+
+/** Org-wide time entries for the REST API (newest first, capped). */
+export async function listOrgTimeEntries(
+	orgId: string,
+	opts: { jobId?: string; memberId?: string; limit?: number }
+) {
+	return db
+		.select({ entry: jobTimeEntry, memberName: user.name, jobNumber: job.number })
+		.from(jobTimeEntry)
+		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.leftJoin(job, eq(jobTimeEntry.jobId, job.id))
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, orgId),
+				opts.jobId ? eq(jobTimeEntry.jobId, opts.jobId) : undefined,
+				opts.memberId ? eq(jobTimeEntry.memberId, opts.memberId) : undefined
+			)
+		)
+		.orderBy(desc(jobTimeEntry.startedAt))
+		.limit(opts.limit ?? 500);
+}
 
 // ---------- Time off ----------
 

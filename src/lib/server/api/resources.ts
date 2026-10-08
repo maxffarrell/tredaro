@@ -138,6 +138,14 @@ export const resources: Record<string, Resource> = {
 		create: { schema: s.purchaseOrderInput, run: inventory.createPurchaseOrder as never },
 		update: { schema: s.purchaseOrderUpdate, run: inventory.updatePurchaseOrder as never }
 	},
+	time_entries: {
+		description: 'Clock in/out entries across jobs (`?jobId=` / `?memberId=` filters, read-only)',
+		list: (ctx, url) =>
+			jobs.listOrgTimeEntries(ctx.orgId, {
+				jobId: url.searchParams.get('jobId') ?? undefined,
+				memberId: url.searchParams.get('memberId') ?? undefined
+			})
+	},
 	truck_stock: {
 		description: 'Per-technician truck inventory (read-only)',
 		list: (ctx) => inventory.listTruckStock(ctx.orgId)

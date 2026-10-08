@@ -189,6 +189,19 @@
 		{#if est.viewedAt}<Badge variant="secondary" title="Customer opened this estimate"
 				><Eye /> Viewed</Badge
 			>{/if}
+		{#if est.estimate.status === 'sent' && est.estimate.validUntil}
+			{@const daysLeft = Math.ceil(
+				(new Date(`${est.estimate.validUntil}T00:00:00Z`).getTime() - Date.now()) / 86400_000
+			)}
+			<Badge
+				variant="secondary"
+				class={daysLeft <= 7
+					? 'border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500'
+					: ''}
+				title="Public link stops accepting answers after this date"
+				>{daysLeft > 0 ? `Expires in ${daysLeft}d` : 'Expires today'}</Badge
+			>
+		{/if}
 		{#if est.estimate.version > 1}<Badge variant="secondary">v{est.estimate.version}</Badge>{/if}
 		{#if draft}
 			<Button size="sm" onclick={send} disabled={sending}

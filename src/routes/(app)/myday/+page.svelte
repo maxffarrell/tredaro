@@ -235,6 +235,18 @@
 		})}
 	</p>
 
+	{#if day.member && (day.jobs.length || day.minutesLogged > 0)}
+		{@const done = day.jobs.filter((j) => j.job.status === 'done').length}
+		{@const left = day.jobs.length - done}
+		<div class="flex flex-wrap gap-4 rounded-lg border bg-card px-4 py-2.5 text-sm">
+			<span class="tabular-nums"><span class="font-semibold">{done}</span> done</span>
+			<span class="tabular-nums"><span class="font-semibold">{left}</span> left</span>
+			<span class="text-muted-foreground tabular-nums"
+				>{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged</span
+			>
+		</div>
+	{/if}
+
 	{#if !day.member}
 		<Card.Root>
 			<Card.Content class="p-4 text-sm text-muted-foreground">
