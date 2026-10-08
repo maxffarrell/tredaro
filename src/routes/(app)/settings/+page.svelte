@@ -172,6 +172,8 @@
 	let emailNotifications = $state(settings.emailNotifications);
 	let smsNotifications = $state(settings.smsNotifications);
 	let staffDigest = $state(settings.staffDigest);
+	let invoiceTermsDays = $state(settings.invoiceTermsDays);
+	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
@@ -201,7 +203,9 @@
 				publicPage,
 				emailNotifications,
 				smsNotifications,
-				staffDigest
+				staffDigest,
+				invoiceTermsDays,
+				autoInvoiceOnComplete
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -442,6 +446,33 @@
 							<p class="text-xs text-muted-foreground">
 								Manual Send buttons on invoices and estimates always work.
 							</p>
+						</div>
+						<div class="space-y-3 rounded-lg border p-3 text-sm">
+							<p class="font-medium">Invoicing</p>
+							<Field.Field>
+								<Field.Label for="terms">Payment terms (days)</Field.Label>
+								<Input
+									id="terms"
+									type="number"
+									min="0"
+									max="365"
+									class="w-24"
+									bind:value={invoiceTermsDays}
+								/>
+								<p class="text-xs text-muted-foreground">
+									New invoices are due this many days after they're issued.
+								</p>
+							</Field.Field>
+							<div class="flex items-center justify-between">
+								<div>
+									<p>Auto-draft invoice on completion</p>
+									<p class="text-xs text-muted-foreground">
+										When a job with materials is completed, draft its invoice automatically for
+										review.
+									</p>
+								</div>
+								<Switch bind:checked={autoInvoiceOnComplete} />
+							</div>
 						</div>
 						<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
 							<div>

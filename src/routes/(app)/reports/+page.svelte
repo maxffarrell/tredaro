@@ -490,4 +490,41 @@
 			</Table.Root>
 		</Card.Content>
 	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Sales by job type</Card.Title>
+			<Card.Description
+				>Completed jobs and revenue collected by job type — all time</Card.Description
+			>
+		</Card.Header>
+		<Card.Content class="px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Job type</Table.Head>
+						<Table.Head class="text-right">Jobs done</Table.Head>
+						<Table.Head class="text-right">Collected</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.salesByType as t (t.type)}
+						<Table.Row>
+							<Table.Cell class="font-medium">{t.type}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{t.jobs}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(t.collected, currency)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={3} class="text-muted-foreground"
+								>No completed jobs yet.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
 </div>

@@ -269,7 +269,8 @@ export async function getReports(orgId: string) {
 		tops,
 		leads,
 		aging,
-		offices
+		offices,
+		salesByType
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -284,7 +285,8 @@ export async function getReports(orgId: string) {
 		topCustomers(orgId),
 		leadsBySource(orgId),
 		receivablesAging(orgId),
-		officePerformance(orgId)
+		officePerformance(orgId),
+		salesByJobType(orgId)
 	]);
 	return {
 		completedJobs,
@@ -300,8 +302,37 @@ export async function getReports(orgId: string) {
 		topCustomers: tops,
 		leads,
 		aging,
-		offices
+		offices,
+		salesByType
 	};
+}
+
+/** Completed jobs + collected revenue grouped by job type (all time). */
+async function salesByJobType(orgId: string) {
+	const done = await db
+		.select({
+			type: sql<string>`coalesce(${jobType.name}, 'Unclassified')`,
+			count: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(job)
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(and(eq(job.organizationId, orgId), eq(job.status, 'done'), isNull(job.cancelledAt)))
+		.groupBy(sql`coalesce(${jobType.name}, 'Unclassified')`);
+	const collected = await db
+		.select({
+			type: sql<string>`coalesce(${jobType.name}, 'Unclassified')`,
+			total: sql<number>`sum(${payment.amount})`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(job, eq(charge.jobId, job.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(payment.organizationId, orgId))
+		.groupBy(sql`coalesce(${jobType.name}, 'Unclassified')`);
+	const map = new Map(collected.map((r) => [r.type, r.total]));
+	return done
+		.map((r) => ({ type: r.type, jobs: r.count, collected: map.get(r.type) ?? 0 }))
+		.sort((a, b) => b.collected - a.collected || b.jobs - a.jobs);
 }
 
 /** Customers + collected revenue grouped by lead source (all time). */

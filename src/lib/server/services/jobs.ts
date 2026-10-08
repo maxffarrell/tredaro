@@ -15,11 +15,14 @@ import {
 	sql
 } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
+import { createInvoice } from './billing.ts';
+import { listJobMaterials } from './inventory.ts';
 import {
 	charge,
 	customer,
 	equipment,
 	inventoryItem,
+	invoice,
 	job,
 	jobExpense,
 	jobMaterial,
@@ -37,7 +40,7 @@ import {
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
-import { nextNumber } from './settings.ts';
+import { getSettings, nextNumber } from './settings.ts';
 import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
@@ -494,7 +497,31 @@ export async function recordJobEvent(
 	}
 	if (input.kind === 'on_site' && memberRow?.id)
 		await startTimerFor(ctx.orgId, input.jobId, memberRow.id, ctx.userId);
-	if (input.kind === 'completed') await stopOpenTimers(ctx.orgId, input.jobId);
+	if (input.kind === 'completed') {
+		await stopOpenTimers(ctx.orgId, input.jobId);
+		const settings = await getSettings(ctx.orgId);
+		if (settings.autoInvoiceOnComplete) {
+			const materials = await listJobMaterials(ctx.orgId, input.jobId);
+			const [existingInvoice] = await db
+				.select({ id: invoice.id })
+				.from(invoice)
+				.where(and(eq(invoice.organizationId, ctx.orgId), eq(invoice.jobId, input.jobId)))
+				.limit(1);
+			if (materials.length && !existingInvoice)
+				await createInvoice(ctx, {
+					customerId: j.customerId,
+					jobId: j.id,
+					dueDate: addDays(localDate(new Date(), settings.timezone), settings.invoiceTermsDays),
+					notes: `Auto-created when J-${j.number} was completed — review before sending`,
+					items: materials.map((m) => ({
+						name: m.itemName,
+						description: '',
+						qty: m.material.qty,
+						unitPrice: m.material.unitPrice
+					}))
+				});
+		}
+	}
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId,

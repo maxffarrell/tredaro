@@ -32,7 +32,7 @@
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getJobs } from '#lib/remote/jobs.remote.ts';
-	import { getDashboard } from '#lib/remote/workspace.remote.ts';
+	import { getDashboard, getSettings } from '#lib/remote/workspace.remote.ts';
 	import { getAiStatus, aiInvoiceSuggestions } from '#lib/remote/ai.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -47,6 +47,7 @@
 
 	const currency = await getCurrency();
 	const customers = await getCustomers();
+	const termsDays = (await getSettings()).invoiceTermsDays;
 	const jobs = await getJobs();
 	const ai = await getAiStatus();
 	const doneJobs = $derived(jobs.filter((j) => j.job.status === 'done'));
@@ -122,7 +123,8 @@
 			await createInvoice({
 				customerId: invCustomerId,
 				jobId: invJobId || null,
-				dueDate: invDueDate || new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10),
+				dueDate:
+					invDueDate || new Date(Date.now() + termsDays * 86400_000).toISOString().slice(0, 10),
 				items: invItems
 					.filter((i) => i.name.trim())
 					.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
@@ -189,7 +191,7 @@
 				customerId: chCustomerId,
 				description: chDesc,
 				amount: chCents,
-				dueDate: chDue || new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10)
+				dueDate: chDue || new Date(Date.now() + termsDays * 86400_000).toISOString().slice(0, 10)
 			}).updates(getCharges, getDashboard);
 			toast.success('Charge posted');
 			chargeOpen = false;
