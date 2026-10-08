@@ -58,16 +58,21 @@ export const updateOffice = command(officeUpdate, async (input) => {
 });
 
 /** Staff-facing notification_log entries addressed to the current user's email. */
-export const getStaffNotifications = query(async () => {
-	const { user: me } = requireUser();
-	const { orgId } = await requireOrg();
-	return db
-		.select()
-		.from(notificationLog)
-		.where(and(eq(notificationLog.organizationId, orgId), eq(notificationLog.recipient, me.email)))
-		.orderBy(desc(notificationLog.createdAt))
-		.limit(50);
-});
+export const getStaffNotifications = query(
+	v.object({ limit: v.optional(v.number()) }),
+	async ({ limit }) => {
+		const { user: me } = requireUser();
+		const { orgId } = await requireOrg();
+		return db
+			.select()
+			.from(notificationLog)
+			.where(
+				and(eq(notificationLog.organizationId, orgId), eq(notificationLog.recipient, me.email))
+			)
+			.orderBy(desc(notificationLog.createdAt))
+			.limit(limit ?? 50);
+	}
+);
 
 /** Unread count for the sidebar badge — same scope as getStaffNotifications. */
 export const getUnreadNotificationCount = query(async () => {

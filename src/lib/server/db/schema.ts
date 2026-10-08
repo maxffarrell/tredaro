@@ -65,6 +65,8 @@ export const companySettings = pgTable('company_settings', {
 	staffDigest: boolean('staff_digest').notNull().default(true),
 	/** Days until a new invoice is due — prefills the new-invoice dialog and auto-drafts. */
 	invoiceTermsDays: integer('invoice_terms_days').notNull().default(30),
+	/** Days a sent estimate stays valid unless staff set a different expiry. */
+	estimateValidDays: integer('estimate_valid_days').notNull().default(30),
 	/** When on, completing a job with materials drafts an invoice automatically. */
 	autoInvoiceOnComplete: boolean('auto_invoice_on_complete').notNull().default(false),
 	/** Minimum days of advance notice required on the public booking page (0 = same-day ok). */

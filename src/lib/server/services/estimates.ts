@@ -344,8 +344,11 @@ export async function invoiceEstimate(ctx: OrgContext, id: string) {
 
 /** Marks the estimate sent; the public link can now be shared with the customer. */
 export async function sendEstimate(ctx: OrgContext, id: string) {
-	// Quotes default to a 30-day validity window unless staff set a different date.
-	const defaultValidUntil = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+	// Quotes default to the workspace's validity window unless staff set a different expiry.
+	const o = await getSettings(ctx.orgId);
+	const defaultValidUntil = new Date(Date.now() + (o.estimateValidDays ?? 30) * 86400_000)
+		.toISOString()
+		.slice(0, 10);
 	const [row] = await db
 		.update(estimate)
 		.set({

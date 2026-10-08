@@ -48,6 +48,7 @@
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 
 	const currency = await getCurrency();
+	const todayStr = new Date().toISOString().slice(0, 10);
 	const customers = await getCustomers();
 	const termsDays = (await getSettings()).invoiceTermsDays;
 	const jobs = await getJobs();
@@ -402,7 +403,14 @@
 										>{formatDate(inv.invoice.issuedAt)}</Table.Cell
 									>
 									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{inv.invoice.dueDate ? formatDate(inv.invoice.dueDate) : '—'}</Table.Cell
+										>{inv.invoice.dueDate ? formatDate(inv.invoice.dueDate) : '—'}
+										{#if inv.invoice.status === 'open' && inv.invoice.dueDate && inv.invoice.dueDate < todayStr && inv.total - inv.paid > 0}
+											<span class="text-amber-600"
+												>({Math.ceil(
+													(Date.now() - new Date(inv.invoice.dueDate).getTime()) / 86400000
+												)}d)</span
+											>
+										{/if}</Table.Cell
 									>
 									<Table.Cell class="text-right tabular-nums"
 										>{formatMoney(inv.total - inv.paid, currency)}</Table.Cell

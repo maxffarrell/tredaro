@@ -19,7 +19,9 @@
 	import { toast } from 'svelte-sonner';
 	import { errMsg } from '#lib/format.ts';
 
-	const rows = $derived(await getStaffNotifications());
+	let page = $state(50);
+	const rows = $derived(await getStaffNotifications({ limit: page }));
+	const hasMore = $derived(rows.length >= page);
 	const unread = $derived(rows.filter((n) => !n.readAt).length);
 	let unreadOnly = $state(false);
 	let kindFilter = $state('all');
@@ -166,6 +168,11 @@
 							</Table.Cell>
 						</Table.Row>
 					{/each}
+					{#if hasMore}
+						<div class="flex justify-center pt-1">
+							<Button variant="outline" size="sm" onclick={() => (page += 50)}>Load more</Button>
+						</div>
+					{/if}
 				</Table.Body>
 			</Table.Root>
 		</Card.Content>

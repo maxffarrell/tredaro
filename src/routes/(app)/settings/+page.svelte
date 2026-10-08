@@ -187,6 +187,7 @@
 	let smsNotifications = $state(settings.smsNotifications);
 	let staffDigest = $state(settings.staffDigest);
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
+	let estimateValidDays = $state(settings.estimateValidDays);
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
@@ -228,6 +229,7 @@
 				smsNotifications,
 				staffDigest,
 				invoiceTermsDays,
+				estimateValidDays,
 				autoInvoiceOnComplete,
 				bookingNoticeDays,
 				bookingDailyLimit,
@@ -578,6 +580,20 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									New invoices are due this many days after they're issued.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="est-valid">Estimate validity (days)</Field.Label>
+								<Input
+									id="est-valid"
+									type="number"
+									min="1"
+									max="365"
+									class="w-24"
+									bind:value={estimateValidDays}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Sent estimates expire this many days later unless you set a different date.
 								</p>
 							</Field.Field>
 							<Field.Field>
