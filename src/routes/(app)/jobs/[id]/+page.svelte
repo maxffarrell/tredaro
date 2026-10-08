@@ -675,7 +675,11 @@
 				<ul class="space-y-1.5">
 					{#each checklist as item (item.id)}
 						<li class="flex items-center gap-2 text-sm">
-							<Checkbox checked={item.done} onCheckedChange={() => toggleCheck(item)} />
+							<Checkbox
+								checked={item.done}
+								disabled={locked}
+								onCheckedChange={() => toggleCheck(item)}
+							/>
 							<span class="min-w-0 flex-1 {item.done ? 'text-muted-foreground line-through' : ''}"
 								>{item.label}</span
 							>
