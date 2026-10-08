@@ -15,14 +15,19 @@ import type { RequestHandler } from './$types';
  * the customer's communications history as an inbound text.
  *
  * Requests are verified against `X-Twilio-Signature` (HMAC-SHA1 over the
- * request URL + sorted POST fields, per Twilio's docs). Verification is
- * enforced whenever TREDARO_TWILIO_AUTH_TOKEN is set; without a token the
- * endpoint stays open for local stub testing.
+ * request URL + sorted POST fields, per Twilio's docs). A configured
+ * TREDARO_TWILIO_AUTH_TOKEN is required outside local dev: production
+ * rejects every request when unconfigured rather than trusting forgeries.
  */
 const digits = (s: string) => s.replace(/\D/g, '');
 
 function verifySignature(url: URL, fields: Map<string, string>, signature: string | null) {
-	if (!TREDARO_TWILIO_AUTH_TOKEN) return; // stub/local: no secret configured
+	if (!TREDARO_TWILIO_AUTH_TOKEN) {
+		// Local dev/stub testing only — a deployed instance without the token
+		// must fail closed, not accept unsigned requests.
+		if (import.meta.env.DEV) return;
+		error(503, 'Twilio webhook is not configured');
+	}
 	if (!signature) error(403, 'Missing X-Twilio-Signature');
 	// GET params already live inside the URL; only POST body fields are appended.
 	let payload = url.toString();
