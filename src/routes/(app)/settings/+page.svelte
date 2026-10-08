@@ -542,6 +542,22 @@
 									Added once to an invoice that runs 3+ days past due. 0 = no late fees.
 								</p>
 							</Field.Field>
+							<Field.Field>
+								<Field.Label for="deposit-pct">Estimate deposit (%)</Field.Label>
+								<Input
+									id="deposit-pct"
+									type="number"
+									min="0"
+									max="100"
+									step="1"
+									class="w-24"
+									bind:value={depositPct}
+								/>
+								<p class="text-xs text-muted-foreground">
+									When a customer approves an estimate, invoice this % up front and email the pay
+									link. 0 = no deposit.
+								</p>
+							</Field.Field>
 							<div class="flex items-center justify-between">
 								<div>
 									<p>Auto-draft invoice on completion</p>
