@@ -173,6 +173,12 @@
 				{#if j.job.priority === 'high' || j.job.priority === 'urgent'}
 					<Badge variant="destructive">{j.job.priority}</Badge>
 				{/if}
+				{#if j.checklistTotal > 0}
+					<Badge variant={j.checklistDone >= j.checklistTotal ? 'secondary' : 'outline'}>
+						<ListChecks class="mr-1 size-3" />
+						{j.checklistDone}/{j.checklistTotal}
+					</Badge>
+				{/if}
 				{#if day.openEntry?.entry.jobId === j.job.id}
 					<Badge variant="secondary">
 						<Timer class="mr-1 size-3" /> since {localTime(day.openEntry.entry.startedAt, tz)}
