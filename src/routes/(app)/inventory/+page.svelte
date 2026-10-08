@@ -8,6 +8,7 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import Download from '@lucide/svelte/icons/download';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
@@ -256,6 +257,9 @@
 
 <PageHeader title="Inventory">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" href="/api/export/inventory.csv" download>
+			<Download /> Export CSV
+		</Button>
 		<Badge variant="secondary" class="mr-2">On-hand value {formatMoney(totalValue, currency)}</Badge
 		>
 		<Button size="sm" onclick={() => openItem()}><Plus /> New item</Button>

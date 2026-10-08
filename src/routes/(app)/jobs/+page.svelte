@@ -173,7 +173,15 @@
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{j.technicianName ?? '—'}</Table.Cell
 							>
-							<Table.Cell><StatusBadge status={j.job.status} /></Table.Cell>
+							<Table.Cell>
+								<StatusBadge status={j.job.status} />
+								{#if j.job.status === 'done' && !j.invoiced}
+									<Badge
+										class="ml-1 border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
+										>uninvoiced</Badge
+									>
+								{/if}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
 						<Table.Row>

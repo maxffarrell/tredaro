@@ -122,6 +122,11 @@ const jobSelect = {
 	checklistDone:
 		sql<number>`(select count(*) from ${jobChecklistItem} ci where ci.job_id = ${outer(job.id)} and ci.done)`.mapWith(
 			Number
+		),
+	/** True when any charge on the job is linked to an invoice. */
+	invoiced:
+		sql<boolean>`exists (select 1 from ${charge} c where c.job_id = ${outer(job.id)} and c.invoice_id is not null)`.mapWith(
+			Boolean
 		)
 };
 

@@ -140,6 +140,22 @@
 	{/snippet}
 </PageHeader>
 
+{#if agreements.some((a) => a.agreement.status === 'active')}
+	{@const mrr = agreements
+		.filter((a) => a.agreement.status === 'active')
+		.reduce((sum, a) => sum + (a.interval === 'year' ? a.amount / 12 : a.amount), 0)}
+	<p class="mb-4 text-sm text-muted-foreground">
+		Monthly recurring revenue: <span class="font-medium text-foreground"
+			>{formatMoney(mrr, currency)}</span
+		>
+		across {agreements.filter((a) => a.agreement.status === 'active').length} active agreement{agreements.filter(
+			(a) => a.agreement.status === 'active'
+		).length === 1
+			? ''
+			: 's'}
+	</p>
+{/if}
+
 <div class="space-y-4 p-4 md:p-6">
 	<Tabs.Root value="agreements">
 		<Tabs.List>

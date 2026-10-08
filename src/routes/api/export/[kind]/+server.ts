@@ -6,6 +6,7 @@ import {
 	customer,
 	invoice,
 	invoiceItem,
+	inventoryItem,
 	job,
 	jobTimeEntry,
 	jobType,
@@ -378,10 +379,31 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				])
 			)
 		].join('\n');
+	} else if (kind === 'inventory') {
+		const rows = await db
+			.select()
+			.from(inventoryItem)
+			.where(eq(inventoryItem.organizationId, ctx.orgId))
+			.orderBy(asc(inventoryItem.name));
+		body = [
+			row(['Name', 'SKU', 'Unit', 'On hand', 'Reorder at', 'Unit cost', 'Stock value', 'Notes']),
+			...rows.map((r) =>
+				row([
+					r.name,
+					r.sku,
+					r.unit,
+					r.qtyOnHand,
+					r.reorderPoint ?? '',
+					money(r.unitCost),
+					money(r.qtyOnHand * r.unitCost),
+					r.notes
+				])
+			)
+		].join('\n');
 	} else {
 		error(
 			404,
-			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers or statement'
+			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers, inventory or statement'
 		);
 	}
 
