@@ -182,7 +182,7 @@ export const mergeCustomerInput = v.object({
 
 export const purchaseOrderInput = v.object({
 	supplier: requiredText('Supplier'),
-	expectedOn: v.optional(isoDate, ''),
+	expectedOn: v.optional(v.union([isoDate, v.literal('')]), ''),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
 	items: v.pipe(
 		v.array(
@@ -200,7 +200,7 @@ export const purchaseOrderUpdate = v.object({
 	supplier: v.optional(
 		v.pipe(v.string(), v.trim(), v.nonEmpty('Supplier is required'), v.maxLength(200))
 	),
-	expectedOn: v.optional(isoDate),
+	expectedOn: v.optional(v.union([isoDate, v.literal('')])),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)))
 });
 
