@@ -194,6 +194,7 @@ export const equipment = pgTable(
 		serial: text('serial').notNull().default(''),
 		installedOn: date('installed_on', { mode: 'string' }),
 		warrantyUntil: date('warranty_until', { mode: 'string' }),
+		nextServiceDue: date('next_service_due', { mode: 'string' }),
 		notes: text('notes').notNull().default(''),
 		active: boolean('active').notNull().default(true),
 		...timestamps

@@ -1118,10 +1118,12 @@ export async function notifyPartsDelay(orgId: string, jobId: string) {
 /** "You've been assigned a job" — emails the technician. Once per job+tech. */
 export async function notifyTechAssigned(orgId: string, jobId: string, memberId: string) {
 	const m = await db
-		.select({ email: user.email, name: user.name })
+		.select({ email: user.email, name: user.name, staffAlerts: member.staffAlerts })
 		.from(member)
 		.innerJoin(user, eq(user.id, member.userId))
-		.where(and(eq(member.organizationId, orgId), eq(member.id, memberId)))
+		.where(
+			and(eq(member.organizationId, orgId), eq(member.id, memberId), eq(member.staffAlerts, true))
+		)
 		.limit(1);
 	const j = await db
 		.select({

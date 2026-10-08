@@ -190,6 +190,25 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(equipment.warrantyUntil))
 		.limit(4);
 
+	const dueService = await db
+		.select({
+			name: equipment.name,
+			nextServiceDue: equipment.nextServiceDue,
+			customerId: customer.id,
+			customerName: customer.name
+		})
+		.from(equipment)
+		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.where(
+			and(
+				eq(equipment.organizationId, orgId),
+				eq(equipment.active, true),
+				lte(equipment.nextServiceDue, today)
+			)
+		)
+		.orderBy(asc(equipment.nextServiceDue))
+		.limit(4);
+
 	const renewingAgreements = await db
 		.select({
 			nextChargeAt: serviceAgreement.nextChargeAt,
@@ -323,6 +342,13 @@ export async function dashboard(orgId: string) {
 				href: `/customers/${w.customerId}`,
 				text: `${w.customerName} · ${w.name}`,
 				sub: `warranty ends ${w.warrantyUntil}`,
+				amountCents: null as number | null
+			})),
+			...dueService.map((w) => ({
+				tone: 'red' as const,
+				href: `/customers/${w.customerId}`,
+				text: `${w.customerName} · ${w.name}`,
+				sub: `service due ${w.nextServiceDue}`,
 				amountCents: null as number | null
 			})),
 			...blockedJobs.map((b) => ({

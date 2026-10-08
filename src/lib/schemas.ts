@@ -98,6 +98,7 @@ export const equipmentInput = v.object({
 	serial: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
 	installedOn: v.optional(v.nullable(isoDate)),
 	warrantyUntil: v.optional(v.nullable(isoDate)),
+	nextServiceDue: v.optional(v.nullable(isoDate)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	active: v.optional(v.boolean(), true)
 });

@@ -458,6 +458,7 @@ export async function createEquipment(
 			serial: input.serial,
 			installedOn: input.installedOn ?? null,
 			warrantyUntil: input.warrantyUntil ?? null,
+			nextServiceDue: input.nextServiceDue ?? null,
 			notes: input.notes,
 			active: input.active
 		})

@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 import { randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { command, query } from '$app/server';
 import { requireOrg, requireUser } from '#lib/server/context.ts';
@@ -69,6 +69,23 @@ export const getStaffNotifications = query(async () => {
 		.limit(50);
 });
 
+/** Unread count for the sidebar badge — same scope as getStaffNotifications. */
+export const getUnreadNotificationCount = query(async () => {
+	const { user: me } = requireUser();
+	const { orgId } = await requireOrg();
+	const r = await db
+		.select({ n: count() })
+		.from(notificationLog)
+		.where(
+			and(
+				eq(notificationLog.organizationId, orgId),
+				eq(notificationLog.recipient, me.email),
+				isNull(notificationLog.readAt)
+			)
+		);
+	return r[0]?.n ?? 0;
+});
+
 export const getSmsOutbox = query(async () => {
 	const { orgId } = await requireOrg();
 	return db
@@ -93,6 +110,7 @@ export const markAllNotificationsRead = command(v.object({}), async () => {
 			)
 		);
 	await refreshQuery(getStaffNotifications);
+	await refreshQuery(getUnreadNotificationCount);
 	return { ok: true };
 });
 

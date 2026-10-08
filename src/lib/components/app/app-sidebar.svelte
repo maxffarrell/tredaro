@@ -11,6 +11,7 @@
 	import { initials } from '#lib/format.ts';
 	import Logo from './logo.svelte';
 	import { mainNav, secondaryNav } from './nav.ts';
+	import { getUnreadNotificationCount } from '#lib/remote/workspace.remote.js';
 	import { tour } from './tour.svelte.ts';
 	import Search from '@lucide/svelte/icons/search';
 	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
@@ -88,7 +89,11 @@
 						>
 							{#snippet child({ props })}
 								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}"
-									><item.icon /><span>{item.label}</span></a
+									><item.icon /><span>{item.label}</span
+									>{#if item.href === '/notifications'}{#await getUnreadNotificationCount() then n}{#if n > 0}<span
+													class="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground"
+													>{n > 99 ? '99+' : n}</span
+												>{/if}{/await}{/if}</a
 								>
 							{/snippet}
 						</Sidebar.MenuButton>

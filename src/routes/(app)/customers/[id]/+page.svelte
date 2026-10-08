@@ -292,6 +292,7 @@
 	let eqSerial = $state('');
 	let eqInstalled = $state('');
 	let eqWarranty = $state('');
+	let eqServiceDue = $state('');
 	let eqNotes = $state('');
 	let eqActive = $state(true);
 
@@ -305,6 +306,7 @@
 		eqSerial = e?.equipment.serial ?? '';
 		eqInstalled = e?.equipment.installedOn ?? '';
 		eqWarranty = e?.equipment.warrantyUntil ?? '';
+		eqServiceDue = e?.equipment.nextServiceDue ?? '';
 		eqNotes = e?.equipment.notes ?? '';
 		eqActive = e?.equipment.active ?? true;
 		if (eqId) void getEquipmentJobs(eqId).refresh();
@@ -327,6 +329,7 @@
 				serial: eqSerial,
 				installedOn: eqInstalled || null,
 				warrantyUntil: eqWarranty || null,
+				nextServiceDue: eqServiceDue || null,
 				notes: eqNotes
 			};
 			if (eqId) {
@@ -677,6 +680,8 @@
 							<span class="font-medium">{e.equipment.name}</span>
 							{#if !e.equipment.active}
 								<StatusBadge status="inactive" label="retired" />
+							{:else if eqExpired(e.equipment.nextServiceDue)}
+								<StatusBadge status="expired" label="service due" />
 							{:else if eqExpired(e.equipment.warrantyUntil)}
 								<StatusBadge status="expired" label="warranty expired" />
 							{:else if e.equipment.warrantyUntil}
@@ -691,6 +696,11 @@
 								— {e.locationLabel || e.locationAddress}
 							{/if}
 						</p>
+						{#if e.equipment.nextServiceDue}
+							<p class="mt-0.5 text-xs text-muted-foreground">
+								Next service {e.equipment.nextServiceDue}
+							</p>
+						{/if}
 						{#if e.equipment.serial || e.lastService}
 							<p class="mt-0.5 text-xs text-muted-foreground">
 								{#if e.equipment.serial}S/N {e.equipment.serial}{/if}
@@ -1117,6 +1127,12 @@
 				<Field.Field>
 					<Field.Label for="eq-war">Warranty until</Field.Label>
 					<Input id="eq-war" type="date" bind:value={eqWarranty} />
+				</Field.Field>
+			</div>
+			<div class="grid grid-cols-2 gap-4">
+				<Field.Field>
+					<Field.Label for="eq-due">Next service due</Field.Label>
+					<Input id="eq-due" type="date" bind:value={eqServiceDue} />
 				</Field.Field>
 			</div>
 			<Field.Field>
