@@ -251,6 +251,41 @@ export async function updateAgreement(
 }
 
 /**
+ * Charges the upcoming agreement period early: posts the period's charge
+ * (idempotent via the agreement+period unique index), rolls `nextChargeAt`
+ * forward one interval, and generates that period's included visits.
+ */
+export async function chargeAgreementNow(ctx: OrgContext, id: string) {
+	const [row] = await db
+		.select({ agreement: serviceAgreement, plan: agreementPlan })
+		.from(serviceAgreement)
+		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
+		.where(and(eq(serviceAgreement.organizationId, ctx.orgId), eq(serviceAgreement.id, id)));
+	if (!row) error(404, 'Agreement not found');
+	const { agreement: m, plan: p } = row;
+	if (m.status !== 'active') error(409, `Agreement is ${m.status}`);
+	if (!m.nextChargeAt) error(409, 'Agreement has no upcoming charge');
+
+	const period = m.nextChargeAt.toISOString().slice(0, 10);
+	if (p.amount > 0) await postAgreementCharge(ctx.orgId, m.id, period, p);
+	const next = nextPeriod(period, p.interval);
+	await db
+		.update(serviceAgreement)
+		.set({ nextChargeAt: new Date(`${next}T00:00:00Z`) })
+		.where(eq(serviceAgreement.id, m.id));
+	await generateAgreementVisits(ctx.orgId, m, period, p);
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'service_agreement',
+		entityId: m.id,
+		action: 'charged_early',
+		summary: `${p.name} charged early for period ${period}`
+	});
+	return { period };
+}
+
+/**
  * Creates a plan's included visits for one billed period as unscheduled jobs
  * (`source: 'agreement'`), ready for a dispatcher to assign. Idempotent via the
  * (serviceAgreementId, agreementPeriod, agreementVisitNo) unique index.

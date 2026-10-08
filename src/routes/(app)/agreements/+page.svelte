@@ -20,6 +20,7 @@
 		getAgreements,
 		createAgreement,
 		updateAgreement,
+		chargeAgreementNow,
 		getCurrency
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
@@ -29,6 +30,7 @@
 	import Pause from '@lucide/svelte/icons/pause';
 	import Play from '@lucide/svelte/icons/play';
 	import Ban from '@lucide/svelte/icons/ban';
+	import Zap from '@lucide/svelte/icons/zap';
 
 	const currency = await getCurrency();
 	const customers = await getCustomers();
@@ -118,6 +120,15 @@
 			toast.error(errMsg(err, 'Could not update'));
 		}
 	}
+
+	async function chargeNow(id: string) {
+		try {
+			const r = await chargeAgreementNow(id);
+			toast.success(`Charged for period starting ${r.period}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not charge'));
+		}
+	}
 </script>
 
 <PageHeader title="Service agreements">
@@ -173,6 +184,13 @@
 									<Table.Cell><StatusBadge status={a.agreement.status} /></Table.Cell>
 									<Table.Cell class="text-right">
 										{#if a.agreement.status === 'active'}
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-8"
+												title="Charge next period now"
+												onclick={() => chargeNow(a.agreement.id)}><Zap class="size-4" /></Button
+											>
 											<Button
 												variant="ghost"
 												size="icon"

@@ -279,6 +279,13 @@
 							>{est.estimate.decisionName || '—'}</span
 						>
 					</div>
+					{#if est.estimate.decisionNote}
+						<div class="flex justify-between gap-4">
+							<span class="text-muted-foreground">Note</span><span
+								class="text-right text-muted-foreground">{est.estimate.decisionNote}</span
+							>
+						</div>
+					{/if}
 				{/if}
 				{#if linkedJob}
 					<Separator />

@@ -12,6 +12,7 @@
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Phone from '@lucide/svelte/icons/phone';
 	import Globe from '@lucide/svelte/icons/globe';
+	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -21,7 +22,10 @@
 	let name = $state('');
 	let email = $state('');
 	let phone = $state('');
-	let jobTypeId = $state('');
+	// Deep link: /book/<slug>?type=<jobTypeId> preselects the service
+	// (e.g. a per-service "Book now" button on the org's own site).
+	const typeParam = page.url.searchParams.get('type') ?? '';
+	let jobTypeId = $state(data.jobTypes.some((t) => t.id === typeParam) ? typeParam : '');
 	let address1 = $state('');
 	let city = $state('');
 	let addrState = $state('');

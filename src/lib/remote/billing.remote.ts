@@ -6,6 +6,7 @@ import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/billing.ts';
 import { notifyInvoiceSent, notifyInvoiceTexted } from '#lib/server/services/notifications.ts';
 import { getCustomer } from './customers.remote.ts';
+import { getJobs } from './jobs.remote.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import {
 	agreementInput,
@@ -55,6 +56,15 @@ export const updateAgreement = command(agreementUpdate, async (input) => {
 	await refreshQuery(getAgreement, input.id);
 	void getCustomer(a.customerId).refresh();
 	return a;
+});
+export const chargeAgreementNow = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	const r = await svc.chargeAgreementNow(ctx, id);
+	await refreshQuery(getAgreements, undefined);
+	await refreshQuery(getAgreement, id);
+	await refreshQuery(getCharges, undefined);
+	await refreshQuery(getJobs, undefined);
+	return r;
 });
 
 export const getPricebook = query(
