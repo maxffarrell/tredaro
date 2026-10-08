@@ -350,7 +350,17 @@ export async function updateJob(
 		})
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)))
 		.returning();
-	if (set.cancelled === true) await stopOpenTimers(ctx.orgId, id);
+	if (set.cancelled === true) {
+		await stopOpenTimers(ctx.orgId, id);
+		await emit({
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'job',
+			entityId: id,
+			action: 'cancelled',
+			summary: `Job J-${existing.number} cancelled`
+		});
+	}
 	return row;
 }
 
