@@ -239,6 +239,16 @@ export async function requestService(
 		if (!m) error(400, 'Invalid technician');
 		techId = m.id;
 	}
+	let equipmentId: string | null = null;
+	if (input.equipmentId) {
+		const [u] = await db
+			.select({ id: equipment.id })
+			.from(equipment)
+			.where(and(eq(equipment.id, input.equipmentId), eq(equipment.customerId, c.id)))
+			.limit(1);
+		if (!u) error(400, 'Invalid equipment');
+		equipmentId = u.id;
+	}
 	const row = await createJob(
 		customerCtx(orgId, userId),
 		'UTC',
@@ -250,7 +260,8 @@ export async function requestService(
 			summary: 'Portal request',
 			description: input.description,
 			preferredTime: input.preferredTime || null,
-			priority: 'normal'
+			priority: 'normal',
+			equipmentId
 		},
 		{ source: 'booking' }
 	);

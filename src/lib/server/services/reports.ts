@@ -296,6 +296,9 @@ async function techPerformance(orgId: string) {
 				name: info?.name ?? 'Former staff',
 				jobsDone: doneMap.get(memberId) ?? 0,
 				minutes: hoursMap.get(memberId) ?? 0,
+				// Logged labor per completed job — a rough "efficiency" read.
+				avgMinPerJob:
+					Math.round(((hoursMap.get(memberId) ?? 0) / (doneMap.get(memberId) || 1)) * 10) / 10,
 				revenue,
 				commissionPct: pct,
 				commission: Math.round((revenue * pct) / 100)

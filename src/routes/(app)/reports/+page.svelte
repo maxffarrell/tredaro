@@ -238,6 +238,7 @@
 						<Table.Head>Technician</Table.Head>
 						<Table.Head class="text-right">Jobs done</Table.Head>
 						<Table.Head class="text-right">Hours</Table.Head>
+						<Table.Head class="text-right">Hrs/job</Table.Head>
 						<Table.Head class="text-right">Collected</Table.Head>
 						<Table.Head class="text-right">Commission</Table.Head>
 					</Table.Row>
@@ -249,6 +250,9 @@
 							<Table.Cell class="text-right tabular-nums">{t.jobsDone}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{fmtHours(t.minutes)}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums"
+								>{t.jobsDone ? fmtHours(t.avgMinPerJob) : '—'}</Table.Cell
+							>
+							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(t.revenue, currency, true)}</Table.Cell
 							>
 							<Table.Cell class="text-right tabular-nums"
@@ -259,7 +263,7 @@
 						</Table.Row>
 					{:else}
 						<Table.Row
-							><Table.Cell colspan={5} class="text-muted-foreground"
+							><Table.Cell colspan={6} class="text-muted-foreground"
 								>No technician activity in the last 90 days.</Table.Cell
 							></Table.Row
 						>

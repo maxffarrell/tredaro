@@ -129,6 +129,15 @@
 	let reqDescription = $state('');
 	let reqPreferred = $state('');
 	let reqMemberId = $state('any');
+	let reqEquipmentId = $state<string | null>(null);
+
+	function requestFor(u: {
+		equipment: { id: string; name: string; brand: string | null; model: string | null };
+	}) {
+		reqEquipmentId = u.equipment.id;
+		reqDescription = `Service for ${u.equipment.name}${[u.equipment.brand, u.equipment.model].filter(Boolean).length ? ` (${[u.equipment.brand, u.equipment.model].filter(Boolean).join(' ')})` : ''}`;
+		reqOpen = true;
+	}
 
 	async function submitRequest(e: SubmitEvent) {
 		e.preventDefault();
@@ -136,6 +145,7 @@
 		try {
 			await requestService({
 				customerId,
+				equipmentId: reqEquipmentId,
 				serviceLocationId: reqLocationId || null,
 				jobTypeId: null,
 				description: reqDescription,
@@ -146,6 +156,7 @@
 			reqOpen = false;
 			reqDescription = reqPreferred = '';
 			reqMemberId = 'any';
+			reqEquipmentId = null;
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not send request'));
 		}
@@ -372,6 +383,14 @@
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="pr-6 text-right">
+										{#if u.equipment.active}
+											<Button
+												variant="ghost"
+												size="sm"
+												class="h-7 px-2 text-xs"
+												onclick={() => requestFor(u)}>Request service</Button
+											>
+										{/if}
 										{#if u.equipment.warrantyUntil}
 											{#if u.equipment.warrantyUntil < todayIso}
 												<span class="text-xs text-destructive"

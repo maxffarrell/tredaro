@@ -222,6 +222,37 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(equipment.nextServiceDue))
 		.limit(4);
 
+	// Customers whose last completed job is >90 days back with nothing open —
+	// prime candidates for a check-in call or a maintenance agreement pitch.
+	const cutoff = new Date();
+	cutoff.setDate(cutoff.getDate() - 90);
+	const quietCustomers = await db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			lastAt: sql<string>`max(${job.completedAt})`.mapWith(String)
+		})
+		.from(customer)
+		.innerJoin(
+			job,
+			and(
+				eq(job.customerId, customer.id),
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt)
+			)
+		)
+		.where(
+			and(
+				eq(customer.organizationId, orgId),
+				sql`not exists (select 1 from ${job} j2 where j2.customer_id = ${customer.id} and j2.status in ('unscheduled','scheduled','dispatched','in_progress') and j2.cancelled_at is null)`
+			)
+		)
+		.groupBy(customer.id, customer.name)
+		.having(sql`max(${job.completedAt}) < ${cutoff}`)
+		.orderBy(sql`max(${job.completedAt})`)
+		.limit(4);
+
 	const renewingAgreements = await db
 		.select({
 			nextChargeAt: serviceAgreement.nextChargeAt,
@@ -377,6 +408,13 @@ export async function dashboard(orgId: string) {
 				href: `/jobs/${j.id}`,
 				text: `${j.customerName} · J-${j.number} ${j.summary}`,
 				sub: 'completed — not invoiced yet',
+				amountCents: null as number | null
+			})),
+			...quietCustomers.map((q) => ({
+				tone: 'blue' as const,
+				href: `/customers/${q.id}`,
+				text: `${q.name} — no visit in 90+ days`,
+				sub: `last ${localDate(new Date(q.lastAt), tz)} — reach out?`,
 				amountCents: null as number | null
 			})),
 			...renewingAgreements.map((a) => ({
