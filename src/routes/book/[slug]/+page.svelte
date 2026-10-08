@@ -61,6 +61,7 @@
 						? `${preferredDate}${preferredTime ? ` · ${preferredTime}` : ''}`
 						: preferredTime,
 					description,
+					preferredMemberId: preferredMemberId !== 'any' ? preferredMemberId : undefined,
 					website
 				}
 			});
