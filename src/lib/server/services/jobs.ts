@@ -580,16 +580,31 @@ export async function recordJobEvent(
 		.from(member)
 		.where(and(eq(member.organizationId, ctx.orgId), eq(member.userId, ctx.userId)));
 
-	const [row] = await db
-		.insert(jobEvent)
-		.values({
-			organizationId: ctx.orgId,
-			jobId: input.jobId,
-			kind: input.kind,
-			memberId: memberRow?.id ?? null,
-			note: input.note ?? null
-		})
-		.returning();
+	// Double-clicks on the status buttons shouldn't double-log: reuse the event
+	// if the same kind was recorded for this job in the last minute.
+	const [recent] = await db
+		.select()
+		.from(jobEvent)
+		.where(
+			and(
+				eq(jobEvent.jobId, input.jobId),
+				eq(jobEvent.kind, input.kind),
+				gte(jobEvent.at, new Date(Date.now() - 60_000))
+			)
+		)
+		.limit(1);
+	const [row] = recent
+		? [recent]
+		: await db
+				.insert(jobEvent)
+				.values({
+					organizationId: ctx.orgId,
+					jobId: input.jobId,
+					kind: input.kind,
+					memberId: memberRow?.id ?? null,
+					note: input.note ?? null
+				})
+				.returning();
 
 	const status = STATUS_FOR_EVENT[input.kind as keyof typeof STATUS_FOR_EVENT];
 	if (status) {
