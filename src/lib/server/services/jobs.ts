@@ -98,6 +98,7 @@ export async function updateJobType(ctx: OrgContext, input: v.InferOutput<typeof
 const jobSelect = {
 	job,
 	jobTypeName: jobType.name,
+	typeDurationMin: jobType.durationMin,
 	color: jobType.color,
 	customerName: customer.name,
 	companyName: customer.companyName,

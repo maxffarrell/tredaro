@@ -51,13 +51,19 @@
 		else selected.add(id);
 	}
 	async function assignSelected() {
-		if (!selected.size) return;
+		if (!selected.size || !bulkTech) return;
 		bulkBusy = true;
+		// Back-to-back from 8am on the board's first day, each slot as long as its job.
+		let cursor = 8 * 60;
 		try {
-			for (const [i, id] of [...selected].entries()) {
-				// Stagger 30-minute slots from 8am on the board's first day.
-				const startsAt = `${start}T08:${i % 2 ? '30' : '00'}`;
-				await updateJob({ id, technicianId: bulkTech || null, startsAt }).updates(getDispatchBoard);
+			for (const id of [...selected]) {
+				const j = board.unscheduled.find((x) => x.job.id === id);
+				const hh = String(Math.floor(cursor / 60)).padStart(2, '0');
+				const mm = String(cursor % 60).padStart(2, '0');
+				await updateJob({ id, technicianId: bulkTech, startsAt: `${start}T${hh}:${mm}` }).updates(
+					getDispatchBoard
+				);
+				cursor += j?.typeDurationMin ?? 60;
 			}
 			toast.success(`Assigned ${selected.size} job${selected.size > 1 ? 's' : ''}`);
 			selected.clear();
@@ -186,8 +192,11 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
-				<Button size="sm" class="h-7 text-xs" disabled={bulkBusy} onclick={assignSelected}
-					>Assign</Button
+				<Button
+					size="sm"
+					class="h-7 text-xs"
+					disabled={bulkBusy || !bulkTech}
+					onclick={assignSelected}>Assign</Button
 				>
 				<Button size="sm" variant="ghost" class="h-7 text-xs" onclick={() => selected.clear()}
 					>Clear</Button
