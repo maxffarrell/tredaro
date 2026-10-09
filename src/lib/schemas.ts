@@ -189,7 +189,9 @@ export const agreementInput = v.object({
 	/** Fixed-term agreements auto-complete after this many billed periods. */
 	maxPeriods: v.optional(
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1200)))
-	)
+	),
+	/** Fixed-term only: renew for another term instead of completing. */
+	autoRenew: v.optional(v.boolean(), false)
 });
 export const agreementUpdate = v.object({
 	id: idSchema,
@@ -436,7 +438,9 @@ const lineItem = v.object({
 	qty: v.optional(v.pipe(v.number(), v.minValue(0.01)), 1),
 	unitPrice: cents,
 	/** Customer may include/exclude the line when approving an estimate. */
-	optional: v.optional(v.boolean())
+	optional: v.optional(v.boolean()),
+	/** Mutually-exclusive option group on estimates (e.g. 'Good'/'Better'/'Best'); blank = base line. */
+	optionGroup: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)))
 });
 
 export const estimateInput = v.object({
@@ -466,7 +470,15 @@ export const estimateDecisionInput = v.object({
 	name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ''),
 	note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
 	/** Optional line items the customer chose to include (item ids). */
-	items: v.optional(v.array(idSchema), [])
+	items: v.optional(v.array(idSchema), []),
+	/** Option group picked on a tiered estimate (required when groups exist). */
+	option: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
+});
+
+/** Staff records a decision on a sent estimate — option picks a tier. */
+export const estimateStaffDecisionInput = v.object({
+	id: idSchema,
+	option: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
 });
 
 export const invoiceInput = v.object({

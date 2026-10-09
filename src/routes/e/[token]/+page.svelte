@@ -32,9 +32,18 @@
 	} = $derived(data);
 	/** Optional lines the customer excludes — all are included by default. */
 	let excluded = new SvelteSet<string>();
-	const hasOptional = $derived(items.some((i) => i.optional));
+	/** Tiered options: named groups the customer picks one of; blank-group lines are base work. */
+	const groups = $derived([...new Set(items.map((i) => i.optionGroup).filter((g) => g))]);
+	const baseItems = $derived(items.filter((i) => i.optionGroup === ''));
+	let pickedOption = $state(est.acceptedOption ?? '');
+	const scoped = $derived(
+		groups.length
+			? items.filter((i) => i.optionGroup === '' || i.optionGroup === pickedOption)
+			: items
+	);
+	const hasOptional = $derived(scoped.some((i) => i.optional));
 	const total = $derived(
-		items.reduce((s, i) => s + (excluded.has(i.id) ? 0 : i.qty * i.unitPrice), 0)
+		scoped.reduce((s, i) => s + (excluded.has(i.id) ? 0 : i.qty * i.unitPrice), 0)
 	);
 	function toggleOptional(id: string, on: boolean) {
 		if (on) excluded.delete(id);
@@ -96,6 +105,10 @@
 			toast.error('Type your name to approve');
 			return;
 		}
+		if (approve && groups.length && !pickedOption) {
+			toast.error('Pick an option first');
+			return;
+		}
 		pending = true;
 		try {
 			const row = await decidePublicEstimate({
@@ -104,8 +117,16 @@
 				name: name.trim(),
 				note: note.trim(),
 				items: approve
-					? items.filter((i) => i.optional && !excluded.has(i.id)).map((i) => i.id)
-					: []
+					? items
+							.filter(
+								(i) =>
+									i.optional &&
+									!excluded.has(i.id) &&
+									(i.optionGroup === '' || i.optionGroup === pickedOption)
+							)
+							.map((i) => i.id)
+					: [],
+				option: approve ? pickedOption : ''
 			});
 			approvedJobId = row?.jobId ?? null;
 			decided = approve ? 'approved' : 'declined';
@@ -155,57 +176,127 @@
 			</div>
 		</div>
 
-		<Card.Root>
-			<Card.Content class="overflow-x-auto px-0">
-				<Table.Root>
-					<Table.Header>
+		{#snippet itemsTable(
+			rows: {
+				id: string;
+				name: string;
+				description: string;
+				qty: number;
+				unitPrice: number;
+				optional: boolean;
+			}[]
+		)}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head class="pl-6">Item</Table.Head>
+						<Table.Head class="w-16 text-right">Qty</Table.Head>
+						<Table.Head class="w-28 text-right">Unit</Table.Head>
+						<Table.Head class="w-28 pr-6 text-right">Amount</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each rows as i (i.id)}
 						<Table.Row>
-							<Table.Head class="pl-6">Item</Table.Head>
-							<Table.Head class="w-16 text-right">Qty</Table.Head>
-							<Table.Head class="w-28 text-right">Unit</Table.Head>
-							<Table.Head class="w-28 pr-6 text-right">Amount</Table.Head>
+							<Table.Cell class="pl-6"
+								>{#if i.optional && !decided && est.status === 'sent'}
+									<label
+										class="mr-2 inline-flex cursor-pointer items-center gap-1.5 align-middle text-xs text-muted-foreground"
+									>
+										<input
+											type="checkbox"
+											class="accent-primary"
+											checked={!excluded.has(i.id)}
+											onchange={(e) => toggleOptional(i.id, e.currentTarget.checked)}
+										/>
+										include
+									</label>
+								{:else if i.optional}<Badge variant="secondary" class="mr-1 font-normal"
+										>{excluded.has(i.id) ? 'Skipped' : 'Optional'}</Badge
+									>{/if}{i.name}<span class="text-muted-foreground">
+									{i.description}</span
+								></Table.Cell
+							>
+							<Table.Cell class="text-right">{i.qty}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums"
+								>{formatMoney(i.unitPrice, currency)}</Table.Cell
+							>
+							<Table.Cell class="pr-6 text-right tabular-nums"
+								>{formatMoney(i.qty * i.unitPrice, currency)}</Table.Cell
+							>
 						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each items as i (i.id)}
-							<Table.Row>
-								<Table.Cell class="pl-6"
-									>{#if i.optional && !decided && est.status === 'sent'}
-										<label
-											class="mr-2 inline-flex cursor-pointer items-center gap-1.5 align-middle text-xs text-muted-foreground"
-										>
-											<input
-												type="checkbox"
-												class="accent-primary"
-												checked={!excluded.has(i.id)}
-												onchange={(e) => toggleOptional(i.id, e.currentTarget.checked)}
-											/>
-											include
-										</label>
-									{:else if i.optional}<Badge variant="secondary" class="mr-1 font-normal"
-											>{excluded.has(i.id) ? 'Skipped' : 'Optional'}</Badge
-										>{/if}{i.name}<span class="text-muted-foreground">
-										{i.description}</span
-									></Table.Cell
-								>
-								<Table.Cell class="text-right">{i.qty}</Table.Cell>
-								<Table.Cell class="text-right tabular-nums"
-									>{formatMoney(i.unitPrice, currency)}</Table.Cell
-								>
-								<Table.Cell class="pr-6 text-right tabular-nums"
-									>{formatMoney(i.qty * i.unitPrice, currency)}</Table.Cell
-								>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-				<div class="flex justify-between border-t px-6 py-3 text-sm font-semibold tabular-nums">
-					<span>Total{hasOptional ? ' (with selected options)' : ''}</span><span
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{/snippet}
+
+		{#if groups.length}
+			{#if baseItems.length}
+				<Card.Root>
+					<Card.Header
+						><Card.Title class="text-base">Included in every option</Card.Title></Card.Header
+					>
+					<Card.Content class="overflow-x-auto px-0">
+						{@render itemsTable(baseItems)}
+					</Card.Content>
+				</Card.Root>
+			{/if}
+			<div class="grid grid-cols-1 gap-4 {groups.length > 1 ? 'sm:grid-cols-2' : ''}">
+				{#each groups as g (g)}
+					{@const gItems = items.filter((i) => i.optionGroup === g)}
+					{@const selectable = !decided && est.status === 'sent'}
+					<button
+						type="button"
+						class="block h-full w-full text-left disabled:cursor-default"
+						disabled={!selectable}
+						onclick={() => (pickedOption = g)}
+					>
+						<Card.Root
+							class="h-full {pickedOption === g ? 'border-primary ring-1 ring-primary' : ''}"
+						>
+							<Card.Header>
+								<div class="flex items-center justify-between gap-2">
+									<Card.Title class="text-base">{g}</Card.Title>
+									{#if decided && pickedOption === g}
+										<Badge>Accepted</Badge>
+									{/if}
+									<span class="font-semibold tabular-nums"
+										>{formatMoney(
+											gItems.reduce(
+												(s, i) => s + (excluded.has(i.id) ? 0 : i.qty * i.unitPrice),
+												0
+											),
+											currency
+										)}</span
+									>
+								</div>
+							</Card.Header>
+							<Card.Content class="overflow-x-auto px-0">
+								{@render itemsTable(gItems)}
+							</Card.Content>
+						</Card.Root>
+					</button>
+				{/each}
+			</div>
+			<Card.Root>
+				<Card.Content class="flex justify-between py-3 text-sm font-semibold tabular-nums">
+					<span>Total{pickedOption ? ` (base + ${pickedOption})` : ' — pick an option'}</span><span
 						>{formatMoney(total, currency)}</span
 					>
-				</div>
-			</Card.Content>
-		</Card.Root>
+				</Card.Content>
+			</Card.Root>
+		{:else}
+			<Card.Root>
+				<Card.Content class="overflow-x-auto px-0">
+					{@render itemsTable(items)}
+					<div class="flex justify-between border-t px-6 py-3 text-sm font-semibold tabular-nums">
+						<span>Total{hasOptional ? ' (with selected options)' : ''}</span><span
+							>{formatMoney(total, currency)}</span
+						>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 
 		{#if est.notes}
 			<Card.Root>

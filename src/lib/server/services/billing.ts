@@ -21,6 +21,7 @@ import {
 	serviceAgreement,
 	serviceLocation,
 	organization,
+	estimate,
 	estimateItem,
 	jobType,
 	outer
@@ -181,7 +182,8 @@ export async function createAgreement(
 			planId: input.planId,
 			startsAt: new Date(`${start}T00:00:00Z`),
 			nextChargeAt: new Date(`${nextPeriod(start, p.interval)}T00:00:00Z`),
-			maxPeriods: input.maxPeriods ?? null
+			maxPeriods: input.maxPeriods ?? null,
+			autoRenew: input.autoRenew ?? false
 		})
 		.returning();
 
@@ -222,13 +224,39 @@ async function billedPeriods(agreementId: string, q: typeof db = db): Promise<nu
 	return n;
 }
 
-/** Marks an agreement completed once its fixed term is fully billed. */
+/**
+ * Marks an agreement completed once its fixed term is fully billed — or rolls it
+ * into a fresh term when auto-renew is on (returning false so billing continues).
+ */
 async function completeIfTermDone(
-	m: { id: string; maxPeriods: number | null },
+	m: {
+		id: string;
+		organizationId: string;
+		maxPeriods: number | null;
+		autoRenew?: boolean;
+		termsCompleted?: number | null;
+	},
 	q: typeof db = db
 ): Promise<boolean> {
 	if (!m.maxPeriods) return false;
-	if ((await billedPeriods(m.id, q)) < m.maxPeriods) return false;
+	const billed = (await billedPeriods(m.id, q)) - (m.termsCompleted ?? 0) * m.maxPeriods;
+	if (billed < m.maxPeriods) return false;
+	if (m.autoRenew) {
+		const term = (m.termsCompleted ?? 0) + 1;
+		await q
+			.update(serviceAgreement)
+			.set({ termsCompleted: term })
+			.where(eq(serviceAgreement.id, m.id));
+		m.termsCompleted = term;
+		await emit({
+			orgId: m.organizationId,
+			entityType: 'agreement',
+			entityId: m.id,
+			action: 'renewed',
+			summary: `Agreement renewed — term ${term + 1} started`
+		});
+		return false;
+	}
 	await q
 		.update(serviceAgreement)
 		.set({ status: 'completed', nextChargeAt: null, cancelledAt: new Date() })
@@ -467,8 +495,11 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 	const { agreement: m, plan: p } = row;
 	if (m.status !== 'active') error(409, `Agreement is ${m.status}`);
 	if (!m.nextChargeAt) error(409, 'Agreement has no upcoming charge');
-	if (m.maxPeriods && (await billedPeriods(m.id)) >= m.maxPeriods) {
-		await completeIfTermDone(m);
+	if (
+		m.maxPeriods &&
+		(await billedPeriods(m.id)) - (m.termsCompleted ?? 0) * m.maxPeriods >= m.maxPeriods &&
+		(await completeIfTermDone(m))
+	) {
 		error(409, 'Agreement term is fully billed');
 	}
 
@@ -1105,11 +1136,23 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		unitPrice: e.amount
 	}));
 	if (j.estimateId) {
-		const items = await db
+		const [est] = await db.select().from(estimate).where(eq(estimate.id, j.estimateId));
+		const all = await db
 			.select()
 			.from(estimateItem)
 			.where(eq(estimateItem.estimateId, j.estimateId))
 			.orderBy(asc(estimateItem.position));
+		// Bill only the accepted scope: base lines + the picked option group +
+		// optional lines kept at decision time (same rule as estimates.acceptedScope).
+		const kept = new Set(est?.acceptedItems ?? []);
+		const items =
+			est && (est.acceptedOption != null || kept.size > 0)
+				? all.filter(
+						(i) =>
+							(i.optionGroup === '' || i.optionGroup === est.acceptedOption) &&
+							(!i.optional || kept.has(i.id))
+					)
+				: all;
 		if (items.length) {
 			return {
 				job: j,

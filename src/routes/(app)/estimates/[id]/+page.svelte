@@ -76,6 +76,7 @@
 			qty: number;
 			unitPrice: number;
 			optional: boolean;
+			optionGroup: string;
 		}[]
 	>([]);
 	let loadedId = '';
@@ -92,7 +93,8 @@
 				name: i.item.name,
 				qty: i.item.qty,
 				unitPrice: i.item.unitPrice,
-				optional: i.item.optional
+				optional: i.item.optional,
+				optionGroup: i.item.optionGroup
 			}));
 		}
 	});
@@ -133,7 +135,8 @@
 						name: i.name,
 						qty: i.qty,
 						unitPrice: i.unitPrice,
-						optional: i.optional
+						optional: i.optional,
+						optionGroup: i.optionGroup
 					}))
 			}).updates(getEstimate, getEstimates);
 			toast.success('Estimate saved');
@@ -220,12 +223,18 @@
 		progOpen = true;
 	}
 
+	const optionGroups = $derived([
+		...new Set(est.items.map((i) => i.item.optionGroup).filter((g) => g))
+	]);
+	let pickedOption = $state('');
+
 	async function decide(approve: boolean) {
 		try {
-			await (approve ? approveEstimateStaff(id) : declineEstimateStaff(id)).updates(
-				getEstimate,
-				getEstimates
-			);
+			await (
+				approve
+					? approveEstimateStaff({ id, option: pickedOption || optionGroups[0] || '' })
+					: declineEstimateStaff(id)
+			).updates(getEstimate, getEstimates);
 			toast.success(approve ? 'Estimate approved (recorded by staff)' : 'Estimate declined');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not record decision'));
@@ -285,6 +294,18 @@
 				onclick={resend}
 				disabled={resending}><Mail /> {resending ? 'Resending…' : 'Resend'}</Button
 			>
+			{#if optionGroups.length}
+				<Select.Root type="single" bind:value={pickedOption}>
+					<Select.Trigger class="h-8 w-36" title="Approve as this option"
+						>{pickedOption || optionGroups[0]}</Select.Trigger
+					>
+					<Select.Content>
+						{#each optionGroups as g (g)}
+							<Select.Item value={g}>{g}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			{/if}
 			<Button size="sm" variant="outline" onclick={() => decide(true)}><Check /> Approve</Button>
 			<Button size="sm" variant="outline" onclick={() => decide(false)}><X /> Decline</Button>
 		{/if}
@@ -344,10 +365,15 @@
 			{#if draft}
 				<form class="space-y-4" onsubmit={save}>
 					{#each items as item, i (i)}
-						<div class="grid grid-cols-[1fr_70px_120px_64px_24px_32px] items-center gap-2">
+						<div class="grid grid-cols-[1fr_70px_120px_90px_64px_24px_32px] items-center gap-2">
 							<Input placeholder="Description" bind:value={item.name} />
 							<Input type="number" min={0.01} step={0.01} max={9999} bind:value={item.qty} />
 							<MoneyInput bind:value={item.unitPrice} />
+							<Input
+								placeholder="Option"
+								title="Option group (e.g. Good / Better / Best) — the customer picks one group; blank groups with base items"
+								bind:value={item.optionGroup}
+							/>
 							<label
 								class="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground select-none"
 								title="Customer can include or skip this line on the approval page"
@@ -395,7 +421,14 @@
 							onclick={() =>
 								(items = [
 									...items,
-									{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0, optional: false }
+									{
+										pricebookItemId: null,
+										name: '',
+										qty: 1,
+										unitPrice: 0,
+										optional: false,
+										optionGroup: ''
+									}
 								])}><Plus /> Add item</Button
 						>
 						<span class="font-medium tabular-nums">Total {formatMoney(totalCents, currency)}</span>
@@ -439,7 +472,8 @@
 												name: sg.name,
 												qty: 1,
 												unitPrice: sg.price,
-												optional: false
+												optional: false,
+												optionGroup: ''
 											}
 										])}>{sg.name}</Button
 								>
@@ -492,6 +526,8 @@
 									>{i.item.name}{#if i.item.optional}<Badge
 											variant="secondary"
 											class="mx-1 font-normal">Optional</Badge
+										>{/if}{#if i.item.optionGroup}<Badge variant="outline" class="mx-1 font-normal"
+											>{i.item.optionGroup}</Badge
 										>{/if}<span class="text-muted-foreground">
 										{i.item.description}</span
 									></Table.Cell
@@ -584,6 +620,13 @@
 							>{est.estimate.decisionName || '—'}</span
 						>
 					</div>
+					{#if est.estimate.acceptedOption}
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Option</span><span
+								>{est.estimate.acceptedOption}</span
+							>
+						</div>
+					{/if}
 					{#if est.estimate.decisionNote}
 						<div class="flex justify-between gap-4">
 							<span class="text-muted-foreground">Note</span><span

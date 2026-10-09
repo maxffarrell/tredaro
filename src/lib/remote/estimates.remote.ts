@@ -6,7 +6,12 @@ import * as svc from '#lib/server/services/estimates.ts';
 import { notifyEstimateSent } from '#lib/server/services/notifications.ts';
 import { getCustomer } from './customers.remote.ts';
 import { getInvoices, getCharges } from './billing.remote.ts';
-import { estimateInput, estimateUpdate, idSchema } from '#lib/schemas.ts';
+import {
+	estimateInput,
+	estimateUpdate,
+	estimateStaffDecisionInput,
+	idSchema
+} from '#lib/schemas.ts';
 
 export const getEstimates = query(
 	v.optional(v.object({ status: v.optional(v.array(v.string())) })),
@@ -59,10 +64,10 @@ export const reviseEstimate = command(idSchema, async (id) => {
 	return rev;
 });
 
-export const approveEstimateStaff = command(idSchema, async (id) => {
+export const approveEstimateStaff = command(estimateStaffDecisionInput, async ({ id, option }) => {
 	const ctx = await requireOrg();
 	const { user } = requireUser();
-	const row = await svc.decideEstimateStaff(ctx, id, true, user.name || user.email);
+	const row = await svc.decideEstimateStaff(ctx, id, true, user.name || user.email, option);
 	await refreshQuery(getEstimate, id);
 	await refreshQuery(getEstimates, undefined);
 	return row;

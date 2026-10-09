@@ -75,8 +75,14 @@
 		}
 	});
 	let items = $state<
-		{ pricebookItemId: string | null; name: string; qty: number; unitPrice: number }[]
-	>([{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }]);
+		{
+			pricebookItemId: string | null;
+			name: string;
+			qty: number;
+			unitPrice: number;
+			optionGroup: string;
+		}[]
+	>([{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0, optionGroup: '' }]);
 	const jobTypes = $derived(await getJobTypes());
 	const pricebookItems = $derived(await getPricebook());
 	const suggestions = $derived(
@@ -112,7 +118,7 @@
 			else {
 				items = [
 					...items.filter((i) => i.name.trim()),
-					...suggested.map((i) => ({ pricebookItemId: null, ...i }))
+					...suggested.map((i) => ({ pricebookItemId: null, optionGroup: '', ...i }))
 				];
 				toast.success(`${suggested.length} item${suggested.length === 1 ? '' : 's'} suggested`);
 			}
@@ -172,7 +178,8 @@
 						pricebookItemId: i.pricebookItemId,
 						name: i.name,
 						qty: i.qty,
-						unitPrice: i.unitPrice
+						unitPrice: i.unitPrice,
+						optionGroup: i.optionGroup
 					}))
 			}).updates(getEstimates);
 			toast.success(`Estimate E-${est!.number} created`);
@@ -403,7 +410,8 @@
 										pricebookItemId: sg.id,
 										name: sg.name,
 										qty: 1,
-										unitPrice: sg.price
+										unitPrice: sg.price,
+										optionGroup: ''
 									}
 								])}>{sg.name}</Button
 						>
@@ -413,7 +421,7 @@
 			<div class="space-y-2">
 				<p class="text-sm font-medium">Items</p>
 				{#each items as item, i (i)}
-					<div class="grid grid-cols-[1fr_70px_110px_32px] items-center gap-2">
+					<div class="grid grid-cols-[1fr_70px_110px_90px_32px] items-center gap-2">
 						<Input placeholder="Description" bind:value={item.name} />
 						<Input
 							type="number"
@@ -424,6 +432,11 @@
 							placeholder="Qty"
 						/>
 						<MoneyInput bind:value={item.unitPrice} />
+						<Input
+							placeholder="Option"
+							title="Option group (e.g. Good / Better / Best) — the customer picks one group; blank groups with base items"
+							bind:value={item.optionGroup}
+						/>
 						<Button
 							variant="ghost"
 							size="icon"
@@ -440,8 +453,10 @@
 							variant="outline"
 							size="sm"
 							onclick={() =>
-								(items = [...items, { pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }])}
-							><Plus /> Add item</Button
+								(items = [
+									...items,
+									{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0, optionGroup: '' }
+								])}><Plus /> Add item</Button
 						>
 						{#if ai.available}
 							<Button

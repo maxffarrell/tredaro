@@ -245,7 +245,7 @@
 									>
 									<Table.Cell class="hidden text-muted-foreground lg:table-cell"
 										>{a.agreement.maxPeriods
-											? `${a.periodsBilled ?? '—'} of ${a.agreement.maxPeriods}`
+											? `${a.agreement.termsCompleted ? `term ${a.agreement.termsCompleted + 1} · ` : ''}${(a.periodsBilled ?? 0) - (a.agreement.termsCompleted ?? 0) * a.agreement.maxPeriods} of ${a.agreement.maxPeriods}${a.agreement.autoRenew ? ' ↻' : ''}`
 											: '∞'}</Table.Cell
 									>
 									<Table.Cell><StatusBadge status={a.agreement.status} /></Table.Cell>

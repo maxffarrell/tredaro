@@ -305,6 +305,10 @@ export const serviceAgreement = pgTable(
 		nextChargeAt: timestamp('next_charge_at', { withTimezone: true }),
 		/** Fixed-term: auto-complete the agreement after this many billed periods (null = runs forever). */
 		maxPeriods: integer('max_periods'),
+		/** Fixed-term: roll into a fresh term instead of completing when fully billed. */
+		autoRenew: boolean('auto_renew').notNull().default(false),
+		/** Count of completed fixed terms (auto-renew only). */
+		termsCompleted: integer('terms_completed').notNull().default(0),
 		...timestamps
 	},
 	(t) => [
@@ -558,6 +562,10 @@ export const estimate = pgTable(
 		/** Typed name captured on the public approval page. */
 		decisionName: text('decision_name'),
 		decisionNote: text('decision_note'),
+		/** Option group picked at approval (null = untiered or undecided). */
+		acceptedOption: text('accepted_option'),
+		/** Optional line-item ids kept at decision time. */
+		acceptedItems: text('accepted_items').array(),
 		/** Staff-only notes — never shown on the public quote. */
 		internalNotes: text('internal_notes').notNull().default(''),
 		/** Customer's purchase-order / reference number, printed on the quote. */
@@ -596,6 +604,8 @@ export const estimateItem = pgTable(
 		unitPrice: integer('unit_price').notNull(),
 		/** Customer may include/exclude the line on the public approval page. */
 		optional: boolean('optional').notNull().default(false),
+		/** Mutually-exclusive option group (e.g. 'Good'/'Better'/'Best'); blank = base line. */
+		optionGroup: text('option_group').notNull().default(''),
 		position: integer('position').notNull().default(0)
 	},
 	(t) => [index('estimate_item_estimate_idx').on(t.estimateId)]
