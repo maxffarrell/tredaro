@@ -12,6 +12,7 @@
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { errMsg } from '#lib/format.ts';
+	import Download from '@lucide/svelte/icons/download';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
@@ -107,6 +108,9 @@
 					goto(`?from=${start}`, { replaceState: true });
 				}}><ChevronRight /></Button
 			>
+			<Button size="sm" variant="outline" href="/api/export/payroll.csv?from={start}&to={end}"
+				><Download /> Export</Button
+			>
 		</div>
 	{/snippet}
 </PageHeader>
@@ -149,6 +153,13 @@
 				<Card.Title class="text-base">{g.name}</Card.Title>
 				<div class="flex items-center gap-2">
 					<Badge variant="outline" class="font-normal">{fmtDur(sumMin(g.rows))}</Badge>
+					{#if sumMin(g.rows) > 40 * 60}
+						<Badge
+							variant="outline"
+							class="border-amber-300 font-normal text-amber-700 dark:text-amber-400"
+							title="{fmtDur(sumMin(g.rows) - 40 * 60)} over a 40-hour week">OT</Badge
+						>
+					{/if}
 					{#if pending > 0 && memberId}
 						<Button
 							size="sm"
@@ -177,6 +188,8 @@
 									{#if r.entry.endedAt}– {localTime(r.entry.endedAt, tz)}{:else}– running{/if}
 									{#if r.entry.note}
 										· {r.entry.note}{/if}
+									{#if r.entry.approvedAt && r.approvedByName}
+										· approved by {r.approvedByName}{/if}
 								</p>
 							</div>
 							<span class="shrink-0 text-muted-foreground tabular-nums"

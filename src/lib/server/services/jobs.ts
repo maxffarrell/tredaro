@@ -17,6 +17,7 @@ import {
 	ne,
 	sql
 } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '#lib/server/db/index.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import { createInvoice } from './billing.ts';
@@ -1198,11 +1199,13 @@ const requireJob = async (orgId: string, jobId: string) => {
 /** Entries for a job, newest first, plus the caller's own open entry if they have one. */
 export async function listTimeEntries(ctx: OrgContext, jobId: string) {
 	await requireJob(ctx.orgId, jobId);
+	const approver = alias(user, 'time_entry_approver');
 	const entries = await db
-		.select({ entry: jobTimeEntry, memberName: user.name })
+		.select({ entry: jobTimeEntry, memberName: user.name, approvedByName: approver.name })
 		.from(jobTimeEntry)
 		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
+		.leftJoin(approver, eq(jobTimeEntry.approvedById, approver.id))
 		.where(eq(jobTimeEntry.jobId, jobId))
 		.orderBy(desc(jobTimeEntry.startedAt));
 	const me = await memberFor(ctx);
@@ -1440,10 +1443,12 @@ export async function approveAllTimeEntries(ctx: OrgContext, jobId: string) {
 /** Org-wide time entries in a range for the payroll review page. Admin/owner only. */
 export async function payrollHours(ctx: OrgContext, from: Date, to: Date) {
 	if (ctx.role === 'member') error(403, 'Admins only');
+	const approver = alias(user, 'payroll_approver');
 	return db
 		.select({
 			entry: jobTimeEntry,
 			memberName: user.name,
+			approvedByName: approver.name,
 			jobId: job.id,
 			jobNumber: job.number,
 			jobSummary: job.summary,
@@ -1452,6 +1457,7 @@ export async function payrollHours(ctx: OrgContext, from: Date, to: Date) {
 		.from(jobTimeEntry)
 		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
+		.leftJoin(approver, eq(jobTimeEntry.approvedById, approver.id))
 		.leftJoin(job, eq(jobTimeEntry.jobId, job.id))
 		.leftJoin(customer, eq(job.customerId, customer.id))
 		.where(
