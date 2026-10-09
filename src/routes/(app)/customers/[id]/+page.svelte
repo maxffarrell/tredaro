@@ -37,6 +37,7 @@
 		emailStatementCmd,
 		getEquipmentJobs,
 		removeSavedCard,
+		chargeCardOnFile,
 		revokePortalAccess
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
@@ -412,6 +413,21 @@
 		}
 		cardPending = false;
 	}
+	let chargingCard = $state(false);
+	async function chargeCard() {
+		chargingCard = true;
+		try {
+			const r = await chargeCardOnFile(id).updates(getCustomer);
+			if (r.failed)
+				toast.error(
+					`${formatMoney(r.charged, currency)} charged — ${formatMoney(r.failed, currency)} declined`
+				);
+			else toast.success(`Charged ${formatMoney(r.charged, currency)} to the card on file`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not charge the card'));
+		}
+		chargingCard = false;
+	}
 	async function revokePortal() {
 		revokePending = true;
 		try {
@@ -613,13 +629,25 @@
 							><CreditCard class="size-3.5" />
 							{c.customer.savedCardLabel} on file — recurring charges auto-collect</span
 						>
-						<Button
-							variant="ghost"
-							size="sm"
-							class="h-6 px-2 text-xs"
-							disabled={cardPending}
-							onclick={removeCard}>Remove</Button
-						>
+						<span class="flex gap-1">
+							<Button
+								variant="ghost"
+								size="sm"
+								class="h-6 px-2 text-xs"
+								disabled={chargingCard ||
+									!c.charges.some(
+										(ch) => ch.charge.status === 'open' && ch.charge.amount - ch.paid > 0
+									)}
+								onclick={chargeCard}>Charge now</Button
+							>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="h-6 px-2 text-xs"
+								disabled={cardPending}
+								onclick={removeCard}>Remove</Button
+							>
+						</span>
 					</div>
 				{/if}
 				<form class="space-y-4" onsubmit={saveCustomer}>

@@ -193,6 +193,7 @@ export async function createAgreement(
 			dueDate: start,
 			amount: p.initialFee
 		});
+		await applyUnappliedCredit(ctx.orgId, input.customerId);
 	}
 	if (p.amount > 0) {
 		await postAgreementCharge(ctx.orgId, row!.id, start, p);
@@ -263,6 +264,7 @@ async function postAgreementCharge(
 		})
 		.onConflictDoNothing()
 		.returning();
+	if (row) await applyUnappliedCredit(orgId, row.customerId, q);
 	return row ?? null;
 }
 
@@ -326,8 +328,98 @@ async function autoChargeAgreement(
 		});
 		return;
 	}
-	const { notifyAutoChargeFailed } = await import('./notifications.ts');
+	const { notifyAutoChargeFailed, emailAutoChargeFailedToCustomer } =
+		await import('./notifications.ts');
 	await notifyAutoChargeFailed(orgId, posted.customerId, posted.id, c.savedCardLabel);
+	await emailAutoChargeFailedToCustomer(
+		orgId,
+		posted.customerId,
+		posted.id,
+		posted.amount,
+		c.savedCardLabel
+	);
+}
+
+/**
+ * Staff-initiated "charge card on file" — settles the customer's open charges
+ * oldest-first through their saved card. Stops allocating on the first declined
+ * charge and reports how much landed.
+ */
+export async function chargeOpenBalance(ctx: OrgContext, customerId: string) {
+	const [c] = await db
+		.select()
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)));
+	if (!c) error(404, 'Customer not found');
+	if (!c.savedCardProvider || !c.savedCardCustomer || !c.savedCardRef)
+		error(409, 'No card on file for this customer');
+	const provider = providers.find((p) => p.id === c.savedCardProvider);
+	if (!provider?.chargeSaved) error(409, 'This payment provider cannot charge saved cards');
+	const row = await providerRow(ctx.orgId, provider.id);
+	if (!provider.ready(row)) error(409, `${provider.name} is not available right now`);
+	const open = await db
+		.select({
+			id: charge.id,
+			description: charge.description,
+			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, ctx.orgId),
+				eq(charge.customerId, customerId),
+				eq(charge.status, 'open'),
+				sql`${charge.amount} > 0`
+			)
+		)
+		.orderBy(asc(charge.dueDate), asc(charge.createdAt));
+	if (!open.some((ch) => ch.open > 0)) error(400, 'Nothing to charge — balance is clear');
+	const [settings] = await db
+		.select({ currency: companySettings.currency })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, ctx.orgId));
+	const { recordOnlinePayment } = await import('#lib/server/payments/record.ts');
+	let charged = 0;
+	let failed = 0;
+	for (const ch of open) {
+		if (ch.open <= 0) continue;
+		const paymentId = await provider.chargeSaved({
+			orgId: ctx.orgId,
+			customerId,
+			email: c.email,
+			amount: ch.open,
+			currency: settings?.currency ?? 'usd',
+			description: ch.description || `Charge for ${c.name}`,
+			customerRef: c.savedCardCustomer,
+			paymentRef: c.savedCardRef,
+			row
+		});
+		if (!paymentId) {
+			failed += ch.open;
+			continue;
+		}
+		await recordOnlinePayment({
+			orgId: ctx.orgId,
+			customerId,
+			amount: ch.open,
+			method: provider.id === 'stripe' ? 'stripe' : 'other',
+			externalId: paymentId,
+			provider: provider.name,
+			chargeIds: [ch.id]
+		});
+		charged += ch.open;
+	}
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId ?? null,
+		entityType: 'customer',
+		entityId: customerId,
+		action: 'card_charged',
+		summary: `${formatMoney(charged, settings?.currency ?? 'usd')} charged to ${c.savedCardLabel ?? 'card on file'}${failed ? ` (${formatMoney(failed, settings?.currency ?? 'usd')} declined)` : ''}`
+	});
+	return { charged, failed };
 }
 
 export async function updateAgreement(
@@ -810,6 +902,7 @@ export async function createInvoice(
 				dueDate: input.dueDate,
 				amount: total
 			});
+			await applyUnappliedCredit(ctx.orgId, input.customerId, tx);
 		}
 		return row!;
 	});
@@ -1066,18 +1159,22 @@ export async function listCharges(orgId: string, status?: string) {
 }
 
 export async function addCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeInput>) {
-	const [row] = await db
-		.insert(charge)
-		.values({
-			organizationId: ctx.orgId,
-			customerId: input.customerId,
-			jobId: input.jobId ?? null,
-			kind: input.kind,
-			description: input.description ?? null,
-			amount: input.amount,
-			dueDate: input.dueDate
-		})
-		.returning();
+	const row = await db.transaction(async (tx) => {
+		const [r] = await tx
+			.insert(charge)
+			.values({
+				organizationId: ctx.orgId,
+				customerId: input.customerId,
+				jobId: input.jobId ?? null,
+				kind: input.kind,
+				description: input.description ?? null,
+				amount: input.amount,
+				dueDate: input.dueDate
+			})
+			.returning();
+		await applyUnappliedCredit(ctx.orgId, input.customerId, tx);
+		return r!;
+	});
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId ?? null,
@@ -1133,6 +1230,95 @@ export async function updateCharge(ctx: OrgContext, input: v.InferOutput<typeof 
 }
 
 /** Records a payment and applies it to the customer's open charges oldest-first. */
+/**
+ * Moves the customer's unapplied credit (payment rows with charge_id null) onto their
+ * open charges, oldest first. Never mutates the original payment: each allocation is a
+ * matching pair — a positive row against the charge plus a negative unapplied row — so
+ * the unapplied pool shrinks while the received-money ledger stays intact.
+ * Runs inside the transaction that created the charge when `q` is a tx handle.
+ */
+/** Duck-typed db handle so callers can pass a live transaction. */
+type DbOrTx = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete' | 'execute'>;
+
+export async function applyUnappliedCredit(orgId: string, customerId: string, q: DbOrTx = db) {
+	const credits = await q
+		.select()
+		.from(payment)
+		.where(
+			and(
+				eq(payment.customerId, customerId),
+				eq(payment.organizationId, orgId),
+				sql`${payment.chargeId} is null`,
+				sql`${payment.amount} > 0`,
+				sql`${payment.refundedAt} is null`
+			)
+		)
+		.orderBy(asc(payment.paidAt), asc(payment.createdAt));
+	if (!credits.length) return;
+	const open = await q
+		.select({
+			id: charge.id,
+			description: charge.description,
+			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.customerId, customerId),
+				eq(charge.status, 'open'),
+				sql`${charge.amount} > 0`
+			)
+		)
+		.orderBy(asc(charge.dueDate), asc(charge.createdAt));
+	let applied = 0;
+	for (const credit of credits) {
+		let pool = credit.amount;
+		for (const ch of open) {
+			if (pool <= 0) break;
+			if (ch.open <= 0) continue;
+			const take = Math.min(ch.open, pool);
+			const now = new Date();
+			await q.insert(payment).values([
+				{
+					organizationId: orgId,
+					customerId,
+					chargeId: ch.id,
+					amount: take,
+					method: credit.method,
+					reference: credit.reference,
+					notes: `Credit applied to ${ch.description || 'charge'}`,
+					recordedBy: credit.recordedBy,
+					paidAt: credit.paidAt
+				},
+				{
+					organizationId: orgId,
+					customerId,
+					chargeId: null,
+					amount: -take,
+					method: credit.method,
+					reference: `applied:${credit.id}`,
+					notes: `Credit applied to ${ch.description || 'charge'}`,
+					recordedBy: credit.recordedBy,
+					paidAt: now
+				}
+			]);
+			ch.open -= take;
+			pool -= take;
+			applied += take;
+		}
+		if (pool <= 0) continue;
+	}
+	if (!applied) return;
+	await q.execute(sql`
+		update ${charge} c set status = 'paid', updated_at = now()
+		where c.organization_id = ${orgId} and c.status = 'open' and c.amount > 0
+		  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id) >= c.amount
+	`);
+}
+
 export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof s.paymentInput>) {
 	const [c] = await db
 		.select()

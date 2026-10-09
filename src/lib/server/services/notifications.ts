@@ -1340,6 +1340,43 @@ export async function notifyAutoChargeFailed(
 	}
 }
 
+/** Customer-facing dunning email when an auto-charge fails — pay online or update the card. */
+export async function emailAutoChargeFailedToCustomer(
+	orgId: string,
+	customerId: string,
+	chargeId: string,
+	amount: number,
+	cardLabel: string | null
+) {
+	const flags = await notifFlags(orgId);
+	if (!flags.email) return;
+	const [c] = await db
+		.select({ name: customer.name, email: customer.email, emailOptOut: customer.emailOptOut })
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, customerId)));
+	if (!c?.email || c.emailOptOut) return;
+	const name = await orgName(orgId);
+	if (!(await logOnce(orgId, 'auto_charge_failed_customer', `${customerId}:${chargeId}`, c.email)))
+		return;
+	const [settings] = await db
+		.select({ currency: companySettings.currency })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	await sendEmail({
+		to: c.email,
+		subject: `We couldn't collect your payment — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Hi ${c.name},`,
+			lines: [
+				`We tried to collect ${formatMoney(amount, settings?.currency ?? 'usd')} from ${cardLabel ?? 'your card on file'}, but the charge didn't go through.`,
+				'You can pay online from your customer portal — or update your saved card there and we will try the recurring charge again next period.'
+			],
+			action: { label: 'Pay online', url: `${appOrigin()}/portal` }
+		})
+	});
+}
+
 /** "The job blocking yours is done" — emails + inboxes the dependent job's tech. */
 export async function notifyJobUnblocked(
 	orgId: string,
