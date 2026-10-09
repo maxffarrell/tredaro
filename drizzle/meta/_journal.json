@@ -491,6 +491,13 @@
 			"when": 1791560300000,
 			"tag": "0069_batch_gl",
 			"breakpoints": true
+		},
+		{
+			"idx": 70,
+			"version": "7",
+			"when": 1791560900000,
+			"tag": "0070_batch_gm",
+			"breakpoints": true
 		}
 	]
 }

@@ -235,6 +235,9 @@
 	let logoUrl = $state(settings.logoUrl);
 	let businessHours = $state(settings.businessHours);
 	let bookingMessage = $state(settings.bookingMessage);
+	let bookingReview = $state(settings.bookingReview);
+	let bookingBlackouts = $state(settings.bookingBlackouts);
+	let reminderHours = $state(settings.reminderHours);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	let testSmsTo = $state('');
 	let testPending = $state(false);
@@ -303,7 +306,10 @@
 				licenseNumber,
 				logoUrl,
 				businessHours,
-				bookingMessage
+				bookingMessage,
+				bookingReview,
+				bookingBlackouts,
+				reminderHours: Math.min(168, Math.max(1, Math.round(reminderHours || 36)))
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -645,6 +651,13 @@
 								</div>
 								<Switch bind:checked={staffDigest} />
 							</div>
+							<Field.Field>
+								<Field.Label for="s-remind">Reminder lead time (hours)</Field.Label>
+								<Input id="s-remind" type="number" min={1} max={168} bind:value={reminderHours} />
+								<p class="text-xs text-muted-foreground">
+									How far ahead customers get the appointment reminder — default 36h.
+								</p>
+							</Field.Field>
 							<div class="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/30 p-3">
 								<div class="min-w-40 flex-1">
 									<Label for="test-sms-to">Test sends</Label>
@@ -951,6 +964,27 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									Shown on the booking page after a request is sent — blank uses the default.
+								</p>
+							</Field.Field>
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-sm font-medium">Review bookings first</p>
+									<p class="text-xs text-muted-foreground">
+										Online requests sit flagged "needs review" until staff accept or decline them.
+									</p>
+								</div>
+								<Switch checked={bookingReview} onCheckedChange={(v) => (bookingReview = v)} />
+							</div>
+							<Field.Field>
+								<Field.Label for="s-blackouts">Closed dates</Field.Label>
+								<Input
+									id="s-blackouts"
+									bind:value={bookingBlackouts}
+									placeholder="2026-12-25, 2026-01-01"
+								/>
+								<p class="text-xs text-muted-foreground">
+									Comma-separated dates (YYYY-MM-DD) the booking page won't accept — holidays,
+									closures.
 								</p>
 							</Field.Field>
 						{/if}

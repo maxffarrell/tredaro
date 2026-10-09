@@ -46,6 +46,15 @@
 		new Date(Date.now() + noticeDays * 86400_000).toISOString().slice(0, 10)
 	);
 
+	const closedDays = $derived(
+		new Set(
+			(settings?.bookingBlackouts ?? '')
+				.split(',')
+				.map((d) => d.trim())
+				.filter(Boolean)
+		)
+	);
+	const dayClosed = $derived(!!preferredDate && closedDays.has(preferredDate));
 	const dailyLimit = $derived(settings?.bookingDailyLimit ?? 0);
 	const dayAvail = $derived(
 		preferredDate && dailyLimit > 0
@@ -272,6 +281,11 @@
 								<Field.Field>
 									<Field.Label for="b-date">Preferred date</Field.Label>
 									<Input id="b-date" type="date" min={minDate} bind:value={preferredDate} />
+									{#if dayClosed}
+										<p class="text-xs font-medium text-red-600 dark:text-red-400">
+											We're closed that day — pick another.
+										</p>
+									{/if}
 									{#if noticeDays > 0}
 										<p class="text-xs text-muted-foreground">
 											Earliest available day is {minDate}.
@@ -322,7 +336,7 @@
 								class="pointer-events-none absolute -left-[9999px] opacity-0"
 								aria-hidden="true"
 							/>
-							<Button type="submit" disabled={pending || dayFull}
+							<Button type="submit" disabled={pending || dayFull || dayClosed}
 								>{pending ? 'Sending…' : 'Request service'}</Button
 							>
 						</form>

@@ -744,6 +744,15 @@ export async function updateJob(
 	if (effectiveStart && effectiveEnd && effectiveEnd <= effectiveStart)
 		error(400, 'End must be after the start');
 	const effectiveTech = set.technicianId === undefined ? existing.technicianId : set.technicianId;
+	// An unreviewed online booking can't be scheduled or assigned — that would
+	// skip the accept/decline step. Other edits (notes, priority) stay open.
+	if (
+		existing.needsReview &&
+		set.cancelled !== true &&
+		((set.startsAt !== undefined && start) ||
+			(set.technicianId && set.technicianId !== existing.technicianId))
+	)
+		error(409, 'Review this online booking first — accept or decline it');
 	if (effectiveStart)
 		await assertTechAvailable(
 			ctx.orgId,
@@ -862,6 +871,42 @@ export async function updateJob(
 		});
 	}
 	return row;
+}
+
+/** Staff verdict on an online booking made while review mode is on. Approve clears
+ * the flag so the job queues normally; decline cancels it with a recorded reason. */
+export async function reviewBooking(ctx: OrgContext, jobId: string, approve: boolean) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!j) error(404, 'Job not found');
+	if (!j.needsReview) error(409, 'Booking already reviewed');
+	if (!approve) {
+		const tz = (await getSettings(ctx.orgId)).timezone;
+		await updateJob(ctx, tz, {
+			id: jobId,
+			cancelled: true,
+			cancelReason: 'Online booking declined'
+		});
+		return { approved: false };
+	}
+	await db.update(job).set({ needsReview: false }).where(eq(job.id, jobId));
+	await db.insert(jobEvent).values({
+		organizationId: ctx.orgId,
+		jobId,
+		kind: 'note',
+		note: 'Online booking approved'
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'booking-approved',
+		summary: `Online booking J-${j.number} approved`
+	});
+	return { approved: true };
 }
 
 /** Tech arrived to a no-show: cancels the visit and rebooks it as an unscheduled copy. */
