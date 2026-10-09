@@ -854,7 +854,12 @@
 	<div class="space-y-6 xl:col-span-2">
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base">Jobs</Card.Title>
+				<Card.Title class="text-base"
+					>Jobs{#if c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>({c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length} open)</span
+						>{/if}</Card.Title
+				>
 				<div class="flex items-center gap-3">
 					{#if c.nextJob}
 						<a

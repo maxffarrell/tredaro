@@ -157,7 +157,8 @@
 				)}</span
 			>
 			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'} ·
-			{estimates.filter((e) => e.viewed).length} viewed{#if expiringSoon}
+			{estimates.filter((e) => e.viewed).length} viewed{#if estimates.filter((e) => !e.viewed).length}
+				· {estimates.filter((e) => !e.viewed).length} not yet opened{/if}{#if expiringSoon}
 				· {expiringSoon} expiring ≤7d{/if}{#if oldestSentDays !== null}
 				· oldest sent {oldestSentDays}d ago{/if}
 		</p>

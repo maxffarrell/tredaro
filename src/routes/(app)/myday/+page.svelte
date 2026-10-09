@@ -308,6 +308,16 @@
 					>{day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length} urgent/high</span
 				>
 			{/if}
+			{#if day.materials?.length}
+				<span class="text-muted-foreground tabular-nums"
+					>pull {day.materials.reduce((m, x) => m + x.qty, 0)} item{day.materials.reduce(
+						(m, x) => m + x.qty,
+						0
+					) === 1
+						? ''
+						: 's'}</span
+				>
+			{/if}
 			{#if day.jobs.filter((j) => j.confirmed).length}
 				<span class="text-muted-foreground tabular-nums"
 					>{day.jobs.filter((j) => j.confirmed).length} confirmed</span
