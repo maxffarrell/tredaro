@@ -85,6 +85,27 @@ export async function ackInboundSms(orgId: string, customerId: string, to: strin
 	});
 }
 
+/** Reply text when a customer confirms a visit by SMS. */
+export async function ackConfirmSms(orgId: string, to: string, startsAt: Date | null) {
+	const name = await orgName(orgId);
+	const when = startsAt
+		? new Date(startsAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+		: 'as scheduled';
+	await sendSmsQuiet(orgId, {
+		to,
+		body: `${name}: confirmed — we'll see you ${when}.`
+	});
+}
+
+/** Reply text when a customer rates a visit by SMS. */
+export async function ackRatingSms(orgId: string, to: string, rating: number) {
+	const name = await orgName(orgId);
+	await sendSmsQuiet(orgId, {
+		to,
+		body: `${name}: thanks for the ${rating}/5 — we appreciate the feedback.`
+	});
+}
+
 /** Delivers queued texts whose quiet-hours window has passed (called from runReminders). */
 export async function flushSmsOutbox(orgId: string) {
 	const due = await db
@@ -1058,6 +1079,40 @@ export async function runReminders(orgId: string) {
 		);
 		const stage = daysPast >= 10 ? 10 : daysPast >= 3 ? 3 : 0;
 		if (stage) await notifyInvoiceOverdue(orgId, inv.id, stage);
+	}
+
+	// Visit-rating asks — done jobs completed in the last 7 days, not yet rated,
+	// with a texting-enabled customer. 'How did we do? Reply 1-5' — the reply is
+	// recorded by the inbound webhook as a visit rating.
+	const recentDone = await db
+		.select({
+			id: job.id,
+			number: job.number,
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut
+		})
+		.from(job)
+		.innerJoin(customer, eq(customer.id, job.customerId))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				isNull(job.rating),
+				isNull(job.cancelledAt),
+				gte(sql`coalesce(${job.endsAt}, ${job.updatedAt})`, new Date(now.getTime() - 7 * 86400_000))
+			)
+		);
+	const ratingFlags = await notifFlags(orgId);
+	if (ratingFlags.sms && smsProvider()) {
+		const name = await orgName(orgId);
+		for (const j of recentDone) {
+			if (!j.phone || j.smsOptOut) continue;
+			if (!(await logOnce(orgId, 'rating_sms_ask', j.id, j.phone))) continue;
+			await sendSmsQuiet(orgId, {
+				to: j.phone,
+				body: `${name}: how did we do on J-${j.number}? Reply 1-5.`
+			});
+		}
 	}
 
 	// Late fee: one flat fee appended to any invoice 3+ days past due while the

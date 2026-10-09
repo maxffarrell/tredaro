@@ -1,6 +1,6 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { customer, member, notificationLog, user } from '#lib/server/db/schema.ts';
+import { customer, job, member, notificationLog, user } from '#lib/server/db/schema.ts';
 import { verifyTwilioSignature } from '#lib/server/twilio.ts';
 import type { RequestHandler } from './$types';
 
@@ -53,6 +53,65 @@ const handle = async (
 		if (cust.smsOptOut)
 			await db.update(customer).set({ smsOptOut: false }).where(eq(customer.id, cust.id));
 	}
+	// Semantic replies: 'c'/'confirm'/'yes' confirms the next upcoming visit
+	// (a 'confirmed' job event, same as the portal button); a bare 1-5 rates
+	// the most recent completed unrated visit.
+	let actionTaken = false;
+	if (['c', 'confirm', 'confirmed', 'yes'].includes(key)) {
+		const [next] = await db
+			.select({ id: job.id, startsAt: job.startsAt })
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, orgId),
+					eq(job.customerId, cust.id),
+					inArray(job.status, ['scheduled', 'dispatched']),
+					isNull(job.cancelledAt),
+					gte(job.startsAt, new Date())
+				)
+			)
+			.orderBy(asc(job.startsAt))
+			.limit(1);
+		if (next) {
+			const { confirmVisit } = await import('#lib/server/services/portal.ts');
+			try {
+				await confirmVisit(orgId, cust.id, next.id);
+				const { ackConfirmSms } = await import('#lib/server/services/notifications.ts');
+				await ackConfirmSms(orgId, cust.phone ?? from, next.startsAt);
+				actionTaken = true;
+			} catch {
+				// already confirmed — fall through to the generic log
+			}
+		}
+	}
+	const ratingMatch = /^([1-5])(\s*stars?)?\b/.exec(key);
+	if (!actionTaken && ratingMatch) {
+		const [latest] = await db
+			.select({ id: job.id })
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, orgId),
+					eq(job.customerId, cust.id),
+					eq(job.status, 'done'),
+					isNull(job.rating),
+					isNull(job.cancelledAt)
+				)
+			)
+			.orderBy(desc(sql`coalesce(${job.endsAt}, ${job.updatedAt})`))
+			.limit(1);
+		if (latest) {
+			const { rateVisit } = await import('#lib/server/services/portal.ts');
+			try {
+				await rateVisit(orgId, cust.id, latest.id, Number(ratingMatch[1]), 'via SMS reply');
+				const { ackRatingSms } = await import('#lib/server/services/notifications.ts');
+				await ackRatingSms(orgId, cust.phone ?? from, Number(ratingMatch[1]));
+				actionTaken = true;
+			} catch {
+				// already rated — fall through
+			}
+		}
+	}
 	// Every inbound text lands in the communications history on the customer page.
 	await db.insert(notificationLog).values({
 		organizationId: orgId,
@@ -72,7 +131,7 @@ const handle = async (
 		'unstop',
 		'yes'
 	].includes(key);
-	if (!isKeyword && body) {
+	if (!isKeyword && body && !actionTaken) {
 		const staff = await db
 			.select({ email: user.email })
 			.from(member)
