@@ -1449,6 +1449,7 @@ export async function payrollHours(ctx: OrgContext, from: Date, to: Date) {
 			entry: jobTimeEntry,
 			memberName: user.name,
 			approvedByName: approver.name,
+			laborCostCents: member.laborCostCents,
 			jobId: job.id,
 			jobNumber: job.number,
 			jobSummary: job.summary,
@@ -1603,78 +1604,107 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			openEntry: null,
 			docs: [],
 			materials: [],
+			pendingApprovalMin: 0,
 			tz,
 			today
 		};
-	const [jobs, unscheduled, queue, overdue, openEntries, dayEntries, tomorrow, offToday, dayNote] =
-		await Promise.all([
-			listJobs(ctx.orgId, { from, to, technicianId: me.id }),
-			listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
-			listJobs(ctx.orgId, { status: ['unscheduled'], unassigned: true }),
-			listJobs(ctx.orgId, {
-				to: from,
-				technicianId: me.id,
-				status: ['scheduled', 'dispatched', 'in_progress']
-			}),
-			db
-				.select({ entry: jobTimeEntry, jobNumber: job.number })
-				.from(jobTimeEntry)
-				.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
-				.where(
-					and(
-						eq(jobTimeEntry.organizationId, ctx.orgId),
-						eq(jobTimeEntry.memberId, me.id),
-						isNull(jobTimeEntry.endedAt)
-					)
+	const [
+		jobs,
+		unscheduled,
+		queue,
+		overdue,
+		openEntries,
+		dayEntries,
+		tomorrow,
+		offToday,
+		dayNote,
+		pendingApproval
+	] = await Promise.all([
+		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
+		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
+		listJobs(ctx.orgId, { status: ['unscheduled'], unassigned: true }),
+		listJobs(ctx.orgId, {
+			to: from,
+			technicianId: me.id,
+			status: ['scheduled', 'dispatched', 'in_progress']
+		}),
+		db
+			.select({ entry: jobTimeEntry, jobNumber: job.number })
+			.from(jobTimeEntry)
+			.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					eq(jobTimeEntry.memberId, me.id),
+					isNull(jobTimeEntry.endedAt)
 				)
-				.limit(1),
-			db
-				.select({
-					startedAt: jobTimeEntry.startedAt,
-					endedAt: jobTimeEntry.endedAt
-				})
-				.from(jobTimeEntry)
-				.where(
-					and(
-						eq(jobTimeEntry.organizationId, ctx.orgId),
-						eq(jobTimeEntry.memberId, me.id),
-						gte(jobTimeEntry.startedAt, from),
-						lt(jobTimeEntry.startedAt, to)
-					)
-				),
-			// Tomorrow's roster — jobs scheduled in the day after the [from,to) window.
-			listJobs(ctx.orgId, {
-				from: to,
-				to: new Date(to.getTime() + 24 * 60 * 60 * 1000),
-				technicianId: me.id
-			}),
-			// PTO covering today — shown as an off-day banner on My Day.
-			db
-				.select({ reason: memberTimeOff.reason })
-				.from(memberTimeOff)
-				.where(
-					and(
-						eq(memberTimeOff.organizationId, ctx.orgId),
-						eq(memberTimeOff.memberId, me.id),
-						eq(memberTimeOff.status, 'approved'),
-						lte(memberTimeOff.startsOn, localDate(from, tz)),
-						gte(memberTimeOff.endsOn, localDate(from, tz))
-					)
+			)
+			.limit(1),
+		db
+			.select({
+				startedAt: jobTimeEntry.startedAt,
+				endedAt: jobTimeEntry.endedAt
+			})
+			.from(jobTimeEntry)
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					eq(jobTimeEntry.memberId, me.id),
+					gte(jobTimeEntry.startedAt, from),
+					lt(jobTimeEntry.startedAt, to)
 				)
-				.limit(1),
-			// Dispatcher note pinned to today — banner on My Day.
-			db
-				.select({ note: memberDayNote.note })
-				.from(memberDayNote)
-				.where(
-					and(
-						eq(memberDayNote.organizationId, ctx.orgId),
-						eq(memberDayNote.memberId, me.id),
-						eq(memberDayNote.on, localDate(from, tz))
-					)
+			),
+		// Tomorrow's roster — jobs scheduled in the day after the [from,to) window.
+		listJobs(ctx.orgId, {
+			from: to,
+			to: new Date(to.getTime() + 24 * 60 * 60 * 1000),
+			technicianId: me.id
+		}),
+		// PTO covering today — shown as an off-day banner on My Day.
+		db
+			.select({ reason: memberTimeOff.reason })
+			.from(memberTimeOff)
+			.where(
+				and(
+					eq(memberTimeOff.organizationId, ctx.orgId),
+					eq(memberTimeOff.memberId, me.id),
+					eq(memberTimeOff.status, 'approved'),
+					lte(memberTimeOff.startsOn, localDate(from, tz)),
+					gte(memberTimeOff.endsOn, localDate(from, tz))
 				)
-				.limit(1)
-		]);
+			)
+			.limit(1),
+		// Dispatcher note pinned to today — banner on My Day.
+		db
+			.select({ note: memberDayNote.note })
+			.from(memberDayNote)
+			.where(
+				and(
+					eq(memberDayNote.organizationId, ctx.orgId),
+					eq(memberDayNote.memberId, me.id),
+					eq(memberDayNote.on, localDate(from, tz))
+				)
+			)
+			.limit(1),
+		// Own finished-but-unapproved minutes (30d) — the "awaiting approval" chip on My Day.
+		db
+			.select({
+				minutes:
+					sql<number>`coalesce(sum(extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60), 0)`.mapWith(
+						Number
+					)
+			})
+			.from(jobTimeEntry)
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					eq(jobTimeEntry.memberId, me.id),
+					isNotNull(jobTimeEntry.endedAt),
+					isNull(jobTimeEntry.approvedAt),
+					gte(jobTimeEntry.startedAt, new Date(from.getTime() - 30 * 24 * 60 * 60 * 1000))
+				)
+			)
+	]);
 	// Tech's manual stop order (route_order) takes precedence over the start-time sort.
 	jobs.sort(
 		(a, b) =>
@@ -1737,6 +1767,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		tomorrow,
 		offToday: offToday[0] ?? null,
 		dayNote: dayNote[0]?.note ?? '',
+		pendingApprovalMin: Math.round(pendingApproval[0]?.minutes ?? 0),
 		docs,
 		materials
 	};

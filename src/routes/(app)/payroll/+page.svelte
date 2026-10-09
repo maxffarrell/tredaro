@@ -11,7 +11,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import { errMsg } from '#lib/format.ts';
+	import { errMsg, formatMoney } from '#lib/format.ts';
 	import Download from '@lucide/svelte/icons/download';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -27,8 +27,32 @@
 		return addDays(day, -((dow + 6) % 7));
 	};
 	let start = $state(mondayOf(page.url.searchParams.get('from') ?? todayStr));
-	const end = $derived(addDays(start, 6));
-	const thisWeek = $derived(start === mondayOf(todayStr));
+	let end = $state(addDays(start, 6));
+	const span = $derived(
+		Math.round(
+			(new Date(`${end}T12:00:00Z`).getTime() - new Date(`${start}T12:00:00Z`).getTime()) / 86400000
+		) + 1
+	);
+	const thisWeek = $derived(start === mondayOf(todayStr) && end === addDays(start, 6));
+
+	const monthStart = (d: string) => `${d.slice(0, 7)}-01`;
+	const thisMonthEnd = addDays(monthStart(addDays(monthStart(todayStr), 32)), -1);
+	const lastMonthStart = monthStart(addDays(monthStart(todayStr), -1));
+	const presets = [
+		{ label: 'This week', from: mondayOf(todayStr), to: addDays(mondayOf(todayStr), 6) },
+		{
+			label: 'Last week',
+			from: addDays(mondayOf(todayStr), -7),
+			to: addDays(mondayOf(todayStr), -1)
+		},
+		{ label: 'This month', from: monthStart(todayStr), to: thisMonthEnd },
+		{ label: 'Last month', from: lastMonthStart, to: addDays(monthStart(todayStr), -1) }
+	];
+	const pick = (from: string, to: string) => {
+		start = from;
+		end = to;
+		goto(`?from=${start}`, { replaceState: true });
+	};
 
 	const rows = $derived(await getPayroll({ from: start, to: end }));
 
@@ -56,6 +80,13 @@
 	const approvedMin = $derived(
 		rows.filter((r) => r.entry.approvedAt).reduce((s, r) => s + minutesOf(r.entry), 0)
 	);
+	// Estimated labor cost for a set of rows — member loaded rate × minutes.
+	const costOf = (list: typeof rows) =>
+		list.reduce(
+			(s, r) => s + (r.laborCostCents ? (minutesOf(r.entry) / 60) * r.laborCostCents : 0),
+			0
+		);
+	const totalCost = $derived(costOf(rows));
 
 	let busy = $state(false);
 	async function approveMember(memberId: string) {
@@ -85,28 +116,19 @@
 				size="icon"
 				variant="ghost"
 				aria-label="Previous week"
-				onclick={() => {
-					start = addDays(start, -7);
-					goto(`?from=${start}`, { replaceState: true });
-				}}><ChevronLeft /></Button
+				onclick={() => pick(addDays(start, -span), addDays(end, -span))}><ChevronLeft /></Button
 			>
 			<Button
 				size="sm"
 				variant="outline"
 				disabled={thisWeek}
-				onclick={() => {
-					start = mondayOf(todayStr);
-					goto(`?from=${start}`, { replaceState: true });
-				}}>This week</Button
+				onclick={() => pick(mondayOf(todayStr), addDays(mondayOf(todayStr), 6))}>This week</Button
 			>
 			<Button
 				size="icon"
 				variant="ghost"
 				aria-label="Next week"
-				onclick={() => {
-					start = addDays(start, 7);
-					goto(`?from=${start}`, { replaceState: true });
-				}}><ChevronRight /></Button
+				onclick={() => pick(addDays(start, span), addDays(end, span))}><ChevronRight /></Button
 			>
 			<Button size="sm" variant="outline" href="/api/export/payroll.csv?from={start}&to={end}"
 				><Download /> Export</Button
@@ -133,7 +155,21 @@
 			<Badge variant="outline" class="font-normal text-emerald-600 dark:text-emerald-400"
 				>{fmtDur(approvedMin)} approved</Badge
 			>
+			{#if totalCost > 0}
+				<Badge variant="outline" class="font-normal"
+					>≈ {formatMoney(totalCost, settings.currency, true)} est. labor</Badge
+				>
+			{/if}
 		{/if}
+		<span class="w-full sm:hidden"></span>
+		{#each presets as p (p.label)}
+			<Button
+				size="sm"
+				variant={start === p.from && end === p.to ? 'secondary' : 'ghost'}
+				class="h-7 px-2 text-xs"
+				onclick={() => pick(p.from, p.to)}>{p.label}</Button
+			>
+		{/each}
 	</div>
 
 	{#if !rows.length}
@@ -153,6 +189,14 @@
 				<Card.Title class="text-base">{g.name}</Card.Title>
 				<div class="flex items-center gap-2">
 					<Badge variant="outline" class="font-normal">{fmtDur(sumMin(g.rows))}</Badge>
+					{#if costOf(g.rows) > 0}
+						<Badge
+							variant="outline"
+							class="font-normal"
+							title="Estimated labor cost at this member's loaded rate"
+							>≈ {formatMoney(costOf(g.rows), settings.currency, true)}</Badge
+						>
+					{/if}
 					{#if sumMin(g.rows) > 40 * 60}
 						<Badge
 							variant="outline"

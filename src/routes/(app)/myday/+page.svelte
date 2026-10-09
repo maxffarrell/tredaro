@@ -674,7 +674,7 @@
 		</Alert.Root>
 	{/if}
 
-	{#if day.member && (day.jobs.length || day.minutesLogged > 0)}
+	{#if day.member && (day.jobs.length || day.minutesLogged > 0 || day.pendingApprovalMin > 0)}
 		{@const done = day.jobs.filter((j) => j.job.status === 'done').length}
 		{@const left = day.jobs.length - done}
 		{@const next = day.jobs.find((j) => j.job.status !== 'done' && j.job.startsAt)}
@@ -753,6 +753,12 @@
 			<span class="text-muted-foreground tabular-nums"
 				>{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged</span
 			>
+			{#if day.pendingApprovalMin > 0}
+				<span class="text-amber-600 tabular-nums dark:text-amber-400"
+					>· {Math.floor(day.pendingApprovalMin / 60)}h {day.pendingApprovalMin % 60}m awaiting
+					approval</span
+				>
+			{/if}
 			{#if day.tomorrow.length}
 				{@const first = day.tomorrow.find((j) => j.job.startsAt)}
 				<span class="text-muted-foreground tabular-nums"
