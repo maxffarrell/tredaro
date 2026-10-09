@@ -285,7 +285,7 @@
 		{@const lastEnd = day.jobs
 			.filter((j) => j.job.endsAt && j.job.status !== 'cancelled')
 			.map((j) => j.job.endsAt)
-			.sort()
+			.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
 			.at(-1)}
 		{@const schedMin = day.jobs.reduce(
 			(m, j) =>
