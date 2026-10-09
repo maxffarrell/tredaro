@@ -1517,6 +1517,46 @@ export async function runReminders(orgId: string) {
 		}
 	}
 
+	// Stale clock-out guard: auto-end open time entries running >16h (cap at 12h
+	// worked) so they can be approved; alert the member + admins.
+	const staleEntries = await db
+		.select({
+			id: jobTimeEntry.id,
+			jobId: jobTimeEntry.jobId,
+			memberId: jobTimeEntry.memberId,
+			startedAt: jobTimeEntry.startedAt,
+			email: user.email,
+			jobNumber: job.number
+		})
+		.from(jobTimeEntry)
+		.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, orgId),
+				isNull(jobTimeEntry.endedAt),
+				lt(jobTimeEntry.startedAt, new Date(now.getTime() - 16 * 3600_000))
+			)
+		);
+	if (staleEntries.length) {
+		const admins = await adminEmails(orgId);
+		for (const e of staleEntries) {
+			const capped = new Date(e.startedAt.getTime() + 12 * 3600_000);
+			await db
+				.update(jobTimeEntry)
+				.set({
+					endedAt: capped,
+					note: sql`case when ${jobTimeEntry.note} = '' then 'auto-ended after 12h (never clocked out)' else ${jobTimeEntry.note} || ' · auto-ended after 12h' end`
+				})
+				.where(eq(jobTimeEntry.id, e.id));
+			const recipients = [...(e.email ? [e.email] : []), ...admins];
+			for (const r of new Set(recipients)) {
+				await logOnce(orgId, 'time_auto_ended', e.jobId, `${r}:${e.id}`);
+			}
+		}
+	}
+
 	// Morning digest: each technician's jobs starting today (org timezone).
 	const tz = await orgTimezone(orgId);
 	const name = await orgName(orgId);

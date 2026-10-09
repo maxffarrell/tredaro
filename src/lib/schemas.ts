@@ -267,6 +267,17 @@ export const inventoryAdjustInput = v.object({
 	id: idSchema,
 	delta: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000))
 });
+/** One-click kit on a job type: default materials applied to jobs of that type. */
+export const jobTypeKitInput = v.object({
+	jobTypeId: idSchema,
+	items: v.array(
+		v.object({
+			inventoryItemId: idSchema,
+			qty: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000))
+		})
+	)
+});
+
 export const jobMaterialInput = v.object({
 	jobId: idSchema,
 	inventoryItemId: idSchema,

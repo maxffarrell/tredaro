@@ -671,6 +671,50 @@
 
 	<Card.Root>
 		<Card.Header>
+			<Card.Title class="text-base">Scheduled vs logged</Card.Title>
+			<Card.Description
+				>Last 30 days — hours on the schedule vs time entries; sorted by biggest gap</Card.Description
+			>
+		</Card.Header>
+		<Card.Content class="overflow-x-auto px-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Technician</Table.Head>
+						<Table.Head class="text-right">Scheduled</Table.Head>
+						<Table.Head class="text-right">Logged</Table.Head>
+						<Table.Head class="text-right">Variance</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each r.variance as t (t.name)}
+						<Table.Row>
+							<Table.Cell class="font-medium">{t.name}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{t.schedH}h</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{t.loggedH}h</Table.Cell>
+							<Table.Cell
+								class="text-right tabular-nums {t.varianceH > 1
+									? 'text-destructive'
+									: t.varianceH < -1
+										? 'text-amber-600 dark:text-amber-400'
+										: 'text-muted-foreground'}"
+								>{t.varianceH > 0 ? '+' : ''}{t.varianceH}h</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell colspan={4} class="text-muted-foreground"
+								>No scheduled or logged hours yet.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
 			<Card.Title class="text-base">Office performance</Card.Title>
 			<Card.Description>Jobs and revenue collected by office — all time</Card.Description>
 		</Card.Header>

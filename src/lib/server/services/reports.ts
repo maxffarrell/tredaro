@@ -374,6 +374,71 @@ async function laborByTechnician(orgId: string) {
 		.orderBy(desc(minutes));
 }
 
+/** Last-30-days scheduled minutes (assigned job durations) vs logged minutes per tech. */
+async function timesheetVariance(orgId: string) {
+	const since = new Date(Date.now() - 30 * 86400_000);
+	const [sched, logged, members] = await Promise.all([
+		db
+			.select({
+				memberId: job.technicianId,
+				minutes:
+					sql<number>`coalesce(sum(extract(epoch from (${job.endsAt} - ${job.startsAt})) / 60), 0)`.mapWith(
+						Number
+					)
+			})
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, orgId),
+					isNotNull(job.technicianId),
+					isNotNull(job.endsAt),
+					gte(job.startsAt, since),
+					sql`${job.status} <> 'cancelled'`
+				)
+			)
+			.groupBy(job.technicianId),
+		db
+			.select({
+				memberId: jobTimeEntry.memberId,
+				minutes:
+					sql<number>`coalesce(sum(extract(epoch from (coalesce(${jobTimeEntry.endedAt}, now()) - ${jobTimeEntry.startedAt})) / 60), 0)`.mapWith(
+						Number
+					)
+			})
+			.from(jobTimeEntry)
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, orgId),
+					isNotNull(jobTimeEntry.memberId),
+					gte(jobTimeEntry.startedAt, since)
+				)
+			)
+			.groupBy(jobTimeEntry.memberId),
+		db
+			.select({ id: member.id, name: user.name })
+			.from(member)
+			.innerJoin(user, eq(member.userId, user.id))
+			.where(eq(member.organizationId, orgId))
+	]);
+	const schedMap = new Map(sched.map((r) => [r.memberId, r.minutes]));
+	const logMap = new Map(logged.map((r) => [r.memberId, r.minutes]));
+	const r1 = (n: number) => Math.round(n * 10) / 10;
+	return members
+		.map((m) => {
+			const s = schedMap.get(m.id) ?? 0;
+			const l = logMap.get(m.id) ?? 0;
+			if (!s && !l) return null;
+			return {
+				name: m.name,
+				schedH: r1(s / 60),
+				loggedH: r1(l / 60),
+				varianceH: r1((l - s) / 60)
+			};
+		})
+		.filter((r): r is NonNullable<typeof r> => !!r)
+		.sort((a, b) => Math.abs(b.varianceH) - Math.abs(a.varianceH));
+}
+
 /** Next-7-days scheduled minutes per tech vs an 8h×7 capacity — dispatch load at a glance. */
 async function utilization(orgId: string) {
 	const now = new Date();
@@ -776,6 +841,7 @@ export async function getReports(orgId: string) {
 		techs,
 		labor,
 		util,
+		variance,
 		perf,
 		profit,
 		tops,
@@ -817,6 +883,7 @@ export async function getReports(orgId: string) {
 		technicianLoad(orgId),
 		laborByTechnician(orgId),
 		utilization(orgId),
+		timesheetVariance(orgId),
 		techPerformance(orgId),
 		jobProfitability(orgId),
 		topCustomers(orgId),
@@ -859,6 +926,7 @@ export async function getReports(orgId: string) {
 		techs,
 		labor,
 		utilization: util,
+		variance,
 		perf,
 		profit,
 		topCustomers: tops,

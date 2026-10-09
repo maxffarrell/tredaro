@@ -911,6 +911,27 @@ export const jobMaterial = pgTable(
 	]
 );
 
+/** Default materials for a job type — the "Add kit" button on a job applies them in one tap. */
+export const jobTypeMaterial = pgTable(
+	'job_type_material',
+	{
+		id: id(),
+		organizationId: orgId(),
+		jobTypeId: text('job_type_id')
+			.notNull()
+			.references(() => jobType.id, { onDelete: 'cascade' }),
+		inventoryItemId: text('inventory_item_id')
+			.notNull()
+			.references(() => inventoryItem.id, { onDelete: 'cascade' }),
+		qty: integer('qty').notNull().default(1),
+		...timestamps
+	},
+	(t) => [
+		uniqueIndex('job_type_material_type_item_idx').on(t.jobTypeId, t.inventoryItemId),
+		index('job_type_material_org_idx').on(t.organizationId)
+	]
+);
+
 /** Units loaded onto a technician's truck — separate stock from the warehouse. */
 export const truckStock = pgTable(
 	'truck_stock',

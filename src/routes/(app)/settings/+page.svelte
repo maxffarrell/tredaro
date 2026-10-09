@@ -60,6 +60,11 @@
 		setTimeOffStatus
 	} from '#lib/remote/jobs.remote.ts';
 	import {
+		getInventory,
+		getJobTypeKits,
+		setJobTypeKit
+	} from '#lib/remote/inventory.remote.ts';
+	import {
 		getPaymentProviders,
 		toggleProvider,
 		connectProvider,
@@ -223,6 +228,41 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update job type'));
 		}
+	}
+
+	// ------- material kits -------
+	let kits = $state(await getJobTypeKits());
+	const invRows = await getInventory();
+	let kitOpen = $state(false);
+	let kitType: (typeof jobTypes)[number] | null = $state(null);
+	let kitRows = $state<{ inventoryItemId: string; qty: number }[]>([]);
+	let kitPending = $state(false);
+	const kitCount = $derived(
+		kits.reduce<Record<string, number>>((m, k) => {
+			m[k.jobTypeId] = (m[k.jobTypeId] ?? 0) + 1;
+			return m;
+		}, {})
+	);
+	function openKit(t: (typeof jobTypes)[number]) {
+		kitType = t;
+		kitRows = kits
+			.filter((k) => k.jobTypeId === t.id)
+			.map((k) => ({ inventoryItemId: k.inventoryItemId, qty: k.qty }));
+		kitOpen = true;
+	}
+	async function saveKit() {
+		if (!kitType) return;
+		kitPending = true;
+		try {
+			const items = kitRows.filter((r) => r.inventoryItemId && r.qty > 0);
+			await setJobTypeKit({ jobTypeId: kitType.id, items }).updates(getJobTypeKits);
+			kits = await getJobTypeKits();
+			toast.success(`Kit saved — ${items.length} item${items.length === 1 ? '' : 's'}`);
+			kitOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save kit'));
+		}
+		kitPending = false;
 	}
 
 	// ------- general -------
@@ -1445,6 +1485,7 @@
 								<Table.Head class="hidden md:table-cell">Duration</Table.Head>
 								<Table.Head class="hidden md:table-cell">Checklist</Table.Head>
 								<Table.Head class="hidden md:table-cell">Default tech</Table.Head>
+								<Table.Head class="hidden md:table-cell">Kit</Table.Head>
 								<Table.Head class="text-right">Active</Table.Head>
 							</Table.Row>
 						</Table.Header>
@@ -1461,13 +1502,32 @@
 									<Table.Cell class="hidden text-muted-foreground md:table-cell"
 										>{techs.find((x) => x.id === t.technicianId)?.name ?? '—'}</Table.Cell
 									>
+									<Table.Cell
+										class="hidden md:table-cell"
+										onclick={(e) => {
+											e.stopPropagation();
+											openKit(t);
+										}}
+									>
+										{#if kitCount[t.id]}
+											<Button variant="ghost" size="sm" class="h-6 px-1.5"
+												>{kitCount[t.id]} item{kitCount[t.id] === 1 ? '' : 's'}</Button
+											>
+										{:else}
+											<Button
+												variant="ghost"
+												size="sm"
+												class="h-6 px-1.5 text-muted-foreground">Set kit</Button
+											>
+										{/if}
+									</Table.Cell>
 									<Table.Cell class="text-right" onclick={(e) => e.stopPropagation()}>
 										<Switch checked={t.active} onCheckedChange={(v) => toggleJt(t, v)} />
 									</Table.Cell>
 								</Table.Row>
 							{:else}
 								<Table.Row>
-									<Table.Cell colspan={5} class="text-center text-muted-foreground">
+									<Table.Cell colspan={6} class="text-center text-muted-foreground">
 										No job types yet — create one to speed up dispatch.
 									</Table.Cell>
 								</Table.Row>
@@ -1948,5 +2008,67 @@
 				<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- material kit editor -->
+<Dialog.Root bind:open={kitOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Material kit — {kitType?.name}</Dialog.Title>
+			<Dialog.Description
+				>Default materials a tech can add to a job of this type in one tap (from warehouse
+				stock).</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="space-y-2">
+			{#each kitRows as row, i (i)}
+				<div class="flex items-center gap-2">
+					<Select.Root
+						type="single"
+						value={row.inventoryItemId}
+						onValueChange={(v) => (row.inventoryItemId = v)}
+					>
+						<Select.Trigger class="min-w-0 flex-1"
+							>{invRows.find((r) => r.item.id === row.inventoryItemId)?.item.name ??
+								'Pick an item…'}</Select.Trigger
+						>
+						<Select.Content>
+							{#each invRows as r (r.item.id)}
+								<Select.Item value={r.item.id}
+									>{r.item.name}
+									<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span
+									></Select.Item
+								>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<Input
+						type="number"
+						min={1}
+						class="w-20 shrink-0"
+						aria-label="Quantity"
+						bind:value={row.qty}
+					/>
+					<Button
+						variant="ghost"
+						size="icon"
+						class="size-8 shrink-0 text-muted-foreground"
+						onclick={() => kitRows.splice(i, 1)}><Trash class="size-4" /></Button
+					>
+				</div>
+			{/each}
+			<Button
+				size="sm"
+				variant="outline"
+				onclick={() => kitRows.push({ inventoryItemId: '', qty: 1 })}
+				><Plus class="size-4" /> Add item</Button
+			>
+		</div>
+		<Dialog.Footer>
+			<Button onclick={saveKit} disabled={kitPending}
+				>{kitPending ? 'Saving…' : 'Save kit'}</Button
+			>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
