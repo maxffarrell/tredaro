@@ -73,6 +73,7 @@ export async function createPlan(
 			interval: input.interval,
 			initialFee: input.initialFee,
 			includedVisits: input.includedVisits ?? null,
+			discountPct: input.discountPct,
 			jobTypeId: input.jobTypeId ?? null,
 			listed: input.listed,
 			active: input.active
@@ -713,6 +714,22 @@ export async function getInvoice(orgId: string, id: string) {
  * Issues an invoice: stores the line items and posts one receivable for the total.
  * `items` defaults to the job's approved estimate items when `fromEstimate` is set.
  */
+/** Highest member discount % across the customer's active agreements (0 = none). */
+async function activeDiscountPct(orgId: string, customerId: string) {
+	const [row] = await db
+		.select({ pct: sql<number>`coalesce(max(${agreementPlan.discountPct}), 0)`.mapWith(Number) })
+		.from(serviceAgreement)
+		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
+		.where(
+			and(
+				eq(serviceAgreement.organizationId, orgId),
+				eq(serviceAgreement.customerId, customerId),
+				eq(serviceAgreement.status, 'active')
+			)
+		);
+	return row?.pct ?? 0;
+}
+
 export async function createInvoice(
 	ctx: { orgId: string; userId?: string | null },
 	input: v.InferOutput<typeof s.invoiceInput>
@@ -733,8 +750,22 @@ export async function createInvoice(
 	const number = await nextNumber(ctx.orgId, 'invoice');
 	const settings = await getSettings(ctx.orgId);
 	const items = [...input.items];
+	// Membership perk: customers under an active agreement get the plan's % off work.
+	// Applied as a negative line BEFORE tax so tax is on the discounted amount.
+	const discountPct = await activeDiscountPct(ctx.orgId, input.customerId);
+	if (discountPct > 0) {
+		const off = Math.round((lineTotal(items) * discountPct) / 100);
+		if (off > 0)
+			items.push({
+				pricebookItemId: null,
+				name: `Membership discount (${discountPct}%)`,
+				description: '',
+				qty: 1,
+				unitPrice: -off
+			});
+	}
 	if (settings.taxRateBps > 0 && !c.taxExempt) {
-		const tax = Math.round((lineTotal(input.items) * settings.taxRateBps) / 10000);
+		const tax = Math.round((lineTotal(items) * settings.taxRateBps) / 10000);
 		if (tax > 0)
 			items.push({
 				pricebookItemId: null,

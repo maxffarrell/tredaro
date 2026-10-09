@@ -43,7 +43,9 @@ async function onCheckoutPaid(event: Stripe.Event, session: Stripe.Checkout.Sess
 		typeof session.payment_intent === 'string'
 			? session.payment_intent
 			: session.payment_intent?.id;
+	const chargeIds = session.metadata?.tredaroChargeIds?.split(',').filter(Boolean);
 	await recordOnlinePayment({
+		chargeIds,
 		orgId,
 		customerId,
 		amount: session.amount_total,
@@ -126,6 +128,7 @@ export const stripeProvider: PaymentProvider = {
 
 	async checkout(i) {
 		const metadata = {
+			...(i.meta ?? {}),
 			tredaroOrgId: i.orgId,
 			tredaroCustomerId: i.customerId
 		};
@@ -157,6 +160,7 @@ export const stripeProvider: PaymentProvider = {
 
 	async saveCard(i) {
 		const metadata = {
+			...(i.meta ?? {}),
 			tredaroOrgId: i.orgId,
 			tredaroCustomerId: i.customerId
 		};

@@ -1087,6 +1087,29 @@ export async function addTimeEntry(
 	return row;
 }
 
+/** Edits an entry's times/note. Members can edit their own; admin/owner can edit anyone's. */
+export async function updateTimeEntry(
+	ctx: OrgContext,
+	tz: string,
+	entryId: string,
+	input: { startedAt: string; endedAt?: string | null; note?: string | null }
+) {
+	const [row] = await db
+		.select()
+		.from(jobTimeEntry)
+		.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)));
+	if (!row) error(404, 'Entry not found');
+	const me = await memberFor(ctx);
+	if (row.memberId !== me?.id && ctx.role === 'member') error(403, 'Admins only');
+	const startedAt = zonedToUtc(input.startedAt, tz);
+	const endedAt = input.endedAt ? zonedToUtc(input.endedAt, tz) : null;
+	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
+	await db
+		.update(jobTimeEntry)
+		.set({ startedAt, endedAt, note: input.note ?? '' })
+		.where(eq(jobTimeEntry.id, entryId));
+}
+
 /** Deletes an entry. Members can delete their own; admin/owner can delete anyone's. */
 export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
 	const [row] = await db

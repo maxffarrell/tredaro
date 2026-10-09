@@ -35,6 +35,7 @@
 		startTimer,
 		stopTimer,
 		addTimeEntry,
+		updateTimeEntry,
 		deleteTimeEntry,
 		createJob,
 		repeatJob,
@@ -88,6 +89,7 @@
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Printer from '@lucide/svelte/icons/printer';
 	import Plus from '@lucide/svelte/icons/plus';
 	import PenLine from '@lucide/svelte/icons/pen-line';
@@ -300,26 +302,52 @@
 	}
 
 	let addingTime = $state(false);
+	let editTimeId = $state<string | null>(null);
 	let teMember = $state('');
 	let teStart = $state('');
 	let teEnd = $state('');
 	let teNote = $state('');
+	function startEditTime(e: {
+		entry: { id: string; startedAt: Date; endedAt: Date | null; note: string };
+	}) {
+		editTimeId = e.entry.id;
+		teStart = `${localDate(e.entry.startedAt, tz)}T${localTime(e.entry.startedAt, tz)}`;
+		teEnd = e.entry.endedAt
+			? `${localDate(e.entry.endedAt, tz)}T${localTime(e.entry.endedAt, tz)}`
+			: '';
+		teNote = e.entry.note;
+		addingTime = true;
+	}
+	function resetTimeForm() {
+		addingTime = false;
+		editTimeId = null;
+		teStart = teEnd = teNote = '';
+		teMember = '';
+	}
 	async function logTime(e: SubmitEvent) {
 		e.preventDefault();
 		try {
-			await addTimeEntry({
-				jobId: id,
-				memberId: teMember || null,
-				startedAt: teStart,
-				endedAt: teEnd || null,
-				note: teNote
-			}).updates(getTimeEntries, getJob);
-			addingTime = false;
-			teStart = teEnd = teNote = '';
-			teMember = '';
-			toast.success('Time logged');
+			if (editTimeId) {
+				await updateTimeEntry({
+					id: editTimeId,
+					jobId: id,
+					startedAt: teStart,
+					endedAt: teEnd || null,
+					note: teNote
+				}).updates(getTimeEntries, getJob);
+			} else {
+				await addTimeEntry({
+					jobId: id,
+					memberId: teMember || null,
+					startedAt: teStart,
+					endedAt: teEnd || null,
+					note: teNote
+				}).updates(getTimeEntries, getJob);
+			}
+			resetTimeForm();
+			toast.success(editTimeId ? 'Entry updated' : 'Time logged');
 		} catch (err) {
-			toast.error(errMsg(err, 'Could not log time'));
+			toast.error(errMsg(err, 'Could not save time'));
 		}
 	}
 	async function removeTime(entryId: string) {
@@ -1095,14 +1123,26 @@
 								</p>
 							</div>
 							{#if time.isAdmin || e.entry.memberId === time.myMemberId}
-								<Button
-									variant="ghost"
-									size="icon"
-									class="size-7 shrink-0 text-muted-foreground"
-									onclick={() => removeTime(e.entry.id)}
-								>
-									<Trash2 class="size-3.5" />
-								</Button>
+								<div class="flex shrink-0">
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-7 text-muted-foreground"
+										aria-label="Edit time entry"
+										onclick={() => startEditTime(e)}
+									>
+										<Pencil class="size-3.5" />
+									</Button>
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-7 text-muted-foreground"
+										aria-label="Delete time entry"
+										onclick={() => removeTime(e.entry.id)}
+									>
+										<Trash2 class="size-3.5" />
+									</Button>
+								</div>
 							{/if}
 						</li>
 					{:else}
@@ -1119,7 +1159,7 @@
 				{#if !locked}
 					{#if addingTime}
 						<form class="grid gap-2 border-t pt-3" onsubmit={logTime}>
-							{#if time.isAdmin}
+							{#if time.isAdmin && !editTimeId}
 								<Select.Root type="single" bind:value={teMember}>
 									<Select.Trigger class="w-full"
 										>{technicians.find((t) => t.id === teMember)?.name ?? 'Me'}</Select.Trigger
@@ -1140,7 +1180,7 @@
 							<Input placeholder="Note (optional)" bind:value={teNote} />
 							<div class="flex gap-2">
 								<Button type="submit" size="sm" disabled={!teStart}>Save</Button>
-								<Button type="button" size="sm" variant="ghost" onclick={() => (addingTime = false)}
+								<Button type="button" size="sm" variant="ghost" onclick={resetTimeForm}
 									>Cancel</Button
 								>
 							</div>

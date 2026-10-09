@@ -50,6 +50,7 @@
 	let planPrice = $state(0);
 	let planInitial = $state(0);
 	let planVisits = $state(0);
+	let planDiscount = $state(0);
 	let planJobTypeId = $state('');
 
 	function openPlan(p?: (typeof plans)[number]) {
@@ -60,6 +61,7 @@
 		planPrice = p?.amount ?? 0;
 		planInitial = p?.initialFee ?? 0;
 		planVisits = p?.includedVisits ?? 0;
+		planDiscount = p?.discountPct ?? 0;
 		planJobTypeId = p?.jobTypeId ?? '';
 		planOpen = true;
 	}
@@ -75,6 +77,7 @@
 				amount: planPrice,
 				initialFee: planInitial,
 				includedVisits: planVisits || null,
+				discountPct: planDiscount || 0,
 				jobTypeId: planJobTypeId || null
 			};
 			if (planId) {
@@ -324,6 +327,7 @@
 									{#if p.includedVisits}· {p.includedVisits} visit{p.includedVisits > 1
 											? 's'
 											: ''}/{p.interval === 'month' ? 'mo' : 'yr'}{/if}
+									{#if p.discountPct}· {p.discountPct}% off work{/if}
 								</p>
 							</Card.Content>
 						</Card.Root>
@@ -386,6 +390,13 @@
 					<Input id="pl-visits" type="number" min={0} max={50} bind:value={planVisits} />
 				</Field.Field>
 			</div>
+			<Field.Field>
+				<Field.Label for="pl-discount">Member discount %</Field.Label>
+				<Input id="pl-discount" type="number" min={0} max={100} bind:value={planDiscount} />
+				<p class="text-xs text-muted-foreground">
+					Taken off invoices for customers under an active agreement on this plan.
+				</p>
+			</Field.Field>
 			<Field.Field>
 				<Field.Label>Visit job type</Field.Label>
 				<Select.Root type="single" bind:value={planJobTypeId}>

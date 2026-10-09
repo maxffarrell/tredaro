@@ -322,21 +322,34 @@ export async function requestService(
 	return { job: row, estimate: null };
 }
 
-/** Starts a provider checkout for the customer's full open balance. */
-export async function portalCheckout(customerId: string, providerId: string) {
+/**
+ * Starts a provider checkout. `chargeIds` limits payment to that selection of open
+ * charges (per-charge portal pay); omitted = full open balance.
+ */
+export async function portalCheckout(customerId: string, providerId: string, chargeIds?: string[]) {
 	const overview = await portalOverview(customerId);
 	if (overview.balance <= 0) error(400, 'Nothing to pay');
 	const provider = providers.find((p) => p.id === providerId);
 	if (!provider?.configured()) error(404, 'Unknown provider');
 	const row = await providerRow(overview.customer.organizationId, providerId);
 	if (!provider.ready(row)) error(400, `${provider.name} is not available right now`);
+	let amount = overview.balance;
+	let meta: Record<string, string> | undefined;
+	if (chargeIds?.length) {
+		const wanted = new Set(chargeIds);
+		const picked = overview.openCharges.filter((c) => wanted.has(c.charge.id));
+		amount = picked.reduce((sum, c) => sum + (c.charge.amount - c.paid), 0);
+		if (!picked.length || amount <= 0) error(400, 'Selected charges are already paid');
+		meta = { tredaroChargeIds: picked.map((c) => c.charge.id).join(',') };
+	}
 	return provider.checkout({
 		orgId: overview.customer.organizationId,
 		customerId,
 		email: overview.customer.email,
-		amount: overview.balance,
+		amount,
 		currency: overview.settings?.currency ?? 'usd',
 		description: `Balance payment — ${overview.customer.name}`,
+		meta,
 		row
 	});
 }

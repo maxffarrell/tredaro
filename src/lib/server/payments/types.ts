@@ -14,6 +14,8 @@ export type CheckoutInput = {
 	row: ProviderRow | null;
 	/** App-relative paths for post-checkout redirects (defaults to the customer portal). */
 	paths?: { success: string; cancel: string };
+	/** Extra key/values passed through to the provider's session metadata. */
+	meta?: Record<string, string>;
 };
 
 /**

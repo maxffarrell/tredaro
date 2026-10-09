@@ -29,7 +29,9 @@ import {
 	checklistToggleInput,
 	jobSignatureInput,
 	jobExpenseInput,
-	jobRepeatInput
+	jobRepeatInput,
+	localDateTime,
+	optionalText
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -245,6 +247,21 @@ export const addTimeEntry = command(timeEntryInput, async (input) => {
 	await refreshQuery(getJob, input.jobId);
 	return t;
 });
+
+export const updateTimeEntry = command(
+	v.object({
+		id: idSchema,
+		jobId: idSchema,
+		startedAt: localDateTime,
+		endedAt: v.optional(v.nullable(localDateTime)),
+		note: optionalText
+	}),
+	async ({ id, ...input }) => {
+		await svc.updateTimeEntry(await requireOrg(), await tz(), id, input);
+		await refreshQuery(getTimeEntries, input.jobId);
+		await refreshQuery(getJob, input.jobId);
+	}
+);
 
 export const deleteTimeEntry = command(
 	v.object({ id: idSchema, jobId: idSchema }),

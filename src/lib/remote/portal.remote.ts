@@ -109,10 +109,14 @@ export const getProviders = query(idSchema, async (customerId) => {
 });
 
 export const startCheckout = command(
-	v.object({ customerId: idSchema, provider: v.string() }),
-	async ({ customerId, provider }) => {
+	v.object({
+		customerId: idSchema,
+		provider: v.string(),
+		charges: v.optional(v.array(idSchema))
+	}),
+	async ({ customerId, provider, charges }) => {
 		const c = await myCustomer(customerId);
-		return { url: await svc.portalCheckout(c.id, provider) };
+		return { url: await svc.portalCheckout(c.id, provider, charges) };
 	}
 );
 

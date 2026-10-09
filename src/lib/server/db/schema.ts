@@ -232,6 +232,8 @@ export const agreementPlan = pgTable(
 		initialFee: integer('initial_fee').notNull().default(0),
 		/** Included maintenance visits per interval; null = none tracked. */
 		includedVisits: integer('included_visits'),
+		/** % off invoiced work for members of this plan (membership perk). */
+		discountPct: integer('discount_pct').notNull().default(0),
 		/** Job type generated visits use (defaults duration/assignee/office); null = untyped. */
 		jobTypeId: text('job_type_id'),
 		/** Shown on the public booking page. */

@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 
-const optionalText = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(5000))));
+export const optionalText = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(5000))));
 const requiredText = (label: string) =>
 	v.pipe(v.string(), v.trim(), v.nonEmpty(`${label} is required`), v.maxLength(200));
 const isoDate = v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD'));
@@ -116,6 +116,8 @@ export const agreementPlanInput = v.object({
 	interval: v.optional(v.picklist(agreementIntervals), 'month'),
 	initialFee: v.optional(cents, 0),
 	includedVisits: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+	/** % off invoiced work for customers under an active agreement on this plan. */
+	discountPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)), 0),
 	/** Job type generated visits default to; null = untyped. */
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	listed: v.optional(v.boolean(), true),
@@ -282,7 +284,7 @@ export const jobTypeInput = v.object({
 export const jobTypeUpdate = v.object({ id: idSchema, ...v.partial(jobTypeInput).entries });
 
 /** Local wall-clock time (`YYYY-MM-DDTHH:mm`) in the workspace timezone. */
-const localDateTime = v.pipe(v.string(), v.isoDateTime('Use YYYY-MM-DDTHH:mm'));
+export const localDateTime = v.pipe(v.string(), v.isoDateTime('Use YYYY-MM-DDTHH:mm'));
 
 export const jobInput = v.object({
 	jobTypeId: v.optional(v.nullable(idSchema)),

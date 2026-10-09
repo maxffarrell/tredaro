@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
@@ -11,6 +12,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
@@ -54,12 +56,34 @@
 	async function pay(provider: string) {
 		paying = true;
 		try {
-			const { url } = await startCheckout({ customerId, provider });
+			const { url } = await startCheckout({
+				customerId,
+				provider,
+				charges: [...(selectedCharges ?? d.openCharges.map((c) => c.charge.id))]
+			});
 			location.assign(url);
 		} catch (err) {
 			paying = false;
 			toast.error(errMsg(err, 'Could not start payment'));
 		}
+	}
+
+	// Per-charge selection: a subset pays only those charges (recorded against them
+	// via the checkout metadata), not the whole balance. null = all selected.
+	let selectedCharges = $state<SvelteSet<string> | null>(null);
+	const selectedTotal = $derived(
+		d.openCharges
+			.filter((c) => !selectedCharges || selectedCharges.has(c.charge.id))
+			.reduce((sum, c) => sum + (c.charge.amount - c.paid), 0)
+	);
+	function chargeChecked(id: string) {
+		return !selectedCharges || selectedCharges.has(id);
+	}
+	function toggleCharge(id: string, on: boolean) {
+		const next = new SvelteSet(selectedCharges ?? d.openCharges.map((c) => c.charge.id));
+		if (on) next.add(id);
+		else next.delete(id);
+		selectedCharges = next;
 	}
 	let savingCard = $state(false);
 	async function saveCard(provider: string) {
@@ -368,14 +392,23 @@
 				{#if d.openCharges.length}
 					<ul class="space-y-2 text-sm">
 						{#each d.openCharges as row (row.charge.id)}
-							<li class="flex items-center justify-between">
-								<span class="truncate">
-									{row.charge.description || 'Charge'}
-									{#if row.invoiceNumber}<span class="text-xs text-muted-foreground"
-											>· INV-{row.invoiceNumber}</span
-										>{/if}
-								</span>
-								<span class="tabular-nums"
+							<li class="flex items-center justify-between gap-2">
+								<label class="flex min-w-0 items-center gap-2">
+									{#if d.openCharges.length > 1}
+										<Checkbox
+											checked={chargeChecked(row.charge.id)}
+											onCheckedChange={(v) => toggleCharge(row.charge.id, v === true)}
+											aria-label="Include this charge in the payment"
+										/>
+									{/if}
+									<span class="truncate">
+										{row.charge.description || 'Charge'}
+										{#if row.invoiceNumber}<span class="text-xs text-muted-foreground"
+												>· INV-{row.invoiceNumber}</span
+											>{/if}
+									</span>
+								</label>
+								<span class="shrink-0 tabular-nums"
 									>{formatMoney(row.charge.amount - row.paid, currency)}</span
 								>
 							</li>
@@ -384,8 +417,13 @@
 					{#if providers.length}
 						<div class="mt-4 flex gap-2">
 							{#each providers as p (p.id)}
-								<Button variant="secondary" disabled={paying} onclick={() => pay(p.id)}>
-									<CreditCard /> Pay with {p.name}
+								<Button
+									variant="secondary"
+									disabled={paying || !selectedTotal}
+									onclick={() => pay(p.id)}
+								>
+									<CreditCard />
+									Pay {formatMoney(selectedTotal, currency)} with {p.name}
 								</Button>
 							{/each}
 						</div>
