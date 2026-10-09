@@ -523,7 +523,7 @@ export async function dashboard(orgId: string) {
 		.select({
 			n: count(),
 			total:
-				sql<number>`coalesce(sum((select sum(i.qty * i.unit_cost) from purchase_order_item i where i.purchase_order_id = ${purchaseOrder.id})), 0)`.mapWith(
+				sql<number>`coalesce(sum((select sum(i.qty * i.unit_cost) from purchase_order_item i where i.purchase_order_id = purchase_order.id)), 0)`.mapWith(
 					Number
 				)
 		})
