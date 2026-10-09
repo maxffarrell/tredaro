@@ -432,10 +432,12 @@ export async function createJob(
 	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
 	const durationMin = jt?.durationMin ?? 60;
+	// Tech resolution: explicit pick > job type default > the customer's preferred tech.
+	const technicianId = input.technicianId ?? jt?.technicianId ?? c.preferredMemberId ?? null;
 	if (start)
 		await assertTechAvailable(
 			ctx.orgId,
-			input.technicianId ?? jt?.technicianId ?? null,
+			technicianId,
 			start,
 			tz,
 			new Date(start.getTime() + durationMin * 60_000)
@@ -449,7 +451,7 @@ export async function createJob(
 			customerId: input.customerId,
 			serviceLocationId: input.serviceLocationId ?? null,
 			officeId: input.officeId ?? jt?.officeId ?? null,
-			technicianId: input.technicianId ?? jt?.technicianId ?? null,
+			technicianId,
 			equipmentId: input.equipmentId ?? null,
 			summary: input.summary || jt?.name || '',
 			description: input.description,
@@ -482,6 +484,58 @@ export async function createJob(
 			}))
 		);
 	return row;
+}
+
+/** Duplicates the viewed week's scheduled/dispatched jobs onto the same weekday next week. */
+export async function copyScheduleWeek(ctx: OrgContext, weekStartIso: string) {
+	const tz = (await getSettings(ctx.orgId)).timezone;
+	const from = zonedToUtc(`${weekStartIso}T00:00`, tz);
+	const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
+	const rows = await db
+		.select()
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, ctx.orgId),
+				inArray(job.status, ['scheduled', 'dispatched']),
+				gte(job.startsAt, from),
+				lt(job.startsAt, to)
+			)
+		)
+		.orderBy(asc(job.startsAt));
+	let created = 0;
+	let skipped = 0;
+	for (const src of rows) {
+		const newStart = new Date(src.startsAt!.getTime() + 7 * 24 * 60 * 60 * 1000);
+		const wall = `${localDate(newStart, tz)}T${localTime(newStart, tz)}`;
+		try {
+			await createJob(
+				ctx,
+				tz,
+				{
+					customerId: src.customerId,
+					serviceLocationId: src.serviceLocationId ?? null,
+					jobTypeId: src.jobTypeId ?? null,
+					officeId: src.officeId ?? null,
+					technicianId: src.technicianId ?? null,
+					equipmentId: src.equipmentId ?? null,
+					summary: src.summary,
+					description: src.description,
+					priority: src.priority,
+					preferredTime: src.preferredTime ?? null,
+					arrivalWindow: src.arrivalWindow ?? null,
+					warranty: src.warranty,
+					startsAt: wall
+				},
+				{ source: 'manual' }
+			);
+			created++;
+		} catch {
+			// Off-day or scheduling conflict — that job is skipped, the rest still copy.
+			skipped++;
+		}
+	}
+	return { created, skipped };
 }
 
 /** Copy a job — same customer/site/equipment/type/summary/priority/checklist, fresh unscheduled number. */

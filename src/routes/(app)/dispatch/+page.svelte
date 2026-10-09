@@ -8,7 +8,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
-	import { getDispatchBoard, sendDayEtas, updateJob } from '#lib/remote/jobs.remote.ts';
+	import { copyWeek, getDispatchBoard, sendDayEtas, updateJob } from '#lib/remote/jobs.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
@@ -22,6 +22,7 @@
 	import Inbox from '@lucide/svelte/icons/inbox';
 	import Printer from '@lucide/svelte/icons/printer';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
@@ -52,6 +53,20 @@
 			toast.error(errMsg(err, 'Could not send ETA texts'));
 		}
 		etaPending = false;
+	}
+	let copyPending = $state(false);
+
+	async function copyThisWeek() {
+		copyPending = true;
+		try {
+			const r = await copyWeek({ weekStart: start });
+			toast.success(
+				`${r.created} job${r.created === 1 ? '' : 's'} copied to next week${r.skipped ? ` (${r.skipped} skipped — conflict or off-day)` : ''}`
+			);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not copy the week'));
+		}
+		copyPending = false;
 	}
 	const board = $derived(
 		await getDispatchBoard({ from: start, to: addDays(start, 7), officeId: officeId || undefined })
@@ -420,6 +435,14 @@
 				disabled={etaPending}
 				title="Text every customer with a job that day their ETA"
 				><MessageSquare /> {etaPending ? 'Texting…' : 'Text ETAs'}</Button
+			>
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={copyThisWeek}
+				disabled={copyPending}
+				title="Duplicate this week's jobs onto the same weekdays next week"
+				><CalendarPlus /> {copyPending ? 'Copying…' : 'Copy week'}</Button
 			>
 			<Button
 				variant="outline"

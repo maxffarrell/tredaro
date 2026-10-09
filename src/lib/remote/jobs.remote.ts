@@ -97,6 +97,10 @@ export const sendDayEtas = command(v.object({ day: v.string() }), async (input) 
 	return textDayEtas(ctx, input.day);
 });
 
+/** Copies the viewed week's schedule onto the same weekdays next week; conflicts are skipped. */
+export const copyWeek = command(v.object({ weekStart: v.string() }), async (input) =>
+	svc.copyScheduleWeek(await requireOrg(), input.weekStart)
+);
 /** Dispatch board payload for `[from, to]`: scheduled jobs, unscheduled queue, technicians. */
 export const getDispatchBoard = query(
 	v.optional(

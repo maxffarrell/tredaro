@@ -213,11 +213,18 @@
 											</Select.Trigger>
 											<Select.Content>
 												{#each jobTypes as t (t.id)}
-													<Select.Item value={t.id}
-														>{t.name}{t.defaultAmount
-															? ` — ${formatMoney(t.defaultAmount, currency)}`
-															: ''}</Select.Item
-													>
+													<Select.Item value={t.id}>
+														<span class="flex flex-col">
+															<span>
+																{t.name}{t.defaultAmount
+																	? ` — ${formatMoney(t.defaultAmount, currency)}`
+																	: ''}
+															</span>
+															{#if t.description}
+																<span class="text-xs text-muted-foreground">{t.description}</span>
+															{/if}
+														</span>
+													</Select.Item>
 												{/each}
 											</Select.Content>
 										</Select.Root>
