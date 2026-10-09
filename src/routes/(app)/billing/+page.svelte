@@ -39,6 +39,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Ban from '@lucide/svelte/icons/ban';
+	import FileX from '@lucide/svelte/icons/file-x';
 	import Send from '@lucide/svelte/icons/send';
 	import Mail from '@lucide/svelte/icons/mail';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
@@ -284,6 +285,15 @@
 			toast.success('Charge voided');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not void'));
+		}
+	}
+
+	async function writeOffCharge(id: string) {
+		try {
+			await updateCharge({ id, status: 'written_off' }).updates(getCharges, getDashboard);
+			toast.success('Charge written off');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not write off'));
 		}
 	}
 
@@ -618,12 +628,23 @@
 									>
 									<Table.Cell class="text-right">
 										{#if ch.charge.status === 'open'}
-											<Button
-												variant="ghost"
-												size="icon"
-												class="size-8 text-destructive"
-												onclick={() => voidCharge(ch.charge.id)}><Ban class="size-4" /></Button
-											>
+											<div class="flex justify-end">
+												<Button
+													variant="ghost"
+													size="icon"
+													class="size-8 text-amber-600"
+													title="Write off as uncollectible"
+													onclick={() => writeOffCharge(ch.charge.id)}
+													><FileX class="size-4" /></Button
+												>
+												<Button
+													variant="ghost"
+													size="icon"
+													class="size-8 text-destructive"
+													title="Void (created in error)"
+													onclick={() => voidCharge(ch.charge.id)}><Ban class="size-4" /></Button
+												>
+											</div>
 										{/if}
 									</Table.Cell>
 								</Table.Row>

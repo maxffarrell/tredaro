@@ -962,6 +962,24 @@ const memberFor = async (ctx: OrgContext) =>
 			.where(and(eq(member.organizationId, ctx.orgId), eq(member.userId, ctx.userId)))
 	)[0];
 
+/** A staff member marks their own time off from My Day — trusted, flagged to admins. */
+export async function requestTimeOff(
+	ctx: OrgContext,
+	input: { startsOn: string; endsOn: string; reason: string }
+) {
+	const me = await memberFor(ctx);
+	if (!me) error(403, 'Only staff can request time off');
+	const row = await addTimeOff(ctx, { memberId: me.id, ...input });
+	const { notifyTimeOffRequest } = await import('./notifications.ts');
+	void notifyTimeOffRequest(
+		ctx.orgId,
+		me.id,
+		input.startsOn === input.endsOn ? input.startsOn : `${input.startsOn} – ${input.endsOn}`,
+		input.reason
+	).catch((err) => console.error('time-off alert failed', err));
+	return row;
+}
+
 const requireJob = async (orgId: string, jobId: string) => {
 	const [j] = await db
 		.select()

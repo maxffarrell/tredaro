@@ -609,7 +609,7 @@ export const invoiceItem = pgTable(
 );
 
 export const chargeKind = pgEnum('charge_kind', ['job', 'agreement', 'initial', 'other']);
-export const chargeStatus = pgEnum('charge_status', ['open', 'paid', 'void']);
+export const chargeStatus = pgEnum('charge_status', ['open', 'paid', 'void', 'written_off']);
 
 /** A receivable against a customer: invoice totals, agreement dues, one-off charges. */
 export const charge = pgTable(

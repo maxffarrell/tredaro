@@ -5,11 +5,16 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import Printer from '@lucide/svelte/icons/printer';
 	import { toast } from 'svelte-sonner';
-	import { decidePublicEstimate, requestEstimateChangesPublic } from '#lib/remote/public.remote.ts';
+	import {
+		decidePublicEstimate,
+		requestEstimateChangesPublic,
+		setVisitPreferencePublic
+	} from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -39,6 +44,23 @@
 	let note = $state('');
 	let pending = $state(false);
 	let changesSent = $state(false);
+	let prefNote = $state('');
+	let prefSent = $state(false);
+
+	async function sendPreference() {
+		if (!prefNote.trim()) {
+			toast.error('Say when works best');
+			return;
+		}
+		pending = true;
+		try {
+			await setVisitPreferencePublic({ token: page.params.token!, note: prefNote.trim() });
+			prefSent = true;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not submit'));
+		}
+		pending = false;
+	}
 
 	async function requestChanges() {
 		if (!note.trim()) {
@@ -181,6 +203,28 @@
 					<p class="mt-1 text-sm text-muted-foreground">
 						{orgName} will reach out to schedule the work.
 					</p>
+					{#if est.jobId}
+						{#if prefSent}
+							<p class="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+								Got it — they'll schedule around your note.
+							</p>
+						{:else}
+							<div class="mx-auto mt-4 max-w-sm text-left">
+								<Field.Field>
+									<Field.Label for="visit-pref">When works best for you?</Field.Label>
+									<Textarea
+										id="visit-pref"
+										bind:value={prefNote}
+										rows={2}
+										placeholder="Weekday mornings, after Thursday, anytime…"
+									/>
+								</Field.Field>
+								<Button size="sm" class="mt-2" disabled={pending} onclick={sendPreference}
+									>Send</Button
+								>
+							</div>
+						{/if}
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		{:else if est.status === 'expired'}

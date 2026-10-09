@@ -39,7 +39,7 @@ export const jobEventKinds = [
 export const estimateStatuses = ['draft', 'sent', 'approved', 'declined', 'converted'] as const;
 export const invoiceStatuses = ['open', 'void'] as const;
 export const chargeKinds = ['job', 'agreement', 'initial', 'other'] as const;
-export const chargeStatuses = ['open', 'paid', 'void'] as const;
+export const chargeStatuses = ['open', 'paid', 'void', 'written_off'] as const;
 export const paymentMethods = ['card', 'cash', 'check', 'bank', 'stripe', 'other'] as const;
 
 export const customerInput = v.object({

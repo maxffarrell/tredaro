@@ -15,12 +15,15 @@
 		signJob,
 		startTimer,
 		stopTimer,
-		getCalendarFeed
+		getCalendarFeed,
+		requestTimeOff
 	} from '#lib/remote/jobs.remote.ts';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
 	import { errMsg } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
@@ -77,6 +80,29 @@
 	let pending = $state<string | null>(null);
 	let signJobId = $state<string | null>(null);
 	let signNote = $state('');
+
+	// ------- request time off -------
+	let ptoOpen = $state(false);
+	let ptoStart = $state('');
+	let ptoEnd = $state('');
+	let ptoReason = $state('');
+	let ptoPending = $state(false);
+	async function saveTimeOff() {
+		ptoPending = true;
+		try {
+			await requestTimeOff({
+				startsOn: ptoStart,
+				endsOn: ptoEnd,
+				reason: ptoReason.trim()
+			});
+			ptoOpen = false;
+			ptoReason = '';
+			toast.success('Time off marked');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+		ptoPending = false;
+	}
 	let noteJobId = $state<string | null>(null);
 	let noteText = $state('');
 
@@ -319,6 +345,14 @@
 {/snippet}
 
 {#snippet calActions()}
+	<Button
+		variant="outline"
+		size="sm"
+		onclick={() => (ptoOpen = true)}
+		title="Mark upcoming time off — shows on dispatch"
+	>
+		<CalendarX2 /> Time off
+	</Button>
 	{#if calFeed}
 		<Button variant="outline" size="sm" onclick={copyCal} title="Subscribe to your schedule">
 			<CalendarPlus /> Calendar
@@ -531,6 +565,37 @@
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (noteJobId = null)}>Cancel</Button>
 			<Button onclick={saveNote} disabled={pending !== null || !noteText.trim()}>Save note</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={ptoOpen}>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Request time off</Dialog.Title>
+			<Dialog.Description
+				>Blocked on the dispatch board immediately — the office is emailed a heads-up.</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="grid gap-3">
+			<div class="grid gap-1.5">
+				<Label for="pto-start">From</Label>
+				<Input id="pto-start" type="date" bind:value={ptoStart} />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="pto-end">To</Label>
+				<Input id="pto-end" type="date" bind:value={ptoEnd} />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="pto-reason">Reason (optional)</Label>
+				<Input id="pto-reason" bind:value={ptoReason} placeholder="PTO, appointment…" />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (ptoOpen = false)}>Cancel</Button>
+			<Button onclick={saveTimeOff} disabled={ptoPending || !ptoStart || !ptoEnd}
+				>{ptoPending ? 'Saving…' : 'Mark off'}</Button
+			>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

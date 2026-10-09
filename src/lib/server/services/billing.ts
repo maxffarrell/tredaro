@@ -1267,12 +1267,28 @@ export async function addCredit(
 
 export async function updateCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeUpdate>) {
 	const { id, ...set } = input;
+	if (set.status === 'written_off') {
+		const [cur] = await db
+			.select({ status: charge.status })
+			.from(charge)
+			.where(and(eq(charge.organizationId, ctx.orgId), eq(charge.id, id)));
+		if (!cur) error(404, 'Charge not found');
+		if (cur.status !== 'open') error(409, 'Only open charges can be written off');
+	}
 	const [row] = await db
 		.update(charge)
 		.set(set)
 		.where(and(eq(charge.organizationId, ctx.orgId), eq(charge.id, id)))
 		.returning();
 	if (!row) error(404, 'Charge not found');
+	if (set.status === 'written_off')
+		await emit({
+			orgId: ctx.orgId,
+			entityType: 'charge',
+			entityId: id,
+			action: 'written_off',
+			summary: `Charge written off — $${(row.amount / 100).toFixed(2)}`
+		});
 	return row;
 }
 

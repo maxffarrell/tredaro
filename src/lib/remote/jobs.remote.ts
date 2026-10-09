@@ -280,6 +280,20 @@ export const addTimeOff = command(timeOffInput, async (input) => {
 	await refreshQuery(getTimeOff, undefined);
 	return row;
 });
+const timeOffRequestInput = v.object({
+	startsOn: v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD')),
+	endsOn: v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD')),
+	reason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
+});
+
+/** The signed-in tech marks their own time off from My Day. */
+export const requestTimeOff = command(timeOffRequestInput, async (input) => {
+	const row = await svc.requestTimeOff(await requireOrg(), input);
+	await refreshQuery(getTimeOff, undefined);
+	await refreshQuery(getMyDay, undefined);
+	return row;
+});
+
 export const deleteTimeOff = command(idSchema, async (id) => {
 	await svc.deleteTimeOff(await requireOrg('admin'), id);
 	await refreshQuery(getTimeOff, undefined);

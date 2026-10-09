@@ -5,6 +5,7 @@ import {
 	agreementPlan,
 	companySettings,
 	customer,
+	estimate,
 	job,
 	jobType,
 	office,
@@ -14,6 +15,7 @@ import {
 import { member, user } from '#lib/server/db/auth.schema.ts';
 import { emit } from './events.ts';
 import { createJob } from './jobs.ts';
+import { verifyEstimateToken } from './estimates.ts';
 import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import type * as s from '#lib/schemas.ts';
@@ -267,4 +269,29 @@ export async function requestBooking(
 	}
 
 	return { job: j, customer: c, payUrl };
+}
+
+/**
+ * Post-approval "when works best": the customer names their preferred timing on the
+ * public estimate link — stored as the generated job's preferredTime for dispatch.
+ */
+export async function setVisitPreference(token: string, note: string) {
+	const estimateId = verifyEstimateToken(token);
+	if (!estimateId) error(404, 'Estimate not found');
+	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
+	if (!est) error(404, 'Estimate not found');
+	if (!est.jobId) error(409, 'No visit to schedule yet');
+	await db.update(job).set({ preferredTime: note }).where(eq(job.id, est.jobId));
+	await emit({
+		orgId: est.organizationId,
+		entityType: 'job',
+		entityId: est.jobId,
+		action: 'visit_preference',
+		summary: `Customer asked for "${note.slice(0, 200)}" after approving E-${est.number}`
+	});
+	const { notifyVisitPreference } = await import('./notifications.ts');
+	void notifyVisitPreference(est.organizationId, est.jobId, note).catch((err) =>
+		console.error('visit preference alert failed', err)
+	);
+	return { ok: true };
 }

@@ -1665,6 +1665,69 @@ export async function notifyStaffInvoiceViewed(orgId: string, invoiceId: string)
 	}
 }
 
+/** Customer told us when works best after approving an estimate — staff alert per visit. */
+export async function notifyVisitPreference(orgId: string, jobId: string, note: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ number: job.number, customerName: customer.name })
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'visit_preference', jobId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `J-${row.number} — customer picked a time (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} told you when works best for J-${row.number}`,
+				lines: [
+					`"${note.slice(0, 500)}"`,
+					'The preference is on the job — schedule the visit and send a confirmation.'
+				],
+				action: { label: 'Open job', url: `${appOrigin()}/jobs/${jobId}` }
+			})
+		});
+	}
+}
+
+/** A tech self-requested time off from My Day — heads-up to admins. */
+export async function notifyTimeOffRequest(
+	orgId: string,
+	memberId: string,
+	range: string,
+	reason: string
+) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ name: user.name })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(member.id, memberId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'timeoff_request', memberId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Time off: ${row.name} — ${range} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.name} marked time off for ${range}`,
+				lines: [
+					reason ? `Reason: ${reason.slice(0, 200)}` : 'No reason given.',
+					'It already shows on the dispatch board — remove it in Settings if it was a mistake.'
+				],
+				action: { label: 'Open settings', url: `${appOrigin()}/settings` }
+			})
+		});
+	}
+}
+
 /** Customer clicked "Request changes" on the public estimate — staff alert, once per estimate. */
 export async function notifyStaffEstimateChanges(orgId: string, estimateId: string, note: string) {
 	const flags = await notifFlags(orgId);
