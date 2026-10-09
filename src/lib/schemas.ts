@@ -461,6 +461,7 @@ export const settingsInput = v.object({
 	address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50))),
 	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	licenseNumber: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
 	reviewUrl: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	emailNotifications: v.optional(v.boolean()),
 	smsNotifications: v.optional(v.boolean()),

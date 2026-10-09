@@ -22,6 +22,9 @@
 	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
 	import { getCustomerOpenBalance, recordPayment } from '#lib/remote/billing.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getTruckStock, addJobMaterial } from '#lib/remote/inventory.remote.ts';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import Package from '@lucide/svelte/icons/package';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
@@ -227,6 +230,41 @@
 		pending = null;
 	}
 
+	// ------- log a part used from my truck -------
+	const myTruck = $derived(
+		day.member
+			? (await getTruckStock()).filter(
+					(t) => t.stock.memberId === day.member!.id && t.stock.qty > 0
+				)
+			: []
+	);
+	let partJobId = $state<string | null>(null);
+	let partItemId = $state('');
+	let partQty = $state(1);
+	function openPart(jobId: string) {
+		partJobId = jobId;
+		partItemId = '';
+		partQty = 1;
+	}
+	async function logPart() {
+		if (!partJobId || !partItemId || !day.member) return;
+		pending = `${partJobId}:part`;
+		try {
+			await addJobMaterial({
+				jobId: partJobId,
+				inventoryItemId: partItemId,
+				qty: partQty,
+				unitPrice: 0,
+				truckMemberId: day.member.id
+			}).updates(getMyDay);
+			partJobId = null;
+			toast.success('Part logged from your truck');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not log part'));
+		}
+		pending = null;
+	}
+
 	async function completeWithSignature(name: string, dataUrl: string) {
 		const jobId = signJobId;
 		if (!jobId) return;
@@ -422,6 +460,14 @@
 							>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
+					{#if myTruck.length}
+						<Button
+							size="sm"
+							variant="ghost"
+							disabled={pending !== null}
+							onclick={() => openPart(j.job.id)}><Package /> Part</Button
+						>
+					{/if}
 					<Button
 						size="sm"
 						variant="ghost"
@@ -661,6 +707,47 @@
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (noteJobId = null)}>Cancel</Button>
 			<Button onclick={saveNote} disabled={pending !== null || !noteText.trim()}>Save note</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root
+	open={partJobId !== null}
+	onOpenChange={(v) => {
+		if (!v) partJobId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Log part used</Dialog.Title>
+			<Dialog.Description
+				>Comes off your truck stock — bill it on the invoice later.</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="grid gap-3">
+			<Select.Root type="single" value={partItemId} onValueChange={(v) => (partItemId = v ?? '')}>
+				<Select.Trigger class="w-full" data-testid="part-item"
+					>{myTruck.find((t) => t.stock.inventoryItemId === partItemId)?.itemName ??
+						'Pick a part'}</Select.Trigger
+				>
+				<Select.Content>
+					{#each myTruck as t (t.stock.id)}
+						<Select.Item value={t.stock.inventoryItemId}
+							>{t.itemName} — {t.stock.qty} {t.itemUnit} on truck</Select.Item
+						>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+			<Label class="grid gap-1 text-xs">
+				Qty
+				<Input type="number" min="1" bind:value={partQty} data-testid="part-qty" />
+			</Label>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (partJobId = null)}>Cancel</Button>
+			<Button onclick={logPart} disabled={pending !== null || !partItemId || partQty < 1}
+				>Log part</Button
+			>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

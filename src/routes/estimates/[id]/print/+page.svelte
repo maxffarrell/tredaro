@@ -36,6 +36,7 @@
 					<p class="text-lg font-bold">{settings.orgName}</p>
 					{#if settings.address}<p class="text-sm">{settings.address}</p>{/if}
 					{#if settings.phone}<p class="text-sm">{settings.phone}</p>{/if}
+					{#if settings.licenseNumber}<p class="text-sm">Lic. #{settings.licenseNumber}</p>{/if}
 				</div>
 				<div class="text-right">
 					<h1 class="text-2xl font-bold tracking-tight">Estimate</h1>

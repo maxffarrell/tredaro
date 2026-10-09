@@ -57,6 +57,8 @@ export const companySettings = pgTable('company_settings', {
 	address: text('address').notNull().default(''),
 	phone: text('phone').notNull().default(''),
 	website: text('website').notNull().default(''),
+	/** Contractor license / registration number, printed on estimates and work orders. */
+	licenseNumber: text('license_number').notNull().default(''),
 	/** Public review link (Google/Yelp/etc.) shown as a button in the job-completed email. Empty disables it. */
 	reviewUrl: text('review_url').notNull().default(''),
 	/** Master switches for automated sends — manual Send buttons always work. */
