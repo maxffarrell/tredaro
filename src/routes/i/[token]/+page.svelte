@@ -20,7 +20,8 @@
 		total,
 		paid,
 		currency,
-		providers
+		providers,
+		footer
 	} = $derived(data);
 	const balance = $derived(total - paid);
 	const paidOff = $derived(
@@ -156,6 +157,9 @@
 					</p>
 				</Card.Content>
 			</Card.Root>
+		{/if}
+		{#if footer}
+			<p class="px-1 text-xs whitespace-pre-wrap text-muted-foreground">{footer}</p>
 		{/if}
 	</main>
 </div>

@@ -34,6 +34,7 @@
 		updateEquipment,
 		getPortalInvite,
 		getCustomerDuplicates,
+		getMergePreview,
 		mergeCustomers,
 		textCustomerCmd,
 		emailStatementCmd,
@@ -2113,6 +2114,16 @@
 				</p>
 			{/each}
 		</div>
+		{#if mergeSource}
+			{@const preview = await getMergePreview(mergeSource)}
+			{#if preview}
+				<p class="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+					Moves {preview.jobs} jobs · {preview.estimates} estimates · {preview.invoices}
+					invoices · {preview.charges} charges · {preview.equipment} equipment ·
+					{preview.locations} locations · {preview.agreements} agreements — then deletes the duplicate.
+				</p>
+			{/if}
+		{/if}
 		{#if dupes.length}
 			<Dialog.Footer>
 				<Button variant="destructive" disabled={!mergeSource || mergePending} onclick={doMerge}>

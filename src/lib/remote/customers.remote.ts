@@ -151,6 +151,11 @@ export const getPortalInvite = query(idSchema, async (customerId) => {
 	return { url: `${appOrigin()}/portal/claim/${portalToken(customerId)}` };
 });
 
+export const getMergePreview = query(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	return svc.getMergePreview(ctx, id);
+});
+
 export const getCustomerDuplicates = query(idSchema, async (id) =>
 	svc.findDuplicates((await requireOrg()).orgId, id)
 );

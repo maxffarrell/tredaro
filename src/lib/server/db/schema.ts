@@ -103,6 +103,10 @@ export const companySettings = pgTable('company_settings', {
 	bookingBlackouts: text('booking_blackouts').notNull().default(''),
 	/** Hours before an appointment the reminder email/text goes out (daily cron). */
 	reminderHours: integer('reminder_hours').notNull().default(36),
+	/** Fine print appended on the public estimate + staff print view (terms/warranty). */
+	estimateFooter: text('estimate_footer').notNull().default(''),
+	/** Fine print appended on the public invoice page (payment terms/notes). */
+	invoiceFooter: text('invoice_footer').notNull().default(''),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),

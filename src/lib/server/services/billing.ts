@@ -1070,7 +1070,7 @@ export async function publicInvoice(id: string) {
 			.innerJoin(charge, eq(charge.id, payment.chargeId))
 			.where(eq(charge.invoiceId, id)),
 		db
-			.select({ currency: companySettings.currency })
+			.select({ currency: companySettings.currency, footer: companySettings.invoiceFooter })
 			.from(companySettings)
 			.where(eq(companySettings.organizationId, row.invoice.organizationId))
 	]);
@@ -1089,6 +1089,7 @@ export async function publicInvoice(id: string) {
 		total,
 		paid,
 		currency: settings?.currency ?? 'usd',
+		footer: settings?.footer ?? '',
 		providers: providers_
 	};
 }
