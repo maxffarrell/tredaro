@@ -743,7 +743,11 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base">Maintenance schedules</Card.Title>
+				<Card.Title class="text-base"
+					>Maintenance schedules{#if schedules.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">({schedules.length})</span
+						>{/if}</Card.Title
+				>
 				<Button size="sm" variant="outline" onclick={() => (addingSc = !addingSc)}>
 					<Repeat /> Add
 				</Button>

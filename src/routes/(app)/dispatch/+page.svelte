@@ -61,6 +61,20 @@
 					)
 			: 0
 	);
+	const techsOn = $derived.by(() => {
+		if (!board) return 0;
+		return new Set(
+			board.scheduled
+				.filter(
+					(j) =>
+						j.job.startsAt &&
+						j.job.technicianId &&
+						!['done', 'cancelled'].includes(j.job.status) &&
+						localDate(new Date(j.job.startsAt), tz) === todayStr
+				)
+				.map((j) => j.job.technicianId)
+		).size;
+	});
 	const avgPerTechToday = $derived.by(() => {
 		if (!board || !board.technicians.length) return null;
 		const todayJobs = board.scheduled.filter(
@@ -254,6 +268,11 @@
 			{/if}
 			{#if doneThisWeek}
 				<Badge variant="outline">{doneThisWeek} done</Badge>
+			{/if}
+			{#if techsOn}
+				<Badge variant="outline" class="text-muted-foreground"
+					>{techsOn} tech{techsOn === 1 ? '' : 's'} on today</Badge
+				>
 			{/if}
 			{#if schedTodayMin > 0}
 				<Badge variant="outline"

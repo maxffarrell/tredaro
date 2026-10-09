@@ -892,7 +892,7 @@
 		<Tabs.Content value="team">
 			<Card.Root class="max-w-2xl">
 				<Card.Header>
-					<Card.Title class="text-base">Team</Card.Title>
+					<Card.Title class="text-base">Team ({staff.length} members)</Card.Title>
 					<Card.Description>Staff become technicians on the dispatch board.</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4 px-6">
