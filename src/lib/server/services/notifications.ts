@@ -1454,7 +1454,8 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 			number: job.number,
 			status: job.status,
 			jobTypeName: jobType.name,
-			reviewUrl: companySettings.reviewUrl
+			reviewUrl: companySettings.reviewUrl,
+			autoReport: companySettings.autoSendReport
 		})
 		.from(job)
 		.innerJoin(customer, eq(job.customerId, customer.id))
@@ -1499,6 +1500,7 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 				? `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks! A quick review helps a lot: ${row.reviewUrl}`
 				: `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks for choosing us!`
 		});
+	if (row.autoReport) await notifyServiceReport(orgId, jobId);
 }
 
 /** Emails admins/dispatchers the moment a booking request lands (staffDigest toggle gates it). */

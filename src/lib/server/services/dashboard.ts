@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, isNull, lt, lte, ne, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -15,6 +15,7 @@ import {
 	jobTimeEntry,
 	member,
 	payment,
+	pricebookItem,
 	purchaseOrder,
 	serviceAgreement,
 	user,
@@ -424,6 +425,19 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(purchaseOrder.expectedOn))
 		.limit(4);
 
+	const [typeCount, itemCount, memberCount] = await Promise.all([
+		db.select({ n: count() }).from(jobType).where(eq(jobType.organizationId, orgId)),
+		db.select({ n: count() }).from(pricebookItem).where(eq(pricebookItem.organizationId, orgId)),
+		db.select({ n: count() }).from(member).where(eq(member.organizationId, orgId))
+	]);
+	const setup = {
+		types: (typeCount[0]?.n ?? 0) > 0,
+		catalog: (itemCount[0]?.n ?? 0) > 0,
+		customers: (customerStats?.active ?? 0) > 0,
+		team: (memberCount[0]?.n ?? 0) > 1,
+		booking: !!settings?.bookingEnabled && !!settings?.publicPage
+	};
+
 	return {
 		timezone: tz,
 		currency: settings?.currency ?? 'usd',
@@ -438,6 +452,7 @@ export async function dashboard(orgId: string) {
 		openTotal: openStats?.openTotal ?? 0,
 		overdueTotal: openStats?.overdueTotal ?? 0,
 		mrr,
+		setup,
 		todayJobs,
 		recentActivity,
 		recentCustomers,

@@ -34,6 +34,7 @@
 	import Star from '@lucide/svelte/icons/star';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
+	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -333,10 +334,18 @@
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="pr-6 text-right">
-								{#if j.confirmed}
-									<StatusBadge status="approved" label="Confirmed" />
-								{:else if j.job.status === 'scheduled' && j.job.startsAt}
-									<div class="flex flex-col items-end gap-1 sm:flex-row sm:items-center">
+								<div class="flex items-center justify-end gap-1">
+									{#if j.job.startsAt}
+										<Button
+											size="sm"
+											variant="ghost"
+											href="/api/portal/ics?job={j.job.id}"
+											title="Add to calendar"><CalendarPlus class="size-4" /></Button
+										>
+									{/if}
+									{#if j.confirmed}
+										<StatusBadge status="approved" label="Confirmed" />
+									{:else if j.job.status === 'scheduled' && j.job.startsAt}
 										<Button
 											size="sm"
 											variant="outline"
@@ -347,10 +356,10 @@
 										<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}
 											>Different time</Button
 										>
-									</div>
-								{:else}
-									<StatusBadge status={j.job.status} />
-								{/if}
+									{:else}
+										<StatusBadge status={j.job.status} />
+									{/if}
+								</div>
 							</Table.Cell>
 						</Table.Row>
 					{:else}

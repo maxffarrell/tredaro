@@ -218,6 +218,7 @@
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
 	let estimateValidDays = $state(settings.estimateValidDays);
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
+	let autoSendReport = $state(settings.autoSendReport);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
 	let bookingDeposit = $state(settings.bookingDeposit);
@@ -286,6 +287,7 @@
 				invoiceTermsDays,
 				estimateValidDays,
 				autoInvoiceOnComplete,
+				autoSendReport,
 				bookingNoticeDays,
 				bookingDailyLimit,
 				bookingDeposit: bookingDeposit ?? 0,
@@ -805,6 +807,16 @@
 									</p>
 								</div>
 								<Switch bind:checked={autoInvoiceOnComplete} />
+							</div>
+							<div class="flex items-center justify-between">
+								<div>
+									<p>Send service report on completion</p>
+									<p class="text-xs text-muted-foreground">
+										When a job completes, email/text the customer a link to their visit report —
+										work done, checklist, materials and photos.
+									</p>
+								</div>
+								<Switch bind:checked={autoSendReport} />
 							</div>
 						</div>
 						<div class="flex items-center justify-between rounded-lg border p-3 text-sm">

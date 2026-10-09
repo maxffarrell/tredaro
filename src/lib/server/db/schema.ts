@@ -75,6 +75,8 @@ export const companySettings = pgTable('company_settings', {
 	estimateValidDays: integer('estimate_valid_days').notNull().default(30),
 	/** When on, completing a job with materials drafts an invoice automatically. */
 	autoInvoiceOnComplete: boolean('auto_invoice_on_complete').notNull().default(false),
+	/** When on, completing a job emails/texts the customer their service report link. */
+	autoSendReport: boolean('auto_send_report').notNull().default(false),
 	/** Minimum days of advance notice required on the public booking page (0 = same-day ok). */
 	bookingNoticeDays: integer('booking_notice_days').notNull().default(0),
 	/** Sales tax in basis points appended as a line item on new invoices (0 = untaxed). */

@@ -6,6 +6,10 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Progress } from '#lib/components/ui/progress/index.js';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Circle from '@lucide/svelte/icons/circle';
 	import { getDashboard } from '#lib/remote/workspace.remote.ts';
 	import { formatMoney, formatRelative } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
@@ -20,6 +24,14 @@
 	import { goto } from '$app/navigation';
 
 	const d = await getDashboard();
+	const setupSteps = [
+		{ done: d.setup.types, label: 'Add a job type', href: '/settings' },
+		{ done: d.setup.catalog, label: 'Stock the pricebook', href: '/pricebook' },
+		{ done: d.setup.customers, label: 'Add your first customer', href: '/customers?new=1' },
+		{ done: d.setup.team, label: 'Invite a technician', href: '/settings' },
+		{ done: d.setup.booking, label: 'Turn on the public booking page', href: '/settings' }
+	];
+	const setupDone = setupSteps.every((s) => s.done);
 	const kpis = [
 		{
 			label: 'Active customers',
@@ -70,6 +82,33 @@
 <PageHeader title="Dashboard" />
 
 <div class="space-y-6 p-4 md:p-6">
+	{#if !setupDone}
+		{@const doneCount = setupSteps.filter((s) => s.done).length}
+		<Card.Root>
+			<Card.Header class="flex flex-row items-center justify-between">
+				<Card.Title class="text-base">Finish setting up</Card.Title>
+				<Badge variant="secondary">{doneCount} of {setupSteps.length}</Badge>
+			</Card.Header>
+			<Card.Content class="px-6 pb-4">
+				<Progress value={(doneCount / setupSteps.length) * 100} />
+				<ul class="mt-3 space-y-1">
+					{#each setupSteps as st (st.label)}
+						<li>
+							<a href={st.href} class="flex items-center gap-2 text-sm hover:underline">
+								{#if st.done}
+									<CircleCheck class="size-4 shrink-0 text-green-600" />
+								{:else}
+									<Circle class="size-4 shrink-0 text-muted-foreground" />
+								{/if}
+								<span class={st.done ? 'text-muted-foreground line-through' : ''}>{st.label}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	<div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
 		{#each kpis as k (k.label)}
 			<Card.Root
