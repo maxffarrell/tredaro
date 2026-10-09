@@ -966,7 +966,9 @@ export async function recordJobEvent(
 					jobId: input.jobId,
 					kind: input.kind,
 					memberId: memberRow?.id ?? null,
-					note: input.note ?? null
+					note: input.note ?? null,
+					lat: input.lat ?? null,
+					lng: input.lng ?? null
 				})
 				.returning();
 
@@ -1089,7 +1091,18 @@ export async function requestTimeOff(
 ) {
 	const me = await memberFor(ctx);
 	if (!me) error(403, 'Only staff can request time off');
-	const row = await addTimeOff(ctx, { memberId: me.id, ...input });
+	if (input.endsOn < input.startsOn) error(400, 'End date is before the start date');
+	const [row] = await db
+		.insert(memberTimeOff)
+		.values({
+			organizationId: ctx.orgId,
+			memberId: me.id,
+			startsOn: input.startsOn,
+			endsOn: input.endsOn,
+			reason: input.reason,
+			status: 'pending'
+		})
+		.returning();
 	const { notifyTimeOffRequest } = await import('./notifications.ts');
 	void notifyTimeOffRequest(
 		ctx.orgId,
@@ -1297,6 +1310,7 @@ export async function dispatchBoard(orgId: string, from: Date, to: Date, officeI
 			.where(
 				and(
 					eq(memberTimeOff.organizationId, orgId),
+					eq(memberTimeOff.status, 'approved'),
 					lte(memberTimeOff.startsOn, toIso),
 					gte(memberTimeOff.endsOn, fromIso)
 				)
@@ -1390,6 +1404,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					and(
 						eq(memberTimeOff.organizationId, ctx.orgId),
 						eq(memberTimeOff.memberId, me.id),
+						eq(memberTimeOff.status, 'approved'),
 						lte(memberTimeOff.startsOn, localDate(from, tz)),
 						gte(memberTimeOff.endsOn, localDate(from, tz))
 					)
@@ -1501,6 +1516,7 @@ export async function assertTechAvailable(
 			and(
 				eq(memberTimeOff.organizationId, orgId),
 				eq(memberTimeOff.memberId, memberId),
+				eq(memberTimeOff.status, 'approved'),
 				lte(memberTimeOff.startsOn, endDay),
 				gte(memberTimeOff.endsOn, day)
 			)
@@ -1562,6 +1578,17 @@ export async function addTimeOff(ctx: OrgContext, input: v.InferOutput<typeof s.
 			reason: input.reason
 		})
 		.returning();
+	return row;
+}
+
+/** Admin approves or denies a pending time-off request. */
+export async function setTimeOffStatus(ctx: OrgContext, id: string, status: 'approved' | 'denied') {
+	const [row] = await db
+		.update(memberTimeOff)
+		.set({ status })
+		.where(and(eq(memberTimeOff.id, id), eq(memberTimeOff.organizationId, ctx.orgId)))
+		.returning();
+	if (!row) error(404, 'Request not found');
 	return row;
 }
 

@@ -493,6 +493,9 @@ export const jobEvent = pgTable(
 		/** Staff member who triggered it (the tech, or the dispatcher). */
 		memberId: text('member_id').references(() => member.id, { onDelete: 'set null' }),
 		note: text('note'),
+		/** Where the tech's device was when the event fired (browser geolocation). */
+		lat: doublePrecision('lat'),
+		lng: doublePrecision('lng'),
 		at: timestamp('at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => [
@@ -965,6 +968,8 @@ export const memberTimeOff = pgTable(
 		startsOn: date('starts_on', { mode: 'string' }).notNull(),
 		endsOn: date('ends_on', { mode: 'string' }).notNull(),
 		reason: text('reason').notNull().default(''),
+		/** 'pending' (tech-requested, awaiting admin) | 'approved' | 'denied'. */
+		status: text('status').notNull().default('approved'),
 		...timestamps
 	},
 	(t) => [index('member_time_off_member_idx').on(t.memberId, t.startsOn)]

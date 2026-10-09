@@ -946,6 +946,54 @@ export async function runWeeklyDigest(orgId: string) {
 	}
 }
 
+/**
+ * 1st-of-month statements: customers with an open balance get their statement
+ * email (deduped per customer+month). Runs inside the daily cron.
+ */
+export async function runMonthlyStatements(orgId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.email) return;
+	const tz = await orgTimezone(orgId);
+	const today = localDate(new Date(), tz);
+	if (!today.endsWith('-01')) return;
+	const month = today.slice(0, 7);
+
+	const balances = await db
+		.select({
+			customerId: charge.customerId,
+			email: customer.email,
+			total: sql<number>`coalesce(sum(${charge.amount}), 0)`.mapWith(Number)
+		})
+		.from(charge)
+		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.status, 'open'),
+				eq(customer.emailOptOut, false)
+			)
+		)
+		.groupBy(charge.customerId, customer.email);
+
+	for (const b of balances) {
+		if (!b.email || b.total <= 0) continue;
+		if (!(await logOnce(orgId, 'statement_auto', `${b.customerId}:${month}`, b.email))) continue;
+		try {
+			await emailStatement(
+				{
+					orgId,
+					userId: '',
+					role: 'owner',
+					org: { id: orgId, name: '', slug: '', logo: null }
+				},
+				b.customerId
+			);
+		} catch (err) {
+			console.error(`monthly statement failed for customer ${b.customerId}`, err);
+		}
+	}
+}
+
 export async function runReminders(orgId: string) {
 	await flushSmsOutbox(orgId);
 	await expireEstimates(orgId);

@@ -51,7 +51,8 @@
 		getTechnicians,
 		getTimeOff,
 		addTimeOff,
-		deleteTimeOff
+		deleteTimeOff,
+		setTimeOffStatus
 	} from '#lib/remote/jobs.remote.ts';
 	import {
 		getPaymentProviders,
@@ -109,6 +110,15 @@
 		}
 		pending = false;
 	}
+	async function setTimeOff(input: { id: string; status: 'approved' | 'denied' }) {
+		try {
+			await setTimeOffStatus(input).updates(getTimeOff);
+			toast.success(input.status === 'approved' ? 'Time off approved' : 'Request denied');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update request'));
+		}
+	}
+
 	async function removeTimeOff(id: string) {
 		try {
 			await deleteTimeOff(id).updates(getTimeOff);
@@ -1162,12 +1172,31 @@
 											: ''}{t.timeOff.reason ? ` · ${t.timeOff.reason}` : ''}
 									</p>
 								</div>
-								<Button
-									variant="ghost"
-									size="icon"
-									class="size-7"
-									onclick={() => removeTimeOff(t.timeOff.id)}><Trash class="size-4" /></Button
-								>
+								<div class="flex shrink-0 items-center gap-1.5">
+									{#if t.timeOff.status === 'pending'}
+										<Badge variant="secondary">pending</Badge>
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => setTimeOff({ id: t.timeOff.id, status: 'approved' })}
+											>Approve</Button
+										>
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={() => setTimeOff({ id: t.timeOff.id, status: 'denied' })}
+											>Deny</Button
+										>
+									{:else if t.timeOff.status === 'denied'}
+										<Badge variant="outline">denied</Badge>
+									{/if}
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-7"
+										onclick={() => removeTimeOff(t.timeOff.id)}><Trash class="size-4" /></Button
+									>
+								</div>
 							</li>
 						{:else}
 							<li class="list-none">

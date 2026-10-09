@@ -113,7 +113,7 @@
 			});
 			ptoOpen = false;
 			ptoReason = '';
-			toast.success('Time off marked');
+			toast.success('Time off requested — the office will approve it');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
 		}
@@ -305,7 +305,10 @@
 		try {
 			await signJob({ jobId, name, signature: dataUrl });
 			signJobId = null;
-			await recordJobEvent({ jobId, kind: 'completed', note: note || null }).updates(getMyDay);
+			const geo = await getPos();
+			await recordJobEvent({ jobId, kind: 'completed', note: note || null, ...geo }).updates(
+				getMyDay
+			);
 			toast.success('Job done');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -313,10 +316,24 @@
 		pending = null;
 	}
 
+	// Best-effort device position for status pings — never blocks the action.
+	function getPos(): Promise<Partial<{ lat: number; lng: number }>> {
+		return new Promise((resolve) => {
+			if (!navigator.geolocation) return resolve({});
+			const done = (r: Partial<{ lat: number; lng: number }>) => resolve(r);
+			navigator.geolocation.getCurrentPosition(
+				(p) => done({ lat: p.coords.latitude, lng: p.coords.longitude }),
+				() => done({}),
+				{ timeout: 4000, maximumAge: 60000 }
+			);
+		});
+	}
+
 	async function advance(jobId: string, kind: EventKind, note?: string) {
 		pending = `${jobId}:${kind}`;
 		try {
-			await recordJobEvent({ jobId, kind, note: note || null }).updates(getMyDay);
+			const geo = await getPos();
+			await recordJobEvent({ jobId, kind, note: note || null, ...geo }).updates(getMyDay);
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));

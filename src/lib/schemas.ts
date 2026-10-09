@@ -403,7 +403,10 @@ export const jobUpdate = v.object({
 export const jobEventInput = v.object({
 	jobId: idSchema,
 	kind: v.picklist(['dispatched', 'en_route', 'on_site', 'completed', 'note']),
-	note: optionalText
+	note: optionalText,
+	/** Tech's position when firing a status event (best-effort browser geolocation). */
+	lat: v.optional(v.pipe(v.number(), v.minValue(-90), v.maxValue(90))),
+	lng: v.optional(v.pipe(v.number(), v.minValue(-180), v.maxValue(180)))
 });
 
 /** Customer signature captured on job completion — PNG data URL from the signature pad. */
@@ -591,6 +594,11 @@ export const portalContactInput = v.object({
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ''),
 	smsOptOut: v.optional(v.boolean()),
 	emailOptOut: v.optional(v.boolean())
+});
+
+export const timeOffStatusInput = v.object({
+	id: idSchema,
+	status: v.picklist(['approved', 'denied'])
 });
 
 export const timeOffInput = v.object({

@@ -27,6 +27,7 @@ import {
 	scheduleVisitsInput,
 	timeEntryInput,
 	timeOffInput,
+	timeOffStatusInput,
 	checklistItemInput,
 	checklistToggleInput,
 	jobSignatureInput,
@@ -334,6 +335,12 @@ export const requestTimeOff = command(timeOffRequestInput, async (input) => {
 	const row = await svc.requestTimeOff(await requireOrg(), input);
 	await refreshQuery(getTimeOff, undefined);
 	await refreshQuery(getMyDay, undefined);
+	return row;
+});
+
+export const setTimeOffStatus = command(timeOffStatusInput, async (input) => {
+	const row = await svc.setTimeOffStatus(await requireOrg('admin'), input.id, input.status);
+	await refreshQuery(getTimeOff, undefined);
 	return row;
 });
 

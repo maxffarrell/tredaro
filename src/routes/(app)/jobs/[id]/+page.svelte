@@ -1749,7 +1749,17 @@
 									{#if e.memberName}<span class="text-muted-foreground">· {e.memberName}</span>{/if}
 								</p>
 								{#if e.event.note}<p class="text-muted-foreground">{e.event.note}</p>{/if}
-								<p class="text-xs text-muted-foreground">{formatRelative(e.event.at)}</p>
+								<p class="text-xs text-muted-foreground">
+									{formatRelative(e.event.at)}{#if e.event.lat != null && e.event.lng != null}
+										·
+										<a
+											class="underline"
+											href="https://www.openstreetmap.org/?mlat={e.event.lat}&mlon={e.event
+												.lng}#map=17/{e.event.lat}/{e.event.lng}"
+											target="_blank"
+											rel="noreferrer">map</a
+										>{/if}
+								</p>
 							</div>
 						</li>
 					{:else}
