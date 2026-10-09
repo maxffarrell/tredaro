@@ -197,7 +197,7 @@
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
-	let bookingDepositDollars = $state(settings.bookingDeposit / 100);
+	let bookingDeposit = $state(settings.bookingDeposit);
 	let bookingEnabled = $state(settings.bookingEnabled);
 	let taxRatePct = $state(settings.taxRateBps / 100);
 	let lateFeeDollars = $state(settings.lateFeeCents / 100);
@@ -262,7 +262,7 @@
 				autoInvoiceOnComplete,
 				bookingNoticeDays,
 				bookingDailyLimit,
-				bookingDeposit: Math.round((bookingDepositDollars || 0) * 100),
+				bookingDeposit: bookingDeposit ?? 0,
 				bookingEnabled,
 				taxRateBps: Math.round((taxRatePct || 0) * 100),
 				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
@@ -802,7 +802,7 @@
 							</Field.Field>
 							<Field.Field>
 								<Field.Label for="s-deposit">Booking deposit</Field.Label>
-								<MoneyInput id="s-deposit" bind:value={bookingDepositDollars} />
+								<MoneyInput id="s-deposit" bind:value={bookingDeposit} />
 								<p class="text-xs text-muted-foreground">
 									Fixed amount charged right after an online booking when a payment provider is set
 									up — 0 = free to book. Applied to the customer's first invoice.
