@@ -14,6 +14,7 @@ import {
 	jobType,
 	jobTimeEntry,
 	member,
+	memberTimeOff,
 	payment,
 	pricebookItem,
 	purchaseOrder,
@@ -284,6 +285,34 @@ export async function dashboard(orgId: string) {
 		.orderBy(sql`max(${job.completedAt})`)
 		.limit(4);
 
+	// Repeat customers with no active agreement — upsell candidates for a
+	// maintenance plan (3+ completed visits in the last 90 days).
+	const upsellCustomers = await db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			visits: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				gte(job.completedAt, cutoff),
+				sql`not exists (select 1 from ${serviceAgreement} sa where sa.customer_id = ${customer.id} and sa.status = 'active')`
+			)
+		)
+		.groupBy(customer.id, customer.name)
+		.having(sql`count(*) >= 3`)
+		.orderBy(desc(sql`count(*)`))
+		.limit(3);
+
+	const [pendingTimeOff] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(memberTimeOff)
+		.where(and(eq(memberTimeOff.organizationId, orgId), eq(memberTimeOff.status, 'pending')));
+
 	const renewingAgreements = await db
 		.select({
 			nextChargeAt: serviceAgreement.nextChargeAt,
@@ -545,6 +574,24 @@ export async function dashboard(orgId: string) {
 				sub: `last ${localDate(new Date(q.lastAt), tz)} — reach out?`,
 				amountCents: null as number | null
 			})),
+			...upsellCustomers.map((u) => ({
+				tone: 'blue' as const,
+				href: `/customers/${u.id}`,
+				text: `${u.name} — ${u.visits} visits in 90d`,
+				sub: 'no maintenance agreement — suggest one?',
+				amountCents: null as number | null
+			})),
+			...(pendingTimeOff?.n
+				? [
+						{
+							tone: 'amber' as const,
+							href: '/settings',
+							text: `${pendingTimeOff.n} time-off request${pendingTimeOff.n === 1 ? '' : 's'} awaiting approval`,
+							sub: 'review in Settings → Team',
+							amountCents: null as number | null
+						}
+					]
+				: []),
 			...renewingAgreements.map((a) => ({
 				tone: 'blue' as const,
 				href: '/agreements',
