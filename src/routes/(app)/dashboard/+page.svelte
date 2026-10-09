@@ -83,7 +83,7 @@
 		{/each}
 	</div>
 
-	<div class="grid gap-6 xl:grid-cols-3">
+	<div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
 		<Card.Root class="min-w-0 xl:col-span-2">
 			<Card.Header>
 				<Card.Title class="text-base">Today's route</Card.Title>
