@@ -157,6 +157,8 @@ export async function listJobs(
 		to?: Date;
 		status?: string[];
 		technicianId?: string;
+		/** Only jobs with no technician assigned. */
+		unassigned?: boolean;
 		unscheduled?: boolean;
 		officeId?: string;
 		equipmentId?: string;
@@ -187,6 +189,7 @@ export async function listJobs(
 						)})`
 					: undefined,
 				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined,
+				opts.unassigned ? isNull(job.technicianId) : undefined,
 				opts.equipmentId ? eq(job.equipmentId, opts.equipmentId) : undefined,
 				opts.blocked ? eq(job.blocked, true) : undefined,
 				opts.customerId ? eq(job.customerId, opts.customerId) : undefined
@@ -721,16 +724,23 @@ export async function updateJob(
 		(existing.startsAt && existing.endsAt
 			? Math.round((existing.endsAt.getTime() - existing.startsAt.getTime()) / 60_000)
 			: 60);
+	const explicitEnd =
+		set.endsAt === undefined ? undefined : set.endsAt === null ? null : zonedToUtc(set.endsAt, tz);
 	const endsAt =
-		start === undefined
-			? set.durationMin !== undefined && existing.startsAt
-				? new Date(existing.startsAt.getTime() + durationMin * 60_000)
-				: undefined
-			: start === null
-				? null
-				: new Date(start.getTime() + durationMin * 60_000);
+		explicitEnd !== undefined
+			? explicitEnd
+			: start === undefined
+				? set.durationMin !== undefined && existing.startsAt
+					? new Date(existing.startsAt.getTime() + durationMin * 60_000)
+					: undefined
+				: start === null
+					? null
+					: new Date(start.getTime() + durationMin * 60_000);
 
 	const effectiveStart = start === undefined ? existing.startsAt : start;
+	const effectiveEnd = endsAt === undefined ? existing.endsAt : endsAt;
+	if (effectiveStart && effectiveEnd && effectiveEnd <= effectiveStart)
+		error(400, 'End must be after the start');
 	const effectiveTech = set.technicianId === undefined ? existing.technicianId : set.technicianId;
 	if (effectiveStart)
 		await assertTechAvailable(
@@ -738,7 +748,7 @@ export async function updateJob(
 			effectiveTech,
 			effectiveStart,
 			tz,
-			new Date(effectiveStart.getTime() + durationMin * 60_000),
+			effectiveEnd ?? new Date(effectiveStart.getTime() + durationMin * 60_000),
 			id
 		);
 
@@ -1330,10 +1340,11 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
 	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
 	const tz = (await getSettings(ctx.orgId)).timezone;
-	const [jobs, unscheduled, overdue, openEntries, dayEntries, tomorrow, offToday, dayNote] =
+	const [jobs, unscheduled, queue, overdue, openEntries, dayEntries, tomorrow, offToday, dayNote] =
 		await Promise.all([
 			listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 			listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
+			listJobs(ctx.orgId, { status: ['unscheduled'], unassigned: true }),
 			listJobs(ctx.orgId, {
 				to: from,
 				technicianId: me.id,
@@ -1431,6 +1442,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		member: me,
 		jobs,
 		unscheduled,
+		queue,
 		overdue,
 		openEntry: openEntries[0] ?? null,
 		minutesLogged,
@@ -1478,6 +1490,8 @@ export async function assertTechAvailable(
 ) {
 	if (!memberId) return;
 	const day = localDate(start, tz);
+	// Time-off blocks when it covers the start day OR any later day in a multi-day span.
+	const endDay = end ? localDate(end, tz) : day;
 	const [block] = await db
 		.select({ startsOn: memberTimeOff.startsOn, endsOn: memberTimeOff.endsOn, name: user.name })
 		.from(memberTimeOff)
@@ -1487,7 +1501,7 @@ export async function assertTechAvailable(
 			and(
 				eq(memberTimeOff.organizationId, orgId),
 				eq(memberTimeOff.memberId, memberId),
-				lte(memberTimeOff.startsOn, day),
+				lte(memberTimeOff.startsOn, endDay),
 				gte(memberTimeOff.endsOn, day)
 			)
 		)

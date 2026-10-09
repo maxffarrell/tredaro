@@ -6,7 +6,7 @@ import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/customers.ts';
 import { chargeOpenBalance } from '#lib/server/services/billing.ts';
 import { portalToken } from '#lib/server/services/portal.ts';
-import { deleteCustomerDoc } from '#lib/server/services/photos.ts';
+import { deleteCustomerDoc, setCustomerDocShared } from '#lib/server/services/photos.ts';
 import { listJobs } from '#lib/server/services/jobs.ts';
 import { emailStatement, textCustomer } from '#lib/server/services/notifications.ts';
 import { appOrigin } from '#lib/server/email.ts';
@@ -15,6 +15,7 @@ import {
 	contactDeleteInput,
 	contactInput,
 	customerDocDeleteInput,
+	customerDocShareInput,
 	contactUpdate,
 	customerInput,
 	customerUpdate,
@@ -88,6 +89,12 @@ export const removeContact = command(contactDeleteInput, async (input) => {
 
 export const removeCustomerDoc = command(customerDocDeleteInput, async (input) => {
 	await deleteCustomerDoc(await requireOrg(), input.id);
+	await refreshQuery(getCustomer, input.customerId);
+	return { ok: true };
+});
+
+export const shareCustomerDoc = command(customerDocShareInput, async (input) => {
+	await setCustomerDocShared(await requireOrg(), input.id, input.shared);
 	await refreshQuery(getCustomer, input.customerId);
 	return { ok: true };
 });

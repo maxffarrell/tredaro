@@ -17,7 +17,8 @@
 		startTimer,
 		stopTimer,
 		getCalendarFeed,
-		requestTimeOff
+		requestTimeOff,
+		updateJob
 	} from '#lib/remote/jobs.remote.ts';
 	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
 	import { getCustomerOpenBalance, recordPayment } from '#lib/remote/billing.remote.ts';
@@ -51,6 +52,7 @@
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import HandCoins from '@lucide/svelte/icons/hand-coins';
+	import Hand from '@lucide/svelte/icons/hand';
 
 	const settings = await getSettings();
 	const currency = settings.currency;
@@ -230,6 +232,18 @@
 		pending = null;
 	}
 
+	async function claim(jobId: string) {
+		if (!day.member) return;
+		pending = `${jobId}:claim`;
+		try {
+			await updateJob({ id: jobId, technicianId: day.member.id }).updates(getMyDay);
+			toast.success('Job added to your queue');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not take job'));
+		}
+		pending = null;
+	}
+
 	// ------- log a part used from my truck -------
 	const myTruck = $derived(
 		day.member
@@ -327,7 +341,7 @@
 	}
 </script>
 
-{#snippet jobCard(j: (typeof day.jobs)[number])}
+{#snippet jobCard(j: (typeof day.jobs)[number], claimable = false)}
 	<Card.Root>
 		<Card.Content class="flex flex-col gap-3 p-4">
 			<div class="flex items-start justify-between gap-2">
@@ -410,6 +424,11 @@
 				{/if}
 			</div>
 			<div class="flex flex-wrap gap-2">
+				{#if claimable}
+					<Button size="sm" disabled={pending !== null} onclick={() => claim(j.job.id)}
+						><Hand /> Take</Button
+					>
+				{/if}
 				{#each NEXT[j.job.status] ?? [] as action (action.kind)}
 					{@const Icon = ICONS[action.kind]}
 					<Button
@@ -725,6 +744,15 @@
 			</h2>
 			{#each day.unscheduled as j (j.job.id)}
 				{@render jobCard(j)}
+			{/each}
+		{/if}
+
+		{#if day.queue.length}
+			<h2 class="mt-2 text-sm font-medium text-muted-foreground">
+				Open queue ({day.queue.length})
+			</h2>
+			{#each day.queue as j (j.job.id)}
+				{@render jobCard(j, true)}
 			{/each}
 		{/if}
 	{/if}

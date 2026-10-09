@@ -107,6 +107,12 @@ export const contactDeleteInput = v.object({ id: idSchema, customerId: idSchema 
 
 export const customerDocDeleteInput = v.object({ id: idSchema, customerId: idSchema });
 
+export const customerDocShareInput = v.object({
+	id: idSchema,
+	customerId: idSchema,
+	shared: v.boolean()
+});
+
 /** A staff reminder tied to a customer/job, due on an org-local date. */
 export const followUpInput = v.object({
 	note: requiredText('Note'),
@@ -379,6 +385,8 @@ export const jobUpdate = v.object({
 	/** Set to schedule; null unschedules. */
 	startsAt: v.optional(v.nullable(localDateTime)),
 	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440))),
+	/** Explicit end — overrides durationMin; supports multi-day spans. */
+	endsAt: v.optional(v.nullable(localDateTime)),
 	cancelled: v.optional(v.boolean()),
 	cancelReason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	/** Predecessor job that must complete before this one can be scheduled. */

@@ -8,6 +8,7 @@ import {
 	charge,
 	companySettings,
 	customer,
+	customerDocument,
 	equipment,
 	estimate,
 	estimateItem,
@@ -218,6 +219,18 @@ export async function portalOverview(customerId: string) {
 		.where(eq(member.organizationId, orgId))
 		.orderBy(asc(user.name));
 
+	const documents = await db
+		.select({
+			id: customerDocument.id,
+			fileName: customerDocument.fileName,
+			mime: customerDocument.mime,
+			size: customerDocument.size,
+			createdAt: customerDocument.createdAt
+		})
+		.from(customerDocument)
+		.where(and(eq(customerDocument.customerId, customerId), eq(customerDocument.shared, true)))
+		.orderBy(desc(customerDocument.createdAt));
+
 	return {
 		customer: c,
 		techs,
@@ -231,7 +244,8 @@ export async function portalOverview(customerId: string) {
 		units,
 		pendingEstimates,
 		recentInvoices,
-		recentPayments
+		recentPayments,
+		documents
 	};
 }
 

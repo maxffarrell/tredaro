@@ -141,6 +141,11 @@
 			? Math.round((j.job.endsAt.getTime() - j.job.startsAt.getTime()) / 60000)
 			: 60
 	);
+	let endsAt = $state(
+		j.job.endsAt
+			? `${localDate(j.job.endsAt, settings.timezone)}T${localTime(j.job.endsAt, settings.timezone)}`
+			: ''
+	);
 	let loadedId = '';
 	$effect(() => {
 		if (j.job.id !== loadedId) {
@@ -162,6 +167,9 @@
 				j.job.startsAt && j.job.endsAt
 					? Math.round((j.job.endsAt.getTime() - j.job.startsAt.getTime()) / 60000)
 					: 60;
+			endsAt = j.job.endsAt
+				? `${localDate(j.job.endsAt, settings.timezone)}T${localTime(j.job.endsAt, settings.timezone)}`
+				: '';
 		}
 	});
 	let pending = $state(false);
@@ -183,7 +191,8 @@
 				dependsOnJobId: dependsOnJobId || null,
 				arrivalWindow: arrivalWindow || null,
 				startsAt: startsAt || null,
-				durationMin
+				durationMin,
+				...(endsAt ? { endsAt } : {})
 			}).updates(getJob, getJobs, getDispatchBoard);
 			toast.success('Job saved');
 		} catch (err) {
@@ -982,6 +991,13 @@
 							bind:value={durationMin}
 							disabled={locked}
 						/>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="d-end">Ends ({tz})</Field.Label>
+						<Input id="d-end" type="datetime-local" bind:value={endsAt} disabled={locked} />
+						<Field.Description
+							>Overrides duration — set a later date for multi-day jobs.</Field.Description
+						>
 					</Field.Field>
 					<Field.Field class="sm:col-span-2">
 						<Field.Label for="d-summary">Summary</Field.Label>

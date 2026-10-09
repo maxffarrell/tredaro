@@ -148,6 +148,7 @@ export async function listCustomerDocs(orgId: string, customerId: string) {
 			fileName: customerDocument.fileName,
 			mime: customerDocument.mime,
 			size: customerDocument.size,
+			shared: customerDocument.shared,
 			uploadedBy: user.name,
 			createdAt: customerDocument.createdAt
 		})
@@ -221,6 +222,36 @@ export async function readCustomerDoc(orgId: string, id: string) {
 	if (!row) error(404, 'Document not found');
 	const bytes = await readFile(row.path);
 	return { row, bytes };
+}
+
+/** Toggles whether a customer document is visible in the customer portal. */
+export async function setCustomerDocShared(ctx: OrgContext, id: string, shared: boolean) {
+	const [row] = await db
+		.update(customerDocument)
+		.set({ shared })
+		.where(and(eq(customerDocument.id, id), eq(customerDocument.organizationId, ctx.orgId)))
+		.returning({ id: customerDocument.id });
+	if (!row) error(404, 'Document not found');
+	return row;
+}
+
+/** Reads a shared document for a portal customer — only when it's theirs and shared. */
+export async function readPortalCustomerDoc(userId: string, id: string) {
+	const [row] = await db
+		.select({ doc: customerDocument })
+		.from(customerDocument)
+		.innerJoin(customer, eq(customerDocument.customerId, customer.id))
+		.where(
+			and(
+				eq(customerDocument.id, id),
+				eq(customerDocument.shared, true),
+				eq(customer.portalUserId, userId)
+			)
+		)
+		.limit(1);
+	if (!row) error(404, 'Document not found');
+	const bytes = await readFile(row.doc.path);
+	return { row: row.doc, bytes };
 }
 
 export async function deleteCustomerDoc(ctx: OrgContext, id: string) {

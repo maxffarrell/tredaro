@@ -43,7 +43,8 @@
 		addContact,
 		updateContact,
 		removeContact,
-		removeCustomerDoc
+		removeCustomerDoc,
+		shareCustomerDoc
 	} from '#lib/remote/customers.remote.ts';
 	import { addFollowUp, completeFollowUp, removeFollowUp } from '#lib/remote/followups.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
@@ -1108,10 +1109,11 @@
 									target="_blank"
 									class="block truncate font-medium hover:underline">{d.fileName}</a
 								>
-								<span class="text-xs text-muted-foreground"
+								<span class="flex items-center gap-1 text-xs text-muted-foreground"
 									>{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
 										? ` · ${d.uploadedBy}`
-										: ''}</span
+										: ''}{#if d.shared}
+										<Badge variant="secondary">portal</Badge>{/if}</span
 								>
 							</div>
 						</div>
@@ -1122,6 +1124,15 @@
 								<EllipsisVertical class="size-4" />
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="end">
+								<DropdownMenu.Item
+									onclick={() =>
+										shareCustomerDoc({
+											id: d.id,
+											customerId: id,
+											shared: !d.shared
+										}).updates(getCustomer)}
+									>{d.shared ? 'Unshare from portal' : 'Share to portal'}</DropdownMenu.Item
+								>
 								<DropdownMenu.Item
 									class="text-destructive"
 									onclick={() =>

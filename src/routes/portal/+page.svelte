@@ -32,6 +32,7 @@
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import Wrench from '@lucide/svelte/icons/wrench';
 	import Star from '@lucide/svelte/icons/star';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -652,6 +653,28 @@
 							{/each}
 						</Table.Body>
 					</Table.Root>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		<!-- shared documents -->
+		{#if d.documents.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Documents</Card.Title></Card.Header>
+				<Card.Content class="space-y-2">
+					{#each d.documents as doc (doc.id)}
+						<a
+							href="/files/portal-customer-document/{doc.id}"
+							target="_blank"
+							class="flex items-center gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
+						>
+							<FileText class="size-4 shrink-0 text-muted-foreground" />
+							<div class="min-w-0 flex-1">
+								<p class="truncate font-medium">{doc.fileName}</p>
+								<p class="text-xs text-muted-foreground">{formatDate(doc.createdAt)}</p>
+							</div>
+						</a>
+					{/each}
 				</Card.Content>
 			</Card.Root>
 		{/if}

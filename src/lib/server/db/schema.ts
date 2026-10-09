@@ -1091,6 +1091,8 @@ export const customerDocument = pgTable(
 		mime: text('mime').notNull(),
 		size: integer('size').notNull(),
 		path: text('path').notNull(),
+		/** Visible to the customer in their portal. */
+		shared: boolean('shared').notNull().default(false),
 		...timestamps
 	},
 	(t) => [index('customer_document_customer_idx').on(t.customerId)]
