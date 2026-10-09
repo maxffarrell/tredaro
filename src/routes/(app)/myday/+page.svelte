@@ -774,6 +774,15 @@
 					approval</span
 				>
 			{/if}
+			{#if day.flaggedTime?.length}
+				<a
+					href="/jobs/{day.flaggedTime[0].jobId}"
+					class="text-amber-600 tabular-nums hover:underline dark:text-amber-400"
+					title={day.flaggedTime.map((f) => `J-${f.jobNumber}: ${f.note}`).join('\n')}
+					>· {day.flaggedTime.length} entr{day.flaggedTime.length === 1 ? 'y' : 'ies'} flagged — fix J-{day
+						.flaggedTime[0].jobNumber}</a
+				>
+			{/if}
 			{#if day.weekLoggedMin > 0}
 				<span class="text-muted-foreground tabular-nums"
 					>· this week {Math.floor(day.weekLoggedMin / 60)}h {day.weekLoggedMin %

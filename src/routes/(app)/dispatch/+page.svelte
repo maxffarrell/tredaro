@@ -276,7 +276,9 @@
 			}).length;
 			toast.success(`Assigned ${selected.size} job${selected.size > 1 ? 's' : ''}`);
 			if (misses)
-				toast.warning(`${misses} assigned job${misses > 1 ? "s aren't" : " isn't"} tagged for the tech`);
+				toast.warning(
+					`${misses} assigned job${misses > 1 ? "s aren't" : " isn't"} tagged for the tech`
+				);
 			selected.clear();
 		} catch (err) {
 			toast.error(errMsg(err, 'Bulk assign failed'));

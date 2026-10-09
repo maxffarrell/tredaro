@@ -87,9 +87,7 @@ export const removeJobMaterial = command(idSchema, async (materialId) => {
 
 // ---------- Material kits ----------
 
-export const getJobTypeKits = query(async () =>
-	svc.listJobTypeKits((await requireOrg()).orgId)
-);
+export const getJobTypeKits = query(async () => svc.listJobTypeKits((await requireOrg()).orgId));
 
 export const setJobTypeKit = command(jobTypeKitInput, async (input) => {
 	const res = await svc.setJobTypeKit(await requireOrg('admin'), input);

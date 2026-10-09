@@ -11,6 +11,8 @@
 		approveAllInRange,
 		approveMemberEntries,
 		approveTimeEntry,
+		flagTimeEntry,
+		unflagTimeEntry,
 		closePayrollPeriod,
 		reopenPayrollPeriod,
 		getPayroll,
@@ -27,6 +29,7 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Flag from '@lucide/svelte/icons/flag';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Timer from '@lucide/svelte/icons/timer';
 
@@ -181,6 +184,36 @@
 			toast.error(errMsg(err, 'Could not approve'));
 		}
 		busy = false;
+	}
+
+	let flagOpen = $state(false);
+	let flagEntryId = $state<string | null>(null);
+	let flagNote = $state('');
+	let flagPending = $state(false);
+	function openFlag(id: string) {
+		flagEntryId = id;
+		flagNote = '';
+		flagOpen = true;
+	}
+	async function saveFlag() {
+		if (!flagEntryId) return;
+		flagPending = true;
+		try {
+			await flagTimeEntry({ id: flagEntryId, note: flagNote }).updates(getPayroll);
+			toast.success('Flagged — the tech was notified');
+			flagOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not flag entry'));
+		}
+		flagPending = false;
+	}
+	async function unflag(id: string) {
+		try {
+			await unflagTimeEntry(id).updates(getPayroll);
+			toast.success('Flag cleared');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not clear flag'));
+		}
 	}
 
 	async function toggle(entryId: string, approved: boolean) {
@@ -381,6 +414,13 @@
 									{#if r.entry.approvedAt && r.approvedByName}
 										· approved by {r.approvedByName}{/if}
 								</p>
+								{#if r.entry.flaggedAt}
+									<Badge
+										variant="outline"
+										class="mt-1 font-normal text-amber-600 dark:text-amber-400"
+										>needs fix{r.entry.flagNote ? `: ${r.entry.flagNote}` : ''}</Badge
+									>
+								{/if}
 								{#if r.entry.lockedAt}
 									<Badge variant="secondary" class="mt-1 font-normal">period closed</Badge>
 								{/if}
@@ -402,6 +442,22 @@
 									onclick={() => toggle(r.entry.id, !r.entry.approvedAt)}
 								>
 									<CircleCheck class="size-3.5" />
+								</Button>
+							{/if}
+							{#if !r.entry.lockedAt && !r.entry.approvedAt}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 {r.entry.flaggedAt
+										? 'text-amber-600 dark:text-amber-400'
+										: 'text-muted-foreground'}"
+									aria-label={r.entry.flaggedAt
+										? 'Clear needs-fix flag'
+										: 'Flag entry as needs fix'}
+									title={r.entry.flaggedAt ? 'Flagged — click to clear' : 'Flag as needs fix'}
+									onclick={() => (r.entry.flaggedAt ? unflag(r.entry.id) : openFlag(r.entry.id))}
+								>
+									<Flag class="size-3.5" />
 								</Button>
 							{/if}
 							{#if r.jobId && !r.entry.lockedAt}
@@ -450,6 +506,35 @@
 			<Dialog.Footer>
 				<Button type="button" variant="outline" onclick={() => (editOpen = false)}>Cancel</Button>
 				<Button type="submit" disabled={!teStart}>Save</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={flagOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Flag for a fix</Dialog.Title>
+			<Dialog.Description
+				>Tell the tech what's wrong — they get an inbox + email heads-up and the flag clears when
+				they edit the entry.</Dialog.Description
+			>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={saveFlag}>
+			<Field.Field>
+				<Field.Label for="pf-note">What needs fixing?</Field.Label>
+				<Input
+					id="pf-note"
+					bind:value={flagNote}
+					placeholder="e.g. clock-out looks an hour late"
+					required
+				/>
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="button" variant="outline" onclick={() => (flagOpen = false)}>Cancel</Button>
+				<Button type="submit" disabled={flagPending || !flagNote}
+					>{flagPending ? 'Flagging…' : 'Flag'}</Button
+				>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

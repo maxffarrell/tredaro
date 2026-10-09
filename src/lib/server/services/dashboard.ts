@@ -20,6 +20,7 @@ import {
 	charge,
 	companySettings,
 	customer,
+	customerDocument,
 	equipment,
 	estimate,
 	inventoryItem,
@@ -304,6 +305,26 @@ export async function dashboard(orgId: string) {
 			)
 		)
 		.orderBy(asc(member.licenseExpiry))
+		.limit(4);
+
+	// Customer documents (warranties, permits, insurance certs) expiring within 30 days.
+	const expiringDocs = await db
+		.select({
+			fileName: customerDocument.fileName,
+			expiresOn: customerDocument.expiresOn,
+			customerId: customer.id,
+			customerName: customer.name
+		})
+		.from(customerDocument)
+		.innerJoin(customer, eq(customerDocument.customerId, customer.id))
+		.where(
+			and(
+				eq(customerDocument.organizationId, orgId),
+				isNotNull(customerDocument.expiresOn),
+				lte(customerDocument.expiresOn, warrantyHorizon)
+			)
+		)
+		.orderBy(asc(customerDocument.expiresOn))
 		.limit(4);
 
 	// Customers whose last completed job is >90 days back with nothing open —
@@ -662,6 +683,13 @@ export async function dashboard(orgId: string) {
 				href: `/customers/${w.customerId}`,
 				text: `${w.customerName} · ${w.name}`,
 				sub: `service due ${w.nextServiceDue}`,
+				amountCents: null as number | null
+			})),
+			...expiringDocs.map((d) => ({
+				tone: (d.expiresOn! < today ? 'red' : 'amber') as 'red' | 'amber',
+				href: `/customers/${d.customerId}`,
+				text: `${d.customerName} · ${d.fileName}`,
+				sub: `${d.expiresOn! < today ? 'expired' : 'expires'} ${d.expiresOn}`,
 				amountCents: null as number | null
 			})),
 			...expiringLicenses.map((l) => ({

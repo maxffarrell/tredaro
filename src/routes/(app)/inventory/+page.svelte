@@ -49,12 +49,17 @@
 	const currency = await getCurrency();
 	let rows = $state(await getInventory());
 	let q = $state('');
+	let cat = $state('');
+	const categories = $derived(
+		[...new Set(rows.map((r) => r.item.category).filter((c) => c !== ''))].sort()
+	);
 	const items = $derived(
 		rows.filter(
 			(r) =>
-				!q ||
-				r.item.name.toLowerCase().includes(q.toLowerCase()) ||
-				r.item.sku.toLowerCase().includes(q.toLowerCase())
+				(!cat || r.item.category === cat) &&
+				(!q ||
+					r.item.name.toLowerCase().includes(q.toLowerCase()) ||
+					r.item.sku.toLowerCase().includes(q.toLowerCase()))
 		)
 	);
 	const totalValue = $derived(
@@ -79,6 +84,7 @@
 	let notes = $state('');
 	let location = $state('');
 	let supplierSku = $state('');
+	let category = $state('');
 
 	function openItem(i?: (typeof rows)[number]) {
 		itemId = i?.item.id ?? null;
@@ -92,6 +98,7 @@
 		notes = i?.item.notes ?? '';
 		location = i?.item.location ?? '';
 		supplierSku = i?.item.supplierSku ?? '';
+		category = i?.item.category ?? '';
 		open = true;
 	}
 
@@ -103,6 +110,7 @@
 				name,
 				sku,
 				supplierSku,
+				category,
 				unit,
 				location,
 				qtyOnHand,
@@ -412,9 +420,20 @@
 </PageHeader>
 
 <div class="space-y-4 p-4 md:p-6">
-	<div class="relative max-w-sm">
-		<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-		<Input placeholder="Search name or SKU…" class="pl-9" bind:value={q} />
+	<div class="flex flex-wrap items-center gap-2">
+		<div class="relative max-w-sm flex-1">
+			<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+			<Input placeholder="Search name or SKU…" class="pl-9" bind:value={q} />
+		</div>
+		{#if categories.length}
+			<Select.Root type="single" bind:value={cat}>
+				<Select.Trigger class="h-9 w-40">{cat || 'All categories'}</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="">All categories</Select.Item>
+					{#each categories as c (c)}<Select.Item value={c}>{c}</Select.Item>{/each}
+				</Select.Content>
+			</Select.Root>
+		{/if}
 	</div>
 
 	<Card.Root class="py-0">
@@ -455,7 +474,8 @@
 								>{i.item.sku || '—'}</Table.Cell
 							>
 							<Table.Cell class="hidden text-muted-foreground lg:table-cell"
-								>{i.item.location || '—'}{i.item.supplierSku
+								>{i.item.location || '—'}{i.item.category ? ` · ${i.item.category}` : ''}{i.item
+									.supplierSku
 									? ` · ${i.item.supplierSku}`
 									: ''}</Table.Cell
 							>
@@ -685,6 +705,18 @@
 					<Field.Label for="inv-supplier-sku">Supplier SKU</Field.Label>
 					<Input id="inv-supplier-sku" bind:value={supplierSku} placeholder="vendor part #" />
 				</Field.Field>
+				<Field.Field>
+					<Field.Label for="inv-cat">Category</Field.Label>
+					<Input
+						id="inv-cat"
+						bind:value={category}
+						list="inv-cat-list"
+						placeholder="Filters, Refrigerant…"
+					/>
+					<datalist id="inv-cat-list">
+						{#each categories as c (c)}<option value={c}></option>{/each}
+					</datalist>
+				</Field.Field>
 			</div>
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
 				<Field.Field>
@@ -697,7 +729,13 @@
 				</Field.Field>
 				<Field.Field>
 					<Field.Label for="inv-par">Restock to</Field.Label>
-					<Input id="inv-par" type="number" min={0} bind:value={parLevel} placeholder="2× reorder" />
+					<Input
+						id="inv-par"
+						type="number"
+						min={0}
+						bind:value={parLevel}
+						placeholder="2× reorder"
+					/>
 				</Field.Field>
 				<Field.Field>
 					<Field.Label>Unit cost</Field.Label>

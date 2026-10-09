@@ -182,6 +182,37 @@ export async function notifyTimeApproved(
 	}
 }
 
+/** Admin flagged a member's time entry as needing a fix — inbox row + email. */
+export async function notifyTimeFlagged(
+	orgId: string,
+	entry: { id: string; jobId: string; memberId: string | null; flagNote: string },
+	_flaggerUserId?: string
+) {
+	if (!entry.memberId) return;
+	const [row] = await db
+		.select({ email: user.email, memberUserId: member.userId })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(member.id, entry.memberId));
+	if (!row?.email) return;
+	if (!(await logOnce(orgId, 'time_flagged', `${entry.jobId}:${entry.id}`, row.email))) return;
+	const flags = await notifFlags(orgId);
+	if (!flags.email) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: row.email,
+		subject: `A time entry needs a fix — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: 'Heads-up on a time entry',
+			lines: [
+				`The office flagged one of your time entries:${entry.flagNote ? ` "${entry.flagNote}"` : ''}`,
+				`Open the job to correct it: ${appOrigin()}/jobs/${entry.jobId}`
+			]
+		})
+	});
+}
+
 /** Emails of owner/admin members — recipients of staff-facing alerts. */
 async function adminEmails(orgId: string) {
 	const rows = await db

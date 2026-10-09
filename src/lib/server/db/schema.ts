@@ -552,6 +552,9 @@ export const jobTimeEntry = pgTable(
 		/** Set when the payroll period covering the entry is closed —
 		 * locked entries can't be edited or deleted until reopened. */
 		lockedAt: timestamp('locked_at', { withTimezone: true }),
+		/** Admin flagged the entry as needing a fix before it can be approved. */
+		flaggedAt: timestamp('flagged_at', { withTimezone: true }),
+		flagNote: text('flag_note').notNull().default(''),
 		...timestamps
 	},
 	(t) => [
@@ -877,6 +880,8 @@ export const inventoryItem = pgTable(
 		reorderPoint: integer('reorder_point'),
 		/** Restock target: POs order up to this on-hand level; null = 2×reorder heuristic. */
 		parLevel: integer('par_level'),
+		/** Freeform grouping label (e.g. "Filters", "Refrigerant") — powers the inventory filter. */
+		category: text('category').notNull().default(''),
 		/** Cost per unit in minor units (cents). */
 		unitCost: integer('unit_cost').notNull().default(0),
 		notes: text('notes').notNull().default(''),
@@ -1188,6 +1193,8 @@ export const customerDocument = pgTable(
 		shared: boolean('shared').notNull().default(false),
 		/** True when the customer uploaded it from the portal (uploadedById is null). */
 		viaPortal: boolean('via_portal').notNull().default(false),
+		/** Optional expiry (insurance certs, permits) — feeds the dashboard attention card. */
+		expiresOn: date('expires_on', { mode: 'string' }),
 		...timestamps
 	},
 	(t) => [index('customer_document_customer_idx').on(t.customerId)]
