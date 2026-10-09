@@ -303,6 +303,11 @@
 					>{day.jobs.filter((j) => j.job.equipmentId).length} on equipment</span
 				>
 			{/if}
+			{#if day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length}
+				<span class="font-medium text-red-600 tabular-nums dark:text-red-400"
+					>{day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length} urgent/high</span
+				>
+			{/if}
 			{#if day.jobs.filter((j) => j.confirmed).length}
 				<span class="text-muted-foreground tabular-nums"
 					>{day.jobs.filter((j) => j.confirmed).length} confirmed</span

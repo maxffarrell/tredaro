@@ -990,6 +990,10 @@
 						</p>
 					</div>
 					<div class="rounded-lg bg-muted/50 p-3">
+						<p class="text-xs text-muted-foreground">Customer since</p>
+						<p class="text-xl font-semibold tabular-nums">{formatDate(c.customer.createdAt)}</p>
+					</div>
+					<div class="rounded-lg bg-muted/50 p-3">
 						<p class="text-xs text-muted-foreground">Lifetime payments</p>
 						<p class="text-xl font-semibold tabular-nums">
 							{formatMoney(

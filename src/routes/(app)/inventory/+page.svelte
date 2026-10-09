@@ -302,7 +302,13 @@
 		{/if}
 		{@const truckedTotal = items.reduce((m, r) => m + (r.trucked ?? 0), 0)}
 		{#if truckedTotal}
-			<Badge variant="outline" class="mr-2 text-muted-foreground">{truckedTotal} in trucks</Badge>
+			<Badge variant="outline" class="mr-2 text-muted-foreground"
+				>{truckedTotal} in trucks{#if items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0)}
+					· {formatMoney(
+						items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0),
+						currency
+					)}{/if}</Badge
+			>
 		{/if}
 		{#if lowCount}
 			<Badge variant="outline" class="mr-2 text-amber-600 dark:text-amber-400">{lowCount} low</Badge
