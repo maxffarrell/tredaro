@@ -913,7 +913,12 @@
 		<div class="grid gap-6 lg:grid-cols-2">
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
-					<Card.Title class="text-base">Agreements</Card.Title>
+					<Card.Title class="text-base"
+						>Agreements{#if c.agreements.filter((a) => a.agreement.status === 'active').length}
+							<span class="ml-1 text-xs font-normal text-muted-foreground"
+								>({c.agreements.filter((a) => a.agreement.status === 'active').length} active)</span
+							>{/if}</Card.Title
+					>
 					<Button size="sm" variant="outline" href="/agreements?new=1&customer={id}"
 						><Plus /> New</Button
 					>

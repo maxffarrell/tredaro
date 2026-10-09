@@ -153,6 +153,12 @@
 	{@const fixedTerm = agreements.filter(
 		(a) => a.agreement.status === 'active' && a.agreement.maxPeriods
 	).length}
+	{@const dueWeek = agreements.filter(
+		(a) =>
+			a.agreement.status === 'active' &&
+			a.agreement.nextChargeAt &&
+			new Date(a.agreement.nextChargeAt) <= new Date(Date.now() + 7 * 86400_000)
+	).length}
 	<p class="mb-4 text-sm text-muted-foreground">
 		Monthly recurring revenue: <span class="font-medium text-foreground"
 			>{formatMoney(mrr, currency)}</span
@@ -164,6 +170,8 @@
 			: 's'}
 		{#if dueToday}
 			· <span class="font-medium text-foreground">{dueToday}</span> billing today{/if}
+		{#if dueWeek > dueToday}
+			· {dueWeek} billing ≤7d{/if}
 		{#if fixedTerm}
 			· {fixedTerm} fixed-term{/if}
 	</p>

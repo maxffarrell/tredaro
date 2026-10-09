@@ -360,6 +360,11 @@
 								{#if i.low}
 									<StatusBadge status="overdue" class="ml-2" />
 								{/if}
+								{#if i.trucked}
+									<span class="ml-2 text-xs font-normal text-muted-foreground"
+										>{i.trucked} on {i.truckCount} truck{i.truckCount === 1 ? '' : 's'}</span
+									>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{i.item.sku || '—'}</Table.Cell

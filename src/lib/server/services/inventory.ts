@@ -25,15 +25,20 @@ export async function listItems(orgId: string) {
 			trucked:
 				sql<number>`coalesce((select sum(ts.qty) from ${truckStock} ts where ts.inventory_item_id = inventory_item.id), 0)`.mapWith(
 					Number
+				),
+			truckCount:
+				sql<number>`(select count(*) from ${truckStock} ts2 where ts2.inventory_item_id = inventory_item.id and ts2.qty > 0)`.mapWith(
+					Number
 				)
 		})
 		.from(inventoryItem)
 		.where(eq(inventoryItem.organizationId, orgId))
 		.orderBy(asc(inventoryItem.name));
-	return rows.map(({ item: i, used, trucked }) => ({
+	return rows.map(({ item: i, used, trucked, truckCount }) => ({
 		item: i,
 		used,
 		trucked,
+		truckCount,
 		low: i.reorderPoint != null && i.qtyOnHand <= i.reorderPoint
 	}));
 }
