@@ -47,7 +47,8 @@
 		updateContact,
 		removeContact,
 		removeCustomerDoc,
-		shareCustomerDoc
+		shareCustomerDoc,
+		setDocExpiry
 	} from '#lib/remote/customers.remote.ts';
 	import {
 		addFollowUp,
@@ -449,6 +450,35 @@
 		}
 		input.value = '';
 		docUploading = false;
+	}
+
+	let expDocId = $state('');
+	let expDate = $state('');
+	let expOpen = $state(false);
+	function openDocExpiry(d: { id: string; expiresOn: string | null }) {
+		expDocId = d.id;
+		expDate = d.expiresOn ?? '';
+		expOpen = true;
+	}
+	async function saveDocExpiry() {
+		try {
+			await setDocExpiry({ id: expDocId, customerId: id, expiresOn: expDate || null });
+			expOpen = false;
+			toast.success(expDate ? 'Expiry set' : 'Expiry cleared');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not set expiry'));
+		}
+	}
+	function docExpiryTone(expiresOn: string | null) {
+		if (!expiresOn) return '';
+		const days = Math.floor(
+			(new Date(`${expiresOn}T12:00:00Z`).getTime() - Date.now()) / 86_400_000
+		);
+		return days < 0
+			? 'text-red-600 dark:text-red-400'
+			: days <= 30
+				? 'text-amber-600 dark:text-amber-400'
+				: '';
 	}
 
 	function docSize(bytes: number) {
@@ -1248,7 +1278,9 @@
 										? ` · ${d.uploadedBy}`
 										: ''}{#if d.shared}
 										<Badge variant="secondary">portal</Badge>{/if}{#if d.viaPortal}
-										<Badge variant="outline">from customer</Badge>{/if}</span
+										<Badge variant="outline">from customer</Badge>{/if}{#if d.expiresOn}
+										<span class={docExpiryTone(d.expiresOn)}>· expires {d.expiresOn}</span
+										>{/if}</span
 								>
 							</div>
 						</div>
@@ -1268,6 +1300,17 @@
 										}).updates(getCustomer)}
 									>{d.shared ? 'Unshare from portal' : 'Share to portal'}</DropdownMenu.Item
 								>
+								<DropdownMenu.Item onclick={() => openDocExpiry(d)}>Set expiry…</DropdownMenu.Item>
+								{#if d.expiresOn}
+									<DropdownMenu.Item
+										onclick={() =>
+											setDocExpiry({
+												id: d.id,
+												customerId: id,
+												expiresOn: null
+											}).updates(getCustomer)}>Clear expiry</DropdownMenu.Item
+									>
+								{/if}
 								<DropdownMenu.Item
 									class="text-destructive"
 									onclick={() =>
@@ -2288,6 +2331,33 @@
 				<Button type="submit" disabled={textPending || !textMsg.trim()}
 					>{textPending ? 'Sending…' : 'Send text'}</Button
 				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={expOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Document expiry</Dialog.Title>
+			<Dialog.Description>
+				Warranty, permit or insurance expiry — surfaces on the dashboard when it's within 30 days.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			class="space-y-4"
+			onsubmit={(e) => {
+				e.preventDefault();
+				saveDocExpiry();
+			}}
+		>
+			<Field.Field>
+				<Field.Label for="doc-exp">Expires on</Field.Label>
+				<Input id="doc-exp" type="date" bind:value={expDate} />
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="button" variant="outline" onclick={() => (expOpen = false)}>Cancel</Button>
+				<Button type="submit">Save</Button>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

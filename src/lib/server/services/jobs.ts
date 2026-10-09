@@ -1376,7 +1376,8 @@ export async function updateTimeEntry(
 	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
 	// Changing the recorded times un-approves the entry — an approval granted on
 	// one set of hours shouldn't survive a time edit (also stops a running
-	// entry from staying approved when its end is cleared).
+	// entry from staying approved when its end is cleared). An edit also clears
+	// any needs-fix flag — the member just addressed it.
 	const timesChanged =
 		row.startedAt.getTime() !== startedAt.getTime() ||
 		(row.endedAt?.getTime() ?? null) !== (endedAt?.getTime() ?? null);
@@ -1386,6 +1387,7 @@ export async function updateTimeEntry(
 			startedAt,
 			endedAt,
 			note: input.note ?? '',
+			flaggedAt: null,
 			...(timesChanged ? { approvedAt: null, approvedById: null } : {})
 		})
 		.where(eq(jobTimeEntry.id, entryId));
@@ -1442,6 +1444,37 @@ export async function moveMyDayStop(
 }
 
 /** Approve/unapprove a time entry for payroll. Admin/owner only. */
+/** Flag a time entry as needing a fix — admin-only; pings the member via inbox + email. */
+export async function flagTimeEntry(ctx: OrgContext, entryId: string, note: string) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const [row] = await db
+		.update(jobTimeEntry)
+		.set({ flaggedAt: new Date(), flagNote: note })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				eq(jobTimeEntry.id, entryId),
+				isNull(jobTimeEntry.lockedAt)
+			)
+		)
+		.returning();
+	if (!row) error(404, 'Entry not found (or locked)');
+	const { notifyTimeFlagged } = await import('./notifications.ts');
+	void notifyTimeFlagged(ctx.orgId, row, ctx.userId).catch((err) =>
+		console.error('time-flagged alert failed', err)
+	);
+	return row;
+}
+
+/** Clear a needs-fix flag without approving. */
+export async function unflagTimeEntry(ctx: OrgContext, entryId: string) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	await db
+		.update(jobTimeEntry)
+		.set({ flaggedAt: null, flagNote: '' })
+		.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)));
+}
+
 export async function approveTimeEntry(ctx: OrgContext, entryId: string, approved: boolean) {
 	if (ctx.role === 'member') error(403, 'Admins only');
 	if (!approved) {
@@ -1455,7 +1488,8 @@ export async function approveTimeEntry(ctx: OrgContext, entryId: string, approve
 		.update(jobTimeEntry)
 		.set({
 			approvedAt: approved ? new Date() : null,
-			approvedById: approved ? ctx.userId : null
+			approvedById: approved ? ctx.userId : null,
+			...(approved ? { flaggedAt: null, flagNote: '' } : {})
 		})
 		.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)))
 		.returning();
@@ -1737,6 +1771,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			docs: [],
 			materials: [],
 			pendingApprovalMin: 0,
+			flaggedTime: [],
 			weekLoggedMin: 0,
 			weekApprovedMin: 0,
 			monthCommissionCents: 0,
@@ -1762,7 +1797,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		pendingApproval,
 		weekSums,
 		commissionSum,
-		truckLow
+		truckLow,
+		flaggedTime
 	] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
@@ -1904,7 +1940,24 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 				)
 			)
 			.orderBy(asc(truckStock.qty))
-			.limit(10)
+			.limit(10),
+		// Entries flagged "needs fix" — surfaced as a chip so the tech goes and corrects them.
+		db
+			.select({
+				id: jobTimeEntry.id,
+				jobId: jobTimeEntry.jobId,
+				jobNumber: job.number,
+				note: jobTimeEntry.flagNote
+			})
+			.from(jobTimeEntry)
+			.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					eq(jobTimeEntry.memberId, me.id),
+					isNotNull(jobTimeEntry.flaggedAt)
+				)
+			)
 	]);
 	// Tech's manual stop order (route_order) takes precedence over the start-time sort.
 	jobs.sort(
@@ -1976,7 +2029,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		),
 		docs,
 		materials,
-		truckLow
+		truckLow,
+		flaggedTime
 	};
 }
 

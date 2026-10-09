@@ -332,6 +332,7 @@ export async function listCustomerDocs(orgId: string, customerId: string) {
 			size: customerDocument.size,
 			shared: customerDocument.shared,
 			viaPortal: customerDocument.viaPortal,
+			expiresOn: customerDocument.expiresOn,
 			uploadedBy: user.name,
 			createdAt: customerDocument.createdAt
 		})
@@ -452,6 +453,17 @@ export async function readCustomerDoc(orgId: string, id: string) {
 	if (!row) error(404, 'Document not found');
 	const bytes = await readFile(row.path);
 	return { row, bytes };
+}
+
+/** Sets (or clears) a document's expiry date — warranties, permits, insurance certs. */
+export async function setCustomerDocExpiry(ctx: OrgContext, id: string, expiresOn: string | null) {
+	const [row] = await db
+		.update(customerDocument)
+		.set({ expiresOn })
+		.where(and(eq(customerDocument.id, id), eq(customerDocument.organizationId, ctx.orgId)))
+		.returning({ id: customerDocument.id });
+	if (!row) error(404, 'Document not found');
+	return row;
 }
 
 /** Toggles whether a customer document is visible in the customer portal. */

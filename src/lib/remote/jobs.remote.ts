@@ -343,6 +343,23 @@ export const approveTimeEntry = command(
 	}
 );
 
+export const flagTimeEntry = command(
+	v.object({ id: idSchema, note: v.pipe(v.string(), v.trim(), v.maxLength(300)) }),
+	async (input) => {
+		const row = await svc.flagTimeEntry(await requireOrg(), input.id, input.note);
+		await refreshQuery(getTimeEntries, row.jobId);
+		await refreshQuery(getPayroll);
+		await refreshQuery(getMyDay, undefined);
+		return row;
+	}
+);
+
+export const unflagTimeEntry = command(idSchema, async (entryId) => {
+	await svc.unflagTimeEntry(await requireOrg(), entryId);
+	await refreshQuery(getPayroll);
+	await refreshQuery(getMyDay, undefined);
+});
+
 export const approveAllTimeEntries = command(idSchema, async (jobId) => {
 	const r = await svc.approveAllTimeEntries(await requireOrg(), jobId);
 	await refreshQuery(getTimeEntries, jobId);

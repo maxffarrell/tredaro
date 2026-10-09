@@ -59,11 +59,7 @@
 		deleteTimeOff,
 		setTimeOffStatus
 	} from '#lib/remote/jobs.remote.ts';
-	import {
-		getInventory,
-		getJobTypeKits,
-		setJobTypeKit
-	} from '#lib/remote/inventory.remote.ts';
+	import { getInventory, getJobTypeKits, setJobTypeKit } from '#lib/remote/inventory.remote.ts';
 	import {
 		getPaymentProviders,
 		toggleProvider,
@@ -1514,10 +1510,8 @@
 												>{kitCount[t.id]} item{kitCount[t.id] === 1 ? '' : 's'}</Button
 											>
 										{:else}
-											<Button
-												variant="ghost"
-												size="sm"
-												class="h-6 px-1.5 text-muted-foreground">Set kit</Button
+											<Button variant="ghost" size="sm" class="h-6 px-1.5 text-muted-foreground"
+												>Set kit</Button
 											>
 										{/if}
 									</Table.Cell>
@@ -2017,8 +2011,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Material kit — {kitType?.name}</Dialog.Title>
 			<Dialog.Description
-				>Default materials a tech can add to a job of this type in one tap (from warehouse
-				stock).</Dialog.Description
+				>Default materials a tech can add to a job of this type in one tap (from warehouse stock).</Dialog.Description
 			>
 		</Dialog.Header>
 		<div class="space-y-2">
@@ -2066,9 +2059,7 @@
 			>
 		</div>
 		<Dialog.Footer>
-			<Button onclick={saveKit} disabled={kitPending}
-				>{kitPending ? 'Saving…' : 'Save kit'}</Button
-			>
+			<Button onclick={saveKit} disabled={kitPending}>{kitPending ? 'Saving…' : 'Save kit'}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

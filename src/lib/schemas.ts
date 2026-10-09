@@ -113,6 +113,12 @@ export const customerDocShareInput = v.object({
 	shared: v.boolean()
 });
 
+export const customerDocExpiryInput = v.object({
+	id: idSchema,
+	customerId: idSchema,
+	expiresOn: v.optional(v.nullable(isoDate))
+});
+
 /** A staff reminder tied to a customer/job, due on an org-local date. */
 export const followUpInput = v.object({
 	note: requiredText('Note'),
@@ -254,6 +260,7 @@ export const inventoryItemInput = v.object({
 	unit: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), 'each'),
 	location: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
 	supplierSku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
+	category: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
 	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
 	reorderPoint: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
 	parLevel: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
