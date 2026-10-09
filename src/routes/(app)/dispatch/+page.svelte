@@ -528,6 +528,13 @@
 				href="/dispatch/print?from={start}"
 				target="_blank"><Printer /></Button
 			>
+			<Button
+				variant="outline"
+				size="sm"
+				title="Printable route sheet per tech for {dayFilter || todayStr}"
+				href="/dispatch/routesheets?day={dayFilter || todayStr}"
+				target="_blank">Sheets</Button
+			>
 		</div>
 	{/snippet}
 </PageHeader>

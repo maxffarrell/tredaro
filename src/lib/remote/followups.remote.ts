@@ -6,6 +6,7 @@ import { getCustomer } from './customers.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/followups.ts';
 import { dayNoteInput, followUpInput, idSchema } from '#lib/schemas.ts';
+import * as v from 'valibot';
 
 const refreshLinked = async (
 	row: { customerId: string | null; jobId: string | null } | undefined | null
@@ -26,6 +27,15 @@ export const completeFollowUp = command(idSchema, async (id) => {
 	await refreshLinked(row);
 	return row;
 });
+
+export const snoozeFollowUp = command(
+	v.object({ id: idSchema, days: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(90)) }),
+	async (input) => {
+		const row = await svc.snoozeFollowUp(await requireOrg(), input.id, input.days);
+		await refreshLinked(row);
+		return row;
+	}
+);
 
 export const removeFollowUp = command(idSchema, async (id) => {
 	const row = await svc.removeFollowUp(await requireOrg(), id);
