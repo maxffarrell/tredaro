@@ -710,7 +710,10 @@
 				toast.success(
 					`Drafted ${res.created} invoice${res.created === 1 ? '' : 's'} (${res.numbers
 						.map((n) => `J-${n}`)
-						.join(', ')})`
+						.join(', ')})` +
+						(res.skipped
+							? ` · ${res.skipped} job${res.skipped === 1 ? '' : 's'} had nothing billable`
+							: '')
 				);
 				goto(`/billing?customer=${id}`);
 			}
