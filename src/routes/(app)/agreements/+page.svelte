@@ -144,6 +144,15 @@
 	{@const mrr = agreements
 		.filter((a) => a.agreement.status === 'active')
 		.reduce((sum, a) => sum + (a.interval === 'year' ? a.amount / 12 : a.amount), 0)}
+	{@const dueToday = agreements.filter(
+		(a) =>
+			a.agreement.status === 'active' &&
+			a.agreement.nextChargeAt &&
+			new Date(a.agreement.nextChargeAt) <= new Date(Date.now() + 86400_000)
+	).length}
+	{@const fixedTerm = agreements.filter(
+		(a) => a.agreement.status === 'active' && a.agreement.maxPeriods
+	).length}
 	<p class="mb-4 text-sm text-muted-foreground">
 		Monthly recurring revenue: <span class="font-medium text-foreground"
 			>{formatMoney(mrr, currency)}</span
@@ -153,6 +162,10 @@
 		).length === 1
 			? ''
 			: 's'}
+		{#if dueToday}
+			· <span class="font-medium text-foreground">{dueToday}</span> billing today{/if}
+		{#if fixedTerm}
+			· {fixedTerm} fixed-term{/if}
 	</p>
 {/if}
 

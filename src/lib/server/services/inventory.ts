@@ -21,14 +21,19 @@ export async function listItems(orgId: string) {
 	const rows = await db
 		.select({
 			item: inventoryItem,
-			used: sql<boolean>`exists(select 1 from ${jobMaterial} jm where jm.inventory_item_id = inventory_item.id)`
+			used: sql<boolean>`exists(select 1 from ${jobMaterial} jm where jm.inventory_item_id = inventory_item.id)`,
+			trucked:
+				sql<number>`coalesce((select sum(ts.qty) from ${truckStock} ts where ts.inventory_item_id = ${inventoryItem.id}), 0)`.mapWith(
+					Number
+				)
 		})
 		.from(inventoryItem)
 		.where(eq(inventoryItem.organizationId, orgId))
 		.orderBy(asc(inventoryItem.name));
-	return rows.map(({ item: i, used }) => ({
+	return rows.map(({ item: i, used, trucked }) => ({
 		item: i,
 		used,
+		trucked,
 		low: i.reorderPoint != null && i.qtyOnHand <= i.reorderPoint
 	}));
 }
