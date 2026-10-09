@@ -1279,7 +1279,11 @@ export async function invoiceUninvoicedJobs(ctx: OrgContext, customerId: string,
 	const numbers: number[] = [];
 	for (const j of jobs) {
 		const pre = await invoicePrefill(ctx.orgId, j.id);
-		if (!pre.items.length) {
+		// invoicePrefill always emits a fallback job-type line, so skip on the
+		// billable total rather than item count — a typeless job with nothing
+		// billable would otherwise produce a useless $0 invoice.
+		const billable = pre.items.reduce((t, i) => t + i.qty * i.unitPrice, 0);
+		if (!pre.items.length || billable <= 0) {
 			skipped++;
 			continue;
 		}

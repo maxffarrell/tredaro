@@ -2117,7 +2117,7 @@ export async function setTimeOffStatus(ctx: OrgContext, id: string, status: 'app
 					eq(job.technicianId, row.memberId),
 					inArray(job.status, ['scheduled', 'dispatched', 'in_progress']),
 					lt(job.startsAt, dayEnd),
-					sql`coalesce(${job.endsAt}, ${job.startsAt}) >= ${dayStart}`
+					sql`coalesce(${job.endsAt}, ${job.startsAt}) >= ${dayStart.toISOString()}`
 				)
 			)
 			.orderBy(asc(job.startsAt));
