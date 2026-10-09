@@ -38,6 +38,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 	const kind = params.kind?.replace(/\.(csv|json)$/, '');
 	const from = url.searchParams.get('from');
 	const to = url.searchParams.get('to');
+	const badDay = (d: string | null) => d != null && !/^\d{4}-\d{2}-\d{2}$/.test(d);
+	if (badDay(from) || badDay(to)) error(400, 'from/to must be YYYY-MM-DD');
 	const toBound = to ? `${to}T23:59:59.999Z` : null;
 	const filenameDate = new Date().toISOString().slice(0, 10);
 
