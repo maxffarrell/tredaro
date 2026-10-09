@@ -1,21 +1,30 @@
 import { and, eq, ilike, or, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { customer, estimate, job, jobType, pricebookItem } from '#lib/server/db/schema.ts';
+import {
+	customer,
+	equipment,
+	estimate,
+	inventoryItem,
+	job,
+	jobType,
+	pricebookItem
+} from '#lib/server/db/schema.ts';
 
 export type SearchHit = {
-	kind: 'customer' | 'job' | 'estimate' | 'jobType' | 'pricebook';
+	kind: 'customer' | 'job' | 'estimate' | 'jobType' | 'pricebook' | 'equipment' | 'inventory';
 	id: string;
 	title: string;
 	sub: string;
 	href: string;
 };
 
-/** Command-palette search across customers, jobs, estimates, job types and pricebook items. */
+/** Command-palette search across customers, jobs, estimates, job types, pricebook
+ * items, installed equipment and inventory stock. */
 export async function search(orgId: string, q: string): Promise<SearchHit[]> {
 	const term = `%${q.trim()}%`;
 	if (term === '%%') return [];
 	const numMatch = /^[jei]-?(\d+)$/i.exec(q.trim());
-	const [customers, jobs, estimates, types, items] = await Promise.all([
+	const [customers, jobs, estimates, types, items, units, stock] = await Promise.all([
 		db
 			.select({
 				id: customer.id,
@@ -69,6 +78,38 @@ export async function search(orgId: string, q: string): Promise<SearchHit[]> {
 			.select({ id: pricebookItem.id, name: pricebookItem.name, category: pricebookItem.category })
 			.from(pricebookItem)
 			.where(and(eq(pricebookItem.organizationId, orgId), ilike(pricebookItem.name, term)))
+			.limit(5),
+		db
+			.select({
+				id: equipment.id,
+				name: equipment.name,
+				brand: equipment.brand,
+				model: equipment.model,
+				serial: equipment.serial,
+				customerId: equipment.customerId
+			})
+			.from(equipment)
+			.where(
+				and(
+					eq(equipment.organizationId, orgId),
+					or(
+						ilike(equipment.name, term),
+						ilike(equipment.serial, term),
+						ilike(equipment.model, term),
+						ilike(equipment.brand, term)
+					)
+				)
+			)
+			.limit(5),
+		db
+			.select({ id: inventoryItem.id, name: inventoryItem.name, sku: inventoryItem.sku })
+			.from(inventoryItem)
+			.where(
+				and(
+					eq(inventoryItem.organizationId, orgId),
+					or(ilike(inventoryItem.name, term), ilike(inventoryItem.sku, term))
+				)
+			)
 			.limit(5)
 	]);
 	return [
@@ -106,6 +147,20 @@ export async function search(orgId: string, q: string): Promise<SearchHit[]> {
 			title: p.name,
 			sub: p.category ?? 'Pricebook item',
 			href: `/pricebook?item=${p.id}`
+		})),
+		...units.map((u) => ({
+			kind: 'equipment' as const,
+			id: u.id,
+			title: u.name || `${u.brand} ${u.model}`.trim() || u.serial,
+			sub: u.serial ? `S/N ${u.serial}` : 'Equipment',
+			href: `/customers/${u.customerId}`
+		})),
+		...stock.map((s) => ({
+			kind: 'inventory' as const,
+			id: s.id,
+			title: s.name,
+			sub: s.sku ? `SKU ${s.sku}` : 'Inventory item',
+			href: '/inventory'
 		}))
 	];
 }

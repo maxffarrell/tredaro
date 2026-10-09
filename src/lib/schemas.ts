@@ -345,6 +345,7 @@ export const jobTypeInput = v.object({
 	requirePhoto: v.optional(v.boolean(), false),
 	requireSignature: v.optional(v.boolean(), false),
 	requireDocument: v.optional(v.boolean(), false),
+	requireTimer: v.optional(v.boolean(), false),
 	/** Whether the type appears on the public booking page. */
 	bookable: v.optional(v.boolean(), true),
 	active: v.optional(v.boolean(), true)

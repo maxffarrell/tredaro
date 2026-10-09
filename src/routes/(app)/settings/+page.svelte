@@ -149,6 +149,7 @@
 	let jtReqPhoto = $state(false);
 	let jtReqSignature = $state(false);
 	let jtReqDoc = $state(false);
+	let jtReqTimer = $state(false);
 	let jtBookable = $state(true);
 	let jtActive = $state(true);
 
@@ -165,6 +166,7 @@
 		jtReqPhoto = t?.requirePhoto ?? false;
 		jtReqSignature = t?.requireSignature ?? false;
 		jtReqDoc = t?.requireDocument ?? false;
+		jtReqTimer = t?.requireTimer ?? false;
 		jtBookable = t?.bookable ?? true;
 		jtActive = t?.active ?? true;
 		jtOpen = true;
@@ -187,6 +189,7 @@
 			requirePhoto: jtReqPhoto,
 			requireSignature: jtReqSignature,
 			requireDocument: jtReqDoc,
+			requireTimer: jtReqTimer,
 			bookable: jtBookable,
 			active: jtActive
 		};
@@ -1865,6 +1868,15 @@
 					</p>
 				</div>
 				<Switch id="jt-req-doc" checked={jtReqDoc} onCheckedChange={(v) => (jtReqDoc = v)} />
+			</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-req-timer" class="text-sm font-medium">Require clock-in on site</label>
+					<p class="text-xs text-muted-foreground">
+						Technician can't mark on-site until they have logged time on the job.
+					</p>
+				</div>
+				<Switch id="jt-req-timer" checked={jtReqTimer} onCheckedChange={(v) => (jtReqTimer = v)} />
 			</div>
 			<div class="flex items-center justify-between">
 				<div>

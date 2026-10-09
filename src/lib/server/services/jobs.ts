@@ -89,6 +89,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			requirePhoto: input.requirePhoto,
 			requireSignature: input.requireSignature,
 			requireDocument: input.requireDocument,
+			requireTimer: input.requireTimer,
 			bookable: input.bookable,
 			active: input.active
 		})
@@ -976,6 +977,25 @@ export async function recordJobEvent(
 		if (blocking) error(409, `Blocked by J-${blocking} — finish it first`);
 	}
 
+	// On-site gate: job types can require the tech to clock in before marking
+	// on-site — payroll-grade jobs can't skip the timer.
+	if (input.kind === 'on_site' && j.jobTypeId) {
+		const [type] = await db
+			.select({ requireTimer: jobType.requireTimer })
+			.from(jobType)
+			.where(eq(jobType.id, j.jobTypeId));
+		if (type?.requireTimer) {
+			const caller = await memberFor(ctx);
+			const who = j.technicianId ?? caller?.id ?? '';
+			const [{ n }] = await db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(jobTimeEntry)
+				.where(and(eq(jobTimeEntry.jobId, input.jobId), eq(jobTimeEntry.memberId, who)));
+			if (n === 0)
+				error(409, 'Clock in first — this job type requires logged time before arriving on site');
+		}
+	}
+
 	// Job-type completion gates — the tech must finish the checklist and/or attach
 	// a photo before the job can be marked complete.
 	if (input.kind === 'completed' && j.jobTypeId) {
@@ -1152,7 +1172,7 @@ export async function signJob(ctx: OrgContext, input: v.InferOutput<typeof s.job
 const memberFor = async (ctx: OrgContext) =>
 	(
 		await db
-			.select({ id: member.id, name: user.name })
+			.select({ id: member.id, name: user.name, commissionPct: member.commissionPct })
 			.from(member)
 			.innerJoin(user, eq(member.userId, user.id))
 			.where(and(eq(member.organizationId, ctx.orgId), eq(member.userId, ctx.userId)))
@@ -1668,12 +1688,15 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			pendingApprovalMin: 0,
 			weekLoggedMin: 0,
 			weekApprovedMin: 0,
+			monthCommissionCents: 0,
 			tz,
 			today
 		};
 	// Monday of the local week containing `from` — bounds the "this week" strip.
 	const weekDow = new Date(`${today}T12:00:00Z`).getUTCDay();
 	const weekStart = zonedToUtc(`${addDays(today, -((weekDow + 6) % 7))}T00:00`, tz);
+	// First of the local month — bounds the commission estimate.
+	const monthStart = zonedToUtc(`${today.slice(0, 7)}-01T00:00`, tz);
 	const [
 		jobs,
 		unscheduled,
@@ -1685,7 +1708,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		offToday,
 		dayNote,
 		pendingApproval,
-		weekSums
+		weekSums,
+		commissionSum
 	] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
@@ -1791,6 +1815,22 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					isNotNull(jobTimeEntry.endedAt),
 					gte(jobTimeEntry.startedAt, weekStart)
 				)
+			),
+		// Collected payments this month on jobs assigned to me — feeds the
+		// commission estimate chip (member.commissionPct applied on the total).
+		db
+			.select({
+				total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+			})
+			.from(payment)
+			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(job, eq(charge.jobId, job.id))
+			.where(
+				and(
+					eq(payment.organizationId, ctx.orgId),
+					eq(job.technicianId, me.id),
+					gte(payment.paidAt, monthStart)
+				)
 			)
 	]);
 	// Tech's manual stop order (route_order) takes precedence over the start-time sort.
@@ -1858,6 +1898,9 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		pendingApprovalMin: Math.round(pendingApproval[0]?.minutes ?? 0),
 		weekLoggedMin: Math.round(weekSums[0]?.logged ?? 0),
 		weekApprovedMin: Math.round(weekSums[0]?.approved ?? 0),
+		monthCommissionCents: Math.round(
+			((commissionSum[0]?.total ?? 0) * (me.commissionPct ?? 0)) / 100
+		),
 		docs,
 		materials
 	};
