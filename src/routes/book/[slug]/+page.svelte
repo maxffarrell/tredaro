@@ -13,6 +13,7 @@
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Phone from '@lucide/svelte/icons/phone';
 	import Globe from '@lucide/svelte/icons/globe';
+	import Clock from '@lucide/svelte/icons/clock';
 	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 
@@ -119,6 +120,9 @@
 					>{/if}
 				{#if settings?.phone}<span class="flex items-center gap-1"
 						><Phone class="size-3.5" />{settings.phone}</span
+					>{/if}
+				{#if settings?.businessHours}<span class="flex items-center gap-1"
+						><Clock class="size-3.5" />{settings.businessHours}</span
 					>{/if}
 				{#if settings?.website}<a
 						class="flex items-center gap-1 underline-offset-4 hover:underline"

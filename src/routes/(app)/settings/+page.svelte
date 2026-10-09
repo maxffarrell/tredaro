@@ -216,6 +216,7 @@
 	let serviceZips = $state(settings.serviceZips);
 	let licenseNumber = $state(settings.licenseNumber);
 	let logoUrl = $state(settings.logoUrl);
+	let businessHours = $state(settings.businessHours);
 	let bookingMessage = $state(settings.bookingMessage);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	let testSmsTo = $state('');
@@ -283,6 +284,7 @@
 				serviceZips,
 				licenseNumber,
 				logoUrl,
+				businessHours,
 				bookingMessage
 			});
 			toast.success('Settings saved');
@@ -545,9 +547,19 @@
 						<Field.Field>
 							<Field.Label for="logo">Logo URL</Field.Label>
 							<Input id="logo" type="url" bind:value={logoUrl} placeholder="https://…/logo.png" />
-							<p class="text-xs text-muted-foreground">
-								Shown on printed estimates and work orders.
-							</p>
+							<Field.Description
+								>Shown on print documents and the public estimate page.</Field.Description
+							>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="hours">Business hours</Field.Label>
+							<Input
+								id="hours"
+								bind:value={businessHours}
+								placeholder="Mon–Fri 8am–5pm, Sat 9am–1pm"
+								class="max-w-72"
+							/>
+							<Field.Description>Shown on the public booking page.</Field.Description>
 						</Field.Field>
 						<Field.Field>
 							<Field.Label for="review">Review link</Field.Label>

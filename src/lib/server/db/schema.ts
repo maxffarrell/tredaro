@@ -56,6 +56,8 @@ export const companySettings = pgTable('company_settings', {
 	tagline: text('tagline').notNull().default(''),
 	address: text('address').notNull().default(''),
 	phone: text('phone').notNull().default(''),
+	/** Free-text operating hours shown on the public booking page. */
+	businessHours: text('business_hours').notNull().default(''),
 	website: text('website').notNull().default(''),
 	/** Contractor license / registration number, printed on estimates and work orders. */
 	licenseNumber: text('license_number').notNull().default(''),
@@ -197,6 +199,27 @@ export const serviceLocation = pgTable(
 	]
 );
 
+/** A contact at a customer account (property manager, tenant, AP clerk, site lead). */
+export const customerContact = pgTable(
+	'customer_contact',
+	{
+		id: id(),
+		organizationId: orgId(),
+		customerId: text('customer_id')
+			.notNull()
+			.references(() => customer.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		/** Free-text role: "office mgr", "tenant", "AP". */
+		role: text('role').notNull().default(''),
+		email: text('email').notNull().default(''),
+		phone: text('phone').notNull().default(''),
+		/** Primary contact — the person comms should go to first. */
+		isPrimary: boolean('is_primary').notNull().default(false),
+		...timestamps
+	},
+	(t) => [index('customer_contact_customer_idx').on(t.customerId)]
+);
+
 /** Installed equipment at a customer's site — an AC unit, water heater, etc. Jobs can link to it. */
 export const equipment = pgTable(
 	'equipment',
@@ -304,6 +327,8 @@ export const pricebookItem = pgTable(
 		description: text('description').notNull().default(''),
 		/** Flat price in minor units. */
 		price: integer('price').notNull(),
+		/** Typical cost in minor units — feeds estimate margin + job profitability. */
+		cost: integer('cost').notNull().default(0),
 		/** Typical duration for scheduling; null for materials. */
 		durationMin: integer('duration_min'),
 		/** Job type this item typically bills to; drives estimate "suggested items". */

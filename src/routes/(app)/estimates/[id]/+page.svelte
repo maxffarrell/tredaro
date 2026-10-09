@@ -108,6 +108,12 @@
 			: []
 	);
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+	const estCostCents = $derived(
+		items.reduce(
+			(s, i) => s + (pricebookItems.find((p) => p.id === i.pricebookItemId)?.cost ?? 0) * i.qty,
+			0
+		)
+	);
 
 	async function save(e: SubmitEvent) {
 		e.preventDefault();
@@ -393,6 +399,13 @@
 								])}><Plus /> Add item</Button
 						>
 						<span class="font-medium tabular-nums">Total {formatMoney(totalCents, currency)}</span>
+						{#if estCostCents > 0 && totalCents > 0}
+							<span class="text-xs text-muted-foreground"
+								>~{formatMoney(totalCents - estCostCents, currency)} margin ({Math.round(
+									((totalCents - estCostCents) / totalCents) * 100
+								)}%)</span
+							>
+						{/if}
 					</div>
 					<Field.Field>
 						<Field.Label>Job type</Field.Label>

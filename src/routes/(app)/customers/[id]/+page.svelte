@@ -38,7 +38,10 @@
 		getEquipmentJobs,
 		removeSavedCard,
 		chargeCardOnFile,
-		revokePortalAccess
+		revokePortalAccess,
+		addContact,
+		updateContact,
+		removeContact
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
 	import {
@@ -58,6 +61,7 @@
 	import Wrench from '@lucide/svelte/icons/wrench';
 	import Download from '@lucide/svelte/icons/download';
 	import GitMerge from '@lucide/svelte/icons/git-merge';
+	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Phone from '@lucide/svelte/icons/phone';
 	import Mail from '@lucide/svelte/icons/mail';
@@ -285,6 +289,59 @@
 		zip = l?.zip ?? '';
 		accessNotes = l?.accessNotes ?? '';
 		locOpen = true;
+	}
+
+	// ------- contacts -------
+	let contactOpen = $state(false);
+	let contactPending = $state(false);
+	let contactId = $state<string | null>(null);
+	let contactName = $state('');
+	let contactRole = $state('');
+	let contactEmail = $state('');
+	let contactPhone = $state('');
+	let contactPrimary = $state(false);
+
+	function openContact(ct?: (typeof c.contacts)[number]) {
+		contactId = ct?.id ?? null;
+		contactName = ct?.name ?? '';
+		contactRole = ct?.role ?? '';
+		contactEmail = ct?.email ?? '';
+		contactPhone = ct?.phone ?? '';
+		contactPrimary = ct?.isPrimary ?? false;
+		contactOpen = true;
+	}
+
+	async function saveContact(e: SubmitEvent) {
+		e.preventDefault();
+		contactPending = true;
+		try {
+			const input = {
+				name: contactName,
+				role: contactRole,
+				email: contactEmail,
+				phone: contactPhone,
+				isPrimary: contactPrimary
+			};
+			if (contactId) {
+				await updateContact({ id: contactId, customerId: id, ...input }).updates(getCustomer);
+			} else {
+				await addContact({ customerId: id, ...input }).updates(getCustomer);
+			}
+			toast.success('Contact saved');
+			contactOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save contact'));
+		}
+		contactPending = false;
+	}
+
+	async function deleteContact(ct: (typeof c.contacts)[number]) {
+		try {
+			await removeContact({ id: ct.id, customerId: id }).updates(getCustomer);
+			toast.success('Contact removed');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not remove contact'));
+		}
 	}
 
 	async function saveLocation(e: SubmitEvent) {
@@ -822,6 +879,65 @@
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
 				<Card.Title class="text-base"
+					>Contacts{#if c.contacts.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">({c.contacts.length})</span
+						>{/if}</Card.Title
+				>
+				<Button size="sm" variant="outline" onclick={() => openContact()}><Plus /> Add</Button>
+			</Card.Header>
+			<Card.Content class="space-y-2 px-4">
+				{#each c.contacts as ct (ct.id)}
+					<div class="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+						<button class="min-w-0 flex-1 text-left" onclick={() => openContact(ct)}>
+							<span class="flex items-center gap-2 font-medium"
+								>{ct.name}
+								{#if ct.isPrimary}<StatusBadge status="active" label="primary" />{/if}</span
+							>
+							<span class="mt-1 block truncate text-xs text-muted-foreground">
+								{[ct.role, ct.email, ct.phone].filter(Boolean).join(' · ') || 'No details'}
+							</span>
+						</button>
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger
+								class="inline-flex size-7 shrink-0 items-center justify-center rounded-md hover:bg-accent"
+							>
+								<EllipsisVertical class="size-4" />
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="end">
+								<DropdownMenu.Item onclick={() => openContact(ct)}>Edit</DropdownMenu.Item>
+								{#if !ct.isPrimary}
+									<DropdownMenu.Item
+										onclick={() =>
+											updateContact({
+												id: ct.id,
+												customerId: id,
+												isPrimary: true
+											}).updates(getCustomer)}>Set as primary</DropdownMenu.Item
+									>
+								{/if}
+								<DropdownMenu.Item class="text-destructive" onclick={() => deleteContact(ct)}
+									>Remove</DropdownMenu.Item
+								>
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					</div>
+				{:else}
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><UserPlus /></Empty.Media>
+							<Empty.Title class="text-sm">No contacts</Empty.Title>
+							<Empty.Description class="text-xs"
+								>Track site leads, tenants and AP contacts.</Empty.Description
+							>
+						</Empty.Header>
+					</Empty.Root>
+				{/each}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base"
 					>Service locations{#if c.locations.length > 1}
 						<span class="ml-1 text-xs font-normal text-muted-foreground"
 							>({c.locations.length})</span
@@ -1327,6 +1443,44 @@
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={locPending}>{locPending ? 'Saving…' : 'Save'}</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={contactOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>{contactId ? 'Edit contact' : 'New contact'}</Dialog.Title>
+			<Dialog.Description>A person at this account — office manager, tenant, AP.</Dialog.Description
+			>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={saveContact}>
+			<Field.Field>
+				<Field.Label for="ct-name">Name</Field.Label>
+				<Input id="ct-name" bind:value={contactName} required />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="ct-role">Role</Field.Label>
+				<Input id="ct-role" bind:value={contactRole} placeholder="Office manager, tenant…" />
+			</Field.Field>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="ct-email">Email</Field.Label>
+					<Input id="ct-email" type="email" bind:value={contactEmail} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="ct-phone">Phone</Field.Label>
+					<Input id="ct-phone" bind:value={contactPhone} />
+				</Field.Field>
+			</div>
+			<label class="flex items-center gap-2 text-sm">
+				<Switch bind:checked={contactPrimary} /> Primary contact
+			</label>
+			<Dialog.Footer>
+				<Button type="submit" disabled={contactPending || !contactName.trim()}
+					>{contactPending ? 'Saving…' : 'Save contact'}</Button
+				>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

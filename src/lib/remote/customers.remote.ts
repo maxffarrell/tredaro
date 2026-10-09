@@ -11,6 +11,9 @@ import { emailStatement, textCustomer } from '#lib/server/services/notifications
 import { appOrigin } from '#lib/server/email.ts';
 import {
 	customerImportInput,
+	contactDeleteInput,
+	contactInput,
+	contactUpdate,
 	customerInput,
 	customerUpdate,
 	equipmentInput,
@@ -60,6 +63,25 @@ export const updateCustomer = command(customerUpdate, async (input) => {
 	// Contact fields drive duplicate detection — a new shared email/phone flags it.
 	await refreshQuery(getCustomerDuplicates, c!.id);
 	return c;
+});
+
+export const addContact = command(contactInput, async (input) => {
+	const ctx = await requireOrg();
+	const r = await svc.addContact(ctx.orgId, input);
+	await refreshQuery(getCustomer, input.customerId);
+	return r;
+});
+export const updateContact = command(contactUpdate, async (input) => {
+	const ctx = await requireOrg();
+	const r = await svc.updateContact(ctx.orgId, input);
+	await refreshQuery(getCustomer, input.customerId);
+	return r;
+});
+export const removeContact = command(contactDeleteInput, async (input) => {
+	const ctx = await requireOrg();
+	const r = await svc.removeContact(ctx.orgId, input.id);
+	await refreshQuery(getCustomer, input.customerId);
+	return r;
 });
 
 export const chargeCardOnFile = command(idSchema, async (customerId) => {

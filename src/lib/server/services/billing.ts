@@ -658,6 +658,7 @@ export async function createPricebookItem(
 			name: input.name,
 			description: input.description,
 			price: input.price,
+			cost: input.cost,
 			durationMin: input.durationMin ?? null,
 			jobTypeId: input.jobTypeId ?? null,
 			taxable: input.taxable,
@@ -695,6 +696,7 @@ export async function importPricebookItems(
 				name: r.name,
 				description: r.description,
 				price: Math.round(r.price * 100),
+				cost: Math.round((r.cost ?? 0) * 100),
 				durationMin: r.durationMin ?? null,
 				active: true
 			}))

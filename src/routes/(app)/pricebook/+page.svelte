@@ -51,6 +51,7 @@
 	let kind = $state<'service' | 'material'>('service');
 	let description = $state('');
 	let price = $state(0);
+	let cost = $state(0);
 	let durationMin = $state<number | null>(null);
 	let category = $state('');
 	let jobTypeId = $state('');
@@ -63,6 +64,7 @@
 		kind = i?.kind ?? 'service';
 		description = i?.description ?? '';
 		price = i?.price ?? 0;
+		cost = i?.cost ?? 0;
 		durationMin = i?.durationMin ?? null;
 		category = i?.category ?? '';
 		jobTypeId = i?.jobTypeId ?? '';
@@ -80,6 +82,7 @@
 				kind,
 				description,
 				price,
+				cost,
 				durationMin,
 				category,
 				jobTypeId: jobTypeId || null,
@@ -103,7 +106,7 @@
 	let importOpen = $state(false);
 	let importText = $state('');
 	let importPending = $state(false);
-	/** Columns: name, kind, category, price, duration_min, description (header row optional). */
+	/** Columns: name, kind, category, price, duration_min, description, cost (header row optional). */
 	const importRows = $derived.by(() => {
 		let rows = parseCsv(importText).map((r) => ({
 			name: r[0]?.trim() ?? '',
@@ -111,7 +114,8 @@
 			category: r[2]?.trim() ?? '',
 			price: r[3]?.trim() ?? '',
 			durationMin: r[4]?.trim() ?? '',
-			description: r[5]?.trim() ?? ''
+			description: r[5]?.trim() ?? '',
+			cost: r[6]?.trim() ?? ''
 		}));
 		if (rows.length && rows[0]!.name.toLowerCase() === 'name') rows = rows.slice(1);
 		return rows.filter((r) => r.name);
@@ -130,6 +134,7 @@
 					category: row.category,
 					description: row.description,
 					price: Number(row.price || 0),
+					cost: Number(row.cost || 0),
 					durationMin: row.durationMin ? Number(row.durationMin) : null
 				}))
 			).updates(getPricebook);
@@ -241,6 +246,9 @@
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{i.category || '—'}</Table.Cell
 							>
+							<Table.Cell class="hidden text-right text-muted-foreground tabular-nums md:table-cell"
+								>{i.cost ? formatMoney(i.cost, currency) : '—'}</Table.Cell
+							>
 							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(i.price, currency)}</Table.Cell
 							>
@@ -295,10 +303,16 @@
 					<Input id="pb-cat" bind:value={category} />
 				</Field.Field>
 			</div>
-			<Field.Field>
-				<Field.Label>Unit price</Field.Label>
-				<MoneyInput bind:value={price} />
-			</Field.Field>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label>Unit price</Field.Label>
+					<MoneyInput bind:value={price} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label>Unit cost</Field.Label>
+					<MoneyInput bind:value={cost} />
+				</Field.Field>
+			</div>
 			<Field.Field>
 				<Field.Label for="pb-dur">Duration (minutes, optional)</Field.Label>
 				<Input id="pb-dur" type="number" min={5} bind:value={durationMin} />
@@ -360,8 +374,8 @@
 			<Dialog.Title>Import pricebook items</Dialog.Title>
 			<Dialog.Description>
 				Paste CSV or pick a file — columns: name, kind (service|material), category, price,
-				duration_min, description (header row optional). Items whose name already exists are
-				skipped.
+				duration_min, description, cost (all but name optional; header row optional). Items whose
+				name already exists are skipped.
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="space-y-3">

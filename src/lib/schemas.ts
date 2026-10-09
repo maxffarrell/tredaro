@@ -85,6 +85,26 @@ export const customerImportInput = v.pipe(
 
 export const customerUpdate = v.object({ id: idSchema, ...v.partial(customerInput).entries });
 
+/** A contact on a customer account. */
+export const contactInput = v.object({
+	customerId: idSchema,
+	name: requiredText('Name'),
+	role: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
+	email: emailField,
+	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ''),
+	isPrimary: v.optional(v.boolean(), false)
+});
+export const contactUpdate = v.object({
+	id: idSchema,
+	customerId: idSchema,
+	name: v.optional(requiredText('Name')),
+	role: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80))),
+	email: emailField,
+	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40))),
+	isPrimary: v.optional(v.boolean())
+});
+export const contactDeleteInput = v.object({ id: idSchema, customerId: idSchema });
+
 export const serviceLocationInput = v.object({
 	customerId: idSchema,
 	label: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),
@@ -168,6 +188,8 @@ export const pricebookItemInput = v.object({
 	name: requiredText('Name'),
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
 	price: cents,
+	/** Typical cost — feeds estimate margin + profitability. */
+	cost: v.optional(cents, 0),
 	durationMin: v.optional(
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)))
 	),
@@ -183,6 +205,8 @@ export const pricebookImportRow = v.object({
 	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
 	/** Whole units of the org currency (e.g. dollars), converted to cents on import. */
 	price: v.pipe(v.number(), v.minValue(0)),
+	/** Whole units of the org currency; converted to cents on import. */
+	cost: v.optional(v.pipe(v.number(), v.minValue(0)), 0),
 	durationMin: v.optional(
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)))
 	)
@@ -466,6 +490,7 @@ export const settingsInput = v.object({
 	tagline: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50))),
+	businessHours: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120))),
 	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	licenseNumber: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
 	logoUrl: v.optional(

@@ -6,6 +6,7 @@ import {
 	agreementPlan,
 	charge,
 	customer,
+	customerContact,
 	equipment,
 	invoice,
 	job,
@@ -116,6 +117,12 @@ export async function getCustomer(orgId: string, id: string) {
 		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
 		.where(and(eq(serviceAgreement.organizationId, orgId), eq(serviceAgreement.customerId, id)))
 		.orderBy(desc(serviceAgreement.createdAt));
+
+	const contacts = await db
+		.select()
+		.from(customerContact)
+		.where(and(eq(customerContact.organizationId, orgId), eq(customerContact.customerId, id)))
+		.orderBy(desc(customerContact.isPrimary), asc(customerContact.name));
 
 	const jobs = await db
 		.select({ job, jobTypeName: jobType.name, color: jobType.color })
@@ -237,6 +244,7 @@ export async function getCustomer(orgId: string, id: string) {
 
 	return {
 		...row,
+		contacts,
 		locations,
 		agreements,
 		jobs,
@@ -743,4 +751,84 @@ export async function mergeCustomers(ctx: OrgContext, sourceId: string, targetId
 		data: { sourceId }
 	});
 	return target;
+}
+
+/** Contacts of a customer, primary first. */
+export async function listContacts(orgId: string, customerId: string) {
+	return db
+		.select()
+		.from(customerContact)
+		.where(
+			and(eq(customerContact.organizationId, orgId), eq(customerContact.customerId, customerId))
+		)
+		.orderBy(desc(customerContact.isPrimary), asc(customerContact.name));
+}
+
+async function clearOtherPrimaries(orgId: string, customerId: string, keepId?: string) {
+	await db
+		.update(customerContact)
+		.set({ isPrimary: false, updatedAt: new Date() })
+		.where(
+			and(
+				eq(customerContact.organizationId, orgId),
+				eq(customerContact.customerId, customerId),
+				keepId ? sql`${customerContact.id} != ${keepId}` : undefined
+			)
+		);
+}
+
+/** Adds a contact to a customer; a new primary replaces the old one. */
+export async function addContact(orgId: string, input: v.InferOutput<typeof s.contactInput>) {
+	const [cust] = await db
+		.select({ id: customer.id })
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, input.customerId)));
+	if (!cust) error(404, 'Customer not found');
+	if (input.isPrimary) await clearOtherPrimaries(orgId, input.customerId);
+	const [row] = await db
+		.insert(customerContact)
+		.values({
+			organizationId: orgId,
+			customerId: input.customerId,
+			name: input.name,
+			role: input.role,
+			email: input.email ?? '',
+			phone: input.phone,
+			isPrimary: input.isPrimary
+		})
+		.returning();
+	return row;
+}
+
+/** Edits a contact; setting isPrimary clears it on the customer's other contacts. */
+export async function updateContact(orgId: string, input: v.InferOutput<typeof s.contactUpdate>) {
+	const [existing] = await db
+		.select()
+		.from(customerContact)
+		.where(and(eq(customerContact.organizationId, orgId), eq(customerContact.id, input.id)));
+	if (!existing) error(404, 'Contact not found');
+	if (input.isPrimary) await clearOtherPrimaries(orgId, existing.customerId, input.id);
+	const [row] = await db
+		.update(customerContact)
+		.set({
+			...(input.name !== undefined ? { name: input.name } : {}),
+			...(input.role !== undefined ? { role: input.role } : {}),
+			...(input.email !== undefined ? { email: input.email ?? '' } : {}),
+			...(input.phone !== undefined ? { phone: input.phone } : {}),
+			...(input.isPrimary !== undefined ? { isPrimary: input.isPrimary } : {}),
+			updatedAt: new Date()
+		})
+		.where(eq(customerContact.id, input.id))
+		.returning();
+	return row;
+}
+
+/** Removes a contact. */
+export async function removeContact(orgId: string, id: string) {
+	const [row] = await db
+		.delete(customerContact)
+		.where(and(eq(customerContact.organizationId, orgId), eq(customerContact.id, id)))
+		.returning();
+	if (!row) error(404, 'Contact not found');
+	return row;
 }
