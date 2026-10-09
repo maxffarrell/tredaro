@@ -676,6 +676,8 @@ async function applyDecision(
 			{ source: 'estimate' }
 		);
 		jobId = created!.id;
+		// Link back so invoicePrefill bills the estimate's items for this job.
+		await db.update(job).set({ estimateId: est.id }).where(eq(job.id, jobId));
 
 		// Deposit on approval: when the org collects a percentage up front, cut a
 		// deposit invoice for that share of the estimate total and email the pay link.
