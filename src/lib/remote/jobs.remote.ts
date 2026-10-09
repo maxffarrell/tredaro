@@ -24,6 +24,7 @@ import {
 	jobTypeInput,
 	jobTypeUpdate,
 	jobUpdate,
+	scheduleVisitsInput,
 	timeEntryInput,
 	timeOffInput,
 	checklistItemInput,
@@ -202,6 +203,34 @@ export const updateJob = command(jobUpdate, async (input) => {
 	await refreshQuery(getMyDay, undefined);
 	void getCustomer(j!.customerId).refresh();
 	return j;
+});
+
+/** Bulk-schedule agreement visits from the customer page — per-job outcome so one
+ * conflict doesn't sink the rest. Returns {scheduled, failed:[{jobId,message}]}. */
+export const scheduleAgreementVisits = command(scheduleVisitsInput, async (input) => {
+	const ctx = await requireOrg();
+	const zone = await tz();
+	const scheduled: string[] = [];
+	const failed: { jobId: string; message: string }[] = [];
+	for (const v of input.visits) {
+		try {
+			const j = await svc.updateJob(ctx, zone, {
+				id: v.jobId,
+				startsAt: v.startsAt,
+				technicianId: v.technicianId ?? undefined
+			});
+			if (j?.startsAt && j.status === 'scheduled')
+				void notifyJobScheduled(ctx.orgId, j.id).catch(() => {});
+			if (v.technicianId && j?.technicianId)
+				void notifyTechAssigned(ctx.orgId, j.id, j.technicianId).catch(() => {});
+			scheduled.push(v.jobId);
+		} catch (e) {
+			failed.push({ jobId: v.jobId, message: e instanceof Error ? e.message : String(e) });
+		}
+	}
+	await refreshQuery(getJobs, undefined);
+	await refreshQuery(getDispatchBoard, undefined);
+	return { scheduled, failed };
 });
 export const recordJobEvent = command(jobEventInput, async (input) => {
 	const ctx = await requireOrg();

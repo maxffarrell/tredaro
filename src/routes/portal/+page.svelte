@@ -33,12 +33,34 @@
 	import Wrench from '@lucide/svelte/icons/wrench';
 	import Star from '@lucide/svelte/icons/star';
 	import FileText from '@lucide/svelte/icons/file-text';
+	import Paperclip from '@lucide/svelte/icons/paperclip';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const customerId = $derived(data.customerId);
 	const d = $derived(await getPortalOverview(customerId));
 	const providers = $derived(await getProviders(customerId));
+	let docUploading = $state(false);
+	async function uploadPortalDoc(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		docUploading = true;
+		try {
+			const fd = new FormData();
+			fd.append('customerId', customerId);
+			fd.append('file', file);
+			const res = await fetch('/api/portal/documents', { method: 'POST', body: fd });
+			if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? res.statusText);
+			toast.success('Document sent — the office can see it on your account');
+			await getPortalOverview(customerId).refresh();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload'));
+		} finally {
+			docUploading = false;
+			input.value = '';
+		}
+	}
 	const todayIso = new Date().toISOString().slice(0, 10);
 	const tz = $derived(d.settings?.timezone ?? 'UTC');
 	const currency = $derived(d.settings?.currency ?? 'usd');
@@ -657,27 +679,40 @@
 			</Card.Root>
 		{/if}
 
-		<!-- shared documents -->
-		{#if d.documents.length}
-			<Card.Root>
-				<Card.Header><Card.Title class="text-base">Documents</Card.Title></Card.Header>
-				<Card.Content class="space-y-2">
-					{#each d.documents as doc (doc.id)}
-						<a
-							href="/files/portal-customer-document/{doc.id}"
-							target="_blank"
-							class="flex items-center gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
-						>
-							<FileText class="size-4 shrink-0 text-muted-foreground" />
-							<div class="min-w-0 flex-1">
-								<p class="truncate font-medium">{doc.fileName}</p>
-								<p class="text-xs text-muted-foreground">{formatDate(doc.createdAt)}</p>
-							</div>
-						</a>
-					{/each}
-				</Card.Content>
-			</Card.Root>
-		{/if}
+		<!-- shared documents + uploads -->
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base">Documents</Card.Title>
+				<label
+					class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors hover:bg-accent {docUploading
+						? 'pointer-events-none opacity-60'
+						: ''}"
+				>
+					<Paperclip class="size-4" />
+					{docUploading ? 'Sending…' : 'Send us a file'}
+					<input type="file" class="sr-only" disabled={docUploading} onchange={uploadPortalDoc} />
+				</label>
+			</Card.Header>
+			<Card.Content class="space-y-2">
+				{#each d.documents as doc (doc.id)}
+					<a
+						href="/files/portal-customer-document/{doc.id}"
+						target="_blank"
+						class="flex items-center gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
+					>
+						<FileText class="size-4 shrink-0 text-muted-foreground" />
+						<div class="min-w-0 flex-1">
+							<p class="truncate font-medium">{doc.fileName}</p>
+							<p class="text-xs text-muted-foreground">{formatDate(doc.createdAt)}</p>
+						</div>
+					</a>
+				{:else}
+					<p class="py-2 text-center text-xs text-muted-foreground">
+						No documents yet — files the office shares with you, and files you send, appear here.
+					</p>
+				{/each}
+			</Card.Content>
+		</Card.Root>
 
 		<!-- contact info -->
 		<Card.Root>

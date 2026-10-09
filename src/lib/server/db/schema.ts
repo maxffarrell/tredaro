@@ -1093,6 +1093,8 @@ export const customerDocument = pgTable(
 		path: text('path').notNull(),
 		/** Visible to the customer in their portal. */
 		shared: boolean('shared').notNull().default(false),
+		/** True when the customer uploaded it from the portal (uploadedById is null). */
+		viaPortal: boolean('via_portal').notNull().default(false),
 		...timestamps
 	},
 	(t) => [index('customer_document_customer_idx').on(t.customerId)]

@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { UPLOADS_DIR } from '$app/env/private';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, or } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { customer, customerDocument, job, jobPhoto, member, user } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
@@ -149,6 +149,7 @@ export async function listCustomerDocs(orgId: string, customerId: string) {
 			mime: customerDocument.mime,
 			size: customerDocument.size,
 			shared: customerDocument.shared,
+			viaPortal: customerDocument.viaPortal,
 			uploadedBy: user.name,
 			createdAt: customerDocument.createdAt
 		})
@@ -213,6 +214,53 @@ export async function saveCustomerDoc(
 	return row;
 }
 
+/** Customer self-upload from the portal — same file/validation rules, viaPortal=true. */
+export async function savePortalCustomerDoc(
+	userId: string,
+	customerId: string,
+	file: { name: string; type: string; size: number; bytes: Uint8Array }
+) {
+	const [c] = await db
+		.select({ id: customer.id, name: customer.name, orgId: customer.organizationId })
+		.from(customer)
+		.where(and(eq(customer.id, customerId), eq(customer.portalUserId, userId)))
+		.limit(1);
+	if (!c) error(404, 'Customer not found');
+	if (!DOC_ALLOWED.has(file.type))
+		error(400, 'Unsupported file type — upload a PDF, image, Word, Excel, CSV or text file');
+	if (file.size > MAX_BYTES) error(400, 'File is larger than 15 MB');
+
+	const id = crypto.randomUUID();
+	const safe = (file.name || 'document').replace(/[^\w.\-() ]+/g, '_').slice(-80) || 'document';
+	const dir = storageDir(c.orgId);
+	await mkdir(dir, { recursive: true });
+	const rel = join(dir, `doc-${id}-${safe}`);
+	await writeFile(rel, file.bytes);
+
+	const [row] = await db
+		.insert(customerDocument)
+		.values({
+			id,
+			organizationId: c.orgId,
+			customerId,
+			fileName: safe,
+			mime: file.type,
+			size: file.size,
+			path: rel,
+			viaPortal: true
+		})
+		.returning();
+	await emit({
+		orgId: c.orgId,
+		actorId: userId,
+		entityType: 'customer',
+		entityId: customerId,
+		action: 'document_added',
+		summary: `${c.name} shared a document via the portal: "${safe}"`
+	});
+	return { row, orgId: c.orgId };
+}
+
 export async function readCustomerDoc(orgId: string, id: string) {
 	const [row] = await db
 		.select()
@@ -244,7 +292,7 @@ export async function readPortalCustomerDoc(userId: string, id: string) {
 		.where(
 			and(
 				eq(customerDocument.id, id),
-				eq(customerDocument.shared, true),
+				or(eq(customerDocument.shared, true), eq(customerDocument.viaPortal, true)),
 				eq(customer.portalUserId, userId)
 			)
 		)

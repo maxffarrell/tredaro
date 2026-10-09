@@ -3,6 +3,7 @@
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import Mails from '@lucide/svelte/icons/mails';
@@ -54,7 +55,7 @@
 		updateSchedule,
 		deleteSchedule
 	} from '#lib/remote/maintenance.remote.ts';
-	import { getJobTypes, getTechnicians } from '#lib/remote/jobs.remote.ts';
+	import { getJobTypes, getTechnicians, scheduleAgreementVisits } from '#lib/remote/jobs.remote.ts';
 	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { getSettings, getStaff } from '#lib/remote/workspace.remote.ts';
@@ -215,6 +216,46 @@
 	);
 	const technicians = $derived(await getTechnicians());
 	const staff = $derived(await getStaff());
+	const pendingVisits = $derived(
+		c.jobs.filter((j) => j.job.serviceAgreementId && j.job.status === 'unscheduled')
+	);
+	let visitsOpen = $state(false);
+	let visitsPending = $state(false);
+	let visitRows = $state<{ jobId: string; startsAt: string; technicianId: string }[]>([]);
+	function openVisits() {
+		visitRows = pendingVisits.map((j) => ({
+			jobId: j.job.id,
+			startsAt: `${j.job.agreementPeriod ?? ''}T09:00`,
+			technicianId: j.job.technicianId ?? ''
+		}));
+		visitsOpen = true;
+	}
+	async function saveVisits() {
+		visitsPending = true;
+		try {
+			const r = await scheduleAgreementVisits({
+				customerId: id,
+				visits: visitRows.map((v) => ({
+					jobId: v.jobId,
+					startsAt: v.startsAt,
+					technicianId: v.technicianId || null
+				}))
+			});
+			await getCustomer(id).refresh();
+			if (r.failed.length)
+				toast.error(
+					`Scheduled ${r.scheduled.length}; ${r.failed.length} failed — ${r.failed[0].message}`
+				);
+			else
+				toast.success(
+					`Scheduled ${r.scheduled.length} visit${r.scheduled.length === 1 ? '' : 's'}`
+				);
+			if (!r.failed.length) visitsOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not schedule visits'));
+		}
+		visitsPending = false;
+	}
 	let saving = $state(false);
 	let loadedId = '';
 	$effect(() => {
@@ -1113,7 +1154,8 @@
 									>{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
 										? ` · ${d.uploadedBy}`
 										: ''}{#if d.shared}
-										<Badge variant="secondary">portal</Badge>{/if}</span
+										<Badge variant="secondary">portal</Badge>{/if}{#if d.viaPortal}
+										<Badge variant="outline">from customer</Badge>{/if}</span
 								>
 							</div>
 						</div>
@@ -1484,9 +1526,16 @@
 								>({c.agreements.filter((a) => a.agreement.status === 'active').length} active)</span
 							>{/if}</Card.Title
 					>
-					<Button size="sm" variant="outline" href="/agreements?new=1&customer={id}"
-						><Plus /> New</Button
-					>
+					<div class="flex gap-2">
+						{#if pendingVisits.length}
+							<Button size="sm" variant="outline" onclick={openVisits}
+								><CalendarPlus class="size-4" /> Schedule visits ({pendingVisits.length})</Button
+							>
+						{/if}
+						<Button size="sm" variant="outline" href="/agreements?new=1&customer={id}"
+							><Plus /> New</Button
+						>
+					</div>
 				</Card.Header>
 				<Card.Content class="space-y-2 px-4">
 					{#each c.agreements as a (a.agreement.id)}
@@ -2013,6 +2062,58 @@
 				</Button>
 			</Dialog.Footer>
 		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- schedule agreement visits -->
+<Dialog.Root bind:open={visitsOpen}>
+	<Dialog.Content class="max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>Schedule agreement visits</Dialog.Title>
+			<Dialog.Description>
+				{pendingVisits.length} unscheduled visit{pendingVisits.length === 1 ? '' : 's'} from service agreements
+				— set a start (and optionally a technician) for each.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="max-h-96 space-y-2 overflow-y-auto">
+			{#each visitRows as v, i (v.jobId)}
+				{@const j = pendingVisits[i]}
+				<div class="space-y-1.5 rounded-lg border p-3 text-sm">
+					<p class="font-medium">
+						J-{j.job.number}
+						<span class="font-normal text-muted-foreground">
+							· {j.jobTypeName ?? j.job.summary}{j.job.agreementPeriod
+								? ` · ${j.job.agreementPeriod}`
+								: ''}</span
+						>
+					</p>
+					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+						<Input
+							type="datetime-local"
+							value={v.startsAt}
+							onchange={(e) => (v.startsAt = e.currentTarget.value)}
+						/>
+						<Select.Root type="single" bind:value={visitRows[i].technicianId}>
+							<Select.Trigger class="w-full"
+								>{technicians.find((t) => t.id === visitRows[i].technicianId)?.name ??
+									'Unassigned'}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">Unassigned</Select.Item>
+								{#each technicians as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				</div>
+			{/each}
+		</div>
+		<Dialog.Footer>
+			<Button disabled={visitsPending || visitRows.some((v) => !v.startsAt)} onclick={saveVisits}>
+				{visitsPending ? 'Scheduling…' : `Schedule ${visitRows.length}`}
+			</Button>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
 

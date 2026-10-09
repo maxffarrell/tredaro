@@ -6,6 +6,7 @@ import {
 	charge,
 	companySettings,
 	customer,
+	customerDocument,
 	equipment,
 	agreementPlan,
 	estimate,
@@ -881,6 +882,70 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 }
 
 /** Daily cron work: appointment reminders, stale-estimate follow-ups, staff schedule digests. */
+/**
+ * Monday-morning owner/admin digest: last week's completions + collections,
+ * open receivables, and the coming week's scheduled work. Runs inside the daily
+ * cron; skips itself on any non-Monday in the org timezone and dedupes per week.
+ */
+export async function runWeeklyDigest(orgId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const tz = await orgTimezone(orgId);
+	const today = localDate(new Date(), tz);
+	// Weekday of the local date (noon UTC avoids any DST edge).
+	if (new Date(`${today}T12:00:00Z`).getUTCDay() !== 1) return;
+
+	const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000);
+	const nextWeek = new Date(Date.now() + 7 * 24 * 3600_000);
+
+	const [done] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(eq(job.organizationId, orgId), eq(job.status, 'done'), gte(job.completedAt, weekAgo))
+		);
+	const [collected] = await db
+		.select({ total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
+		.from(payment)
+		.where(and(eq(payment.organizationId, orgId), gte(payment.createdAt, weekAgo)));
+	const [receivables] = await db
+		.select({ total: sql<number>`coalesce(sum(${charge.amount}), 0)`.mapWith(Number) })
+		.from(charge)
+		.where(and(eq(charge.organizationId, orgId), eq(charge.status, 'open')));
+	const [upcoming] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				gte(job.startsAt, new Date()),
+				lt(job.startsAt, nextWeek),
+				inArray(job.status, ['scheduled', 'dispatched', 'in_progress'])
+			)
+		);
+
+	const cur = await orgCurrencyOf(orgId);
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'weekly_digest', today, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Week of ${today} — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Your week in review`,
+				lines: [
+					`${done?.n ?? 0} job(s) completed in the last 7 days.`,
+					`${formatMoney(collected?.total ?? 0, cur)} collected in the last 7 days.`,
+					`${formatMoney(receivables?.total ?? 0, cur)} still open in receivables.`,
+					`${upcoming?.n ?? 0} job(s) scheduled in the next 7 days.`
+				],
+				action: { label: 'Open dashboard', url: `${appOrigin()}/dashboard` }
+			})
+		});
+	}
+}
+
 export async function runReminders(orgId: string) {
 	await flushSmsOutbox(orgId);
 	await expireEstimates(orgId);
@@ -1931,6 +1996,36 @@ export async function notifyStaffQuoteRequest(orgId: string, estimateId: string)
 				heading: `${row.customerName} asked for a quote`,
 				lines: ['A draft estimate was created from their portal request — price it and send.'],
 				action: { label: 'Open estimate', url: `${appOrigin()}/estimates/${estimateId}` }
+			})
+		});
+	}
+}
+
+/** Staff alert: a portal customer uploaded a document. */
+export async function notifyStaffDocument(orgId: string, docId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			fileName: customerDocument.fileName,
+			customerName: customer.name,
+			customerId: customer.id
+		})
+		.from(customerDocument)
+		.innerJoin(customer, eq(customerDocument.customerId, customer.id))
+		.where(eq(customerDocument.id, docId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'customer_document', docId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Document from ${row.customerName} — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} shared a document`,
+				lines: [`"${row.fileName}" was uploaded from the customer portal.`],
+				action: { label: 'Open customer', url: `${appOrigin()}/customers/${row.customerId}` }
 			})
 		});
 	}

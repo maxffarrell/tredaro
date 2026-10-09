@@ -623,6 +623,17 @@ export const scheduleInput = v.object({
 	nextDueOn: isoDate,
 	active: v.optional(v.boolean(), true)
 });
+export const visitScheduleItem = v.object({
+	jobId: v.string(),
+	startsAt: localDateTime,
+	technicianId: v.optional(v.nullable(v.string()))
+});
+
+export const scheduleVisitsInput = v.object({
+	customerId: v.string(),
+	visits: v.pipe(v.array(visitScheduleItem), v.minLength(1), v.maxLength(24))
+});
+
 export const scheduleUpdate = v.object({
 	id: idSchema,
 	jobTypeId: v.optional(v.nullable(idSchema)),

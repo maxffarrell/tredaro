@@ -4,7 +4,7 @@ import { CRON_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import { organization } from '#lib/server/db/schema.ts';
 import { runBilling } from '#lib/server/services/billing.ts';
-import { runReminders } from '#lib/server/services/notifications.ts';
+import { runReminders, runWeeklyDigest } from '#lib/server/services/notifications.ts';
 import { runSchedules } from '#lib/server/services/maintenance.ts';
 import { runRestock } from '#lib/server/services/inventory.ts';
 import { purgeExpiredDemos } from '#lib/server/demo-mode.ts';
@@ -28,6 +28,7 @@ export const GET: RequestHandler = async ({ request }) => {
 			await runSchedules(o.id);
 			await runReminders(o.id);
 			await runRestock(o.id);
+			await runWeeklyDigest(o.id);
 		} catch (err) {
 			failed++;
 			console.error(`daily cron failed for ${o.id}`, err);

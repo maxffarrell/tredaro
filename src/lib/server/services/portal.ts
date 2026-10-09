@@ -228,7 +228,12 @@ export async function portalOverview(customerId: string) {
 			createdAt: customerDocument.createdAt
 		})
 		.from(customerDocument)
-		.where(and(eq(customerDocument.customerId, customerId), eq(customerDocument.shared, true)))
+		.where(
+			and(
+				eq(customerDocument.customerId, customerId),
+				or(eq(customerDocument.shared, true), eq(customerDocument.viaPortal, true))
+			)
+		)
 		.orderBy(desc(customerDocument.createdAt));
 
 	return {
