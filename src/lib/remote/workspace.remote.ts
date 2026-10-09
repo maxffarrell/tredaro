@@ -15,6 +15,10 @@ import {
 	webhook
 } from '#lib/server/db/schema.ts';
 import { dashboard } from '#lib/server/services/dashboard.ts';
+import { appOrigin, sendEmail } from '#lib/server/email.ts';
+import { smsProvider } from '#lib/server/sms.ts';
+import { sendSmsQuiet } from '#lib/server/services/notifications.ts';
+import { user as userTable } from '#lib/server/db/schema.ts';
 import { getReports as reports } from '#lib/server/services/reports.ts';
 import { search } from '#lib/server/services/search.ts';
 import { loadDemoData } from '#lib/server/services/demo.ts';
@@ -298,4 +302,25 @@ export const getActivityWeekCount = query(async () => {
 		zonedToUtc(`${addDays(today, -6)}T00:00`, tz),
 		zonedToUtc(`${addDays(today, 1)}T00:00`, tz)
 	);
+});
+
+export const sendTestEmail = command(v.object({}), async () => {
+	const ctx = await requireOrg();
+	const [u] = await db
+		.select({ email: userTable.email })
+		.from(userTable)
+		.where(eq(userTable.id, ctx.userId));
+	if (!u?.email) error(400, 'Your account has no email');
+	await sendEmail({
+		to: u.email,
+		subject: 'Tredaro test email',
+		text: 'If you can read this, outbound email works for your workspace. ' + appOrigin(),
+		html: `<p>If you can read this, outbound email works for your workspace.</p><p>${appOrigin()}</p>`
+	});
+});
+
+export const sendTestSms = command(v.object({ to: v.string() }), async (input) => {
+	if (!smsProvider()) error(400, 'No SMS provider configured');
+	const ctx = await requireOrg();
+	await sendSmsQuiet(ctx.orgId, { to: input.to, body: 'Tredaro test text — SMS is working.' });
 });

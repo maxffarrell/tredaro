@@ -32,7 +32,8 @@
 		repeatJob,
 		duplicateJob,
 		markNoShow,
-		signJob
+		signJob,
+		sendJobEta
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -62,6 +63,7 @@
 	import Navigation from '@lucide/svelte/icons/navigation';
 	import Navigation2 from '@lucide/svelte/icons/navigation-2';
 	import MapPin from '@lucide/svelte/icons/map-pin';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import Phone from '@lucide/svelte/icons/phone';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileText from '@lucide/svelte/icons/file-text';
@@ -171,6 +173,19 @@
 	}
 
 	let cancelOpen = $state(false);
+	let etaOpen = $state(false);
+	let etaPending = $state(false);
+	async function sendEta(minutes: number) {
+		etaPending = true;
+		try {
+			await sendJobEta({ jobId: id, minutes });
+			toast.success('ETA text sent');
+			etaOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send ETA text'));
+		}
+		etaPending = false;
+	}
 	let cancelReason = $state('');
 	let cancelling = $state(false);
 
@@ -534,6 +549,11 @@
 		{#if j.job.source && j.job.source !== 'manual'}
 			<Badge variant="secondary" class="capitalize">via {j.job.source}</Badge>
 		{/if}
+		{#if j.sameDay}
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				>{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today</Badge
+			>
+		{/if}
 		{#if j.job.status === 'scheduled'}
 			<Button size="sm" variant="outline" onclick={() => event('dispatched')}
 				><Truck /> Dispatch</Button
@@ -582,6 +602,14 @@
 				)}"
 				target="_blank"
 				title="Directions"><Navigation2 /></Button
+			>
+		{/if}
+		{#if j.customerPhone}
+			<Button
+				size="sm"
+				variant="ghost"
+				title="Text the customer an ETA"
+				onclick={() => (etaOpen = true)}><MessageSquare /></Button
 			>
 		{/if}
 		{#if !locked}
@@ -1397,6 +1425,24 @@
 />
 
 <!-- cancel reason -->
+<Dialog.Root bind:open={etaOpen}>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Text an ETA</Dialog.Title>
+			<Dialog.Description
+				>Text {j.customerName} that you're on the way — roughly how many minutes out?</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="flex flex-wrap gap-2">
+			{#each [15, 30, 45, 60, 90] as m (m)}
+				<Button variant="outline" size="sm" disabled={etaPending} onclick={() => sendEta(m)}
+					>{m} min</Button
+				>
+			{/each}
+		</div>
+	</Dialog.Content>
+</Dialog.Root>
+
 <Dialog.Root bind:open={cancelOpen}>
 	<Dialog.Content class="sm:max-w-sm">
 		<Dialog.Header>

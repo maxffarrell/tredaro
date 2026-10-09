@@ -50,7 +50,7 @@ async function orgCurrencyOf(orgId: string) {
  * is parked in sms_outbox for the cron's flushSmsOutbox at the next 8am instead
  * of hitting the customer's phone overnight.
  */
-async function sendSmsQuiet(orgId: string, msg: { to: string; body: string }) {
+export async function sendSmsQuiet(orgId: string, msg: { to: string; body: string }) {
 	const tz = await orgTimezone(orgId);
 	const now = new Date();
 	const localNow = new Date(now.toLocaleString('en-US', { timeZone: tz }));
@@ -377,6 +377,37 @@ export async function textCustomer(ctx: OrgContext, customerId: string, message:
 			kind: 'manual_sms',
 			entityId: `${customerId}:${Date.now()}`,
 			recipient: c.phone
+		})
+		.onConflictDoNothing();
+}
+
+/** One-tap "we're ~N min out" text from a job page. Manual send, honors opt-out + provider. */
+export async function textJobEta(ctx: OrgContext, jobId: string, minutes: number) {
+	if (!smsProvider()) error(400, 'No SMS provider configured');
+	const [row] = await db
+		.select({
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut,
+			number: job.number
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!row) error(404, 'Job not found');
+	if (!row.phone) error(400, 'Customer has no phone number');
+	if (row.smsOptOut) error(409, 'Customer has opted out of texts');
+	const name = await orgName(ctx.orgId);
+	await sendSmsQuiet(ctx.orgId, {
+		to: row.phone,
+		body: `${name}: we're on our way to job J-${row.number} — about ${minutes} min out.`
+	});
+	await db
+		.insert(notificationLog)
+		.values({
+			organizationId: ctx.orgId,
+			kind: 'job_eta_sms',
+			entityId: `${jobId}:${Date.now()}`,
+			recipient: row.phone
 		})
 		.onConflictDoNothing();
 }

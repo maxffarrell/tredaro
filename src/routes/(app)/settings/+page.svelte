@@ -12,6 +12,7 @@
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
@@ -32,7 +33,9 @@
 		updateLaborCost,
 		setStaffAlerts,
 		getSmsOutbox,
-		seedDemo
+		seedDemo,
+		sendTestEmail,
+		sendTestSms
 	} from '#lib/remote/workspace.remote.ts';
 	import {
 		getJobTypes,
@@ -199,6 +202,28 @@
 	let serviceZips = $state(settings.serviceZips);
 	let bookingMessage = $state(settings.bookingMessage);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
+	let testSmsTo = $state('');
+	let testPending = $state(false);
+	async function testEmail() {
+		testPending = true;
+		try {
+			await sendTestEmail({});
+			toast.success('Test email sent (check your inbox/spam)');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send test email'));
+		}
+		testPending = false;
+	}
+	async function testSms() {
+		testPending = true;
+		try {
+			await sendTestSms({ to: testSmsTo.trim() });
+			toast.success('Test text sent');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send test text'));
+		}
+		testPending = false;
+	}
 	const embedSnippet = $derived(
 		`<iframe src="${bookUrl}" style="width:100%;max-width:720px;height:640px;border:0" title="Book a service"></iframe>`
 	);
@@ -497,6 +522,26 @@
 									</p>
 								</div>
 								<Switch bind:checked={staffDigest} />
+							</div>
+							<div class="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/30 p-3">
+								<div class="min-w-40 flex-1">
+									<Label for="test-sms-to">Test sends</Label>
+									<Input
+										id="test-sms-to"
+										bind:value={testSmsTo}
+										placeholder="+1 555 123 4567"
+										class="mt-1"
+									/>
+								</div>
+								<Button variant="outline" size="sm" disabled={testPending} onclick={testEmail}
+									>Email me</Button
+								>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={testPending || !testSmsTo.trim()}
+									onclick={testSms}>Text this number</Button
+								>
 							</div>
 							<p class="text-xs text-muted-foreground">
 								Manual Send buttons on invoices and estimates always work.

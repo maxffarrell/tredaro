@@ -4,6 +4,7 @@ import { error } from '@sveltejs/kit';
 import {
 	and,
 	asc,
+	count,
 	desc,
 	eq,
 	getTableColumns,
@@ -289,7 +290,26 @@ export async function getJob(orgId: string, id: string) {
 		.from(job)
 		.where(eq(job.id, id));
 
-	return { ...row, events, openBalance: open, costing };
+	const tz = (await getSettings(orgId)).timezone;
+	const sameDay = row.job.startsAt
+		? (
+				await db
+					.select({ n: count() })
+					.from(job)
+					.where(
+						and(
+							eq(job.organizationId, orgId),
+							eq(job.customerId, row.job.customerId),
+							ne(job.id, id),
+							sql`${job.status} not in ('done', 'cancelled')`,
+							gte(job.startsAt, zonedToUtc(localDate(row.job.startsAt, tz), tz)),
+							lt(job.startsAt, zonedToUtc(addDays(localDate(row.job.startsAt, tz), 1), tz))
+						)
+					)
+			)[0].n
+		: 0;
+
+	return { ...row, events, openBalance: open, costing, sameDay };
 }
 
 /** Creates a job. `startsAt` is a wall-clock time in the workspace timezone; omit for unscheduled. */

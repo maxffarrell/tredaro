@@ -9,7 +9,8 @@ import {
 	notifyJobEnRoute,
 	notifyJobScheduled,
 	notifyPartsDelay,
-	notifyTechAssigned
+	notifyTechAssigned,
+	textJobEta
 } from '#lib/server/services/notifications.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
@@ -78,6 +79,14 @@ export const getJobCounts = query(
 );
 
 export const getJob = query(idSchema, async (id) => svc.getJob((await requireOrg()).orgId, id));
+
+export const sendJobEta = command(
+	v.object({ jobId: v.string(), minutes: v.number() }),
+	async (input) => {
+		const ctx = await requireOrg();
+		await textJobEta(ctx, input.jobId, input.minutes);
+	}
+);
 
 /** Dispatch board payload for `[from, to]`: scheduled jobs, unscheduled queue, technicians. */
 export const getDispatchBoard = query(
