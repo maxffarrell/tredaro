@@ -32,6 +32,15 @@
 	const board = $derived(
 		await getDispatchBoard({ from: start, to: addDays(start, 7), officeId: officeId || undefined })
 	);
+	const offThisWeek = $derived(
+		board
+			? new Set(
+					board.timeOff
+						.filter((t) => t.startsOn <= addDays(start, 7) && t.endsOn >= start)
+						.map((t) => t.memberId)
+				).size
+			: 0
+	);
 	const offToday = $derived(
 		board ? board.timeOff.filter((t) => t.startsOn <= todayStr && t.endsOn >= todayStr).length : 0
 	);
@@ -233,6 +242,9 @@
 				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
 					>{unassignedToday} unassigned today</Badge
 				>
+			{/if}
+			{#if offThisWeek}
+				<Badge variant="outline">{offThisWeek} off this week</Badge>
 			{/if}
 			{#if offToday}
 				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"

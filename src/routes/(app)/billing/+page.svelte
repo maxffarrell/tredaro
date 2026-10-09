@@ -403,7 +403,11 @@
 							(sum, i) => sum + (Date.now() - new Date(i.invoice.createdAt).getTime()) / 86400_000,
 							0
 						) / openRows.length
-					)}d open
+					)}d open{#if weekStr && openRows.filter((i) => i.invoice.dueDate && i.invoice.dueDate >= todayStr && i.invoice.dueDate <= weekStr).length}
+						· {openRows.filter(
+							(i) =>
+								i.invoice.dueDate && i.invoice.dueDate >= todayStr && i.invoice.dueDate <= weekStr
+						).length} due this week{/if}
 				</p>
 			{/if}
 			{@const voided = invoices.filter((i) => i.invoice.status === 'void')}

@@ -165,6 +165,21 @@ async function avgJobMinutes(orgId: string) {
 	return v ?? null;
 }
 
+/** Share of jobs created in 30d that ended cancelled. */
+async function cancelRate(orgId: string) {
+	const [{ v }] = await db
+		.select({
+			v: sql<number>`count(*) filter (where ${job.status} = 'cancelled') * 100.0 / nullif(count(*) filter (where ${job.status} in ('done', 'cancelled')), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(job)
+		.where(
+			and(eq(job.organizationId, orgId), gte(job.createdAt, new Date(Date.now() - 30 * 86400_000)))
+		);
+	return v ?? null;
+}
+
 /** Avg invoiced revenue per job (90d, non-void invoices linked to a job). */
 async function avgJobValue(orgId: string) {
 	const [{ v }] = await db
@@ -634,7 +649,8 @@ export async function getReports(orgId: string) {
 		decisionDays,
 		repeat,
 		jobValue,
-		jobMin
+		jobMin,
+		cancel
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -666,7 +682,8 @@ export async function getReports(orgId: string) {
 		avgDaysToEstimateDecision(orgId),
 		repeatRate(orgId),
 		avgJobValue(orgId),
-		avgJobMinutes(orgId)
+		avgJobMinutes(orgId),
+		cancelRate(orgId)
 	]);
 	return {
 		completedJobs,
@@ -699,7 +716,8 @@ export async function getReports(orgId: string) {
 		estimateDecisionDays: decisionDays,
 		repeatRate: repeat,
 		avgJobValue: jobValue,
-		avgJobMinutes: jobMin
+		avgJobMinutes: jobMin,
+		cancelRate: cancel
 	};
 }
 
