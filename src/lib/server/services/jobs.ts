@@ -1352,9 +1352,20 @@ export async function updateTimeEntry(
 	const startedAt = zonedToUtc(input.startedAt, tz);
 	const endedAt = input.endedAt ? zonedToUtc(input.endedAt, tz) : null;
 	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
+	// Changing the recorded times un-approves the entry — an approval granted on
+	// one set of hours shouldn't survive a time edit (also stops a running
+	// entry from staying approved when its end is cleared).
+	const timesChanged =
+		row.startedAt.getTime() !== startedAt.getTime() ||
+		(row.endedAt?.getTime() ?? null) !== (endedAt?.getTime() ?? null);
 	await db
 		.update(jobTimeEntry)
-		.set({ startedAt, endedAt, note: input.note ?? '' })
+		.set({
+			startedAt,
+			endedAt,
+			note: input.note ?? '',
+			...(timesChanged ? { approvedAt: null, approvedById: null } : {})
+		})
 		.where(eq(jobTimeEntry.id, entryId));
 }
 
