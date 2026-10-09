@@ -1241,15 +1241,26 @@ export async function updateCharge(ctx: OrgContext, input: v.InferOutput<typeof 
 type DbOrTx = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete' | 'execute'>;
 
 export async function applyUnappliedCredit(orgId: string, customerId: string, q: DbOrTx = db) {
-	// Positive unapplied rows minus the negative 'applied:<id>' slices already
-	// written against them — each credit pools only what remains unallocated.
-	const credits = await q
-		.select({
-			credit: payment,
-			used: sql<number>`coalesce((select sum(p2.amount) from ${payment} p2 where p2.charge_id is null and p2.amount < 0 and p2.reference = 'applied:' || ${payment.id}), 0)`.mapWith(
-				Number
+	// Positive unapplied rows net of the negative 'applied:<id>' slices already
+	// written against them (computed in JS — a correlated sql`` subquery can't
+	// reference the outer row unambiguously). Each credit pools what remains.
+	const netRows = await q
+		.select({ id: payment.id, amount: payment.amount, reference: payment.reference })
+		.from(payment)
+		.where(
+			and(
+				eq(payment.customerId, customerId),
+				eq(payment.organizationId, orgId),
+				sql`${payment.chargeId} is null`,
+				sql`${payment.refundedAt} is null`
 			)
-		})
+		);
+	const usedBy = new Map<string, number>();
+	for (const r of netRows)
+		if (r.reference?.startsWith('applied:'))
+			usedBy.set(r.reference.slice(8), (usedBy.get(r.reference.slice(8)) ?? 0) + r.amount);
+	const credits = await q
+		.select()
 		.from(payment)
 		.where(
 			and(
@@ -1281,9 +1292,8 @@ export async function applyUnappliedCredit(orgId: string, customerId: string, q:
 		)
 		.orderBy(asc(charge.dueDate), asc(charge.createdAt));
 	let applied = 0;
-	for (const row of credits) {
-		const credit = row.credit;
-		let pool = credit.amount + row.used;
+	for (const credit of credits) {
+		let pool = credit.amount + (usedBy.get(credit.id) ?? 0);
 		if (pool <= 0) continue;
 		for (const ch of open) {
 			if (pool <= 0) break;
