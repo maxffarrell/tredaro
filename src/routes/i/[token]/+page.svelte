@@ -69,7 +69,7 @@
 		</div>
 
 		<Card.Root>
-			<Card.Content class="px-0">
+			<Card.Content class="overflow-x-auto px-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>

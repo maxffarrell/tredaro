@@ -129,7 +129,7 @@
 
 <div class="space-y-4 p-4 md:p-6">
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>

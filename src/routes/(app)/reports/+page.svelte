@@ -163,7 +163,7 @@
 					· avg {r.avgItemsPerQuote.toFixed(1)} items per quote{/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Body>
 					{#each r.estimates as e (e.status)}
@@ -195,7 +195,7 @@
 					· {Math.round(r.cancelRate)}% cancelled (30d){/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -234,7 +234,7 @@
 					· {r.repeatRate.repeats}/{r.repeatRate.customers} repeat customers (90d){/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -585,7 +585,7 @@
 			<Card.Title class="text-base">Office performance</Card.Title>
 			<Card.Description>Jobs and revenue collected by office — all time</Card.Description>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -624,7 +624,7 @@
 				>Completed jobs and revenue collected by job type — all time</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -661,7 +661,7 @@
 					· {formatMoney(r.refunds, currency)} refunded in 90d{/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -693,7 +693,7 @@
 
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Jobs by source</Card.Title></Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -724,7 +724,7 @@
 		<Card.Header
 			><Card.Title class="text-base">Completion rate — last 90 days</Card.Title></Card.Header
 		>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -787,7 +787,7 @@
 			<Card.Header
 				><Card.Title class="text-base">Top materials used — last 90 days</Card.Title></Card.Header
 			>
-			<Card.Content class="px-0">
+			<Card.Content class="overflow-x-auto px-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>

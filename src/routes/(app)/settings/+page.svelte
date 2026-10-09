@@ -1046,7 +1046,7 @@
 					</div>
 					<Button size="sm" onclick={() => openJt()}><Plus /> New type</Button>
 				</Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Header>
 							<Table.Row>

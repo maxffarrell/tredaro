@@ -412,7 +412,7 @@
 		{#if day.materials.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Today's materials</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each day.materials as m (m.name)}

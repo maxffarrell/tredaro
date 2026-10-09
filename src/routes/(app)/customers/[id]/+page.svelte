@@ -915,7 +915,7 @@
 					<Button size="sm" variant="outline" href="/jobs?new=1&customer={id}"><Plus /> New</Button>
 				</div>
 			</Card.Header>
-			<Card.Content class="px-0">
+			<Card.Content class="overflow-x-auto px-0">
 				<Table.Root>
 					<Table.Body>
 						{#each c.jobs as j (j.job.id)}
@@ -992,7 +992,7 @@
 						><Plus /> New</Button
 					>
 				</Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each c.estimates as e (e.id)}

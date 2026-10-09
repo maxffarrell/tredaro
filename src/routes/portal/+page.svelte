@@ -208,7 +208,7 @@
 	<!-- upcoming jobs -->
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Scheduled visits</Card.Title></Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Body>
 					{#each d.upcoming as j (j.job.id)}
@@ -261,7 +261,7 @@
 	<!-- visit history -->
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Past visits</Card.Title></Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Body>
 					{#each d.history as j (j.job.id)}
@@ -365,7 +365,7 @@
 		{#if d.units.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Your equipment</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.units as u (u.equipment.id)}
@@ -432,7 +432,7 @@
 				<Card.Header
 					><Card.Title class="text-base">Estimates waiting on you</Card.Title></Card.Header
 				>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.pendingEstimates as e (e.estimate.id)}
@@ -453,7 +453,7 @@
 		{#if d.recentInvoices?.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent invoices</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.recentInvoices as inv (inv.invoice.id)}
@@ -487,7 +487,7 @@
 		{#if d.recentPayments?.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent payments</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.recentPayments as p (p.payment.id)}
