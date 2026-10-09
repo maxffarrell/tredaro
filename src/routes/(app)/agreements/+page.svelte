@@ -172,6 +172,13 @@
 			· <span class="font-medium text-foreground">{dueToday}</span> billing today{/if}
 		{#if dueWeek > dueToday}
 			· {dueWeek} billing ≤7d{/if}
+		{#if agreements.filter((a) => a.agreement.status === 'active' && a.agreement.nextChargeAt && new Date(a.agreement.nextChargeAt) <= new Date(Date.now() + 30 * 86400_000)).length > dueWeek}
+			· {agreements.filter(
+				(a) =>
+					a.agreement.status === 'active' &&
+					a.agreement.nextChargeAt &&
+					new Date(a.agreement.nextChargeAt) <= new Date(Date.now() + 30 * 86400_000)
+			).length} renewing ≤30d{/if}
 		{#if fixedTerm}
 			· {fixedTerm} fixed-term{/if}
 		{#if agreements.filter((a) => a.agreement.status === 'paused').length}

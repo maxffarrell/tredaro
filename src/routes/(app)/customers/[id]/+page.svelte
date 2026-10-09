@@ -683,6 +683,14 @@
 									e.equipment.warrantyUntil &&
 									!eqExpired(e.equipment.warrantyUntil)
 							).length} in warranty)</span
+						>{/if}{#if c.equipment.filter((e) => e.equipment.active && e.equipment.nextServiceDue && eqExpired(e.equipment.nextServiceDue)).length}
+						<span class="ml-1 text-xs font-normal text-amber-600 dark:text-amber-400"
+							>· {c.equipment.filter(
+								(e) =>
+									e.equipment.active &&
+									e.equipment.nextServiceDue &&
+									eqExpired(e.equipment.nextServiceDue)
+							).length} service due</span
 						>{/if}</Card.Title
 				>
 				<Button size="sm" variant="outline" onclick={() => openEquipment()}>

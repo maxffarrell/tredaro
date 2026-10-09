@@ -29,16 +29,21 @@ export async function listItems(orgId: string) {
 			truckCount:
 				sql<number>`(select count(*) from ${truckStock} ts2 where ts2.inventory_item_id = inventory_item.id and ts2.qty > 0)`.mapWith(
 					Number
+				),
+			onOrder:
+				sql<number>`coalesce((select sum(poi.qty) from ${purchaseOrderItem} poi join ${purchaseOrder} po on po.id = poi.purchase_order_id where poi.inventory_item_id = inventory_item.id and po.status = 'ordered'), 0)`.mapWith(
+					Number
 				)
 		})
 		.from(inventoryItem)
 		.where(eq(inventoryItem.organizationId, orgId))
 		.orderBy(asc(inventoryItem.name));
-	return rows.map(({ item: i, used, trucked, truckCount }) => ({
+	return rows.map(({ item: i, used, trucked, truckCount, onOrder }) => ({
 		item: i,
 		used,
 		trucked,
 		truckCount,
+		onOrder,
 		low: i.reorderPoint != null && i.qtyOnHand <= i.reorderPoint
 	}));
 }
