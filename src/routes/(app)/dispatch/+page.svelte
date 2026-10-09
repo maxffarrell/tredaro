@@ -197,15 +197,21 @@
 			: 0
 	);
 	const doneThisWeek = $derived(board.scheduled.filter((j) => j.job.status === 'done').length);
-	const filteredQueue = $derived(
-		queueFilter.trim()
+	let queueSort = $state<'priority' | 'oldest'>('priority');
+	const filteredQueue = $derived.by(() => {
+		const q = queueFilter.trim()
 			? board.unscheduled.filter((j) =>
 					`${j.job.summary} ${j.jobTypeName} ${j.customerName} J-${j.job.number}`
 						.toLowerCase()
 						.includes(queueFilter.trim().toLowerCase())
 				)
-			: board.unscheduled
-	);
+			: board.unscheduled;
+		if (queueSort === 'oldest')
+			return [...q].sort(
+				(a, b) => new Date(a.job.createdAt).getTime() - new Date(b.job.createdAt).getTime()
+			);
+		return q;
+	});
 
 	const queueRequests = $derived(filteredQueue.filter((j) => j.job.source === 'booking'));
 	const queueOthers = $derived(filteredQueue.filter((j) => j.job.source !== 'booking'));
@@ -635,7 +641,22 @@
 					>
 				{/if}
 			{/if}
-			<Input class="ml-auto h-7 w-32 text-xs" placeholder="Filter…" bind:value={queueFilter} />
+			<div class="ml-auto flex items-center gap-1.5">
+				<Select.Root
+					type="single"
+					value={queueSort}
+					onValueChange={(v) => (queueSort = v as 'priority' | 'oldest')}
+				>
+					<Select.Trigger class="h-7 w-28 px-2 text-xs" title="Queue order"
+						>{queueSort === 'oldest' ? 'Oldest first' : 'Priority'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="priority">Priority</Select.Item>
+						<Select.Item value="oldest">Oldest first</Select.Item>
+					</Select.Content>
+				</Select.Root>
+				<Input class="h-7 w-32 text-xs" placeholder="Filter…" bind:value={queueFilter} />
+			</div>
 		</Card.Header>
 		{#if selected.size}
 			<div class="flex items-center gap-2 border-b px-4 py-2">

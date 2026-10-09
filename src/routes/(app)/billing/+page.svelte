@@ -39,6 +39,8 @@
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Ban from '@lucide/svelte/icons/ban';
 	import FileX from '@lucide/svelte/icons/file-x';
 	import Send from '@lucide/svelte/icons/send';
@@ -873,10 +875,34 @@
 					{/if}
 				</div>
 				{#each invItems as item, i (i)}
-					<div class="grid grid-cols-[1fr_70px_120px_32px] items-center gap-2">
+					<div class="grid grid-cols-[1fr_70px_120px_20px_32px] items-center gap-2">
 						<Input placeholder="Description" bind:value={item.name} />
 						<Input type="number" min={0.01} step={0.01} max={9999} bind:value={item.qty} />
 						<MoneyInput bind:value={item.unitPrice} />
+						<div class="flex flex-col">
+							<Button
+								variant="ghost"
+								size="icon"
+								class="size-4"
+								disabled={i === 0}
+								onclick={() => {
+									const [it] = invItems.splice(i, 1);
+									invItems.splice(i - 1, 0, it);
+									invItems = invItems;
+								}}><ChevronUp class="size-3" /></Button
+							>
+							<Button
+								variant="ghost"
+								size="icon"
+								class="size-4"
+								disabled={i === invItems.length - 1}
+								onclick={() => {
+									const [it] = invItems.splice(i, 1);
+									invItems.splice(i + 1, 0, it);
+									invItems = invItems;
+								}}><ChevronDown class="size-3" /></Button
+							>
+						</div>
 						<Button
 							variant="ghost"
 							size="icon"
