@@ -1262,7 +1262,7 @@ export async function notifyPartsDelay(orgId: string, jobId: string) {
 }
 
 /** Customer rated a visit — staff inbox for admins; 5★ also nudges the public review. */
-export async function notifyVisitRated(orgId: string, jobId: string, rating: number, note: string) {
+export async function notifyVisitRated(orgId: string, jobId: string, rating: number) {
 	const [row] = await db
 		.select({
 			number: job.number,
