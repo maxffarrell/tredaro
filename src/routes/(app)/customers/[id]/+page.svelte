@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import FileText from '@lucide/svelte/icons/file-text';
+	import Printer from '@lucide/svelte/icons/printer';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
@@ -788,6 +789,13 @@
 				disabled={revokePending}>Revoke portal</Button
 			>
 		{/if}
+		<Button
+			size="sm"
+			variant="outline"
+			href="/customers/{id}/history"
+			target="_blank"
+			title="Printable service history"><Printer /></Button
+		>
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 		<Button
 			size="sm"

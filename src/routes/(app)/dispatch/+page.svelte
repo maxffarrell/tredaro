@@ -32,6 +32,7 @@
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
+	import ChevronsUp from '@lucide/svelte/icons/chevrons-up';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
@@ -340,6 +341,19 @@
 		return qualified.sort((a, b) => load(a.id) - load(b.id))[0].id;
 	}
 
+	const prioOrder = ['low', 'normal', 'high', 'urgent'] as const;
+	async function bumpPriority(j: (typeof filteredQueue)[number]) {
+		const i = prioOrder.indexOf(j.job.priority as (typeof prioOrder)[number]);
+		if (i < 0 || i >= prioOrder.length - 1) return;
+		const next = prioOrder[i + 1];
+		try {
+			await updateJob({ id: j.job.id, priority: next }).updates(getDispatchBoard);
+			toast.success(`J-${j.job.number} → ${next}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update priority'));
+		}
+	}
+
 	async function quickAssign(j: (typeof filteredQueue)[number], techId: string) {
 		if (!techId) return;
 		try {
@@ -573,18 +587,28 @@
 					{/if}
 				</p>
 			</button>
-			<Select.Root type="single" onValueChange={(v) => quickAssign(j, v)}>
-				<Select.Trigger
-					class="mt-1.5 h-7 w-[4.5rem] shrink-0 px-1.5 text-xs"
-					title="Assign to a tech on {dayFilter || todayStr}">Assign</Select.Trigger
+			<div class="mt-1.5 flex shrink-0 items-center gap-1">
+				<Button
+					size="icon"
+					variant="ghost"
+					class="size-7"
+					title="Bump priority ({j.job.priority} → higher)"
+					disabled={j.job.priority === 'urgent'}
+					onclick={() => bumpPriority(j)}><ChevronsUp /></Button
 				>
-				<Select.Content>
-					<Select.Item value="__auto__">Auto (best fit)</Select.Item>
-					{#each board.technicians as t (t.id)}
-						<Select.Item value={t.id}>{t.name}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
+				<Select.Root type="single" onValueChange={(v) => quickAssign(j, v)}>
+					<Select.Trigger
+						class="h-7 w-[4.5rem] shrink-0 px-1.5 text-xs"
+						title="Assign to a tech on {dayFilter || todayStr}">Assign</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="__auto__">Auto (best fit)</Select.Item>
+						{#each board.technicians as t (t.id)}
+							<Select.Item value={t.id}>{t.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
 			{#if j.job.needsReview}
 				<div class="mt-1.5 flex shrink-0 flex-col gap-1">
 					<Button

@@ -11,6 +11,7 @@ import {
 	invoice,
 	job,
 	jobType,
+	member,
 	notificationLog,
 	office,
 	organization,
@@ -18,6 +19,7 @@ import {
 	serviceAgreement,
 	serviceLocation,
 	estimate,
+	user,
 	outer
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
@@ -127,9 +129,11 @@ export async function getCustomer(orgId: string, id: string) {
 		.orderBy(desc(customerContact.isPrimary), asc(customerContact.name));
 
 	const jobs = await db
-		.select({ job, jobTypeName: jobType.name, color: jobType.color })
+		.select({ job, jobTypeName: jobType.name, color: jobType.color, technicianName: user.name })
 		.from(job)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(member, eq(job.technicianId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
 		.where(and(eq(job.organizationId, orgId), eq(job.customerId, id)))
 		.orderBy(desc(job.createdAt))
 		.limit(50);
