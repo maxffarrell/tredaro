@@ -557,11 +557,14 @@
 	</Card.Root>
 
 	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-base">Labor by technician</Card.Title>
-			<Card.Description>
-				Logged time, last 30 days — open timers count to now; green = approved for payroll
-			</Card.Description>
+		<Card.Header class="flex-row items-start justify-between space-y-0">
+			<div>
+				<Card.Title class="text-base">Labor by technician</Card.Title>
+				<Card.Description>
+					Logged time, last 30 days — open timers count to now; green = approved for payroll
+				</Card.Description>
+			</div>
+			<Button size="sm" variant="outline" href="/payroll">Payroll</Button>
 		</Card.Header>
 		<Card.Content class="space-y-1.5">
 			{#each r.labor as t (t.memberId)}

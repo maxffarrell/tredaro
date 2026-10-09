@@ -337,6 +337,7 @@ export const approveTimeEntry = command(
 	async (input) => {
 		const row = await svc.approveTimeEntry(await requireOrg(), input.id, input.approved);
 		await refreshQuery(getTimeEntries, row.jobId);
+		await refreshQuery(getPayroll);
 		return row;
 	}
 );
@@ -344,8 +345,45 @@ export const approveTimeEntry = command(
 export const approveAllTimeEntries = command(idSchema, async (jobId) => {
 	const r = await svc.approveAllTimeEntries(await requireOrg(), jobId);
 	await refreshQuery(getTimeEntries, jobId);
+	await refreshQuery(getPayroll);
 	return r;
 });
+
+export const getPayroll = query(
+	v.object({
+		from: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/)),
+		to: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/))
+	}),
+	async (input) => {
+		const ctx = await requireOrg();
+		const t = await tz();
+		return svc.payrollHours(
+			ctx,
+			zonedToUtc(`${input.from}T00:00`, t),
+			zonedToUtc(`${addDays(input.to, 1)}T00:00`, t)
+		);
+	}
+);
+
+export const approveMemberEntries = command(
+	v.object({
+		memberId: idSchema,
+		from: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/)),
+		to: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/))
+	}),
+	async (input) => {
+		const ctx = await requireOrg();
+		const t = await tz();
+		const r = await svc.approveMemberTimeEntries(
+			ctx,
+			input.memberId,
+			zonedToUtc(`${input.from}T00:00`, t),
+			zonedToUtc(`${addDays(input.to, 1)}T00:00`, t)
+		);
+		await refreshQuery(getPayroll);
+		return r;
+	}
+);
 
 export const moveDayStop = command(
 	v.object({

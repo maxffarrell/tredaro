@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, isNull, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, isNotNull, isNull, lt, lte, ne, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -406,6 +406,19 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(jobTimeEntry.startedAt))
 		.limit(5);
 
+	const unapprovedTime = await db
+		.select({ count: sql<number>`count(*)`.mapWith(Number) })
+		.from(jobTimeEntry)
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, orgId),
+				isNull(jobTimeEntry.approvedAt),
+				isNotNull(jobTimeEntry.endedAt),
+				gte(jobTimeEntry.startedAt, new Date(Date.now() - 30 * 86400_000))
+			)
+		)
+		.then((r) => r[0]?.count ?? 0);
+
 	const lowStock = await db
 		.select()
 		.from(inventoryItem)
@@ -605,6 +618,17 @@ export async function dashboard(orgId: string) {
 				sub: `service due ${w.nextServiceDue}`,
 				amountCents: null as number | null
 			})),
+			...(unapprovedTime > 0
+				? [
+						{
+							tone: 'amber' as const,
+							href: '/payroll',
+							text: `${unapprovedTime} time entr${unapprovedTime === 1 ? 'y' : 'ies'} awaiting approval`,
+							sub: 'finished entries not yet approved for payroll',
+							amountCents: null as number | null
+						}
+					]
+				: []),
 			...blockedJobs.map((b) => ({
 				tone: 'amber' as const,
 				href: `/jobs/${b.id}`,

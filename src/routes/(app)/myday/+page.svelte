@@ -389,6 +389,9 @@
 		<Card.Content class="flex flex-col gap-3 p-4">
 			<div class="flex items-start justify-between gap-2">
 				<div class="min-w-0">
+					{#if idx >= 0}
+						<Badge variant="secondary" class="mr-1 font-normal">Stop {idx + 1}</Badge>
+					{/if}
 					<a
 						href="/jobs/{j.job.id}"
 						class="font-medium hover:underline"
