@@ -35,6 +35,8 @@ export async function listCustomers(orgId: string, q?: string) {
 			email: customer.email,
 			phone: customer.phone,
 			status: customer.status,
+			smsOptOut: customer.smsOptOut,
+			emailOptOut: customer.emailOptOut,
 			since: customer.since,
 			tags: customer.tags,
 			preferredMemberId: customer.preferredMemberId,

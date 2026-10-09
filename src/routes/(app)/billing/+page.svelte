@@ -562,7 +562,14 @@
 					>{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0).length}
 					· {visibleCharges.filter(
 						(ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0
-					).length} due today{/if}
+					).length} due today{/if}{#if new Set(visibleCharges
+						.filter((ch) => ch.charge.amount - ch.paid > 0)
+						.map((ch) => ch.charge.customerId)).size}
+					· {new Set(
+						visibleCharges
+							.filter((ch) => ch.charge.amount - ch.paid > 0)
+							.map((ch) => ch.charge.customerId)
+					).size} customers owing{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">

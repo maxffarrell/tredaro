@@ -75,6 +75,7 @@
 
 	const withOpenQuote = $derived(visible.filter((c) => c.hasOpenQuote).length);
 	const leadOnly = $derived(visible.filter((c) => c.leadSource && !c.lastVisit).length);
+	const optedOut = $derived(visible.filter((c) => c.smsOptOut || c.emailOptOut).length);
 	const taggedCount = $derived(visible.filter((c) => c.tags?.length).length);
 	const inactiveCount = $derived(visible.filter((c) => c.status !== 'active').length);
 	const neverServiced = $derived(
@@ -320,7 +321,8 @@
 			· {withOpenQuote} with open quote{/if}{#if leadOnly}
 			· {leadOnly} lead-only{/if}{#if inactiveCount}
 			· {inactiveCount} inactive{/if}{#if taggedCount}
-			· {taggedCount} tagged{/if}
+			· {taggedCount} tagged{/if}{#if optedOut}
+			· {optedOut} opted out{/if}
 	</p>
 
 	<Card.Root class="py-0">

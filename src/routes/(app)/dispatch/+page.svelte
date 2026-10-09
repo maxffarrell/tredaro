@@ -71,6 +71,17 @@
 		).length;
 		return todayJobs ? todayJobs / board.technicians.length : null;
 	});
+	const peakDay = $derived.by(() => {
+		if (!board) return null;
+		const counts = new SvelteMap<string, number>();
+		for (const j of board.scheduled) {
+			if (!j.job.startsAt || ['done', 'cancelled'].includes(j.job.status)) continue;
+			const d = localDate(new Date(j.job.startsAt), tz);
+			counts.set(d, (counts.get(d) ?? 0) + 1);
+		}
+		const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+		return top && top[1] > 1 ? top : null;
+	});
 	const weekCount = $derived(
 		board ? board.scheduled.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length : 0
 	);
@@ -223,6 +234,14 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
+			{/if}
+			{#if peakDay}
+				<Badge variant="outline"
+					>peak {new Date(`${peakDay[0]}T12:00:00Z`).toLocaleDateString('en-US', {
+						weekday: 'short',
+						timeZone: 'UTC'
+					})} ({peakDay[1]})</Badge
+				>
 			{/if}
 			{#if weekCount}
 				<Badge variant="outline">{weekCount} this week</Badge>
