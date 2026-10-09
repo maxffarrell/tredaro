@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Receipt from '@lucide/svelte/icons/receipt';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import Mails from '@lucide/svelte/icons/mails';
@@ -1046,7 +1048,12 @@
 							</p>
 						</div>
 					{:else}
-						<p class="py-3 text-sm text-muted-foreground">No service agreements.</p>
+						<Empty.Root class="border-0 py-3">
+							<Empty.Header>
+								<Empty.Media><FileText /></Empty.Media>
+								<Empty.Title class="text-sm">No service agreements</Empty.Title>
+							</Empty.Header>
+						</Empty.Root>
 					{/each}
 				</Card.Content>
 			</Card.Root>
@@ -1159,7 +1166,14 @@
 							>
 						</li>
 					{:else}
-						<li class="text-muted-foreground">No billing activity.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-3">
+								<Empty.Header>
+									<Empty.Media><Receipt /></Empty.Media>
+									<Empty.Title class="text-sm">No billing activity</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 			</Card.Content>
@@ -1326,7 +1340,12 @@
 									>
 								</div>
 							{:else}
-								<p class="text-xs text-muted-foreground">No jobs on this unit yet.</p>
+								<Empty.Root class="border-0 py-3">
+									<Empty.Header>
+										<Empty.Media><Wrench /></Empty.Media>
+										<Empty.Title class="text-sm">No jobs on this unit yet</Empty.Title>
+									</Empty.Header>
+								</Empty.Root>
 							{/each}
 						</div>
 					{/await}

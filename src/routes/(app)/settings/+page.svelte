@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Building2 from '@lucide/svelte/icons/building-2';
 	import CalendarX2 from '@lucide/svelte/icons/calendar-x-2';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { goto } from '$app/navigation';
@@ -884,7 +885,15 @@
 								>
 							</li>
 						{:else}
-							<li class="py-6 text-sm text-muted-foreground">No offices — add your main branch.</li>
+							<li class="list-none">
+								<Empty.Root class="border-0 py-4">
+									<Empty.Header>
+										<Empty.Media><Building2 /></Empty.Media>
+										<Empty.Title class="text-sm">No offices</Empty.Title>
+										<Empty.Description>Add your main branch.</Empty.Description>
+									</Empty.Header>
+								</Empty.Root>
+							</li>
 						{/each}
 					</ul>
 				</Card.Content>

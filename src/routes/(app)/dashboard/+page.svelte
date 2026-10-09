@@ -1,4 +1,5 @@
 <script lang="ts">
+	import History from '@lucide/svelte/icons/history';
 	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -166,7 +167,13 @@
 				<Card.Header><Card.Title class="text-base">Recent activity</Card.Title></Card.Header>
 				<Card.Content class="px-4">
 					{#if d.recentActivity.length === 0}
-						<p class="py-4 text-sm text-muted-foreground">Nothing yet.</p>
+						<Empty.Root class="border-0 py-4">
+							<Empty.Header>
+								<Empty.Media><History /></Empty.Media>
+								<Empty.Title class="text-sm">Nothing yet</Empty.Title>
+								<Empty.Description>Activity shows up here as it happens.</Empty.Description>
+							</Empty.Header>
+						</Empty.Root>
 					{:else}
 						<ul class="space-y-3">
 							{#each d.recentActivity.slice(0, 8) as a (a.id)}
