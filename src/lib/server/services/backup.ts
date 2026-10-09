@@ -98,9 +98,20 @@ export async function exportWorkspace(orgId: string) {
 		jobChecklistItems: await rows(jobChecklistItem),
 		jobPhotos: stripPath(await rows(jobPhoto)),
 		estimates: await rows(estimate),
-		estimateItems: await rows(estimateItem),
+		// Item tables have no organization_id — join through the parent.
+		estimateItems: await db
+			.select({ item: estimateItem })
+			.from(estimateItem)
+			.innerJoin(estimate, eq(estimateItem.estimateId, estimate.id))
+			.where(eq(estimate.organizationId, orgId))
+			.then((r) => r.map((x) => x.item)),
 		invoices: await rows(invoice),
-		invoiceItems: await rows(invoiceItem),
+		invoiceItems: await db
+			.select({ item: invoiceItem })
+			.from(invoiceItem)
+			.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
+			.where(eq(invoice.organizationId, orgId))
+			.then((r) => r.map((x) => x.item)),
 		charges: await rows(charge),
 		payments: await rows(payment),
 		inventoryItems: await rows(inventoryItem),

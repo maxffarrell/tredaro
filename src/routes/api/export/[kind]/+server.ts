@@ -33,7 +33,7 @@ const money = (cents: number | null | undefined) => (cents == null ? '' : (cents
 /** CSV exports for staff: `GET /api/export/{invoices,jobs,time-entries,customers,quickbooks,xero}.csv` (optional ?from=&to= YYYY-MM-DD). */
 export const GET: RequestHandler = async ({ params, url }) => {
 	const ctx = await requireOrg();
-	const kind = params.kind?.replace(/\.csv$/, '');
+	const kind = params.kind?.replace(/\.(csv|json)$/, '');
 	const from = url.searchParams.get('from');
 	const to = url.searchParams.get('to');
 	const toBound = to ? `${to}T23:59:59.999Z` : null;
