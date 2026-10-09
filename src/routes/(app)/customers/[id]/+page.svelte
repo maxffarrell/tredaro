@@ -970,7 +970,12 @@
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
 					<Card.Title class="text-base"
-						>Estimates{#if c.openEstimates?.n}
+						>Estimates{#if c.estimates.filter( (e) => ['approved', 'converted'].includes(e.status) ).length}
+							<span class="ml-1 text-xs font-normal text-muted-foreground"
+								>({c.estimates.filter((e) => ['approved', 'converted'].includes(e.status)).length}
+								won)</span
+							>{/if}
+						{#if c.openEstimates?.n}
 							<span class="ml-1 text-xs font-normal text-muted-foreground"
 								>({c.openEstimates.n} open · {formatMoney(c.openEstimates.total, currency)})</span
 							>{/if}</Card.Title
