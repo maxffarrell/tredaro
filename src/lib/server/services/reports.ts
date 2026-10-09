@@ -673,7 +673,8 @@ export async function getReports(orgId: string) {
 		jobMin,
 		cancel,
 		avgItems,
-		expenses90d
+		expenses90d,
+		matMargin
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -708,7 +709,8 @@ export async function getReports(orgId: string) {
 		avgJobMinutes(orgId),
 		cancelRate(orgId),
 		avgItemsPerEstimate(orgId),
-		expenseTotal(orgId)
+		expenseTotal(orgId),
+		materialsMargin(orgId)
 	]);
 	return {
 		completedJobs,
@@ -744,7 +746,8 @@ export async function getReports(orgId: string) {
 		avgJobMinutes: jobMin,
 		cancelRate: cancel,
 		avgItemsPerQuote: avgItems,
-		expenses90d
+		expenses90d,
+		materialsMargin: matMargin
 	};
 }
 
@@ -850,6 +853,28 @@ async function jobProfitability(orgId: string) {
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.where(and(eq(job.organizationId, orgId), isNull(job.cancelledAt), gte(job.completedAt, since)))
 		.orderBy(desc(job.completedAt));
+}
+
+/** Materials billed vs inventory cost over the last 90 days. */
+async function materialsMargin(orgId: string) {
+	const [row] = await db
+		.select({
+			sell: sql<number>`coalesce(sum(${jobMaterial.qty} * ${jobMaterial.unitPrice}), 0)`.mapWith(
+				Number
+			),
+			cost: sql<number>`coalesce(sum(${jobMaterial.qty} * ${inventoryItem.unitCost}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(jobMaterial)
+		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+		.where(
+			and(
+				eq(jobMaterial.organizationId, orgId),
+				gte(jobMaterial.createdAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return row.sell || row.cost ? { sell: row.sell, cost: row.cost } : null;
 }
 
 /** Total job expenses logged in the last 90 days. */

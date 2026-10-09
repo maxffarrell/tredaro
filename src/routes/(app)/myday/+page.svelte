@@ -320,7 +320,10 @@
 			{/if}
 			{#if schedMin > 0}
 				<span class="text-muted-foreground tabular-nums"
-					>{Math.floor(schedMin / 60)}h {Math.round(schedMin % 60)}m scheduled</span
+					>{Math.floor(schedMin / 60)}h {Math.round(schedMin % 60)}m scheduled{#if day.jobs.length > 1}
+						· avg {Math.round(schedMin / day.jobs.length / 60)}h {Math.round(
+							(schedMin / day.jobs.length) % 60
+						)}m/job{/if}</span
 				>
 			{/if}
 			{#if lastEnd}

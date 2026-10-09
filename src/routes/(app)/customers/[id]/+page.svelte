@@ -924,7 +924,12 @@
 
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
-					<Card.Title class="text-base">Estimates</Card.Title>
+					<Card.Title class="text-base"
+						>Estimates{#if c.openEstimates?.n}
+							<span class="ml-1 text-xs font-normal text-muted-foreground"
+								>({c.openEstimates.n} open · {formatMoney(c.openEstimates.total, currency)})</span
+							>{/if}</Card.Title
+					>
 					<Button size="sm" variant="outline" href="/estimates?new=1&customer={id}"
 						><Plus /> New</Button
 					>

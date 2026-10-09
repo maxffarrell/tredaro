@@ -132,6 +132,24 @@ export async function getCustomer(orgId: string, id: string) {
 		.orderBy(desc(estimate.createdAt))
 		.limit(50);
 
+	const [openEst] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			total: sql<number>`coalesce(sum((
+				select coalesce(sum(ei.qty * ei.unit_price), 0)
+				from estimate_item ei
+				where ei.estimate_id = estimate.id and ei.optional = false
+			)), 0)`.mapWith(Number)
+		})
+		.from(estimate)
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.customerId, id),
+				inArray(estimate.status, ['draft', 'sent'])
+			)
+		);
+
 	const [nextJob] = await db
 		.select({ job, jobTypeName: jobType.name })
 		.from(job)
@@ -228,6 +246,7 @@ export async function getCustomer(orgId: string, id: string) {
 		payments,
 		equipment: equipmentRows,
 		nextJob,
+		openEstimates: openEst,
 		stats: { jobCount: stats.jobCount, invoiced: money.invoiced, collected: money.collected }
 	};
 }

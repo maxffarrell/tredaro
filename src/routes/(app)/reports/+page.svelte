@@ -316,7 +316,14 @@
 			<Card.Title class="text-base">Job profitability</Card.Title>
 			<Card.Description
 				>Completed jobs, last 90 days — invoiced vs labor, materials, and expense cost{#if r.expenses90d}
-					· {formatMoney(r.expenses90d, currency)} expenses logged (90d){/if}</Card.Description
+					· {formatMoney(r.expenses90d, currency)} expenses logged (90d){/if}{#if r.materialsMargin}
+					· materials margin {formatMoney(
+						r.materialsMargin.sell - r.materialsMargin.cost,
+						currency
+					)} ({formatMoney(r.materialsMargin.sell, currency)} sell − {formatMoney(
+						r.materialsMargin.cost,
+						currency
+					)} cost){/if}</Card.Description
 			>
 		</Card.Header>
 		<Card.Content>
