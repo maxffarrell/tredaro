@@ -66,6 +66,7 @@
 
 	let notes = $state('');
 	let internalNotes = $state('');
+	let customerPo = $state('');
 	let validUntil = $state('');
 	let jobTypeId = $state('');
 	let items = $state<
@@ -83,6 +84,7 @@
 			loadedId = est.estimate.id;
 			notes = est.estimate.notes;
 			internalNotes = est.estimate.internalNotes;
+			customerPo = est.estimate.customerPo;
 			validUntil = est.estimate.validUntil ?? '';
 			jobTypeId = est.estimate.jobTypeId ?? '';
 			items = est.items.map((i) => ({
@@ -116,6 +118,7 @@
 				jobTypeId: jobTypeId || null,
 				notes,
 				internalNotes,
+				customerPo,
 				validUntil: validUntil || null,
 				items: items
 					.filter((i) => i.name.trim())
@@ -434,6 +437,16 @@
 						<Field.Label for="ed-notes">Notes</Field.Label>
 						<Textarea id="ed-notes" rows={3} bind:value={notes} />
 						<Field.Description>Shown on the public quote.</Field.Description>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="ed-po">Customer PO</Field.Label>
+						<Input
+							id="ed-po"
+							bind:value={customerPo}
+							placeholder="Customer's purchase-order ref"
+							class="max-w-56"
+						/>
+						<Field.Description>Printed on the quote.</Field.Description>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="ed-internal">Internal notes</Field.Label>

@@ -63,6 +63,7 @@
 				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Details</p>
 				<p>Issued {formatDate(est.estimate.createdAt)}</p>
 				{#if est.estimate.validUntil}<p>Valid until {formatDate(est.estimate.validUntil)}</p>{/if}
+				{#if est.estimate.customerPo}<p>PO: {est.estimate.customerPo}</p>{/if}
 				<p class="capitalize">Status: {est.estimate.status}</p>
 			</div>
 		</div>

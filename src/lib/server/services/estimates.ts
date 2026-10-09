@@ -175,7 +175,8 @@ export async function createEstimate(
 			serviceLocationId: input.serviceLocationId ?? null,
 			jobTypeId: input.jobTypeId ?? null,
 			notes: input.notes,
-			internalNotes: input.internalNotes
+			internalNotes: input.internalNotes,
+			customerPo: input.customerPo
 		})
 		.returning();
 	await writeItems(row!.id, input.items);
@@ -207,6 +208,7 @@ export async function updateEstimate(
 			jobTypeId: input.jobTypeId,
 			notes: input.notes,
 			internalNotes: input.internalNotes,
+			customerPo: input.customerPo,
 			validUntil: input.validUntil
 		})
 		.where(eq(estimate.id, input.id))

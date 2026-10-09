@@ -372,7 +372,37 @@ export async function getJob(orgId: string, id: string) {
 		)
 		.orderBy(asc(job.number));
 
-	return { ...row, events, openBalance: open, costing, sameDay, techDay, depOptions, depJobs };
+	const locJobs = row.job.serviceLocationId
+		? await db
+				.select({
+					id: job.id,
+					number: job.number,
+					summary: job.summary,
+					status: job.status
+				})
+				.from(job)
+				.where(
+					and(
+						eq(job.organizationId, orgId),
+						eq(job.serviceLocationId, row.job.serviceLocationId),
+						ne(job.id, id),
+						sql`${job.status} not in ('done', 'cancelled')`
+					)
+				)
+				.orderBy(asc(job.number))
+		: [];
+
+	return {
+		...row,
+		events,
+		openBalance: open,
+		costing,
+		sameDay,
+		techDay,
+		depOptions,
+		depJobs,
+		locJobs
+	};
 }
 
 /** J-number of the unfinished predecessor blocking a job, or null when unblocked. */
@@ -1202,7 +1232,12 @@ export async function dispatchBoard(orgId: string, from: Date, to: Date, officeI
 /** Technicians = staff members of the org. */
 export async function listTechnicians(orgId: string) {
 	return db
-		.select({ id: member.id, name: user.name, skillTags: member.skillTags })
+		.select({
+			id: member.id,
+			name: user.name,
+			skillTags: member.skillTags,
+			color: member.color
+		})
 		.from(member)
 		.innerJoin(user, eq(member.userId, user.id))
 		.where(eq(member.organizationId, orgId))

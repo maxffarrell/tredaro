@@ -57,6 +57,7 @@
 	let customerId = $state(page.url.searchParams.get('customer') ?? '');
 	let jobTypeId = $state('');
 	let notes = $state('');
+	let customerPo = $state('');
 
 	// ?job=<id> — opened from a job page: prefill customer/type/notes from the job.
 	const prefillJob = $derived(
@@ -158,6 +159,7 @@
 				customerId,
 				jobTypeId: jobTypeId || null,
 				notes,
+				customerPo,
 				items: items
 					.filter((i) => i.name.trim())
 					.map((i) => ({
@@ -451,6 +453,15 @@
 					<span class="text-sm font-medium tabular-nums">{formatMoney(totalCents, currency)}</span>
 				</div>
 			</div>
+			<Field.Field>
+				<Field.Label for="e-po">Customer PO</Field.Label>
+				<Input
+					id="e-po"
+					bind:value={customerPo}
+					placeholder="Optional — customer's PO / reference"
+					class="max-w-56"
+				/>
+			</Field.Field>
 			<Field.Field>
 				<Field.Label for="e-notes">Notes</Field.Label>
 				<Textarea id="e-notes" rows={3} bind:value={notes} placeholder="Terms, exclusions, etc." />
