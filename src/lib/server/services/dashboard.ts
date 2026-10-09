@@ -430,6 +430,26 @@ export async function dashboard(orgId: string) {
 		db.select({ n: count() }).from(pricebookItem).where(eq(pricebookItem.organizationId, orgId)),
 		db.select({ n: count() }).from(member).where(eq(member.organizationId, orgId))
 	]);
+	const monthStart = zonedToUtc(`${today.slice(0, 8)}01T00:00`, tz);
+	const leaderboard = await db
+		.select({
+			name: user.name,
+			done: sql<number>`count(*)`.mapWith(Number),
+			hours:
+				sql<number>`coalesce((select round(coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 3600.0), 0)::numeric, 1) from ${jobTimeEntry} te where te.member_id = ${outer(member.id)} and te.started_at >= ${monthStart.toISOString()}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(job)
+		.innerJoin(member, eq(job.technicianId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(eq(job.organizationId, orgId), eq(job.status, 'done'), gte(job.completedAt, monthStart))
+		)
+		.groupBy(user.name, member.id)
+		.orderBy(desc(sql`count(*)`))
+		.limit(5);
+
 	const setup = {
 		types: (typeCount[0]?.n ?? 0) > 0,
 		catalog: (itemCount[0]?.n ?? 0) > 0,
@@ -453,6 +473,7 @@ export async function dashboard(orgId: string) {
 		overdueTotal: openStats?.overdueTotal ?? 0,
 		mrr,
 		setup,
+		leaderboard,
 		todayJobs,
 		recentActivity,
 		recentCustomers,

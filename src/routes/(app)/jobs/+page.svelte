@@ -113,6 +113,11 @@
 	const urgentCount = $derived(
 		tab === 'all' ? jobs.filter((j) => j.job.priority === 'urgent').length : 0
 	);
+	let tagFilter = $state('');
+	const allTags = $derived([...new Set(jobs.flatMap((j) => j.job.tags ?? []))].sort() as string[]);
+	const shownJobs = $derived(
+		tagFilter ? jobs.filter((j) => j.job.tags?.includes(tagFilter)) : jobs
+	);
 	const overdueCount = $derived(
 		jobs.filter(
 			(j) =>
@@ -274,6 +279,19 @@
 		{/if}
 	</div>
 
+	{#if allTags.length}
+		<div class="flex flex-wrap items-center gap-1.5">
+			<span class="text-xs text-muted-foreground">Tags:</span>
+			{#each allTags as t (t)}
+				<Badge
+					variant={tagFilter === t ? 'default' : 'outline'}
+					class="cursor-pointer"
+					onclick={() => (tagFilter = tagFilter === t ? '' : t)}>{t}</Badge
+				>
+			{/each}
+		</div>
+	{/if}
+
 	<Card.Root class="py-0">
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -287,7 +305,7 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each jobs as j (j.job.id)}
+					{#each shownJobs as j (j.job.id)}
 						<Table.Row class="cursor-pointer" onclick={() => goto(`/jobs/${j.job.id}`)}>
 							<Table.Cell class="font-medium">
 								<span class="mr-2 inline-block size-2 rounded-full" style:background={j.color}
@@ -306,6 +324,9 @@
 										>{j.job.priority}</Badge
 									>
 								{/if}
+								{#each j.job.tags ?? [] as t (t)}
+									<Badge variant="outline" class="ml-1 text-muted-foreground">{t}</Badge>
+								{/each}
 							</Table.Cell>
 							<Table.Cell>{j.customerName}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">

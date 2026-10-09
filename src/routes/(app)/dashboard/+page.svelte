@@ -202,6 +202,30 @@
 				</Card.Root>
 			{/if}
 
+			{#if d.leaderboard?.length}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="text-base">Team this month</Card.Title>
+					</Card.Header>
+					<Card.Content class="px-4">
+						<ul class="space-y-2">
+							{#each d.leaderboard as t, i (t.name)}
+								<li class="flex items-center gap-3 text-sm">
+									<span
+										class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
+										>{i + 1}</span
+									>
+									<span class="min-w-0 flex-1 truncate">{t.name}</span>
+									<span class="shrink-0 text-xs text-muted-foreground"
+										>{t.done} job{t.done === 1 ? '' : 's'}{t.hours ? ` · ${t.hours}h` : ''}</span
+									>
+								</li>
+							{/each}
+						</ul>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent activity</Card.Title></Card.Header>
 				<Card.Content class="px-4">

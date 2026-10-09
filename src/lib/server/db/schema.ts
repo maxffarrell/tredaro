@@ -420,6 +420,8 @@ export const job = pgTable(
 		technicianId: text('technician_id').references(() => member.id, { onDelete: 'set null' }),
 		summary: text('summary').notNull().default(''),
 		description: text('description').notNull().default(''),
+		/** Freeform labels for filtering ("callback", "permit", "VIP"). */
+		tags: text('tags').array(),
 		status: jobStatus('status').notNull().default('unscheduled'),
 		priority: jobPriority('priority').notNull().default('normal'),
 		/** Flagged when the job can't proceed (waiting on parts/approval) — dispatcher attention. */
@@ -785,6 +787,8 @@ export const webhookDelivery = pgTable(
 		webhookId: text('webhook_id').notNull(),
 		eventType: text('event_type').notNull(),
 		status: integer('status').notNull(),
+		/** Signed body sent — enables retrying a failed delivery. */
+		payload: text('payload'),
 		...timestamps
 	},
 	(t) => [
