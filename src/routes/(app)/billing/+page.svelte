@@ -569,7 +569,14 @@
 						visibleCharges
 							.filter((ch) => ch.charge.amount - ch.paid > 0)
 							.map((ch) => ch.charge.customerId)
-					).size} customers owing{/if}
+					).size} customers owing{/if}{#if visibleCharges.filter((ch) => ch.charge.amount - ch.paid > 0).length}
+					· avg {formatMoney(
+						visibleCharges
+							.filter((ch) => ch.charge.amount - ch.paid > 0)
+							.reduce((sum, ch) => sum + (ch.charge.amount - ch.paid), 0) /
+							visibleCharges.filter((ch) => ch.charge.amount - ch.paid > 0).length,
+						currency
+					)} open{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">

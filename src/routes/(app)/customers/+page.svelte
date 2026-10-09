@@ -77,6 +77,7 @@
 	const leadOnly = $derived(visible.filter((c) => c.leadSource && !c.lastVisit).length);
 	const optedOut = $derived(visible.filter((c) => c.smsOptOut || c.emailOptOut).length);
 	const taggedCount = $derived(visible.filter((c) => c.tags?.length).length);
+	const withPreferred = $derived(visible.filter((c) => c.preferredMemberId).length);
 	const inactiveCount = $derived(visible.filter((c) => c.status !== 'active').length);
 	const neverServiced = $derived(
 		visible.filter((c) => c.status === 'active' && !c.lastVisit).length
@@ -322,7 +323,8 @@
 			· {leadOnly} lead-only{/if}{#if inactiveCount}
 			· {inactiveCount} inactive{/if}{#if taggedCount}
 			· {taggedCount} tagged{/if}{#if optedOut}
-			· {optedOut} opted out{/if}
+			· {optedOut} opted out{/if}{#if withPreferred}
+			· {withPreferred} preferred tech{/if}
 	</p>
 
 	<Card.Root class="py-0">

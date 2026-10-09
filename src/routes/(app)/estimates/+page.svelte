@@ -182,7 +182,8 @@
 					currency
 				)}</span
 			>
-			across {estimates.length} declined estimate{estimates.length === 1 ? '' : 's'}
+			across {estimates.length} declined estimate{estimates.length === 1 ? '' : 's'} · avg
+			{formatMoney(estimates.reduce((s, e) => s + e.total, 0) / estimates.length, currency)}
 		</p>
 	{/if}
 	{#if tab === 'expired' && estimates.length}
