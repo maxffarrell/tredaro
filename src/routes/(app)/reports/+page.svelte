@@ -833,6 +833,33 @@
 		</Card.Root>
 	{/if}
 
+	{#if r.estAccuracy.count}
+		<Card.Root>
+			<Card.Header
+				><Card.Title class="text-base">Estimate accuracy — converted quotes</Card.Title
+				></Card.Header
+			>
+			<Card.Content>
+				{#if r.estAccuracy.avgVariancePct != null}
+					<p class="text-3xl font-semibold tabular-nums">
+						{r.estAccuracy.avgVariancePct > 0 ? '+' : ''}{r.estAccuracy.avgVariancePct}%
+					</p>
+					<p class="text-sm text-muted-foreground">
+						avg invoiced vs quoted across {r.estAccuracy.count} converted estimate{r.estAccuracy
+							.count === 1
+							? ''
+							: 's'} — positive means billed over quote
+					</p>
+				{:else}
+					<p class="text-sm text-muted-foreground">
+						{r.estAccuracy.count} converted estimate{r.estAccuracy.count === 1 ? '' : 's'} — no quoted
+						totals to compare yet
+					</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	{#if r.topMaterials.length}
 		<Card.Root>
 			<Card.Header

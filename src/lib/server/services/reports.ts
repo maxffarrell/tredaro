@@ -638,6 +638,51 @@ async function avgTicket(orgId: string) {
 	return row?.n ? row.avg : null;
 }
 
+/** Estimate accuracy: invoiced total vs the quoted total for converted estimates. */
+async function estimateAccuracy(orgId: string) {
+	const conv = await db
+		.select({
+			id: estimate.id,
+			jobId: estimate.jobId,
+			total:
+				sql<number>`coalesce((select sum(i.qty * i.unit_price) from ${estimateItem} i where i.estimate_id = ${outer(estimate.id)} and i.optional = false), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(estimate)
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.status, 'converted'),
+				isNotNull(estimate.jobId)
+			)
+		);
+	if (!conv.length) return { count: 0, avgVariancePct: null };
+	const jobIds = conv.map((e) => e.jobId!).filter(Boolean);
+	const invoiced = await db
+		.select({
+			jobId: charge.jobId,
+			total: sql<number>`coalesce(sum(${charge.amount}), 0)`.mapWith(Number)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				inArray(charge.jobId, jobIds),
+				sql`${charge.amount} > 0`,
+				sql`${charge.status} != 'void'`
+			)
+		)
+		.groupBy(charge.jobId);
+	const byJob = new Map(invoiced.map((r) => [r.jobId, r.total]));
+	const variances = conv
+		.filter((e) => e.total > 0)
+		.map((e) => ((byJob.get(e.jobId!) ?? 0) - e.total) / e.total);
+	if (!variances.length) return { count: conv.length, avgVariancePct: null };
+	const avg = variances.reduce((a, b) => a + b, 0) / variances.length;
+	return { count: variances.length, avgVariancePct: Math.round(avg * 100) };
+}
+
 export async function getReports(orgId: string) {
 	const [
 		completedJobs,
@@ -675,7 +720,8 @@ export async function getReports(orgId: string) {
 		avgItems,
 		expenses90d,
 		matMargin,
-		ratings
+		ratings,
+		estAccuracy
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -712,7 +758,8 @@ export async function getReports(orgId: string) {
 		avgItemsPerEstimate(orgId),
 		expenseTotal(orgId),
 		materialsMargin(orgId),
-		visitRatings(orgId)
+		visitRatings(orgId),
+		estimateAccuracy(orgId)
 	]);
 	return {
 		completedJobs,
@@ -750,7 +797,8 @@ export async function getReports(orgId: string) {
 		avgItemsPerQuote: avgItems,
 		expenses90d,
 		materialsMargin: matMargin,
-		ratings
+		ratings,
+		estAccuracy
 	};
 }
 

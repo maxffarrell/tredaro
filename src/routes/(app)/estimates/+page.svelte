@@ -28,6 +28,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Download from '@lucide/svelte/icons/download';
 
 	const settings = await getSettings();
 	const currency = settings.currency;
@@ -161,6 +162,9 @@
 
 <PageHeader title="Estimates">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" href="/api/export/estimates.csv" download>
+			<Download /> Export
+		</Button>
 		<Button size="sm" onclick={() => (open = true)}><Plus /> New estimate</Button>
 	{/snippet}
 </PageHeader>

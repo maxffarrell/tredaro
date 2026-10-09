@@ -19,6 +19,7 @@
 	} from '#lib/remote/jobs.remote.ts';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { errMsg } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
@@ -34,6 +35,7 @@
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
 	import Phone from '@lucide/svelte/icons/phone';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
+	import Camera from '@lucide/svelte/icons/camera';
 
 	const day = $derived(await getMyDay());
 	const tomorrowSchedMin = $derived(
@@ -76,6 +78,38 @@
 	let signJobId = $state<string | null>(null);
 	let noteJobId = $state<string | null>(null);
 	let noteText = $state('');
+
+	// photo capture — one shared input; the menu sets the job + phase, then clicks it
+	let photoJobId = $state<string | null>(null);
+	let photoPhase = $state<'before' | 'during' | 'after'>('during');
+	let photoInput: HTMLInputElement;
+	let uploadingPhoto = $state<string | null>(null);
+	function pickPhoto(jobId: string, phase: 'before' | 'during' | 'after') {
+		photoJobId = jobId;
+		photoPhase = phase;
+		photoInput?.click();
+	}
+	async function uploadPhoto(e: Event) {
+		const file = (e.currentTarget as HTMLInputElement).files?.[0];
+		const jobId = photoJobId;
+		if (!file || !jobId) return;
+		uploadingPhoto = jobId;
+		try {
+			const form = new FormData();
+			form.set('file', file);
+			form.set('phase', photoPhase);
+			const res = await fetch(`/api/jobs/${jobId}/photos`, { method: 'POST', body: form });
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				throw new Error(body?.message ?? `Upload failed (${res.status})`);
+			}
+			toast.success(`${photoPhase[0].toUpperCase()}${photoPhase.slice(1)} photo added`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload photo'));
+		}
+		(e.currentTarget as HTMLInputElement).value = '';
+		uploadingPhoto = null;
+	}
 
 	async function saveNote() {
 		if (!noteJobId || !noteText.trim()) return;
@@ -231,6 +265,32 @@
 						disabled={pending !== null}
 						onclick={() => (noteJobId = j.job.id)}><StickyNote /> Note</Button
 					>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							{#snippet child({ props })}
+								<Button
+									{...props}
+									size="sm"
+									variant="ghost"
+									disabled={pending !== null || uploadingPhoto === j.job.id}
+								>
+									<Camera />
+									{uploadingPhoto === j.job.id ? 'Uploading…' : 'Photo'}
+								</Button>
+							{/snippet}
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="start">
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'before')}
+								>Before photo</DropdownMenu.Item
+							>
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'during')}
+								>During photo</DropdownMenu.Item
+							>
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'after')}
+								>After photo</DropdownMenu.Item
+							>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
 					<Button
 						size="sm"
 						variant="ghost"
@@ -465,6 +525,15 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<input
+	bind:this={photoInput}
+	type="file"
+	accept="image/*"
+	capture="environment"
+	class="hidden"
+	onchange={uploadPhoto}
+/>
 
 <SignatureDialog
 	bind:open={() => signJobId !== null, (v) => (signJobId = v ? signJobId : null)}
