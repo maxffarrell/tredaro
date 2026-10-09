@@ -223,8 +223,8 @@
 </PageHeader>
 
 <div class="space-y-4 p-4 md:p-6">
-	<div class="flex gap-2">
-		<div class="relative max-w-sm flex-1">
+	<div class="flex flex-wrap gap-2">
+		<div class="relative max-w-sm min-w-56 flex-1">
 			<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input
 				placeholder="Search name, company, contact info, equipment…"
