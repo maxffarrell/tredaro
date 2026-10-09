@@ -1241,8 +1241,15 @@ export async function updateCharge(ctx: OrgContext, input: v.InferOutput<typeof 
 type DbOrTx = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete' | 'execute'>;
 
 export async function applyUnappliedCredit(orgId: string, customerId: string, q: DbOrTx = db) {
+	// Positive unapplied rows minus the negative 'applied:<id>' slices already
+	// written against them — each credit pools only what remains unallocated.
 	const credits = await q
-		.select()
+		.select({
+			credit: payment,
+			used: sql<number>`coalesce((select sum(p2.amount) from ${payment} p2 where p2.charge_id is null and p2.amount < 0 and p2.reference = 'applied:' || ${payment.id}), 0)`.mapWith(
+				Number
+			)
+		})
 		.from(payment)
 		.where(
 			and(
@@ -1274,8 +1281,10 @@ export async function applyUnappliedCredit(orgId: string, customerId: string, q:
 		)
 		.orderBy(asc(charge.dueDate), asc(charge.createdAt));
 	let applied = 0;
-	for (const credit of credits) {
-		let pool = credit.amount;
+	for (const row of credits) {
+		const credit = row.credit;
+		let pool = credit.amount + row.used;
+		if (pool <= 0) continue;
 		for (const ch of open) {
 			if (pool <= 0) break;
 			if (ch.open <= 0) continue;
@@ -1309,7 +1318,6 @@ export async function applyUnappliedCredit(orgId: string, customerId: string, q:
 			pool -= take;
 			applied += take;
 		}
-		if (pool <= 0) continue;
 	}
 	if (!applied) return;
 	await q.execute(sql`
