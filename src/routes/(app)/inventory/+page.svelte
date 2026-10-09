@@ -268,6 +268,7 @@
 		{@const outCount = items.filter((i) => i.item.qtyOnHand === 0).length}
 		{@const unmonitoredCount = items.filter((i) => i.item.reorderPoint == null).length}
 		{@const openPos = pos.filter((p) => p.po.status === 'draft' || p.po.status === 'ordered')}
+		{@const orderedPos = openPos.filter((p) => p.po.status === 'ordered')}
 		{@const latePos = openPos.filter(
 			(p) => p.po.expectedOn && p.po.expectedOn < new Date().toISOString().slice(0, 10)
 		)}
@@ -279,6 +280,9 @@
 					currency
 				)} on order</Badge
 			>
+		{/if}
+		{#if orderedPos.length}
+			<Badge variant="outline" class="mr-2">{orderedPos.length} awaiting delivery</Badge>
 		{/if}
 		{#if latePos.length}
 			<Badge variant="outline" class="mr-2 text-red-600 dark:text-red-400"

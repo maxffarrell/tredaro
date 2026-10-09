@@ -35,6 +35,23 @@
 	const offToday = $derived(
 		board ? board.timeOff.filter((t) => t.startsOn <= todayStr && t.endsOn >= todayStr).length : 0
 	);
+	const schedTodayMin = $derived(
+		board
+			? board.scheduled
+					.filter(
+						(j) =>
+							j.job.startsAt &&
+							j.job.endsAt &&
+							j.job.status !== 'cancelled' &&
+							localDate(new Date(j.job.startsAt), tz) === todayStr
+					)
+					.reduce(
+						(m, j) =>
+							m + ((j.job.endsAt?.getTime() ?? 0) - (j.job.startsAt?.getTime() ?? 0)) / 60_000,
+						0
+					)
+			: 0
+	);
 	const doneThisWeek = $derived(board.scheduled.filter((j) => j.job.status === 'done').length);
 	const filteredQueue = $derived(
 		queueFilter.trim()
@@ -176,6 +193,11 @@
 			{/if}
 			{#if doneThisWeek}
 				<Badge variant="outline">{doneThisWeek} done</Badge>
+			{/if}
+			{#if schedTodayMin > 0}
+				<Badge variant="outline"
+					>{Math.floor(schedTodayMin / 60)}h {Math.round(schedTodayMin % 60)}m sched today</Badge
+				>
 			{/if}
 			{#if offToday}
 				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"

@@ -298,7 +298,10 @@
 		{visible.length} customer{visible.length === 1 ? '' : 's'} ·
 		{formatMoney(totalBalance, currency)} open balance{#if newThisMonth}
 			· <span class="text-foreground">{newThisMonth} new this month</span>{/if}{#if withBalance}
-			· {withBalance} with balance{/if}{#if onHoldCount}
+			· {withBalance} with balance (avg {formatMoney(
+				totalBalance / withBalance,
+				currency
+			)}){/if}{#if onHoldCount}
 			· <span class="text-red-600 dark:text-red-400">{onHoldCount} on hold</span
 			>{/if}{#if withPortal}
 			· {withPortal} with portal{/if}{#if missingEmail}
