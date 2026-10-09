@@ -130,13 +130,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # The docker driver can't use type=gha cache — persist a local buildx
-      # cache across runs with actions/cache instead.
-      - uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: buildx-${{ hashFiles('Dockerfile', 'pnpm-lock.yaml') }}
-          restore-keys: buildx-
       - name: Build image on GitHub runner
         id: image
         uses: docker/build-push-action@v6
@@ -150,14 +143,6 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ needs.plan.outputs.commit }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-      # Move the grown cache aside so it doesn't bloat on every run.
-      - name: Rotate buildx cache
-        if: always()
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
   deploy:
     needs: [plan, build]
     if: needs.plan.outputs.deploy == 'true'
