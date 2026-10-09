@@ -484,6 +484,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				approvedAt: jobTimeEntry.approvedAt,
 				approvedByName: approver.name,
 				laborCostCents: member.laborCostCents,
+				overtimePct: member.overtimePct,
+				memberId: jobTimeEntry.memberId,
 				note: jobTimeEntry.note
 			})
 			.from(jobTimeEntry)
@@ -500,6 +502,29 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				)
 			)
 			.orderBy(asc(user.name), asc(jobTimeEntry.startedAt));
+		// OT-aware labor cost: per member+week, minutes past 40h bill at overtimePct
+		// of the loaded rate. Rows arrive member-sorted so a running tally works.
+		const weekOf = (d: Date) => {
+			const day = localDate(d, t);
+			const dow = new Date(`${day}T12:00:00Z`).getUTCDay();
+			return addDays(day, -((dow + 6) % 7));
+		};
+		const weekCum = new Map<string, number>();
+		const costed = rows.map((r) => {
+			const min = r.endedAt ? Math.round((r.endedAt.getTime() - r.startedAt.getTime()) / 60000) : 0;
+			const wkKey = `${r.memberId ?? '—'}:${weekOf(r.startedAt)}`;
+			const before = weekCum.get(wkKey) ?? 0;
+			weekCum.set(wkKey, before + min);
+			const ot = Math.max(0, before + min - Math.max(40 * 60, before));
+			const cost =
+				r.endedAt && r.laborCostCents
+					? Math.round(
+							((min - ot) / 60) * r.laborCostCents +
+								(ot / 60) * r.laborCostCents * ((r.overtimePct ?? 150) / 100)
+						)
+					: null;
+			return { r, ot, cost };
+		});
 		body = [
 			row([
 				'Member',
@@ -509,12 +534,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				'Start',
 				'End',
 				'Minutes',
+				'OT min',
 				'Approved',
 				'Approved by',
 				'Labor cost',
 				'Note'
 			]),
-			...rows.map((r) =>
+			...costed.map(({ r, ot, cost }) =>
 				row([
 					r.memberName ?? '—',
 					r.jobNumber ? `J-${r.jobNumber}` : '',
@@ -523,15 +549,10 @@ export const GET: RequestHandler = async ({ params, url }) => {
 					localTime(r.startedAt, t),
 					r.endedAt ? localTime(r.endedAt, t) : '',
 					r.endedAt ? Math.round((r.endedAt.getTime() - r.startedAt.getTime()) / 60000) : '',
+					ot || '',
 					r.approvedAt ? 'yes' : 'no',
 					r.approvedByName ?? '',
-					r.endedAt && r.laborCostCents
-						? money(
-								Math.round(
-									((r.endedAt.getTime() - r.startedAt.getTime()) / 60000 / 60) * r.laborCostCents
-								)
-							)
-						: '',
+					cost != null ? money(cost) : '',
 					r.note
 				])
 			)

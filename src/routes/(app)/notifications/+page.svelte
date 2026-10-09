@@ -76,6 +76,7 @@
 		parts_delay: 'Parts delay',
 		tech_assigned: 'Tech assigned',
 		daily_digest: 'Daily digest',
+		weekly_digest: 'Weekly digest',
 		agreement_renewal: 'Agreement renewal',
 		job_completed: 'Job completed',
 		payment_receipt: 'Payment received',
@@ -90,6 +91,7 @@
 	/** Where each kind's entity usually lives. */
 	function href(kind: string, entityId: string) {
 		if (kind === 'booking_staff_alert' || kind === 'daily_digest') return '/dispatch';
+		if (kind === 'weekly_digest') return '/dashboard';
 		if (kind === 'time_approved') return '/myday';
 		if (kind === 'low_stock') return '/inventory';
 		if (
