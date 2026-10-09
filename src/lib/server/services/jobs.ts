@@ -409,7 +409,12 @@ export async function createJob(
 	ctx: { orgId: string; userId?: string | null },
 	tz: string,
 	input: v.InferOutput<typeof s.jobInput>,
-	opts: { source?: (typeof job.$inferInsert)['source']; number?: number } = {}
+	opts: {
+		source?: (typeof job.$inferInsert)['source'];
+		number?: number;
+		/** Explicit duration (min) — defaults to the job type's. Used by copy-week. */
+		durationMin?: number;
+	} = {}
 ) {
 	const [c] = await db
 		.select()
@@ -431,7 +436,7 @@ export async function createJob(
 
 	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
-	const durationMin = jt?.durationMin ?? 60;
+	const durationMin = opts.durationMin ?? jt?.durationMin ?? 60;
 	// Tech resolution: explicit pick > job type default > the customer's preferred tech.
 	const technicianId = input.technicianId ?? jt?.technicianId ?? c.preferredMemberId ?? null;
 	if (start)
@@ -508,6 +513,10 @@ export async function copyScheduleWeek(ctx: OrgContext, weekStartIso: string) {
 	for (const src of rows) {
 		const newStart = new Date(src.startsAt!.getTime() + 7 * 24 * 60 * 60 * 1000);
 		const wall = `${localDate(newStart, tz)}T${localTime(newStart, tz)}`;
+		const dur =
+			src.startsAt && src.endsAt
+				? Math.round((src.endsAt.getTime() - src.startsAt.getTime()) / 60_000)
+				: undefined;
 		try {
 			await createJob(
 				ctx,
@@ -527,7 +536,7 @@ export async function copyScheduleWeek(ctx: OrgContext, weekStartIso: string) {
 					warranty: src.warranty,
 					startsAt: wall
 				},
-				{ source: 'manual' }
+				{ source: 'manual', durationMin: dur }
 			);
 			created++;
 		} catch {
