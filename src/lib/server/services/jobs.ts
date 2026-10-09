@@ -302,8 +302,11 @@ export async function getJob(orgId: string, id: string) {
 							eq(job.customerId, row.job.customerId),
 							ne(job.id, id),
 							sql`${job.status} not in ('done', 'cancelled')`,
-							gte(job.startsAt, zonedToUtc(localDate(row.job.startsAt, tz), tz)),
-							lt(job.startsAt, zonedToUtc(addDays(localDate(row.job.startsAt, tz), 1), tz))
+							gte(job.startsAt, zonedToUtc(localDate(row.job.startsAt, tz) + 'T00:00', tz)),
+							lt(
+								job.startsAt,
+								zonedToUtc(addDays(localDate(row.job.startsAt, tz), 1) + 'T00:00', tz)
+							)
 						)
 					)
 			)[0].n
