@@ -641,7 +641,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base">Service locations</Card.Title>
+				<Card.Title class="text-base"
+					>Service locations{#if c.locations.length > 1}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>({c.locations.length})</span
+						>{/if}</Card.Title
+				>
 				<Button size="sm" variant="outline" onclick={() => openLocation()}><MapPin /> Add</Button>
 			</Card.Header>
 			<Card.Content class="space-y-2 px-4">

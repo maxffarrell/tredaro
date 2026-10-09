@@ -376,9 +376,9 @@
 
 	<Tabs.Root bind:value={tab}>
 		<Tabs.List>
-			<Tabs.Trigger value="invoices">Invoices</Tabs.Trigger>
-			<Tabs.Trigger value="charges">Open charges</Tabs.Trigger>
-			<Tabs.Trigger value="payments">Payments</Tabs.Trigger>
+			<Tabs.Trigger value="invoices">Invoices ({invoices.length})</Tabs.Trigger>
+			<Tabs.Trigger value="charges">Open charges ({charges.length})</Tabs.Trigger>
+			<Tabs.Trigger value="payments">Payments ({payments.length})</Tabs.Trigger>
 		</Tabs.List>
 
 		<Tabs.Content value="invoices">

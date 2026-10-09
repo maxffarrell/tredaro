@@ -961,7 +961,10 @@
 				<Card.Title class="flex items-center gap-2 text-base"
 					><Timer class="size-4" /> Time</Card.Title
 				>
-				<span class="text-sm text-muted-foreground tabular-nums">{fmtDur(totalMin)}</span>
+				<span class="text-sm text-muted-foreground tabular-nums"
+					>{fmtDur(totalMin)}{#if time.entries.length > 1}
+						· {time.entries.length} entries{/if}</span
+				>
 			</Card.Header>
 			<Card.Content class="space-y-3 px-4">
 				{#if !locked && time.myMemberId}
