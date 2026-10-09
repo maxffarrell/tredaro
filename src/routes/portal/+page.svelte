@@ -35,11 +35,59 @@
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
+	import Mail from '@lucide/svelte/icons/mail';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const customerId = $derived(data.customerId);
 	const d = $derived(await getPortalOverview(customerId));
+	const MESSAGE_LABELS: Record<string, string> = {
+		appointment_reminder: 'Appointment reminder',
+		appointment_reminder_sms: 'Appointment reminder',
+		booking_received: 'Booking request received',
+		booking_sms: 'Booking request received',
+		booking_cancelled: 'Booking cancelled',
+		estimate_sent: 'Estimate sent',
+		estimate_sent_sms: 'Estimate sent',
+		estimate_resent: 'Estimate re-sent',
+		estimate_resent_sms: 'Estimate re-sent',
+		estimate_followup: 'Estimate follow-up',
+		estimate_followup_sms: 'Estimate follow-up',
+		estimate_expiring: 'Estimate expiring soon',
+		invoice_sent: 'Invoice sent',
+		invoice_texted: 'Invoice sent',
+		invoice_overdue_3: 'Payment reminder',
+		invoice_overdue_10: 'Payment reminder',
+		invoice_overdue_sms_3: 'Payment reminder',
+		invoice_overdue_sms_10: 'Payment reminder',
+		job_scheduled: 'Visit scheduled',
+		job_scheduled_sms: 'Visit scheduled',
+		job_en_route_sms: 'Technician on the way',
+		job_eta_sms: 'Technician ETA',
+		job_completed: 'Visit completed',
+		job_completed_sms: 'Visit completed',
+		job_rescheduled: 'Visit rescheduled',
+		job_rescheduled_sms: 'Visit rescheduled',
+		payment_receipt: 'Payment receipt',
+		payment_receipt_sms: 'Payment receipt',
+		agreement_renewal: 'Agreement renewal',
+		agreement_renewal_sms: 'Agreement renewal',
+		announcement: 'Announcement',
+		announcement_sms: 'Announcement',
+		statement: 'Statement',
+		statement_auto: 'Statement',
+		report_sent: 'Service report',
+		report_sent_sms: 'Service report',
+		rating_sms_ask: 'Rate your visit',
+		review_ask: 'Review request',
+		manual_sms: 'Message from the office',
+		customer_document: 'New document shared',
+		warranty_expiry: 'Warranty expiring soon',
+		service_due: 'Service due reminder',
+		service_due_sms: 'Service due reminder'
+	};
+	const msgLabel = (kind: string) => MESSAGE_LABELS[kind] ?? 'Message from the office';
 	const providers = $derived(await getProviders(customerId));
 	let docUploading = $state(false);
 	async function uploadPortalDoc(e: Event) {
@@ -694,6 +742,25 @@
 							{/each}
 						</Table.Body>
 					</Table.Root>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#if d.recentMessages?.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Messages from us</Card.Title></Card.Header>
+				<Card.Content class="space-y-2">
+					{#each d.recentMessages as m (m.createdAt + m.kind)}
+						<div class="flex items-center gap-3 text-sm">
+							{#if m.channel === 'text'}
+								<MessageSquare class="size-4 shrink-0 text-muted-foreground" />
+							{:else}
+								<Mail class="size-4 shrink-0 text-muted-foreground" />
+							{/if}
+							<span class="min-w-0 flex-1 truncate">{msgLabel(m.kind)}</span>
+							<span class="shrink-0 text-xs text-muted-foreground">{formatDate(m.createdAt)}</span>
+						</div>
+					{/each}
 				</Card.Content>
 			</Card.Root>
 		{/if}

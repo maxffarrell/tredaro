@@ -21,7 +21,9 @@
 		paid,
 		currency,
 		providers,
-		footer
+		footer,
+		orgPhone,
+		orgWebsite
 	} = $derived(data);
 	const balance = $derived(total - paid);
 	const paidOff = $derived(
@@ -50,6 +52,18 @@
 		<div class="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
 			<Logo />
 			<span class="truncate font-semibold">{orgName}</span>
+			{#if orgPhone || orgWebsite}
+				<span class="ml-auto truncate text-xs text-muted-foreground">
+					{#if orgPhone}{orgPhone}{/if}{#if orgPhone && orgWebsite}
+						·
+					{/if}{#if orgWebsite}<a
+							class="hover:underline"
+							href={orgWebsite.startsWith('http') ? orgWebsite : `https://${orgWebsite}`}
+							target="_blank"
+							rel="noreferrer">{orgWebsite.replace(/^https?:\/\//, '')}</a
+						>{/if}
+				</span>
+			{/if}
 		</div>
 	</header>
 
