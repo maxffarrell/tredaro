@@ -75,6 +75,7 @@
 
 	const withOpenQuote = $derived(visible.filter((c) => c.hasOpenQuote).length);
 	const leadOnly = $derived(visible.filter((c) => c.leadSource && !c.lastVisit).length);
+	const taggedCount = $derived(visible.filter((c) => c.tags?.length).length);
 	const inactiveCount = $derived(visible.filter((c) => c.status !== 'active').length);
 	const neverServiced = $derived(
 		visible.filter((c) => c.status === 'active' && !c.lastVisit).length
@@ -318,7 +319,8 @@
 			· {neverServiced} never serviced{/if}{#if withOpenQuote}
 			· {withOpenQuote} with open quote{/if}{#if leadOnly}
 			· {leadOnly} lead-only{/if}{#if inactiveCount}
-			· {inactiveCount} inactive{/if}
+			· {inactiveCount} inactive{/if}{#if taggedCount}
+			· {taggedCount} tagged{/if}
 	</p>
 
 	<Card.Root class="py-0">

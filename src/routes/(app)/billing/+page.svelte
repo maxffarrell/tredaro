@@ -424,7 +424,12 @@
 							invoices.reduce((sum, i) => sum + i.total - i.paid, 0),
 							currency
 						)}</span
-					>
+					>{#if invoices.filter((i) => i.invoice.dueDate).length}
+						· oldest {Math.max(
+							...invoices.map((i) =>
+								Math.round((Date.now() - new Date(i.invoice.dueDate!).getTime()) / 86400_000)
+							)
+						)}d{/if}
 				</p>
 			{/if}
 			<div class="mb-2 flex gap-1.5">

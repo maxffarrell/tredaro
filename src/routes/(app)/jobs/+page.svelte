@@ -83,6 +83,7 @@
 	const unassignedCount = $derived(
 		jobs.filter((j) => !j.job.technicianId && !['done', 'cancelled'].includes(j.job.status)).length
 	);
+	const partsCount = $derived(jobs.filter((j) => j.job.blocked).length);
 	const overdueCount = $derived(
 		jobs.filter(
 			(j) =>
@@ -201,6 +202,11 @@
 		{#if uninvoicedCount}
 			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
 				>{uninvoicedCount} uninvoiced</Badge
+			>
+		{/if}
+		{#if partsCount}
+			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
+				>{partsCount} waiting on parts</Badge
 			>
 		{/if}
 		{#if overdueCount}
