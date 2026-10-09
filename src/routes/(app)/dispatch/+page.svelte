@@ -446,6 +446,10 @@
 							{#if j.depOpen}· <span class="text-amber-600 dark:text-amber-400"
 									>dep J-{j.depNumber}</span
 								>{/if}
+							{#if j.job.source === 'booking' && waitingDays(j.job.createdAt) === 0}· <span
+									class="text-blue-600 dark:text-blue-400">new request</span
+								>{/if}
+							{#if !j.customerPhone}· <span class="text-red-500">no phone</span>{/if}
 							{#if j.city}· {j.city}{/if}
 							{#if j.job.preferredTime}
 								<br /><span class="text-amber-600 dark:text-amber-400"

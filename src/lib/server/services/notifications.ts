@@ -1261,6 +1261,51 @@ export async function notifyPartsDelay(orgId: string, jobId: string) {
 		});
 }
 
+/** Customer rated a visit — staff inbox for admins; 5★ also nudges the public review. */
+export async function notifyVisitRated(orgId: string, jobId: string, rating: number, note: string) {
+	const [row] = await db
+		.select({
+			number: job.number,
+			summary: job.summary,
+			customerName: customer.name,
+			customerEmail: customer.email,
+			emailOptOut: customer.emailOptOut,
+			reviewUrl: companySettings.reviewUrl
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(companySettings, eq(companySettings.organizationId, job.organizationId))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const flags = await notifFlags(orgId);
+	const name = await orgName(orgId);
+	if (flags.digest)
+		for (const email of await adminEmails(orgId))
+			// Inbox row only — the activity feed already shows the rating.
+			await logOnce(orgId, 'visit_rated', jobId, email);
+	if (
+		rating === 5 &&
+		row.reviewUrl &&
+		row.customerEmail &&
+		!row.emailOptOut &&
+		flags.email &&
+		(await logOnce(orgId, 'review_ask', jobId, row.customerEmail))
+	)
+		await sendEmail({
+			to: row.customerEmail,
+			subject: `Thanks for the 5 stars — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Glad we earned it, ${row.customerName}`,
+				lines: [
+					`Thanks for rating J-${row.number} ${row.summary} 5 stars.`,
+					'A public review takes under a minute and means a lot to a local crew like ours.'
+				],
+				action: { label: 'Leave a review', url: row.reviewUrl }
+			})
+		});
+}
+
 /** "The job blocking yours is done" — emails + inboxes the dependent job's tech. */
 export async function notifyJobUnblocked(
 	orgId: string,

@@ -95,7 +95,13 @@
 			kind === 'quote_request'
 		)
 			return `/estimates/${entityId}`;
-		if (kind === 'parts_delay' || kind === 'tech_assigned') return `/jobs/${entityId}`;
+		if (
+			kind === 'parts_delay' ||
+			kind === 'tech_assigned' ||
+			kind === 'job_unblocked' ||
+			kind === 'visit_rated'
+		)
+			return `/jobs/${entityId}`;
 		if (kind === 'agreement_renewal') return '/agreements';
 		if (kind === 'payment_receipt' || kind === 'job_completed') return `/jobs/${entityId}`;
 		if (kind === 'inbound_sms_staff') return `/customers/${entityId.split(':')[0]}`;

@@ -58,6 +58,10 @@ export const rateVisit = command(
 	async (input) => {
 		const c = await myCustomer(input.customerId);
 		const r = await svc.rateVisit(c.organizationId, c.id, input.jobId, input.rating, input.note);
+		const { notifyVisitRated } = await import('#lib/server/services/notifications.ts');
+		void notifyVisitRated(c.organizationId, input.jobId, input.rating, input.note).catch((err) =>
+			console.error('visit-rated alert failed', err)
+		);
 		void getPortalOverview(c.id).refresh();
 		return r;
 	}
