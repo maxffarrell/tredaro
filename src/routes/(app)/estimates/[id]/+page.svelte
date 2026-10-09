@@ -345,6 +345,16 @@
 						currency
 					)}
 				</div>
+				{#if est.items.some((i) => i.item.optional)}
+					<div class="flex justify-end text-xs text-muted-foreground tabular-nums">
+						{est.items.filter((i) => i.item.optional).length} optional · {formatMoney(
+							est.items
+								.filter((i) => i.item.optional)
+								.reduce((s, i) => s + i.item.qty * i.item.unitPrice, 0),
+							currency
+						)} of that total
+					</div>
+				{/if}
 				{#if est.estimate.notes}<p class="mt-3 text-sm text-muted-foreground">
 						{est.estimate.notes}
 					</p>{/if}

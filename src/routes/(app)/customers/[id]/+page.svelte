@@ -821,7 +821,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base">Communications</Card.Title>
+				<Card.Title class="text-base"
+					>Communications{#if c.communications.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>({c.communications.length} logged)</span
+						>{/if}</Card.Title
+				>
 				<div class="flex gap-1">
 					{#each [['all', 'All'], ['email', 'Email'], ['sms', 'SMS']] as [v, label] (v)}
 						<Button

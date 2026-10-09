@@ -174,6 +174,10 @@
 			· {dueWeek} billing ≤7d{/if}
 		{#if fixedTerm}
 			· {fixedTerm} fixed-term{/if}
+		{#if agreements.filter((a) => a.agreement.status === 'paused').length}
+			· <span class="text-amber-600 dark:text-amber-400"
+				>{agreements.filter((a) => a.agreement.status === 'paused').length} paused</span
+			>{/if}
 	</p>
 {/if}
 
