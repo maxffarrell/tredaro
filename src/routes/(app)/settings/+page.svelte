@@ -121,8 +121,17 @@
 	}
 	async function setTimeOff(input: { id: string; status: 'approved' | 'denied' }) {
 		try {
-			await setTimeOffStatus(input).updates(getTimeOff);
-			toast.success(input.status === 'approved' ? 'Time off approved' : 'Request denied');
+			const res = await setTimeOffStatus(input).updates(getTimeOff);
+			if (input.status === 'approved' && res.conflicts.length > 0) {
+				toast.warning(
+					`Approved — but ${res.conflicts.length} job${res.conflicts.length === 1 ? '' : 's'} still scheduled in that window (${res.conflicts
+						.map((c) => `J-${c.number}`)
+						.join(', ')}). Reassign on Dispatch.`,
+					{ duration: 8000 }
+				);
+			} else {
+				toast.success(input.status === 'approved' ? 'Time off approved' : 'Request denied');
+			}
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update request'));
 		}

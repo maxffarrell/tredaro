@@ -740,6 +740,13 @@
 					>{day.jobs.filter((j) => j.confirmed).length} confirmed</span
 				>
 			{/if}
+			{#if day.truckLow?.length}
+				<a
+					class="inline-flex items-center gap-1 font-medium text-amber-600 tabular-nums hover:underline dark:text-amber-400"
+					href="/inventory"
+					>{day.truckLow.length} truck item{day.truckLow.length === 1 ? '' : 's'} low</a
+				>
+			{/if}
 			{#if next?.job.startsAt}
 				<span class="text-muted-foreground tabular-nums"
 					>next {localTime(next.job.startsAt, tz)}</span

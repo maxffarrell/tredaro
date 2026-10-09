@@ -55,7 +55,12 @@
 		removeFollowUp,
 		snoozeFollowUp
 	} from '#lib/remote/followups.remote.ts';
-	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
+	import {
+		recordPayment,
+		addCredit,
+		invoiceUninvoicedJobs,
+		getInvoices
+	} from '#lib/remote/billing.remote.ts';
 	import {
 		getSchedules,
 		createSchedule,
@@ -684,6 +689,39 @@
 	let creditDollars = $state('');
 	let creditNote = $state('');
 	const creditCents = $derived(Math.round((parseFloat(creditDollars) || 0) * 100));
+
+	let invoicingAll = $state(false);
+	async function invoiceAllDone() {
+		invoicingAll = true;
+		try {
+			const dueDate = new Date(
+				Date.now() + (c.customer.termsDays ?? settings.invoiceTermsDays) * 86400_000
+			)
+				.toISOString()
+				.slice(0, 10);
+			const res = await invoiceUninvoicedJobs({ customerId: id, dueDate }).updates(getInvoices);
+			if (res.created === 0) {
+				toast.info(
+					res.skipped
+						? `${res.skipped} done job${res.skipped === 1 ? '' : 's'} had no billable lines — skipped`
+						: 'Nothing to invoice'
+				);
+			} else {
+				toast.success(
+					`Drafted ${res.created} invoice${res.created === 1 ? '' : 's'} (${res.numbers
+						.map((n) => `J-${n}`)
+						.join(', ')})` +
+						(res.skipped
+							? ` · ${res.skipped} job${res.skipped === 1 ? '' : 's'} had nothing billable`
+							: '')
+				);
+				goto(`/billing?customer=${id}`);
+			}
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not create invoices'));
+		}
+		invoicingAll = false;
+	}
 
 	async function submitCredit(e: SubmitEvent) {
 		e.preventDefault();
@@ -1667,6 +1705,16 @@
 			<Card.Header class="flex-row items-center justify-between">
 				<Card.Title class="text-base">Billing</Card.Title>
 				<div class="flex items-center gap-2">
+					{#if c.uninvoicedJobs > 0}
+						<Button
+							size="sm"
+							variant="outline"
+							onclick={invoiceAllDone}
+							disabled={invoicingAll}
+							title="Draft an invoice for each completed job that isn't invoiced yet"
+							>Invoice {c.uninvoicedJobs} done job{c.uninvoicedJobs === 1 ? '' : 's'}</Button
+						>
+					{/if}
 					{#if c.customer.status === 'active'}
 						<Button
 							size="sm"
