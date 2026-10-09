@@ -563,6 +563,8 @@ export async function publicEstimate(id: string) {
 			);
 		}
 	}
+	// internal_notes is staff-only — strip it before serializing to the public page.
+	row.estimate.internalNotes = '';
 	return { ...row, items, currency: settings?.currency ?? 'usd' };
 }
 
