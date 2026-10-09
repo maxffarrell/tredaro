@@ -24,7 +24,7 @@ import {
 } from '#lib/server/db/schema.ts';
 import { monthlyRecurring } from './billing.ts';
 import { dueFollowUps } from './followups.ts';
-import { localDate, localTime, zonedToUtc } from '#lib/tz.ts';
+import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 
 /** KPIs, today's route and unscheduled queue for the dashboard. */
 export async function dashboard(orgId: string) {
@@ -502,6 +502,23 @@ export async function dashboard(orgId: string) {
 		.orderBy(desc(sql`count(*)`))
 		.limit(5);
 
+	// Nothing on tomorrow's board while work sits in the queue.
+	const tomorrowStart = zonedToUtc(`${addDays(today, 1)}T00:00`, tz);
+	const dayAfterStart = zonedToUtc(`${addDays(today, 2)}T00:00`, tz);
+	const [tomorrowJobs] = await db
+		.select({ n: count() })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				isNull(job.cancelledAt),
+				ne(job.status, 'done'),
+				ne(job.status, 'cancelled'),
+				gte(job.startsAt, tomorrowStart),
+				lt(job.startsAt, dayAfterStart)
+			)
+		);
+
 	const setup = {
 		types: (typeCount[0]?.n ?? 0) > 0,
 		catalog: (itemCount[0]?.n ?? 0) > 0,
@@ -531,6 +548,17 @@ export async function dashboard(orgId: string) {
 		recentActivity,
 		recentCustomers,
 		attention: [
+			...(tomorrowJobs.n === 0 && (jobStats?.unscheduled ?? 0) > 0
+				? [
+						{
+							tone: 'amber' as const,
+							href: '/dispatch',
+							text: "Tomorrow's board is empty",
+							sub: `${jobStats?.unscheduled ?? 0} job${jobStats?.unscheduled === 1 ? '' : 's'} waiting in the queue`,
+							amountCents: null as number | null
+						}
+					]
+				: []),
 			...dueFollowUpRows.map((f) => ({
 				tone: 'amber' as const,
 				href: f.jobId
