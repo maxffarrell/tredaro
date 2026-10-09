@@ -512,7 +512,13 @@ export async function availableProviders(orgId: string, currency: string) {
 export async function updatePortalContact(
 	userId: string,
 	customerId: string,
-	input: { email?: string; phone?: string; smsOptOut?: boolean; emailOptOut?: boolean }
+	input: {
+		email?: string;
+		phone?: string;
+		smsOptOut?: boolean;
+		emailOptOut?: boolean;
+		accessNotes?: string;
+	}
 ) {
 	const [row] = await db
 		.update(customer)
@@ -525,6 +531,20 @@ export async function updatePortalContact(
 		.where(and(eq(customer.id, customerId), eq(customer.portalUserId, userId)))
 		.returning();
 	if (!row) error(403, 'Not your customer record');
+	// Access notes live on the customer's primary service location.
+	if (input.accessNotes !== undefined) {
+		const [loc] = await db
+			.select({ id: serviceLocation.id })
+			.from(serviceLocation)
+			.where(eq(serviceLocation.customerId, customerId))
+			.orderBy(desc(serviceLocation.isPrimary), asc(serviceLocation.label))
+			.limit(1);
+		if (loc)
+			await db
+				.update(serviceLocation)
+				.set({ accessNotes: input.accessNotes.trim() })
+				.where(eq(serviceLocation.id, loc.id));
+	}
 	return row;
 }
 

@@ -641,7 +641,9 @@ export const portalContactInput = v.object({
 	),
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ''),
 	smsOptOut: v.optional(v.boolean()),
-	emailOptOut: v.optional(v.boolean())
+	emailOptOut: v.optional(v.boolean()),
+	/** Gate codes, parking, pets — applied to the customer's primary service location. */
+	accessNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)))
 });
 
 export const timeOffStatusInput = v.object({

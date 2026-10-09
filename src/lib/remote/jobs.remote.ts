@@ -279,6 +279,17 @@ export const signJob = command(jobSignatureInput, async (input) => {
 
 // ---------- Time tracking ----------
 
+export const moveMyDayStop = command(
+	v.object({ jobId: idSchema, direction: v.picklist(['up', 'down']) }),
+	async (input) => {
+		const ctx = await requireOrg();
+		const t = await tz();
+		const r = await svc.moveMyDayStop(ctx, t, input.jobId, input.direction);
+		await refreshQuery(getMyDay, undefined);
+		return r;
+	}
+);
+
 export const getTimeEntries = query(idSchema, async (jobId) =>
 	svc.listTimeEntries(await requireOrg(), jobId)
 );
@@ -318,6 +329,15 @@ export const updateTimeEntry = command(
 		await svc.updateTimeEntry(await requireOrg(), await tz(), id, input);
 		await refreshQuery(getTimeEntries, input.jobId);
 		await refreshQuery(getJob, input.jobId);
+	}
+);
+
+export const approveTimeEntry = command(
+	v.object({ id: idSchema, approved: v.boolean() }),
+	async (input) => {
+		const row = await svc.approveTimeEntry(await requireOrg(), input.id, input.approved);
+		await refreshQuery(getTimeEntries, row.jobId);
+		return row;
 	}
 );
 

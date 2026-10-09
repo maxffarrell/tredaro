@@ -442,6 +442,8 @@ export const job = pgTable(
 		warranty: boolean('warranty').notNull().default(false),
 		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
 		preferredTime: text('preferred_time'),
+		/** Technician's manual stop order for My Day (lower = earlier stop). */
+		routeOrder: integer('route_order'),
 		/** Online booking awaiting staff accept/decline (org review mode). */
 		needsReview: boolean('needs_review').notNull().default(false),
 		/** Communicated arrival window shown to customer/tech ("8-10 AM"); display only. */
@@ -542,6 +544,9 @@ export const jobTimeEntry = pgTable(
 		/** Null while the member is still clocked in. */
 		endedAt: timestamp('ended_at', { withTimezone: true }),
 		note: text('note').notNull().default(''),
+		/** Set when an admin/owner approves the entry for payroll. */
+		approvedAt: timestamp('approved_at', { withTimezone: true }),
+		approvedById: text('approved_by_id'),
 		...timestamps
 	},
 	(t) => [

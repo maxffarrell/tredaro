@@ -47,7 +47,8 @@
 		signJob,
 		sendJobEta,
 		sendServiceReport,
-		reviewBooking
+		reviewBooking,
+		approveTimeEntry
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices, getStaff } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -1371,7 +1372,29 @@
 									{#if e.entry.note}
 										· {e.entry.note}{/if}
 								</p>
+								{#if e.entry.approvedAt}
+									<p class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Approved</p>
+								{/if}
 							</div>
+							{#if time.isAdmin && e.entry.endedAt}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 {e.entry.approvedAt
+										? 'text-emerald-600 dark:text-emerald-400'
+										: 'text-muted-foreground'}"
+									aria-label={e.entry.approvedAt ? 'Unapprove entry' : 'Approve entry'}
+									title={e.entry.approvedAt
+										? 'Approved — click to unapprove'
+										: 'Approve for payroll'}
+									onclick={() =>
+										approveTimeEntry({ id: e.entry.id, approved: !e.entry.approvedAt }).updates(
+											getTimeEntries
+										)}
+								>
+									<CircleCheck class="size-3.5" />
+								</Button>
+							{/if}
 							{#if time.isAdmin || e.entry.memberId === time.myMemberId}
 								<div class="flex shrink-0">
 									{#if !locked}

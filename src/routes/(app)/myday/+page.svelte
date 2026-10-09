@@ -18,7 +18,8 @@
 		stopTimer,
 		getCalendarFeed,
 		requestTimeOff,
-		updateJob
+		updateJob,
+		moveMyDayStop
 	} from '#lib/remote/jobs.remote.ts';
 	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
 	import { getCustomerOpenBalance, recordPayment } from '#lib/remote/billing.remote.ts';
@@ -48,6 +49,8 @@
 	import Flag from '@lucide/svelte/icons/flag';
 	import Phone from '@lucide/svelte/icons/phone';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Printer from '@lucide/svelte/icons/printer';
 	import { SvelteMap } from 'svelte/reactivity';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
@@ -341,6 +344,17 @@
 		});
 	}
 
+	let reorderPending = $state(false);
+	async function moveStop(jobId: string, direction: 'up' | 'down') {
+		reorderPending = true;
+		try {
+			await moveMyDayStop({ jobId, direction }).updates(getMyDay);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not reorder'));
+		}
+		reorderPending = false;
+	}
+
 	async function advance(jobId: string, kind: EventKind, note?: string) {
 		pending = `${jobId}:${kind}`;
 		try {
@@ -370,7 +384,7 @@
 	}
 </script>
 
-{#snippet jobCard(j: (typeof day.jobs)[number], claimable = false)}
+{#snippet jobCard(j: (typeof day.jobs)[number], claimable = false, reorder = false, idx = -1)}
 	<Card.Root>
 		<Card.Content class="flex flex-col gap-3 p-4">
 			<div class="flex items-start justify-between gap-2">
@@ -462,6 +476,30 @@
 				{/if}
 			</div>
 			<div class="flex flex-wrap gap-2">
+				{#if reorder}
+					<div class="flex flex-col gap-0.5" title="Reorder this stop">
+						<Button
+							variant="ghost"
+							size="icon"
+							class="size-6"
+							aria-label="Move stop up"
+							disabled={idx <= 0 || reorderPending}
+							onclick={() => moveStop(j.job.id, 'up')}
+						>
+							<ChevronUp class="size-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							class="size-6"
+							aria-label="Move stop down"
+							disabled={idx < 0 || idx >= day.jobs.length - 1 || reorderPending}
+							onclick={() => moveStop(j.job.id, 'down')}
+						>
+							<ChevronDown class="size-4" />
+						</Button>
+					</div>
+				{/if}
 				{#if claimable}
 					<Button size="sm" disabled={pending !== null} onclick={() => claim(j.job.id)}
 						><Hand /> Take</Button
@@ -758,8 +796,8 @@
 			<h2 class="text-sm font-medium text-muted-foreground">Today</h2>
 		{/if}
 
-		{#each day.jobs as j (j.job.id)}
-			{@render jobCard(j)}
+		{#each day.jobs as j, i (j.job.id)}
+			{@render jobCard(j, false, true, i)}
 		{:else}
 			<Card.Root>
 				<Card.Content class="p-0">
