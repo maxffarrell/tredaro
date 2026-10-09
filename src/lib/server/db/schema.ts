@@ -75,6 +75,8 @@ export const companySettings = pgTable('company_settings', {
 	estimateValidDays: integer('estimate_valid_days').notNull().default(30),
 	/** When on, completing a job with materials drafts an invoice automatically. */
 	autoInvoiceOnComplete: boolean('auto_invoice_on_complete').notNull().default(false),
+	/** When on, completing a job emails/texts the customer their service report link. */
+	autoSendReport: boolean('auto_send_report').notNull().default(false),
 	/** Minimum days of advance notice required on the public booking page (0 = same-day ok). */
 	bookingNoticeDays: integer('booking_notice_days').notNull().default(0),
 	/** Sales tax in basis points appended as a line item on new invoices (0 = untaxed). */
@@ -95,6 +97,16 @@ export const companySettings = pgTable('company_settings', {
 	bookingEnabled: boolean('booking_enabled').notNull().default(true),
 	/** Custom confirmation message on the booking success card (blank = default copy). */
 	bookingMessage: text('booking_message').notNull().default(''),
+	/** Require staff accept/decline on online bookings before they enter the queue. */
+	bookingReview: boolean('booking_review').notNull().default(false),
+	/** Comma-separated YYYY-MM-DD dates the booking page rejects (holidays/closures). */
+	bookingBlackouts: text('booking_blackouts').notNull().default(''),
+	/** Hours before an appointment the reminder email/text goes out (daily cron). */
+	reminderHours: integer('reminder_hours').notNull().default(36),
+	/** Fine print appended on the public estimate + staff print view (terms/warranty). */
+	estimateFooter: text('estimate_footer').notNull().default(''),
+	/** Fine print appended on the public invoice page (payment terms/notes). */
+	invoiceFooter: text('invoice_footer').notNull().default(''),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),
@@ -242,6 +254,8 @@ export const equipment = pgTable(
 		warrantyUntil: date('warranty_until', { mode: 'string' }),
 		nextServiceDue: date('next_service_due', { mode: 'string' }),
 		notes: text('notes').notNull().default(''),
+		photoPath: text('photo_path'),
+		photoMime: text('photo_mime'),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -305,6 +319,10 @@ export const serviceAgreement = pgTable(
 		nextChargeAt: timestamp('next_charge_at', { withTimezone: true }),
 		/** Fixed-term: auto-complete the agreement after this many billed periods (null = runs forever). */
 		maxPeriods: integer('max_periods'),
+		/** Fixed-term: roll into a fresh term instead of completing when fully billed. */
+		autoRenew: boolean('auto_renew').notNull().default(false),
+		/** Count of completed fixed terms (auto-renew only). */
+		termsCompleted: integer('terms_completed').notNull().default(0),
 		...timestamps
 	},
 	(t) => [
@@ -412,6 +430,8 @@ export const job = pgTable(
 		technicianId: text('technician_id').references(() => member.id, { onDelete: 'set null' }),
 		summary: text('summary').notNull().default(''),
 		description: text('description').notNull().default(''),
+		/** Freeform labels for filtering ("callback", "permit", "VIP"). */
+		tags: text('tags').array(),
 		status: jobStatus('status').notNull().default('unscheduled'),
 		priority: jobPriority('priority').notNull().default('normal'),
 		/** Flagged when the job can't proceed (waiting on parts/approval) — dispatcher attention. */
@@ -420,6 +440,8 @@ export const job = pgTable(
 		warranty: boolean('warranty').notNull().default(false),
 		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
 		preferredTime: text('preferred_time'),
+		/** Online booking awaiting staff accept/decline (org review mode). */
+		needsReview: boolean('needs_review').notNull().default(false),
 		/** Communicated arrival window shown to customer/tech ("8-10 AM"); display only. */
 		arrivalWindow: text('arrival_window'),
 		/** Visit window; null while unscheduled. */
@@ -558,6 +580,10 @@ export const estimate = pgTable(
 		/** Typed name captured on the public approval page. */
 		decisionName: text('decision_name'),
 		decisionNote: text('decision_note'),
+		/** Option group picked at approval (null = untiered or undecided). */
+		acceptedOption: text('accepted_option'),
+		/** Optional line-item ids kept at decision time. */
+		acceptedItems: text('accepted_items').array(),
 		/** Staff-only notes — never shown on the public quote. */
 		internalNotes: text('internal_notes').notNull().default(''),
 		/** Customer's purchase-order / reference number, printed on the quote. */
@@ -596,6 +622,8 @@ export const estimateItem = pgTable(
 		unitPrice: integer('unit_price').notNull(),
 		/** Customer may include/exclude the line on the public approval page. */
 		optional: boolean('optional').notNull().default(false),
+		/** Mutually-exclusive option group (e.g. 'Good'/'Better'/'Best'); blank = base line. */
+		optionGroup: text('option_group').notNull().default(''),
 		position: integer('position').notNull().default(0)
 	},
 	(t) => [index('estimate_item_estimate_idx').on(t.estimateId)]
@@ -760,6 +788,25 @@ export const webhook = pgTable(
 		...timestamps
 	},
 	(t) => [index('webhook_org_idx').on(t.organizationId)]
+);
+
+/** One row per outbound webhook attempt — powers the Settings delivery history. */
+export const webhookDelivery = pgTable(
+	'webhook_delivery',
+	{
+		id: id(),
+		organizationId: orgId(),
+		webhookId: text('webhook_id').notNull(),
+		eventType: text('event_type').notNull(),
+		status: integer('status').notNull(),
+		/** Signed body sent — enables retrying a failed delivery. */
+		payload: text('payload'),
+		...timestamps
+	},
+	(t) => [
+		index('webhook_delivery_hook_idx').on(t.webhookId),
+		index('webhook_delivery_org_idx').on(t.organizationId)
+	]
 );
 
 /** One row per email sent, so each notice goes out once per recipient. */

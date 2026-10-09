@@ -151,6 +151,7 @@ async function writeItems(
 			qty: it.qty,
 			unitPrice: it.unitPrice,
 			optional: it.optional ?? false,
+			optionGroup: it.optionGroup ?? '',
 			position: i
 		}))
 	);
@@ -260,6 +261,8 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 				description: it.description,
 				qty: it.qty,
 				unitPrice: it.unitPrice,
+				optional: it.optional,
+				optionGroup: it.optionGroup,
 				position: i
 			}))
 		);
@@ -307,6 +310,7 @@ export async function duplicateEstimate(ctx: OrgContext, id: string) {
 				qty: it.qty,
 				unitPrice: it.unitPrice,
 				optional: it.optional,
+				optionGroup: it.optionGroup,
 				position: i
 			}))
 		);
@@ -321,6 +325,24 @@ export async function duplicateEstimate(ctx: OrgContext, id: string) {
 	return row;
 }
 
+/**
+ * The accepted scope of a decided estimate: base lines + the picked option group's
+ * lines + the optional lines kept at decision time. Estimates decided before
+ * options existed (no acceptedOption, no kept optionals) keep every line.
+ */
+export function acceptedScope<T extends { id: string; optionGroup: string; optional: boolean }>(
+	e: { acceptedOption: string | null; acceptedItems: string[] | null },
+	items: T[]
+): T[] {
+	const kept = new Set(e.acceptedItems ?? []);
+	if (e.acceptedOption == null && kept.size === 0) return items;
+	return items.filter(
+		(i) =>
+			(i.optionGroup === '' || i.optionGroup === e.acceptedOption) &&
+			(!i.optional || kept.has(i.id))
+	);
+}
+
 /** Turns an approved estimate straight into a draft invoice (skips job conversion). */
 export async function invoiceEstimate(ctx: OrgContext, id: string) {
 	const [e] = await db
@@ -330,12 +352,15 @@ export async function invoiceEstimate(ctx: OrgContext, id: string) {
 	if (!e) error(404, 'Estimate not found');
 	if (e.status !== 'approved' && e.status !== 'converted')
 		error(409, 'Only approved estimates can be invoiced');
-	const items = await db
-		.select()
-		.from(estimateItem)
-		.where(eq(estimateItem.estimateId, id))
-		.orderBy(asc(estimateItem.position));
-	if (!items.length) error(409, 'Estimate has no line items');
+	const items = acceptedScope(
+		e,
+		await db
+			.select()
+			.from(estimateItem)
+			.where(eq(estimateItem.estimateId, id))
+			.orderBy(asc(estimateItem.position))
+	);
+	if (!items.length) error(409, 'Estimate has no accepted line items');
 	const [settings, [cust]] = await Promise.all([
 		getSettings(ctx.orgId),
 		db.select().from(customer).where(eq(customer.id, e.customerId)).limit(1)
@@ -375,10 +400,19 @@ export async function estimateProgress(ctx: OrgContext, id: string) {
 		.from(estimate)
 		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
 	if (!e) error(404, 'Estimate not found');
-	const items = await db
-		.select({ qty: estimateItem.qty, unitPrice: estimateItem.unitPrice })
-		.from(estimateItem)
-		.where(eq(estimateItem.estimateId, id));
+	const items = acceptedScope(
+		e,
+		await db
+			.select({
+				id: estimateItem.id,
+				optionGroup: estimateItem.optionGroup,
+				optional: estimateItem.optional,
+				qty: estimateItem.qty,
+				unitPrice: estimateItem.unitPrice
+			})
+			.from(estimateItem)
+			.where(eq(estimateItem.estimateId, id))
+	);
 	const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
 	const [{ invoiced }] = await db
 		.select({
@@ -519,6 +553,9 @@ export async function publicEstimate(id: string) {
 			customerName: customer.name,
 			orgName: organization.name,
 			orgLogoUrl: companySettings.logoUrl,
+			orgPhone: companySettings.phone,
+			orgWebsite: companySettings.website,
+			estFooter: companySettings.estimateFooter,
 			location: serviceLocation
 		})
 		.from(estimate)
@@ -633,7 +670,8 @@ export async function decideEstimateStaff(
 	ctx: OrgContext,
 	id: string,
 	approve: boolean,
-	actor: string
+	actor: string,
+	option?: string
 ) {
 	const [est] = await db
 		.select()
@@ -642,27 +680,57 @@ export async function decideEstimateStaff(
 	if (!est) error(404, 'Estimate not found');
 	if (est.status !== 'sent') error(409, 'Only sent estimates can be decided');
 	const [c] = await db.select().from(customer).where(eq(customer.id, est.customerId));
-	return applyDecision(est, c, { approve, name: approve ? actor : null }, `staff ${actor}`);
+	// Staff approvals bill as-quoted: every optional line stays included.
+	let items: string[] | undefined;
+	if (approve)
+		items = (
+			await db
+				.select({ id: estimateItem.id })
+				.from(estimateItem)
+				.where(and(eq(estimateItem.estimateId, id), eq(estimateItem.optional, true)))
+		).map((r) => r.id);
+	return applyDecision(
+		est,
+		c,
+		{ approve, name: approve ? actor : null, items, option },
+		`staff ${actor}`
+	);
 }
 
 async function applyDecision(
 	est: typeof estimate.$inferSelect,
 	c: typeof customer.$inferSelect | undefined,
-	input: { approve: boolean; name?: string | null; items?: string[]; note?: string | null },
+	input: {
+		approve: boolean;
+		name?: string | null;
+		items?: string[];
+		note?: string | null;
+		option?: string | null;
+	},
 	via: string
 ) {
 	let jobId: string | null = null;
 	const chosen = new Set(input.items ?? []);
+	let pickedOption: string | null = null;
 	if (input.approve) {
-		const items = (
-			await db
-				.select()
-				.from(estimateItem)
-				.where(eq(estimateItem.estimateId, est.id))
-				.orderBy(asc(estimateItem.position))
-		).filter((i) => !i.optional || chosen.has(i.id));
+		const all = await db
+			.select()
+			.from(estimateItem)
+			.where(eq(estimateItem.estimateId, est.id))
+			.orderBy(asc(estimateItem.position));
+		const groups = [...new Set(all.map((i) => i.optionGroup).filter((g) => g))];
+		if (groups.length) {
+			pickedOption = input.option?.trim() || null;
+			if (!pickedOption || !groups.includes(pickedOption))
+				error(400, 'Pick one of the options to approve');
+		}
+		const items = all.filter(
+			(i) =>
+				(i.optionGroup === '' || i.optionGroup === pickedOption) &&
+				(!i.optional || chosen.has(i.id))
+		);
 		const description = [
-			`Approved estimate E-${est.number}${input.name ? ` by ${input.name}` : ''}.`,
+			`Approved estimate E-${est.number}${input.name ? ` by ${input.name}` : ''}${pickedOption ? ` — option "${pickedOption}"` : ''}.`,
 			est.notes,
 			'',
 			...items.map((i) => `${i.qty} × ${i.name}`)
@@ -723,9 +791,12 @@ async function applyDecision(
 			status: input.approve ? 'converted' : 'declined',
 			respondedAt: new Date(),
 			decisionName: input.approve ? input.name : null,
+			acceptedOption: input.approve ? pickedOption : null,
+			acceptedItems: input.approve ? [...chosen] : [],
 			decisionNote: [
 				input.approve ? 'approved' : 'declined',
 				via,
+				pickedOption ? `option: ${pickedOption}` : null,
 				input.note || null,
 				chosen.size ? `extras: ${[...chosen].join(',')}` : null
 			]

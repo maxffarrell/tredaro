@@ -25,7 +25,8 @@ import {
 	paymentInput,
 	pricebookItemInput,
 	pricebookItemUpdate,
-	pricebookImportInput
+	pricebookImportInput,
+	splitChargeInput
 } from '#lib/schemas.ts';
 
 export const getPlans = query(async () => svc.listPlans((await requireOrg()).orgId));
@@ -158,6 +159,13 @@ export const getCharges = query(
 	v.optional(v.object({ status: v.optional(v.string()) })),
 	async (opts) => svc.listCharges((await requireOrg()).orgId, opts?.status)
 );
+export const splitCharge = command(splitChargeInput, async (input) => {
+	const made = await svc.splitCharge(await requireOrg(), input);
+	await refreshQuery(getCharges, undefined);
+	await refreshQuery(getDashboard, undefined);
+	return made;
+});
+
 export const addCharge = command(chargeInput, async (input) => {
 	const c = await svc.addCharge(await requireOrg(), input);
 	await refreshQuery(getCharges, undefined);

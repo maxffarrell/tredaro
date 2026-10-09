@@ -21,6 +21,7 @@ import {
 	serviceAgreement,
 	serviceLocation,
 	organization,
+	estimate,
 	estimateItem,
 	jobType,
 	outer
@@ -181,7 +182,8 @@ export async function createAgreement(
 			planId: input.planId,
 			startsAt: new Date(`${start}T00:00:00Z`),
 			nextChargeAt: new Date(`${nextPeriod(start, p.interval)}T00:00:00Z`),
-			maxPeriods: input.maxPeriods ?? null
+			maxPeriods: input.maxPeriods ?? null,
+			autoRenew: input.autoRenew ?? false
 		})
 		.returning();
 
@@ -222,13 +224,39 @@ async function billedPeriods(agreementId: string, q: typeof db = db): Promise<nu
 	return n;
 }
 
-/** Marks an agreement completed once its fixed term is fully billed. */
+/**
+ * Marks an agreement completed once its fixed term is fully billed — or rolls it
+ * into a fresh term when auto-renew is on (returning false so billing continues).
+ */
 async function completeIfTermDone(
-	m: { id: string; maxPeriods: number | null },
+	m: {
+		id: string;
+		organizationId: string;
+		maxPeriods: number | null;
+		autoRenew?: boolean;
+		termsCompleted?: number | null;
+	},
 	q: typeof db = db
 ): Promise<boolean> {
 	if (!m.maxPeriods) return false;
-	if ((await billedPeriods(m.id, q)) < m.maxPeriods) return false;
+	const billed = (await billedPeriods(m.id, q)) - (m.termsCompleted ?? 0) * m.maxPeriods;
+	if (billed < m.maxPeriods) return false;
+	if (m.autoRenew) {
+		const term = (m.termsCompleted ?? 0) + 1;
+		await q
+			.update(serviceAgreement)
+			.set({ termsCompleted: term })
+			.where(eq(serviceAgreement.id, m.id));
+		m.termsCompleted = term;
+		await emit({
+			orgId: m.organizationId,
+			entityType: 'agreement',
+			entityId: m.id,
+			action: 'renewed',
+			summary: `Agreement renewed — term ${term + 1} started`
+		});
+		return false;
+	}
 	await q
 		.update(serviceAgreement)
 		.set({ status: 'completed', nextChargeAt: null, cancelledAt: new Date() })
@@ -467,8 +495,11 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 	const { agreement: m, plan: p } = row;
 	if (m.status !== 'active') error(409, `Agreement is ${m.status}`);
 	if (!m.nextChargeAt) error(409, 'Agreement has no upcoming charge');
-	if (m.maxPeriods && (await billedPeriods(m.id)) >= m.maxPeriods) {
-		await completeIfTermDone(m);
+	if (
+		m.maxPeriods &&
+		(await billedPeriods(m.id)) - (m.termsCompleted ?? 0) * m.maxPeriods >= m.maxPeriods &&
+		(await completeIfTermDone(m))
+	) {
 		error(409, 'Agreement term is fully billed');
 	}
 
@@ -1039,7 +1070,12 @@ export async function publicInvoice(id: string) {
 			.innerJoin(charge, eq(charge.id, payment.chargeId))
 			.where(eq(charge.invoiceId, id)),
 		db
-			.select({ currency: companySettings.currency })
+			.select({
+				currency: companySettings.currency,
+				footer: companySettings.invoiceFooter,
+				phone: companySettings.phone,
+				website: companySettings.website
+			})
 			.from(companySettings)
 			.where(eq(companySettings.organizationId, row.invoice.organizationId))
 	]);
@@ -1058,6 +1094,9 @@ export async function publicInvoice(id: string) {
 		total,
 		paid,
 		currency: settings?.currency ?? 'usd',
+		footer: settings?.footer ?? '',
+		orgPhone: settings?.phone ?? '',
+		orgWebsite: settings?.website ?? '',
 		providers: providers_
 	};
 }
@@ -1105,11 +1144,23 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		unitPrice: e.amount
 	}));
 	if (j.estimateId) {
-		const items = await db
+		const [est] = await db.select().from(estimate).where(eq(estimate.id, j.estimateId));
+		const all = await db
 			.select()
 			.from(estimateItem)
 			.where(eq(estimateItem.estimateId, j.estimateId))
 			.orderBy(asc(estimateItem.position));
+		// Bill only the accepted scope: base lines + the picked option group +
+		// optional lines kept at decision time (same rule as estimates.acceptedScope).
+		const kept = new Set(est?.acceptedItems ?? []);
+		const items =
+			est && (est.acceptedOption != null || kept.size > 0)
+				? all.filter(
+						(i) =>
+							(i.optionGroup === '' || i.optionGroup === est.acceptedOption) &&
+							(!i.optional || kept.has(i.id))
+					)
+				: all;
 		if (items.length) {
 			return {
 				job: j,
@@ -1632,3 +1683,62 @@ export async function paymentsBetween(orgId: string, from: Date, to: Date) {
 }
 
 export { addDays };
+
+/**
+ * Payment plan: voids one fully-unpaid open charge and replaces it with N
+ * evenly-split installments (last one takes the remainder). Invoice- and
+ * agreement-linked charges are rejected — edit the source instead.
+ */
+export async function splitCharge(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.splitChargeInput>
+) {
+	const [ch] = await db
+		.select()
+		.from(charge)
+		.where(and(eq(charge.organizationId, ctx.orgId), eq(charge.id, input.id)));
+	if (!ch) error(404, 'Charge not found');
+	if (ch.status !== 'open') error(409, 'Only open charges can be split into a plan');
+	if (ch.invoiceId) error(409, 'Invoice charges cannot be split — edit the invoice instead');
+	if (ch.agreementId)
+		error(409, 'Agreement charges cannot be split — adjust the agreement instead');
+	const [paidRow] = await db
+		.select({ paid: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
+		.from(payment)
+		.where(eq(payment.chargeId, ch.id));
+	if ((paidRow?.paid ?? 0) > 0)
+		error(409, 'Partially paid charges cannot be split — void or settle it first');
+	const per = Math.floor(ch.amount / input.count);
+	const first = new Date(`${input.firstDue}T00:00:00Z`).getTime();
+	const made = await db.transaction(async (tx) => {
+		await tx.update(charge).set({ status: 'void' }).where(eq(charge.id, ch.id));
+		const rows = [];
+		for (let i = 0; i < input.count; i++) {
+			const due = new Date(first + i * input.everyDays * 86400_000).toISOString().slice(0, 10);
+			const amount = i === input.count - 1 ? ch.amount - per * (input.count - 1) : per;
+			const [r] = await tx
+				.insert(charge)
+				.values({
+					organizationId: ctx.orgId,
+					customerId: ch.customerId,
+					jobId: ch.jobId,
+					kind: ch.kind,
+					description: `${ch.description ?? 'Charge'} — installment ${i + 1}/${input.count}`,
+					amount,
+					dueDate: due
+				})
+				.returning();
+			rows.push(r!);
+		}
+		return rows;
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'charge',
+		entityId: ch.id,
+		action: 'split',
+		summary: `Charge of ${(ch.amount / 100).toFixed(2)} split into a ${input.count}-payment plan`
+	});
+	return made;
+}

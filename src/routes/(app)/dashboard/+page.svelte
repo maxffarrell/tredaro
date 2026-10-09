@@ -6,6 +6,10 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Progress } from '#lib/components/ui/progress/index.js';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Circle from '@lucide/svelte/icons/circle';
 	import { getDashboard } from '#lib/remote/workspace.remote.ts';
 	import { formatMoney, formatRelative } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
@@ -20,6 +24,16 @@
 	import { goto } from '$app/navigation';
 
 	const d = await getDashboard();
+	const setupSteps = [
+		{ done: d.setup.types, label: 'Add a job type', href: '/settings' },
+		{ done: d.setup.catalog, label: 'Stock the pricebook', href: '/pricebook' },
+		{ done: d.setup.customers, label: 'Add your first customer', href: '/customers?new=1' },
+		{ done: d.setup.team, label: 'Invite a technician', href: '/settings' },
+		{ done: d.setup.booking, label: 'Turn on the public booking page', href: '/settings' }
+	];
+	const setupDone = setupSteps.every((s) => s.done);
+	const weekMax = Math.max(1, ...d.paymentsWeek.map((p) => p.total));
+	const weekTotal = d.paymentsWeek.reduce((sum, p) => sum + p.total, 0);
 	const kpis = [
 		{
 			label: 'Active customers',
@@ -70,6 +84,33 @@
 <PageHeader title="Dashboard" />
 
 <div class="space-y-6 p-4 md:p-6">
+	{#if !setupDone}
+		{@const doneCount = setupSteps.filter((s) => s.done).length}
+		<Card.Root>
+			<Card.Header class="flex flex-row items-center justify-between">
+				<Card.Title class="text-base">Finish setting up</Card.Title>
+				<Badge variant="secondary">{doneCount} of {setupSteps.length}</Badge>
+			</Card.Header>
+			<Card.Content class="px-6 pb-4">
+				<Progress value={(doneCount / setupSteps.length) * 100} />
+				<ul class="mt-3 space-y-1">
+					{#each setupSteps as st (st.label)}
+						<li>
+							<a href={st.href} class="flex items-center gap-2 text-sm hover:underline">
+								{#if st.done}
+									<CircleCheck class="size-4 shrink-0 text-green-600" />
+								{:else}
+									<Circle class="size-4 shrink-0 text-muted-foreground" />
+								{/if}
+								<span class={st.done ? 'text-muted-foreground line-through' : ''}>{st.label}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	<div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
 		{#each kpis as k (k.label)}
 			<Card.Root
@@ -162,6 +203,52 @@
 					</Card.Content>
 				</Card.Root>
 			{/if}
+
+			{#if d.leaderboard?.length}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="text-base">Team this month</Card.Title>
+					</Card.Header>
+					<Card.Content class="px-4">
+						<ul class="space-y-2">
+							{#each d.leaderboard as t, i (t.name)}
+								<li class="flex items-center gap-3 text-sm">
+									<span
+										class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
+										>{i + 1}</span
+									>
+									<span class="min-w-0 flex-1 truncate">{t.name}</span>
+									<span class="shrink-0 text-xs text-muted-foreground"
+										>{t.done} job{t.done === 1 ? '' : 's'}{t.hours ? ` · ${t.hours}h` : ''}</span
+									>
+								</li>
+							{/each}
+						</ul>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+
+			<Card.Root>
+				<Card.Header class="flex flex-row items-center justify-between gap-2">
+					<Card.Title class="text-base">Collected — 7 days</Card.Title>
+					<Card.Description>{formatMoney(weekTotal, d.currency, true)}</Card.Description>
+				</Card.Header>
+				<Card.Content class="px-4">
+					<div class="flex h-16 items-end gap-1.5" aria-label="Payments collected per day">
+						{#each d.paymentsWeek as p (p.day)}
+							<div
+								class="w-full flex-1 rounded-sm bg-primary/75"
+								style:height="{Math.max(3, Math.round((p.total / weekMax) * 64))}px"
+								title="{p.day}: {formatMoney(p.total, d.currency)}"
+							></div>
+						{/each}
+					</div>
+					<div class="mt-1 flex justify-between text-[10px] text-muted-foreground">
+						<span>{d.paymentsWeek[0].day.slice(5)}</span>
+						<span>{d.paymentsWeek[d.paymentsWeek.length - 1].day.slice(5)}</span>
+					</div>
+				</Card.Content>
+			</Card.Root>
 
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent activity</Card.Title></Card.Header>

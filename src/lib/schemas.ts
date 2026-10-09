@@ -189,7 +189,9 @@ export const agreementInput = v.object({
 	/** Fixed-term agreements auto-complete after this many billed periods. */
 	maxPeriods: v.optional(
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1200)))
-	)
+	),
+	/** Fixed-term only: renew for another term instead of completing. */
+	autoRenew: v.optional(v.boolean(), false)
 });
 export const agreementUpdate = v.object({
 	id: idSchema,
@@ -369,7 +371,9 @@ export const jobInput = v.object({
 	/** Communicated arrival window shown to customer/tech. */
 	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60)))),
 	/** Warranty/no-charge work — skips auto-invoice-on-complete. */
-	warranty: v.optional(v.boolean())
+	warranty: v.optional(v.boolean()),
+	/** Freeform labels for filtering. */
+	tags: v.optional(v.array(v.pipe(v.string(), v.trim(), v.maxLength(40))))
 });
 export const jobUpdate = v.object({
 	id: idSchema,
@@ -396,7 +400,9 @@ export const jobUpdate = v.object({
 	/** Warranty/no-charge work. */
 	warranty: v.optional(v.boolean()),
 	/** Tech's "work performed" summary (set at completion, editable after). */
-	completionNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000)))
+	completionNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000))),
+	/** Freeform labels for filtering. */
+	tags: v.optional(v.array(v.pipe(v.string(), v.trim(), v.maxLength(40))))
 });
 
 /** Technician or dispatcher status ping on a job. */
@@ -436,7 +442,9 @@ const lineItem = v.object({
 	qty: v.optional(v.pipe(v.number(), v.minValue(0.01)), 1),
 	unitPrice: cents,
 	/** Customer may include/exclude the line when approving an estimate. */
-	optional: v.optional(v.boolean())
+	optional: v.optional(v.boolean()),
+	/** Mutually-exclusive option group on estimates (e.g. 'Good'/'Better'/'Best'); blank = base line. */
+	optionGroup: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)))
 });
 
 export const estimateInput = v.object({
@@ -466,7 +474,15 @@ export const estimateDecisionInput = v.object({
 	name: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ''),
 	note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
 	/** Optional line items the customer chose to include (item ids). */
-	items: v.optional(v.array(idSchema), [])
+	items: v.optional(v.array(idSchema), []),
+	/** Option group picked on a tiered estimate (required when groups exist). */
+	option: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
+});
+
+/** Staff records a decision on a sent estimate — option picks a tier. */
+export const estimateStaffDecisionInput = v.object({
+	id: idSchema,
+	option: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
 });
 
 export const invoiceInput = v.object({
@@ -503,6 +519,14 @@ export const chargeUpdate = v.object({
 	dueDate: v.optional(isoDate)
 });
 
+/** Split one open charge into a payment plan of N dated installments. */
+export const splitChargeInput = v.object({
+	id: idSchema,
+	count: v.pipe(v.number(), v.integer(), v.minValue(2), v.maxValue(12)),
+	firstDue: isoDate,
+	everyDays: v.pipe(v.number(), v.integer(), v.minValue(7), v.maxValue(90))
+});
+
 export const paymentInput = v.object({
 	customerId: idSchema,
 	chargeId: v.optional(v.nullable(idSchema)),
@@ -532,6 +556,7 @@ export const settingsInput = v.object({
 	invoiceTermsDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(365))),
 	estimateValidDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(365))),
 	autoInvoiceOnComplete: v.optional(v.boolean()),
+	autoSendReport: v.optional(v.boolean()),
 	bookingNoticeDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(90))),
 	taxRateBps: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000))),
 	bookingDailyLimit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
@@ -541,7 +566,29 @@ export const settingsInput = v.object({
 	laborRoundingMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(120))),
 	serviceZips: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000))),
 	bookingEnabled: v.optional(v.boolean()),
-	bookingMessage: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
+	bookingMessage: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	bookingReview: v.optional(v.boolean()),
+	bookingBlackouts: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	reminderHours: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(168))),
+	estimateFooter: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	invoiceFooter: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)))
+});
+
+/** Segment + message for a one-off customer announcement blast. */
+export const announcementInput = v.object({
+	type: v.picklist(['any', 'residential', 'commercial']),
+	tag: v.pipe(v.string(), v.trim(), v.maxLength(60)),
+	status: v.picklist(['any', 'active', 'inactive']),
+	channel: v.picklist(['email', 'sms', 'both']),
+	/** Required whenever the blast includes email. */
+	subject: v.pipe(v.string(), v.trim(), v.maxLength(120)),
+	body: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(1000))
+});
+
+export const announcementSegmentInput = v.object({
+	type: v.picklist(['any', 'residential', 'commercial']),
+	tag: v.pipe(v.string(), v.trim(), v.maxLength(60)),
+	status: v.picklist(['any', 'active', 'inactive'])
 });
 
 export const webhookInput = v.object({

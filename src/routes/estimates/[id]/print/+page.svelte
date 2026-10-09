@@ -111,6 +111,12 @@
 			</div>
 		{/if}
 
+		{#if settings.estimateFooter}
+			<div class="mt-4 text-xs whitespace-pre-wrap text-neutral-600">
+				{settings.estimateFooter}
+			</div>
+		{/if}
+
 		<div class="mt-10 text-sm">
 			<p class="font-semibold tracking-wide text-neutral-500 uppercase">Approval</p>
 			{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}

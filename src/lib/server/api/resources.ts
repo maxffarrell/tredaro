@@ -6,6 +6,7 @@ import * as billing from '#lib/server/services/billing.ts';
 import * as jobs from '#lib/server/services/jobs.ts';
 import * as estimates from '#lib/server/services/estimates.ts';
 import * as inventory from '#lib/server/services/inventory.ts';
+import * as photos from '#lib/server/services/photos.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import * as s from '#lib/schemas.ts';
 
@@ -152,6 +153,32 @@ export const resources: Record<string, Resource> = {
 	truck_stock: {
 		description: 'Per-technician truck inventory (read-only)',
 		list: (ctx) => inventory.listTruckStock(ctx.orgId)
+	},
+	job_events: {
+		description: 'Job timeline events (`?jobId=` filter, read-only)',
+		list: (ctx, url) => jobs.listJobEvents(ctx.orgId, url.searchParams.get('jobId'))
+	},
+	time_off: {
+		description: 'Technician time-off entries (approve/deny via PATCH `{id}`)',
+		list: (ctx) => jobs.listTimeOff(ctx.orgId),
+		create: { schema: s.timeOffInput, run: jobs.addTimeOff as never },
+		update: {
+			schema: s.timeOffStatusInput,
+			run: async (ctx: OrgContext, input: never) =>
+				jobs.setTimeOffStatus(
+					ctx,
+					(input as { id: string }).id,
+					(input as { status: 'approved' | 'denied' }).status
+				)
+		}
+	},
+	customer_documents: {
+		description: 'Customer document metadata (`?customerId=` required, read-only)',
+		list: (ctx, url) => {
+			const customerId = url.searchParams.get('customerId');
+			if (!customerId) error(400, 'customerId is required');
+			return photos.listCustomerDocs(ctx.orgId, customerId);
+		}
 	},
 	refunds: {
 		description:

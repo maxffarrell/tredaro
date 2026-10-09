@@ -29,7 +29,8 @@
 		getInvoicePrefill,
 		emailInvoice,
 		textInvoice,
-		refundPayment
+		refundPayment,
+		splitCharge
 	} from '#lib/remote/billing.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getJobs } from '#lib/remote/jobs.remote.ts';
@@ -38,6 +39,8 @@
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Ban from '@lucide/svelte/icons/ban';
 	import FileX from '@lucide/svelte/icons/file-x';
 	import Send from '@lucide/svelte/icons/send';
@@ -46,6 +49,7 @@
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Download from '@lucide/svelte/icons/download';
+	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 
 	const currency = await getCurrency();
@@ -277,6 +281,42 @@
 			toast.error(errMsg(err, 'Could not post charge'));
 		}
 		chargePending = false;
+	}
+
+	// ------- payment plan -------
+	let planOpen = $state(false);
+	let planPending = $state(false);
+	let planId = $state('');
+	let planLabel = $state('');
+	let planCount = $state(3);
+	let planFirst = $state(todayStr);
+	let planDays = $state(30);
+
+	function openPlan(id: string, label: string) {
+		planId = id;
+		planLabel = label;
+		planFirst = todayStr;
+		planCount = 3;
+		planDays = 30;
+		planOpen = true;
+	}
+
+	async function submitPlan(e: SubmitEvent) {
+		e.preventDefault();
+		planPending = true;
+		try {
+			await splitCharge({
+				id: planId,
+				count: planCount,
+				firstDue: planFirst,
+				everyDays: planDays
+			}).updates(getCharges, getDashboard);
+			toast.success(`Split into ${planCount} installments`);
+			planOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not split the charge'));
+		}
+		planPending = false;
 	}
 
 	async function voidCharge(id: string) {
@@ -640,6 +680,17 @@
 												<Button
 													variant="ghost"
 													size="icon"
+													class="size-8"
+													title="Split into a payment plan"
+													onclick={() =>
+														openPlan(
+															ch.charge.id,
+															ch.charge.description || `Invoice #${ch.invoiceNumber}`
+														)}><CalendarClock class="size-4" /></Button
+												>
+												<Button
+													variant="ghost"
+													size="icon"
 													class="size-8 text-destructive"
 													title="Void (created in error)"
 													onclick={() => voidCharge(ch.charge.id)}><Ban class="size-4" /></Button
@@ -824,10 +875,34 @@
 					{/if}
 				</div>
 				{#each invItems as item, i (i)}
-					<div class="grid grid-cols-[1fr_70px_120px_32px] items-center gap-2">
+					<div class="grid grid-cols-[1fr_70px_120px_20px_32px] items-center gap-2">
 						<Input placeholder="Description" bind:value={item.name} />
 						<Input type="number" min={0.01} step={0.01} max={9999} bind:value={item.qty} />
 						<MoneyInput bind:value={item.unitPrice} />
+						<div class="flex flex-col">
+							<Button
+								variant="ghost"
+								size="icon"
+								class="size-4"
+								disabled={i === 0}
+								onclick={() => {
+									const [it] = invItems.splice(i, 1);
+									invItems.splice(i - 1, 0, it);
+									invItems = invItems;
+								}}><ChevronUp class="size-3" /></Button
+							>
+							<Button
+								variant="ghost"
+								size="icon"
+								class="size-4"
+								disabled={i === invItems.length - 1}
+								onclick={() => {
+									const [it] = invItems.splice(i, 1);
+									invItems.splice(i + 1, 0, it);
+									invItems = invItems;
+								}}><ChevronDown class="size-3" /></Button
+							>
+						</div>
 						<Button
 							variant="ghost"
 							size="icon"
@@ -950,6 +1025,38 @@
 			<Dialog.Footer>
 				<Button type="submit" disabled={payPending || !payCustomerId || payCents <= 0}
 					>{payPending ? 'Saving…' : 'Record payment'}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- payment plan -->
+<Dialog.Root bind:open={planOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Split into a payment plan</Dialog.Title>
+			<Dialog.Description>
+				Voids “{planLabel}” and replaces it with dated installments — the customer pays each one as
+				it comes due.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={submitPlan}>
+			<Field.Field>
+				<Field.Label for="plan-count">Installments</Field.Label>
+				<Input id="plan-count" type="number" min="2" max="12" bind:value={planCount} />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="plan-first">First due date</Field.Label>
+				<Input id="plan-first" type="date" bind:value={planFirst} />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="plan-days">Days between payments</Field.Label>
+				<Input id="plan-days" type="number" min="7" max="90" bind:value={planDays} />
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={planPending}
+					>{#if planPending}<Spinner />{/if}Create plan</Button
 				>
 			</Dialog.Footer>
 		</form>

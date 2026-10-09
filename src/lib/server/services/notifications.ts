@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
 import type { OrgContext } from '#lib/server/context.ts';
@@ -28,6 +29,7 @@ import { appOrigin, sendEmail } from '#lib/server/email.ts';
 import { sendSms, smsProvider } from '#lib/server/sms.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
 import { estimateUrl, expireEstimates } from './estimates.ts';
+import { bookingCancelUrl, serviceReportUrl } from './jobs.ts';
 import { invoiceUrl } from './billing.ts';
 import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import { formatDate, formatMoney } from '#lib/format.ts';
@@ -307,9 +309,46 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 				`Thanks for reaching out about ${row.jobTypeName ?? row.summary}.`,
 				'A dispatcher will contact you shortly to confirm a time.'
 			],
-			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` },
+			secondary: { label: 'Need to cancel? Click here', url: bookingCancelUrl(jobId) }
 		})
 	});
+}
+
+/** Customer cancelled a booking via the emailed link — alert staff (digest toggle gates). */
+export async function notifyBookingCancelled(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			customerName: customer.name,
+			phone: customer.phone,
+			jobTypeName: jobType.name,
+			summary: job.summary,
+			number: job.number
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'booking_cancelled', jobId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Booking cancelled — ${row.customerName} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} cancelled J-${row.number}`,
+				lines: [
+					`${row.jobTypeName ?? row.summary} was cancelled via the booking link.`,
+					row.phone ? `Phone: ${row.phone}` : 'No phone on file.'
+				],
+				action: { label: 'Open dispatch', url: `${appOrigin()}/dispatch` }
+			})
+		});
+	}
 }
 
 /** Text receipt of an online booking — complements the confirmation email. */
@@ -1020,7 +1059,11 @@ export async function runReminders(orgId: string) {
 	await flushSmsOutbox(orgId);
 	await expireEstimates(orgId);
 	const now = new Date();
-	const horizon = new Date(now.getTime() + 36 * 60 * 60 * 1000);
+	const [st] = await db
+		.select({ hours: companySettings.reminderHours })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	const horizon = new Date(now.getTime() + (st?.hours ?? 36) * 3600_000);
 	const upcoming = await db
 		.select({ id: job.id })
 		.from(job)
@@ -1452,7 +1495,8 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 			number: job.number,
 			status: job.status,
 			jobTypeName: jobType.name,
-			reviewUrl: companySettings.reviewUrl
+			reviewUrl: companySettings.reviewUrl,
+			autoReport: companySettings.autoSendReport
 		})
 		.from(job)
 		.innerJoin(customer, eq(job.customerId, customer.id))
@@ -1497,6 +1541,7 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 				? `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks! A quick review helps a lot: ${row.reviewUrl}`
 				: `${name} finished ${row.jobTypeName ?? row.summary} (J-${row.number}). Thanks for choosing us!`
 		});
+	if (row.autoReport) await notifyServiceReport(orgId, jobId);
 }
 
 /** Emails admins/dispatchers the moment a booking request lands (staffDigest toggle gates it). */
@@ -2274,4 +2319,173 @@ export async function runCreditHolds(orgId: string) {
 			});
 		}
 	}
+}
+
+/** Sends the public service-report link for a completed job (on demand — resends are allowed). */
+export async function notifyServiceReport(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
+			phone: customer.phone,
+			customerName: customer.name,
+			number: job.number,
+			status: job.status,
+			summary: job.summary,
+			jobTypeName: jobType.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row || row.status !== 'done') return;
+	const name = await orgName(orgId);
+	const url = serviceReportUrl(jobId);
+	// Manual send — each dispatch gets a fresh log row (timestamped) rather than deduping.
+	const stamp = `${jobId}:${Date.now()}`;
+	if (
+		row.phone &&
+		!row.smsOptOut &&
+		flags.sms &&
+		smsProvider() &&
+		(await logOnce(orgId, 'report_sent_sms', stamp, row.phone))
+	)
+		await sendSmsQuiet(orgId, {
+			to: row.phone,
+			body: `${name}: your visit summary for J-${row.number} is ready — ${url}`
+		});
+	if (
+		row.email &&
+		!row.emailOptOut &&
+		flags.email &&
+		(await logOnce(orgId, 'report_sent', stamp, row.email))
+	)
+		await sendEmail({
+			to: row.email,
+			subject: `Your visit summary from ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Your service report is ready, ${row.customerName}`,
+				lines: [
+					`${name} completed ${row.jobTypeName ?? row.summary} (J-${row.number}).`,
+					'Open the report for the work summary, checklist, materials and photos.'
+				],
+				action: { label: 'View service report', url }
+			})
+		});
+}
+
+// ---------- Customer announcements ----------
+
+type AnnouncementSegment = { type: string; tag: string; status: string };
+
+async function announcementSegment(orgId: string, seg: AnnouncementSegment) {
+	return db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut
+		})
+		.from(customer)
+		.where(
+			and(
+				eq(customer.organizationId, orgId),
+				seg.status !== 'any' ? eq(customer.status, seg.status as 'active' | 'inactive') : undefined,
+				seg.type !== 'any'
+					? eq(customer.type, seg.type as 'residential' | 'commercial')
+					: undefined,
+				seg.tag ? sql`${customer.tags} @> array[${seg.tag}]::text[]` : undefined
+			)
+		);
+}
+
+/** Reachable-counts preview for the announcement dialog. */
+export async function previewAnnouncement(orgId: string, seg: AnnouncementSegment) {
+	const flags = await notifFlags(orgId);
+	const smsOk = !!smsProvider() && flags.sms;
+	const rows = await announcementSegment(orgId, seg);
+	return {
+		total: rows.length,
+		emails: flags.email ? rows.filter((c) => c.email && !c.emailOptOut).length : 0,
+		phones: smsOk ? rows.filter((c) => c.phone && !c.smsOptOut).length : 0
+	};
+}
+
+/** Blasts a one-off message to a customer segment — opt-outs, quiet hours and the
+ * org's master channel toggles all apply; an identical blast is deduped. */
+export async function sendAnnouncement(
+	ctx: OrgContext,
+	input: AnnouncementSegment & {
+		channel: 'email' | 'sms' | 'both';
+		subject: string;
+		body: string;
+	}
+) {
+	if (input.channel !== 'sms' && !input.subject.trim())
+		error(400, 'A subject is required for email announcements');
+	const flags = await notifFlags(ctx.orgId);
+	const smsOk = !!smsProvider() && flags.sms;
+	const rows = await announcementSegment(ctx.orgId, input);
+	if (!rows.length) error(409, 'No customers match that segment');
+	const blastId = createHash('sha256')
+		.update(
+			`${input.type}|${input.tag}|${input.status}|${input.channel}|${input.subject}|${input.body}`
+		)
+		.digest('hex')
+		.slice(0, 16);
+	const name = await orgName(ctx.orgId);
+	let emailed = 0;
+	let texted = 0;
+	let skipped = 0;
+	for (const c of rows) {
+		let sent = false;
+		if (
+			input.channel !== 'sms' &&
+			c.email &&
+			!c.emailOptOut &&
+			flags.email &&
+			(await logOnce(ctx.orgId, 'announcement', blastId, c.email))
+		) {
+			await sendEmail({
+				to: c.email,
+				subject: input.subject.trim(),
+				...renderEmail({
+					orgName: name,
+					heading: input.subject.trim(),
+					lines: input.body
+						.split('\n')
+						.map((l) => l.trim())
+						.filter(Boolean)
+				})
+			});
+			emailed++;
+			sent = true;
+		}
+		if (
+			input.channel !== 'email' &&
+			c.phone &&
+			!c.smsOptOut &&
+			smsOk &&
+			(await logOnce(ctx.orgId, 'announcement_sms', blastId, c.phone))
+		) {
+			await sendSmsQuiet(ctx.orgId, { to: c.phone, body: `${name}: ${input.body}` });
+			texted++;
+			sent = true;
+		}
+		if (!sent) skipped++;
+	}
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'customer',
+		entityId: blastId,
+		action: 'announcement',
+		summary: `Announcement sent — ${emailed} email${emailed === 1 ? '' : 's'}, ${texted} text${texted === 1 ? '' : 's'}`
+	});
+	return { total: rows.length, emailed, texted, skipped };
 }

@@ -1,7 +1,8 @@
 import { createHmac } from 'node:crypto';
+import { error } from '@sveltejs/kit';
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { activity, user, webhook } from '#lib/server/db/schema.ts';
+import { activity, user, webhook, webhookDelivery } from '#lib/server/db/schema.ts';
 
 export type EventInput = {
 	orgId: string;
@@ -55,38 +56,157 @@ export function signPayload(secret: string, body: string) {
 	return `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
 }
 
+/** Writes one delivery attempt row, updates the hook's last-delivery cache and prunes >30d. */
+async function recordDelivery(
+	h: { id: string; organizationId: string },
+	eventType: string,
+	status: number,
+	payload?: string
+) {
+	const now = new Date();
+	await db.insert(webhookDelivery).values({
+		organizationId: h.organizationId,
+		webhookId: h.id,
+		eventType,
+		status,
+		payload: payload ?? null
+	});
+	await Promise.all([
+		db
+			.update(webhook)
+			.set({ lastDeliveryAt: now, lastDeliveryStatus: status })
+			.where(eq(webhook.id, h.id)),
+		db
+			.delete(webhookDelivery)
+			.where(
+				and(
+					eq(webhookDelivery.webhookId, h.id),
+					lt(webhookDelivery.createdAt, new Date(now.getTime() - 30 * 864e5))
+				)
+			)
+	]);
+}
+
 async function deliverWebhooks(event: TredaroEvent) {
 	const hooks = await db
 		.select()
 		.from(webhook)
 		.where(and(eq(webhook.organizationId, event.organizationId), eq(webhook.enabled, true)));
 
+	async function deliver(h: (typeof hooks)[number]) {
+		const body = JSON.stringify(event);
+		let status = 0;
+		try {
+			const res = await fetch(h.url, {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+					'x-tredaro-event': event.type,
+					'x-tredaro-signature': signPayload(h.secret, body)
+				},
+				body,
+				signal: AbortSignal.timeout(10_000)
+			});
+			status = res.status;
+		} finally {
+			await recordDelivery(h, event.type, status, body);
+		}
+		return status;
+	}
+
 	await Promise.allSettled(
-		hooks
-			.filter((h) => h.events.includes('*') || h.events.includes(event.type))
-			.map(async (h) => {
-				const body = JSON.stringify(event);
-				let status = 0;
-				try {
-					const res = await fetch(h.url, {
-						method: 'POST',
-						headers: {
-							'content-type': 'application/json',
-							'x-tredaro-event': event.type,
-							'x-tredaro-signature': signPayload(h.secret, body)
-						},
-						body,
-						signal: AbortSignal.timeout(10_000)
-					});
-					status = res.status;
-				} finally {
-					await db
-						.update(webhook)
-						.set({ lastDeliveryAt: new Date(), lastDeliveryStatus: status })
-						.where(eq(webhook.id, h.id));
-				}
-			})
+		hooks.filter((h) => h.events.includes('*') || h.events.includes(event.type)).map(deliver)
 	);
+}
+
+/** Sends a signed `webhook.test` event to one endpoint so admins can verify wiring. */
+export async function testWebhookDelivery(orgId: string, hookId: string) {
+	const [h] = await db
+		.select()
+		.from(webhook)
+		.where(and(eq(webhook.id, hookId), eq(webhook.organizationId, orgId)))
+		.limit(1);
+	if (!h) error(404, 'Webhook not found');
+	const event: TredaroEvent = {
+		id: crypto.randomUUID(),
+		type: 'webhook.test',
+		organizationId: orgId,
+		entity: { type: 'webhook', id: hookId },
+		summary: 'Test delivery from Settings',
+		data: {},
+		createdAt: new Date().toISOString()
+	};
+	const body = JSON.stringify(event);
+	let status = 0;
+	try {
+		const res = await fetch(h.url, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				'x-tredaro-event': event.type,
+				'x-tredaro-signature': signPayload(h.secret, body)
+			},
+			body,
+			signal: AbortSignal.timeout(10_000)
+		});
+		status = res.status;
+	} catch {
+		// unreachable endpoint — status 0 is the failure signal, don't 500 the command
+	} finally {
+		await recordDelivery(h, 'webhook.test', status, body);
+	}
+	return status;
+}
+
+/** Re-POSTs a stored delivery body to the hook and records the new attempt. */
+export async function retryWebhookDelivery(orgId: string, deliveryId: string) {
+	const [d] = await db
+		.select()
+		.from(webhookDelivery)
+		.where(and(eq(webhookDelivery.id, deliveryId), eq(webhookDelivery.organizationId, orgId)))
+		.limit(1);
+	if (!d) error(404, 'Delivery not found');
+	const [h] = await db
+		.select()
+		.from(webhook)
+		.where(and(eq(webhook.id, d.webhookId), eq(webhook.organizationId, orgId)))
+		.limit(1);
+	if (!h) error(404, 'Webhook was deleted');
+	if (!d.payload) error(409, 'This delivery has no stored payload to retry');
+	let status = 0;
+	try {
+		const res = await fetch(h.url, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				'x-tredaro-event': d.eventType,
+				'x-tredaro-signature': signPayload(h.secret, d.payload)
+			},
+			body: d.payload,
+			signal: AbortSignal.timeout(10_000)
+		});
+		status = res.status;
+	} catch {
+		// unreachable — status 0 is the failure signal
+	}
+	await recordDelivery(h, d.eventType, status, d.payload);
+	return status;
+}
+
+/** Recent delivery attempts for one hook, newest first. */
+export async function listWebhookDeliveries(orgId: string, hookId: string, limit = 20) {
+	return db
+		.select({
+			id: webhookDelivery.id,
+			eventType: webhookDelivery.eventType,
+			status: webhookDelivery.status,
+			createdAt: webhookDelivery.createdAt,
+			canRetry: sql<boolean>`${webhookDelivery.payload} is not null`.mapWith(Boolean)
+		})
+		.from(webhookDelivery)
+		.where(and(eq(webhookDelivery.webhookId, hookId), eq(webhookDelivery.organizationId, orgId)))
+		.orderBy(desc(webhookDelivery.createdAt))
+		.limit(limit);
 }
 
 // ---------- feed ----------

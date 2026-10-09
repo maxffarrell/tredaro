@@ -8,9 +8,16 @@ import { chargeOpenBalance } from '#lib/server/services/billing.ts';
 import { portalToken } from '#lib/server/services/portal.ts';
 import { deleteCustomerDoc, setCustomerDocShared } from '#lib/server/services/photos.ts';
 import { listJobs } from '#lib/server/services/jobs.ts';
-import { emailStatement, textCustomer } from '#lib/server/services/notifications.ts';
+import {
+	emailStatement,
+	previewAnnouncement as previewAnnouncementSvc,
+	sendAnnouncement as sendAnnouncementSvc,
+	textCustomer
+} from '#lib/server/services/notifications.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import {
+	announcementInput,
+	announcementSegmentInput,
 	customerImportInput,
 	contactDeleteInput,
 	contactInput,
@@ -144,6 +151,11 @@ export const getPortalInvite = query(idSchema, async (customerId) => {
 	return { url: `${appOrigin()}/portal/claim/${portalToken(customerId)}` };
 });
 
+export const getMergePreview = query(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	return svc.getMergePreview(ctx, id);
+});
+
 export const getCustomerDuplicates = query(idSchema, async (id) =>
 	svc.findDuplicates((await requireOrg()).orgId, id)
 );
@@ -163,4 +175,16 @@ export const mergeCustomers = command(mergeCustomerInput, async (input) => {
 	await refreshQuery(getCustomers, undefined);
 	await refreshQuery(getDashboard, undefined);
 	return c;
+});
+
+/** Reachable-counts preview for the announcement dialog. */
+export const previewAnnouncement = query(announcementSegmentInput, async (seg) => {
+	const { orgId } = await requireOrg('admin');
+	return previewAnnouncementSvc(orgId, seg);
+});
+
+/** Blasts a one-off email/SMS announcement to a customer segment. */
+export const sendAnnouncement = command(announcementInput, async (input) => {
+	const ctx = await requireOrg('admin');
+	return sendAnnouncementSvc(ctx, input);
 });

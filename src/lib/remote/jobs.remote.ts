@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { refreshQuery } from './_refresh.ts';
@@ -10,6 +11,7 @@ import {
 	notifyJobScheduled,
 	notifyPartsDelay,
 	notifyTechAssigned,
+	notifyServiceReport,
 	textJobEta,
 	textDayEtas
 } from '#lib/server/services/notifications.ts';
@@ -151,6 +153,18 @@ export const createJob = command(jobInput, async (input) => {
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
+export const reviewBooking = command(
+	v.object({ jobId: v.string(), approve: v.boolean() }),
+	async (input) => {
+		const ctx = await requireOrg();
+		const r = await svc.reviewBooking(ctx, input.jobId, input.approve);
+		await refreshQuery(getJobs, undefined);
+		await refreshQuery(getDispatchBoard, undefined);
+		await refreshQuery(getJob, input.jobId);
+		await refreshQuery(getDashboard, undefined);
+		return r;
+	}
+);
 export const markNoShow = command(idSchema, async (jobId) => {
 	const ctx = await requireOrg();
 	const copy = await svc.markNoShow(ctx, jobId);
@@ -422,3 +436,11 @@ export const removeJobExpense = command(idSchema, async (expenseId) => {
 });
 
 export const getCalendarFeed = query(async () => svc.calendarFeed(await requireOrg()));
+
+export const sendServiceReport = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	const j = await svc.getJob(ctx.orgId, id);
+	if (j.job.status !== 'done') error(409, 'Complete the job before sending its service report');
+	await notifyServiceReport(ctx.orgId, id);
+	return { url: svc.serviceReportUrl(id) };
+});

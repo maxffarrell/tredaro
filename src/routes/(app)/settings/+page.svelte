@@ -32,6 +32,9 @@
 		createWebhook,
 		toggleWebhook,
 		deleteWebhook,
+		testWebhook,
+		getWebhookDeliveries,
+		retryWebhookDelivery,
 		getStaff,
 		updateCommission,
 		updateLaborCost,
@@ -67,6 +70,8 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Trash from '@lucide/svelte/icons/trash-2';
+	import Send from '@lucide/svelte/icons/send';
+	import History from '@lucide/svelte/icons/history';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
@@ -214,8 +219,11 @@
 	let smsNotifications = $state(settings.smsNotifications);
 	let staffDigest = $state(settings.staffDigest);
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
+	let estimateFooter = $state(settings.estimateFooter);
+	let invoiceFooter = $state(settings.invoiceFooter);
 	let estimateValidDays = $state(settings.estimateValidDays);
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
+	let autoSendReport = $state(settings.autoSendReport);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
 	let bookingDeposit = $state(settings.bookingDeposit);
@@ -229,6 +237,9 @@
 	let logoUrl = $state(settings.logoUrl);
 	let businessHours = $state(settings.businessHours);
 	let bookingMessage = $state(settings.bookingMessage);
+	let bookingReview = $state(settings.bookingReview);
+	let bookingBlackouts = $state(settings.bookingBlackouts);
+	let reminderHours = $state(settings.reminderHours);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	let testSmsTo = $state('');
 	let testPending = $state(false);
@@ -282,8 +293,11 @@
 				smsNotifications,
 				staffDigest,
 				invoiceTermsDays,
+				estimateFooter,
+				invoiceFooter,
 				estimateValidDays,
 				autoInvoiceOnComplete,
+				autoSendReport,
 				bookingNoticeDays,
 				bookingDailyLimit,
 				bookingDeposit: bookingDeposit ?? 0,
@@ -296,7 +310,10 @@
 				licenseNumber,
 				logoUrl,
 				businessHours,
-				bookingMessage
+				bookingMessage,
+				bookingReview,
+				bookingBlackouts,
+				reminderHours: Math.min(168, Math.max(1, Math.round(reminderHours || 36)))
 			});
 			toast.success('Settings saved');
 		} catch (err) {
@@ -450,6 +467,31 @@
 	// ------- webhooks -------
 	let hookUrl = $state('');
 	let hookEvents = $state('job.created,job.completed,payment.recorded');
+	let testingHook = $state('');
+	let hookHistory = $state<Record<string, Awaited<ReturnType<typeof getWebhookDeliveries>>>>({});
+	async function toggleHookHistory(id: string) {
+		if (hookHistory[id]) {
+			const { [id]: _, ...rest } = hookHistory;
+			hookHistory = rest;
+			return;
+		}
+		hookHistory = { ...hookHistory, [id]: await getWebhookDeliveries(id) };
+	}
+	let retryingDelivery = $state('');
+	async function retryDelivery(hookId: string, deliveryId: string) {
+		retryingDelivery = deliveryId;
+		try {
+			const status = await retryWebhookDelivery(deliveryId);
+			toast[status > 0 && status < 400 ? 'success' : 'error'](
+				status > 0 ? `Redelivered — HTTP ${status}` : 'Retry failed — endpoint unreachable'
+			);
+			hookHistory = { ...hookHistory, [hookId]: await getWebhookDeliveries(hookId) };
+			webhooks = await getWebhooks();
+		} catch (err) {
+			toast.error(errMsg(err, 'Retry failed'));
+		}
+		retryingDelivery = '';
+	}
 	async function addWebhook(e: SubmitEvent) {
 		e.preventDefault();
 		pending = true;
@@ -613,6 +655,13 @@
 								</div>
 								<Switch bind:checked={staffDigest} />
 							</div>
+							<Field.Field>
+								<Field.Label for="s-remind">Reminder lead time (hours)</Field.Label>
+								<Input id="s-remind" type="number" min={1} max={168} bind:value={reminderHours} />
+								<p class="text-xs text-muted-foreground">
+									How far ahead customers get the appointment reminder — default 36h.
+								</p>
+							</Field.Field>
 							<div class="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/30 p-3">
 								<div class="min-w-40 flex-1">
 									<Label for="test-sms-to">Test sends</Label>
@@ -718,6 +767,18 @@
 								</p>
 							</Field.Field>
 							<Field.Field>
+								<Field.Label for="inv-footer">Invoice footer</Field.Label>
+								<Textarea
+									id="inv-footer"
+									rows={2}
+									bind:value={invoiceFooter}
+									placeholder="e.g. Payment due on receipt · late fee 1.5%/mo"
+								/>
+								<p class="text-xs text-muted-foreground">
+									Shown at the bottom of the customer invoice page.
+								</p>
+							</Field.Field>
+							<Field.Field>
 								<Field.Label for="est-valid">Estimate validity (days)</Field.Label>
 								<Input
 									id="est-valid"
@@ -729,6 +790,18 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									Sent estimates expire this many days later unless you set a different date.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="est-footer">Estimate footer</Field.Label>
+								<Textarea
+									id="est-footer"
+									rows={2}
+									bind:value={estimateFooter}
+									placeholder="e.g. Warranty: 1 year on parts & labor · permits not included"
+								/>
+								<p class="text-xs text-muted-foreground">
+									Fine print on the customer estimate page and printed quote.
 								</p>
 							</Field.Field>
 							<Field.Field>
@@ -802,6 +875,16 @@
 									</p>
 								</div>
 								<Switch bind:checked={autoInvoiceOnComplete} />
+							</div>
+							<div class="flex items-center justify-between">
+								<div>
+									<p>Send service report on completion</p>
+									<p class="text-xs text-muted-foreground">
+										When a job completes, email/text the customer a link to their visit report —
+										work done, checklist, materials and photos.
+									</p>
+								</div>
+								<Switch bind:checked={autoSendReport} />
 							</div>
 						</div>
 						<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
@@ -909,6 +992,27 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									Shown on the booking page after a request is sent — blank uses the default.
+								</p>
+							</Field.Field>
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-sm font-medium">Review bookings first</p>
+									<p class="text-xs text-muted-foreground">
+										Online requests sit flagged "needs review" until staff accept or decline them.
+									</p>
+								</div>
+								<Switch checked={bookingReview} onCheckedChange={(v) => (bookingReview = v)} />
+							</div>
+							<Field.Field>
+								<Field.Label for="s-blackouts">Closed dates</Field.Label>
+								<Input
+									id="s-blackouts"
+									bind:value={bookingBlackouts}
+									placeholder="2026-12-25, 2026-01-01"
+								/>
+								<p class="text-xs text-muted-foreground">
+									Comma-separated dates (YYYY-MM-DD) the booking page won't accept — holidays,
+									closures.
 								</p>
 							</Field.Field>
 						{/if}
@@ -1452,6 +1556,48 @@
 										<Table.Cell class="text-xs text-muted-foreground"
 											>{w.events.length} events</Table.Cell
 										>
+										<Table.Cell class="text-xs text-muted-foreground">
+											{#if w.lastDeliveryAt}
+												<span
+													class={w.lastDeliveryStatus && w.lastDeliveryStatus < 400
+														? 'text-green-600'
+														: 'text-destructive'}>{w.lastDeliveryStatus || 'failed'}</span
+												>
+											{:else}
+												never
+											{/if}
+										</Table.Cell>
+										<Table.Cell class="text-right">
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-7"
+												title="Delivery history"
+												onclick={() => toggleHookHistory(w.id)}><History class="size-4" /></Button
+											>
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-7"
+												title="Send a test event"
+												disabled={testingHook === w.id}
+												onclick={async () => {
+													testingHook = w.id;
+													try {
+														const status = await testWebhook(w.id);
+														toast[status > 0 && status < 400 ? 'success' : 'error'](
+															status > 0
+																? `Test delivered — HTTP ${status}`
+																: 'Test failed — endpoint unreachable'
+														);
+														webhooks = await getWebhooks();
+													} catch (err) {
+														toast.error(errMsg(err, 'Test failed'));
+													}
+													testingHook = '';
+												}}><Send class="size-4" /></Button
+											>
+										</Table.Cell>
 										<Table.Cell
 											><Switch
 												checked={w.enabled}
@@ -1473,6 +1619,40 @@
 											>
 										</Table.Cell>
 									</Table.Row>
+									{#if hookHistory[w.id]}
+										<Table.Row class="bg-muted/40 hover:bg-muted/40">
+											<Table.Cell colspan={6} class="p-0">
+												<ul class="divide-y">
+													{#each hookHistory[w.id] as d (d.id)}
+														<li class="flex items-center gap-3 px-4 py-1.5 text-xs">
+															<span class="min-w-0 flex-1 truncate font-mono">{d.eventType}</span>
+															<span
+																class={d.status > 0 && d.status < 400
+																	? 'text-green-600'
+																	: 'text-destructive'}>{d.status || 'failed'}</span
+															>
+															<span class="text-muted-foreground"
+																>{formatRelative(d.createdAt)}</span
+															>
+															{#if d.canRetry && !(d.status > 0 && d.status < 400)}
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	class="h-6 px-2 text-xs"
+																	disabled={retryingDelivery === d.id}
+																	onclick={() => retryDelivery(w.id, d.id)}>Retry</Button
+																>
+															{/if}
+														</li>
+													{:else}
+														<li class="px-4 py-2 text-xs text-muted-foreground">
+															No deliveries recorded yet.
+														</li>
+													{/each}
+												</ul>
+											</Table.Cell>
+										</Table.Row>
+									{/if}
 								{:else}
 									<Table.Row
 										><Table.Cell class="text-muted-foreground">No webhooks.</Table.Cell></Table.Row

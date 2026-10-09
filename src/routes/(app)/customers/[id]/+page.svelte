@@ -34,6 +34,7 @@
 		updateEquipment,
 		getPortalInvite,
 		getCustomerDuplicates,
+		getMergePreview,
 		mergeCustomers,
 		textCustomerCmd,
 		emailStatementCmd,
@@ -487,6 +488,8 @@
 	let eqServiceDue = $state('');
 	let eqNotes = $state('');
 	let eqActive = $state(true);
+	let eqPhotoPath = $state('');
+	let eqPhotoBusy = $state(false);
 
 	function openEquipment(e?: (typeof c.equipment)[number]) {
 		eqId = e?.equipment.id ?? null;
@@ -501,6 +504,7 @@
 		eqServiceDue = e?.equipment.nextServiceDue ?? '';
 		eqNotes = e?.equipment.notes ?? '';
 		eqActive = e?.equipment.active ?? true;
+		eqPhotoPath = e?.equipment.photoPath ?? '';
 		if (eqId) void getEquipmentJobs(eqId).refresh();
 		eqOpen = true;
 	}
@@ -535,6 +539,29 @@
 			toast.error(errMsg(err, 'Could not save equipment'));
 		}
 		eqPending = false;
+	}
+
+	async function uploadEqPhoto(ev: Event) {
+		const input = ev.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file || !eqId) return;
+		eqPhotoBusy = true;
+		try {
+			const fd = new FormData();
+			fd.set('file', file);
+			const res = await fetch(`/api/equipment/${eqId}/photo`, { method: 'POST', body: fd });
+			if (!res.ok)
+				throw new Error(((await res.json().catch(() => ({}))) as { message?: string }).message);
+			await getCustomer(id).refresh();
+			eqPhotoPath =
+				(await getCustomer(id)).equipment.find((x) => x.equipment.id === eqId)?.equipment
+					.photoPath ?? '';
+			toast.success('Photo saved');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload photo'));
+		}
+		eqPhotoBusy = false;
+		input.value = '';
 	}
 
 	// ------- merge duplicates -------
@@ -1271,7 +1298,16 @@
 						onclick={() => openEquipment(e)}
 					>
 						<div class="flex items-center justify-between gap-2">
-							<span class="font-medium">{e.equipment.name}</span>
+							<span class="flex min-w-0 items-center gap-2 font-medium">
+								{#if e.equipment.photoPath}
+									<img
+										src="/files/equipment-photo/{e.equipment.id}"
+										alt=""
+										class="size-8 shrink-0 rounded object-cover"
+									/>
+								{/if}
+								<span class="truncate">{e.equipment.name}</span>
+							</span>
 							{#if !e.equipment.active}
 								<StatusBadge status="inactive" label="retired" />
 							{:else if eqExpired(e.equipment.nextServiceDue)}
@@ -1907,6 +1943,31 @@
 			</Field.Field>
 			{#if eqId}
 				<div>
+					<p class="pb-1.5 text-sm font-medium">Photo</p>
+					<div class="flex items-center gap-3">
+						{#if eqPhotoPath}
+							<img
+								src="/files/equipment-photo/{eqId}"
+								alt=""
+								class="size-16 rounded-md border object-cover"
+							/>
+						{/if}
+						<label
+							class="inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm hover:bg-accent {eqPhotoBusy
+								? 'pointer-events-none opacity-50'
+								: ''}"
+						>
+							{eqPhotoBusy ? 'Uploading…' : eqPhotoPath ? 'Replace photo' : 'Upload photo'}
+							<input
+								type="file"
+								accept="image/jpeg,image/png,image/webp,image/gif,image/heic"
+								class="sr-only"
+								onchange={uploadEqPhoto}
+							/>
+						</label>
+					</div>
+				</div>
+				<div>
 					<p class="pb-1.5 text-sm font-medium">Service history</p>
 					{#await getEquipmentJobs(eqId) then eqJobs}
 						<div class="max-h-40 space-y-1 overflow-y-auto text-sm">
@@ -2053,6 +2114,16 @@
 				</p>
 			{/each}
 		</div>
+		{#if mergeSource}
+			{@const preview = await getMergePreview(mergeSource)}
+			{#if preview}
+				<p class="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+					Moves {preview.jobs} jobs · {preview.estimates} estimates · {preview.invoices}
+					invoices · {preview.charges} charges · {preview.equipment} equipment ·
+					{preview.locations} locations · {preview.agreements} agreements — then deletes the duplicate.
+				</p>
+			{/if}
+		{/if}
 		{#if dupes.length}
 			<Dialog.Footer>
 				<Button variant="destructive" disabled={!mergeSource || mergePending} onclick={doMerge}>

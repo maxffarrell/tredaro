@@ -34,11 +34,60 @@
 	import Star from '@lucide/svelte/icons/star';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
+	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
+	import Mail from '@lucide/svelte/icons/mail';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const customerId = $derived(data.customerId);
 	const d = $derived(await getPortalOverview(customerId));
+	const MESSAGE_LABELS: Record<string, string> = {
+		appointment_reminder: 'Appointment reminder',
+		appointment_reminder_sms: 'Appointment reminder',
+		booking_received: 'Booking request received',
+		booking_sms: 'Booking request received',
+		booking_cancelled: 'Booking cancelled',
+		estimate_sent: 'Estimate sent',
+		estimate_sent_sms: 'Estimate sent',
+		estimate_resent: 'Estimate re-sent',
+		estimate_resent_sms: 'Estimate re-sent',
+		estimate_followup: 'Estimate follow-up',
+		estimate_followup_sms: 'Estimate follow-up',
+		estimate_expiring: 'Estimate expiring soon',
+		invoice_sent: 'Invoice sent',
+		invoice_texted: 'Invoice sent',
+		invoice_overdue_3: 'Payment reminder',
+		invoice_overdue_10: 'Payment reminder',
+		invoice_overdue_sms_3: 'Payment reminder',
+		invoice_overdue_sms_10: 'Payment reminder',
+		job_scheduled: 'Visit scheduled',
+		job_scheduled_sms: 'Visit scheduled',
+		job_en_route_sms: 'Technician on the way',
+		job_eta_sms: 'Technician ETA',
+		job_completed: 'Visit completed',
+		job_completed_sms: 'Visit completed',
+		job_rescheduled: 'Visit rescheduled',
+		job_rescheduled_sms: 'Visit rescheduled',
+		payment_receipt: 'Payment receipt',
+		payment_receipt_sms: 'Payment receipt',
+		agreement_renewal: 'Agreement renewal',
+		agreement_renewal_sms: 'Agreement renewal',
+		announcement: 'Announcement',
+		announcement_sms: 'Announcement',
+		statement: 'Statement',
+		statement_auto: 'Statement',
+		report_sent: 'Service report',
+		report_sent_sms: 'Service report',
+		rating_sms_ask: 'Rate your visit',
+		review_ask: 'Review request',
+		manual_sms: 'Message from the office',
+		customer_document: 'New document shared',
+		warranty_expiry: 'Warranty expiring soon',
+		service_due: 'Service due reminder',
+		service_due_sms: 'Service due reminder'
+	};
+	const msgLabel = (kind: string) => MESSAGE_LABELS[kind] ?? 'Message from the office';
 	const providers = $derived(await getProviders(customerId));
 	let docUploading = $state(false);
 	async function uploadPortalDoc(e: Event) {
@@ -333,10 +382,18 @@
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="pr-6 text-right">
-								{#if j.confirmed}
-									<StatusBadge status="approved" label="Confirmed" />
-								{:else if j.job.status === 'scheduled' && j.job.startsAt}
-									<div class="flex flex-col items-end gap-1 sm:flex-row sm:items-center">
+								<div class="flex items-center justify-end gap-1">
+									{#if j.job.startsAt}
+										<Button
+											size="sm"
+											variant="ghost"
+											href="/api/portal/ics?job={j.job.id}"
+											title="Add to calendar"><CalendarPlus class="size-4" /></Button
+										>
+									{/if}
+									{#if j.confirmed}
+										<StatusBadge status="approved" label="Confirmed" />
+									{:else if j.job.status === 'scheduled' && j.job.startsAt}
 										<Button
 											size="sm"
 											variant="outline"
@@ -347,10 +404,10 @@
 										<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}
 											>Different time</Button
 										>
-									</div>
-								{:else}
-									<StatusBadge status={j.job.status} />
-								{/if}
+									{:else}
+										<StatusBadge status={j.job.status} />
+									{/if}
+								</div>
 							</Table.Cell>
 						</Table.Row>
 					{:else}
@@ -612,13 +669,23 @@
 
 		{#if d.recentInvoices?.length}
 			<Card.Root>
-				<Card.Header><Card.Title class="text-base">Recent invoices</Card.Title></Card.Header>
+				<Card.Header class="flex flex-row items-center justify-between">
+					<Card.Title class="text-base">Recent invoices</Card.Title>
+					<a
+						class="text-xs text-muted-foreground underline underline-offset-2"
+						href="/api/portal/statement?customer={d.customer.id}"
+						download>Download statement</a
+					>
+				</Card.Header>
 				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.recentInvoices as inv (inv.invoice.id)}
 								<Table.Row>
-									<Table.Cell class="pl-6 font-medium">INV-{inv.invoice.number}</Table.Cell>
+									<Table.Cell class="pl-6 font-medium"
+										><a href={inv.url} class="hover:underline">INV-{inv.invoice.number}</a
+										></Table.Cell
+									>
 									<Table.Cell class="text-muted-foreground"
 										>{formatDate(inv.invoice.createdAt)}</Table.Cell
 									>
@@ -675,6 +742,25 @@
 							{/each}
 						</Table.Body>
 					</Table.Root>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#if d.recentMessages?.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Messages from us</Card.Title></Card.Header>
+				<Card.Content class="space-y-2">
+					{#each d.recentMessages as m (m.createdAt + m.kind)}
+						<div class="flex items-center gap-3 text-sm">
+							{#if m.channel === 'text'}
+								<MessageSquare class="size-4 shrink-0 text-muted-foreground" />
+							{:else}
+								<Mail class="size-4 shrink-0 text-muted-foreground" />
+							{/if}
+							<span class="min-w-0 flex-1 truncate">{msgLabel(m.kind)}</span>
+							<span class="shrink-0 text-xs text-muted-foreground">{formatDate(m.createdAt)}</span>
+						</div>
+					{/each}
 				</Card.Content>
 			</Card.Root>
 		{/if}

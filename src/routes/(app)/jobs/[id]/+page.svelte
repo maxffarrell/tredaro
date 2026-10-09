@@ -5,6 +5,8 @@
 	import History from '@lucide/svelte/icons/history';
 	import BellPlus from '@lucide/svelte/icons/bell-plus';
 	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import Globe from '@lucide/svelte/icons/globe';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Progress } from '#lib/components/ui/progress/index.js';
@@ -43,7 +45,9 @@
 		duplicateJob,
 		markNoShow,
 		signJob,
-		sendJobEta
+		sendJobEta,
+		sendServiceReport,
+		reviewBooking
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices, getStaff } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -96,6 +100,7 @@
 	import Printer from '@lucide/svelte/icons/printer';
 	import Plus from '@lucide/svelte/icons/plus';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 
 	const id = $derived(page.params.id!);
@@ -128,6 +133,7 @@
 	);
 	let summary = $state(j.job.summary);
 	let description = $state(j.job.description);
+	let jobTags = $state((j.job.tags ?? []).join(', '));
 	let priority = $state(j.job.priority);
 	let dependsOnJobId = $state(j.job.dependsOnJobId ?? '');
 	let arrivalWindow = $state(j.job.arrivalWindow ?? '');
@@ -157,6 +163,7 @@
 			equipmentId = j.job.equipmentId ?? '';
 			summary = j.job.summary;
 			description = j.job.description;
+			jobTags = (j.job.tags ?? []).join(', ');
 			priority = j.job.priority;
 			dependsOnJobId = j.job.dependsOnJobId ?? '';
 			arrivalWindow = j.job.arrivalWindow ?? '';
@@ -188,6 +195,10 @@
 				summary,
 				description,
 				priority,
+				tags: jobTags
+					.split(',')
+					.map((t) => t.trim())
+					.filter(Boolean),
 				dependsOnJobId: dependsOnJobId || null,
 				arrivalWindow: arrivalWindow || null,
 				startsAt: startsAt || null,
@@ -204,6 +215,18 @@
 	let cancelOpen = $state(false);
 	let etaOpen = $state(false);
 	let etaPending = $state(false);
+	let reportSending = $state(false);
+	async function sendReport() {
+		reportSending = true;
+		try {
+			await sendServiceReport(id).updates(getJob);
+			toast.success('Service report sent to the customer');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send report'));
+		}
+		reportSending = false;
+	}
+
 	async function sendEta(minutes: number) {
 		etaPending = true;
 		try {
@@ -419,6 +442,7 @@
 	const materials = $derived(await getJobMaterials({ jobId: id }));
 
 	// ------- photos -------
+	let lightbox = $state<(typeof photos)[number] | null>(null);
 	let photoPhase = $state<'before' | 'during' | 'after'>('during');
 	const PHASE_ORDER: Record<string, number> = { before: 0, during: 1, after: 2 };
 	const photos = $derived(
@@ -623,6 +647,18 @@
 		duplicating = false;
 	}
 
+	let reviewing = $state(false);
+	async function review(approve: boolean) {
+		reviewing = true;
+		try {
+			await reviewBooking({ jobId: id, approve }).updates(getJob, getJobs, getDispatchBoard);
+			toast[approve ? 'success' : 'info'](approve ? 'Booking accepted' : 'Booking declined');
+		} catch (err) {
+			toast.error(errMsg(err, 'Review failed'));
+		}
+		reviewing = false;
+	}
+
 	let note = $state('');
 	async function addNote(e: SubmitEvent) {
 		e.preventDefault();
@@ -700,6 +736,14 @@
 		{/if}
 		{#if j.job.status === 'done'}
 			<Button size="sm" variant="outline" disabled={rebooking} onclick={rebook}>Book again</Button>
+			<Button
+				size="sm"
+				variant="ghost"
+				class="hidden md:inline-flex"
+				title="Send service report — emails/texts the customer their visit summary"
+				disabled={reportSending}
+				onclick={sendReport}><ClipboardCheck /></Button
+			>
 		{/if}
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
@@ -787,6 +831,11 @@
 							)}><Navigation2 /> Directions</DropdownMenu.Item
 					>
 				{/if}
+				{#if j.job.status === 'done'}
+					<DropdownMenu.Item disabled={reportSending} onclick={sendReport}
+						><ClipboardCheck /> Send service report</DropdownMenu.Item
+					>
+				{/if}
 				{#if j.customerPhone}
 					<DropdownMenu.Item onclick={() => (etaOpen = true)}
 						><MessageSquare /> Text customer ETA</DropdownMenu.Item
@@ -805,6 +854,34 @@
 		</DropdownMenu.Root>
 	{/snippet}
 </PageHeader>
+
+{#if j.job.needsReview}
+	<div class="px-4 pt-4 md:px-6 md:pt-6">
+		<Alert.Root
+			class="border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"
+		>
+			<Globe />
+			<Alert.Title>Online booking — needs review</Alert.Title>
+			<Alert.Description class="flex flex-wrap items-center gap-x-4 gap-y-2">
+				<span
+					>This came in through the booking page{j.job.preferredTime
+						? ` — asked for ${j.job.preferredTime}`
+						: ''}. Accept it into the queue or decline it.</span
+				>
+				<span class="flex gap-2">
+					<Button size="sm" disabled={reviewing} onclick={() => review(true)}>Accept</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						class="text-destructive"
+						disabled={reviewing}
+						onclick={() => review(false)}>Decline</Button
+					>
+				</span>
+			</Alert.Description>
+		</Alert.Root>
+	</div>
+{/if}
 
 <div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-3">
 	<!-- details + edit form -->
@@ -1006,6 +1083,15 @@
 					<Field.Field class="sm:col-span-2">
 						<Field.Label for="d-desc">Notes</Field.Label>
 						<Textarea id="d-desc" rows={4} bind:value={description} disabled={locked} />
+					</Field.Field>
+					<Field.Field class="sm:col-span-2">
+						<Field.Label for="d-tags">Tags</Field.Label>
+						<Input
+							id="d-tags"
+							bind:value={jobTags}
+							disabled={locked}
+							placeholder="callback, permit, VIP — comma-separated"
+						/>
 					</Field.Field>
 					{#if !locked}
 						<div class="sm:col-span-2">
@@ -1534,14 +1620,14 @@
 					<ul class="grid grid-cols-3 gap-2">
 						{#each photos as p (p.id)}
 							<li class="group relative">
-								<a href="/files/job-photo/{p.id}" target="_blank" rel="noreferrer">
+								<button type="button" class="w-full cursor-zoom-in" onclick={() => (lightbox = p)}>
 									<img
 										src="/files/job-photo/{p.id}"
 										alt={p.fileName}
 										class="aspect-square w-full rounded-md border object-cover"
 										loading="lazy"
 									/>
-								</a>
+								</button>
 								{#if !locked}
 									<div
 										class="absolute top-1 right-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
@@ -1914,5 +2000,22 @@
 				>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root open={!!lightbox} onOpenChange={(v) => !v && (lightbox = null)}>
+	<Dialog.Content class="max-w-3xl p-2 sm:p-4">
+		{#if lightbox}
+			<img
+				src="/files/job-photo/{lightbox.id}"
+				alt={lightbox.fileName}
+				class="max-h-[80vh] w-full rounded-md object-contain"
+			/>
+			<p class="mt-2 flex items-center justify-between px-1 text-xs text-muted-foreground">
+				<span class="truncate">{lightbox.fileName}</span>
+				{#if lightbox.phase}<Badge variant="outline" class="capitalize">{lightbox.phase}</Badge
+					>{/if}
+			</p>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>

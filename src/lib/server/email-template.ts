@@ -9,14 +9,17 @@ export type EmailContent = {
 	heading: string;
 	lines: string[];
 	action?: { label: string; url: string };
+	/** A subtle plain link under the button (e.g. "Cancel this request"). */
+	secondary?: { label: string; url: string };
 };
 
-export function renderEmail({ orgName, heading, lines, action }: EmailContent) {
+export function renderEmail({ orgName, heading, lines, action, secondary }: EmailContent) {
 	const text = [
 		heading,
 		'',
 		...lines,
 		...(action ? ['', `${action.label}: ${action.url}`] : []),
+		...(secondary ? ['', `${secondary.label}: ${secondary.url}`] : []),
 		'',
 		`— ${orgName}`
 	].join('\n');
@@ -27,7 +30,10 @@ export function renderEmail({ orgName, heading, lines, action }: EmailContent) {
 	const button = action
 		? `<p style="margin:24px 0 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600">${escapeHtml(action.label)}</a></p>`
 		: '';
-	const html = `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#18181b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px"><tr><td style="padding:32px"><p style="margin:0 0 16px;font-size:13px;color:#71717a">${escapeHtml(orgName)}</p><h1 style="margin:0 0 16px;font-size:20px;line-height:1.3">${escapeHtml(heading)}</h1>${paragraphs}${button}</td></tr></table><p style="margin:16px 0 0;font-size:12px;color:#a1a1aa">Sent by ${escapeHtml(orgName)} with Tredaro</p></td></tr></table></body></html>`;
+	const secondaryLink = secondary
+		? `<p style="margin:20px 0 0"><a href="${escapeHtml(secondary.url)}" style="color:#71717a;font-size:13px;text-decoration:underline">${escapeHtml(secondary.label)}</a></p>`
+		: '';
+	const html = `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#18181b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px"><tr><td style="padding:32px"><p style="margin:0 0 16px;font-size:13px;color:#71717a">${escapeHtml(orgName)}</p><h1 style="margin:0 0 16px;font-size:20px;line-height:1.3">${escapeHtml(heading)}</h1>${paragraphs}${button}${secondaryLink}</td></tr></table><p style="margin:16px 0 0;font-size:12px;color:#a1a1aa">Sent by ${escapeHtml(orgName)} with Tredaro</p></td></tr></table></body></html>`;
 
 	return { text, html };
 }

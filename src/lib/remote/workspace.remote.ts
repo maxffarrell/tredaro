@@ -312,6 +312,26 @@ export const deleteWebhook = command(idSchema, async (id) => {
 	void getWebhooks().refresh();
 });
 
+/** POSTs a signed webhook.test event to the endpoint and reports the status. */
+export const testWebhook = command(idSchema, async (id) => {
+	const { orgId } = await requireOrg('admin');
+	const status = await eventsSvc.testWebhookDelivery(orgId, id);
+	void getWebhooks().refresh();
+	return status;
+});
+
+/** Recent delivery attempts for one hook — powers the Settings history toggle. */
+export const getWebhookDeliveries = query(idSchema, async (hookId) => {
+	const { orgId } = await requireOrg('admin');
+	return eventsSvc.listWebhookDeliveries(orgId, hookId);
+});
+
+/** Re-POSTs a failed delivery's stored payload — records a new attempt row. */
+export const retryWebhookDelivery = command(idSchema, async (deliveryId) => {
+	const { orgId } = await requireOrg('admin');
+	return eventsSvc.retryWebhookDelivery(orgId, deliveryId);
+});
+
 export const seedDemo = command(v.object({}), async () => {
 	const ctx = await requireOrg('admin');
 	const [existing] = await db

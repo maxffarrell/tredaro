@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { error } from '@sveltejs/kit';
 import {
@@ -17,6 +17,7 @@ import {
 	sql
 } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
+import { appOrigin } from '#lib/server/email.ts';
 import { createInvoice } from './billing.ts';
 import { listJobMaterials } from './inventory.ts';
 import { listFollowUps } from './followups.ts';
@@ -497,6 +498,7 @@ export async function createJob(
 			summary: input.summary || jt?.name || '',
 			description: input.description,
 			priority: input.priority,
+			tags: input.tags,
 			preferredTime: input.preferredTime ?? null,
 			warranty: input.warranty ?? false,
 			arrivalWindow: input.arrivalWindow ?? null,
@@ -742,6 +744,15 @@ export async function updateJob(
 	if (effectiveStart && effectiveEnd && effectiveEnd <= effectiveStart)
 		error(400, 'End must be after the start');
 	const effectiveTech = set.technicianId === undefined ? existing.technicianId : set.technicianId;
+	// An unreviewed online booking can't be scheduled or assigned — that would
+	// skip the accept/decline step. Other edits (notes, priority) stay open.
+	if (
+		existing.needsReview &&
+		set.cancelled !== true &&
+		((set.startsAt !== undefined && start) ||
+			(set.technicianId && set.technicianId !== existing.technicianId))
+	)
+		error(409, 'Review this online booking first — accept or decline it');
 	if (effectiveStart)
 		await assertTechAvailable(
 			ctx.orgId,
@@ -776,6 +787,7 @@ export async function updateJob(
 			summary: set.summary,
 			description: set.description,
 			priority: set.priority,
+			tags: set.tags,
 			blocked: set.blocked,
 			warranty: set.warranty,
 			dependsOnJobId: set.dependsOnJobId,
@@ -859,6 +871,42 @@ export async function updateJob(
 		});
 	}
 	return row;
+}
+
+/** Staff verdict on an online booking made while review mode is on. Approve clears
+ * the flag so the job queues normally; decline cancels it with a recorded reason. */
+export async function reviewBooking(ctx: OrgContext, jobId: string, approve: boolean) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!j) error(404, 'Job not found');
+	if (!j.needsReview) error(409, 'Booking already reviewed');
+	if (!approve) {
+		const tz = (await getSettings(ctx.orgId)).timezone;
+		await updateJob(ctx, tz, {
+			id: jobId,
+			cancelled: true,
+			cancelReason: 'Online booking declined'
+		});
+		return { approved: false };
+	}
+	await db.update(job).set({ needsReview: false }).where(eq(job.id, jobId));
+	await db.insert(jobEvent).values({
+		organizationId: ctx.orgId,
+		jobId,
+		kind: 'note',
+		note: 'Online booking approved'
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'booking-approved',
+		summary: `Online booking J-${j.number} approved`
+	});
+	return { approved: true };
 }
 
 /** Tech arrived to a no-show: cancels the visit and rebooks it as an unscheduled copy. */
@@ -1762,4 +1810,140 @@ export async function runJobEscalation(orgId: string) {
 			summary: `J-${j.number} auto-escalated to ${target} (${Math.floor(days)}d in queue)`
 		});
 	}
+}
+
+/** Job timeline events for the REST API (optionally filtered to one job). */
+export async function listJobEvents(orgId: string, jobId?: string | null) {
+	return db
+		.select({ event: jobEvent, memberName: user.name })
+		.from(jobEvent)
+		.leftJoin(member, eq(jobEvent.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(and(eq(jobEvent.organizationId, orgId), jobId ? eq(jobEvent.jobId, jobId) : undefined))
+		.orderBy(desc(jobEvent.at))
+		.limit(500);
+}
+
+// ---------- Public service report ----------
+
+function signReport(payload: string) {
+	return createHmac('sha256', BETTER_AUTH_SECRET).update(`report:${payload}`).digest('base64url');
+}
+
+/** Stateless signed link to the public visit report (`/r/<id>.<sig>`). */
+export function serviceReportToken(jobId: string) {
+	return `${jobId}.${signReport(jobId)}`;
+}
+
+export function verifyServiceReportToken(token: string) {
+	const m = /^([0-9a-f-]{36})\.([\w-]+)$/.exec(token.trim());
+	if (!m) return null;
+	const [, jobId, sig] = m;
+	const expected = Buffer.from(signReport(jobId!));
+	const got = Buffer.from(sig!);
+	return expected.length === got.length && timingSafeEqual(expected, got) ? jobId : null;
+}
+
+export function serviceReportUrl(id: string) {
+	return `${appOrigin()}/r/${serviceReportToken(id)}`;
+}
+
+function signCancel(payload: string) {
+	return createHmac('sha256', BETTER_AUTH_SECRET).update(`cancel:${payload}`).digest('base64url');
+}
+
+export function bookingCancelToken(jobId: string) {
+	return `${jobId}.${signCancel(jobId)}`;
+}
+
+export function verifyBookingCancelToken(token: string) {
+	const m = /^([^.]+)\.([A-Za-z0-9_-]+)$/.exec(token);
+	if (!m) return null;
+	const [, jobId, sig] = m;
+	const expected = Buffer.from(signCancel(jobId!));
+	const got = Buffer.from(sig!);
+	return expected.length === got.length && timingSafeEqual(expected, got) ? jobId! : null;
+}
+
+export function bookingCancelUrl(jobId: string) {
+	return `${appOrigin()}/book/cancel/${bookingCancelToken(jobId)}`;
+}
+
+/** Public cancel from the emailed link: flips the job to cancelled and notifies staff. */
+export async function cancelBookedJob(jobId: string) {
+	const [j] = await db.select().from(job).where(eq(job.id, jobId)).limit(1);
+	if (!j) error(404, 'Visit not found');
+	if (j.status === 'cancelled' || j.cancelledAt) return { job: j, already: true };
+	if (j.status === 'done' || j.status === 'in_progress')
+		error(409, 'This visit can no longer be cancelled online — please call us.');
+	const [updated] = await db
+		.update(job)
+		.set({ status: 'cancelled', cancelledAt: new Date(), cancelReason: 'Cancelled by customer' })
+		.where(eq(job.id, jobId))
+		.returning();
+	await emit({
+		orgId: j.organizationId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'cancelled',
+		summary: `Visit J-${j.number} cancelled by the customer via the booking link`
+	});
+	const { notifyBookingCancelled } = await import('./notifications.ts');
+	await notifyBookingCancelled(j.organizationId, jobId);
+	return { job: updated!, already: false };
+}
+
+/** What the public /r/[token] page shows — a completed visit's customer-facing summary. */
+export async function publicServiceReport(id: string) {
+	const [row] = await db
+		.select({
+			job,
+			customerName: customer.name,
+			techName: user.name,
+			typeName: jobType.name,
+			location: serviceLocation
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(member, eq(job.technicianId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(and(eq(job.id, id), eq(job.status, 'done')));
+	if (!row) error(404, 'Report not found');
+	const settings = await getSettings(row.job.organizationId);
+	const checklist = await db
+		.select()
+		.from(jobChecklistItem)
+		.where(eq(jobChecklistItem.jobId, id))
+		.orderBy(asc(jobChecklistItem.sort));
+	const materials = await db
+		.select({
+			name: inventoryItem.name,
+			unit: inventoryItem.unit,
+			qty: jobMaterial.qty,
+			unitPrice: jobMaterial.unitPrice
+		})
+		.from(jobMaterial)
+		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+		.where(eq(jobMaterial.jobId, id))
+		.orderBy(asc(jobMaterial.createdAt));
+	const photos = await db
+		.select({ id: jobPhoto.id, phase: jobPhoto.phase, fileName: jobPhoto.fileName })
+		.from(jobPhoto)
+		.where(and(eq(jobPhoto.jobId, id), eq(jobPhoto.shared, true)))
+		.orderBy(asc(jobPhoto.createdAt));
+	return {
+		job: row.job,
+		customerName: row.customerName,
+		techName: row.techName,
+		typeName: row.typeName,
+		location: row.location,
+		orgName: settings.orgName,
+		orgLogoUrl: settings.logoUrl,
+		currency: settings.currency,
+		checklist,
+		materials,
+		photos
+	};
 }

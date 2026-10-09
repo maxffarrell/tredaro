@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, isNull, lt, lte, ne, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -14,7 +14,9 @@ import {
 	jobType,
 	jobTimeEntry,
 	member,
+	memberTimeOff,
 	payment,
+	pricebookItem,
 	purchaseOrder,
 	serviceAgreement,
 	user,
@@ -95,6 +97,29 @@ export async function dashboard(orgId: string) {
 				lt(payment.paidAt, dayEnd)
 			)
 		);
+
+	// Daily collections for the last 7 local days — the KPI card's mini bar chart.
+	const payments7 = await db
+		.select({
+			day: sql<string>`to_char(timezone(${tz}, ${payment.paidAt}), 'YYYY-MM-DD')`,
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				gte(payment.paidAt, new Date(dayStart.getTime() - 6 * 24 * 60 * 60 * 1000)),
+				lt(payment.paidAt, dayEnd)
+			)
+		)
+		.groupBy(sql`1`);
+	const byDay = new Map(payments7.map((p) => [p.day, p.total]));
+	const paymentsWeek = Array.from({ length: 7 }, (_, i) => {
+		const d = new Date(Date.parse(today) - (6 - i) * 24 * 60 * 60 * 1000)
+			.toISOString()
+			.slice(0, 10);
+		return { day: d, total: byDay.get(d) ?? 0 };
+	});
 
 	const mrr = await monthlyRecurring(orgId);
 
@@ -283,6 +308,34 @@ export async function dashboard(orgId: string) {
 		.orderBy(sql`max(${job.completedAt})`)
 		.limit(4);
 
+	// Repeat customers with no active agreement — upsell candidates for a
+	// maintenance plan (3+ completed visits in the last 90 days).
+	const upsellCustomers = await db
+		.select({
+			id: customer.id,
+			name: customer.name,
+			visits: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				gte(job.completedAt, cutoff),
+				sql`not exists (select 1 from ${serviceAgreement} sa where sa.customer_id = ${customer.id} and sa.status = 'active')`
+			)
+		)
+		.groupBy(customer.id, customer.name)
+		.having(sql`count(*) >= 3`)
+		.orderBy(desc(sql`count(*)`))
+		.limit(3);
+
+	const [pendingTimeOff] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(memberTimeOff)
+		.where(and(eq(memberTimeOff.organizationId, orgId), eq(memberTimeOff.status, 'pending')));
+
 	const renewingAgreements = await db
 		.select({
 			nextChargeAt: serviceAgreement.nextChargeAt,
@@ -424,6 +477,39 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(purchaseOrder.expectedOn))
 		.limit(4);
 
+	const [typeCount, itemCount, memberCount] = await Promise.all([
+		db.select({ n: count() }).from(jobType).where(eq(jobType.organizationId, orgId)),
+		db.select({ n: count() }).from(pricebookItem).where(eq(pricebookItem.organizationId, orgId)),
+		db.select({ n: count() }).from(member).where(eq(member.organizationId, orgId))
+	]);
+	const monthStart = zonedToUtc(`${today.slice(0, 8)}01T00:00`, tz);
+	const leaderboard = await db
+		.select({
+			name: user.name,
+			done: sql<number>`count(*)`.mapWith(Number),
+			hours:
+				sql<number>`coalesce((select round(coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 3600.0), 0)::numeric, 1) from ${jobTimeEntry} te where te.member_id = ${outer(member.id)} and te.started_at >= ${monthStart.toISOString()}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(job)
+		.innerJoin(member, eq(job.technicianId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(eq(job.organizationId, orgId), eq(job.status, 'done'), gte(job.completedAt, monthStart))
+		)
+		.groupBy(user.name, member.id)
+		.orderBy(desc(sql`count(*)`))
+		.limit(5);
+
+	const setup = {
+		types: (typeCount[0]?.n ?? 0) > 0,
+		catalog: (itemCount[0]?.n ?? 0) > 0,
+		customers: (customerStats?.active ?? 0) > 0,
+		team: (memberCount[0]?.n ?? 0) > 1,
+		booking: !!settings?.bookingEnabled && !!settings?.publicPage
+	};
+
 	return {
 		timezone: tz,
 		currency: settings?.currency ?? 'usd',
@@ -434,10 +520,13 @@ export async function dashboard(orgId: string) {
 		doneToday: jobStats?.doneToday ?? 0,
 		newBookings7d,
 		collectedToday: todayPayments?.total ?? 0,
+		paymentsWeek,
 		activeAgreements: agreementStats?.active ?? 0,
 		openTotal: openStats?.openTotal ?? 0,
 		overdueTotal: openStats?.overdueTotal ?? 0,
 		mrr,
+		setup,
+		leaderboard,
 		todayJobs,
 		recentActivity,
 		recentCustomers,
@@ -509,6 +598,24 @@ export async function dashboard(orgId: string) {
 				sub: `last ${localDate(new Date(q.lastAt), tz)} — reach out?`,
 				amountCents: null as number | null
 			})),
+			...upsellCustomers.map((u) => ({
+				tone: 'blue' as const,
+				href: `/customers/${u.id}`,
+				text: `${u.name} — ${u.visits} visits in 90d`,
+				sub: 'no maintenance agreement — suggest one?',
+				amountCents: null as number | null
+			})),
+			...(pendingTimeOff?.n
+				? [
+						{
+							tone: 'amber' as const,
+							href: '/settings',
+							text: `${pendingTimeOff.n} time-off request${pendingTimeOff.n === 1 ? '' : 's'} awaiting approval`,
+							sub: 'review in Settings → Team',
+							amountCents: null as number | null
+						}
+					]
+				: []),
 			...renewingAgreements.map((a) => ({
 				tone: 'blue' as const,
 				href: '/agreements',
