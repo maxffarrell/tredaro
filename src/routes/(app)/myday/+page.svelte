@@ -48,6 +48,7 @@
 	import Flag from '@lucide/svelte/icons/flag';
 	import Phone from '@lucide/svelte/icons/phone';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
+	import Printer from '@lucide/svelte/icons/printer';
 	import { SvelteMap } from 'svelte/reactivity';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
@@ -573,6 +574,15 @@
 			<CalendarPlus /> Calendar
 		</Button>
 	{/if}
+	<Button
+		variant="outline"
+		size="sm"
+		href="/myday/print"
+		target="_blank"
+		title="Printable route sheet for today"
+	>
+		<Printer /> Sheet
+	</Button>
 	{#if day.member && (day.jobs.length || day.openEntry)}
 		<Button
 			variant="outline"

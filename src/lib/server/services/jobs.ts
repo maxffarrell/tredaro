@@ -1424,8 +1424,22 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 /** The calling technician's My Day payload: window jobs, their unscheduled queue, open timer. */
 export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
-	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null, docs: [] };
 	const tz = (await getSettings(ctx.orgId)).timezone;
+	const today = localDate(from, tz);
+	if (!me)
+		return {
+			member: null,
+			jobs: [],
+			unscheduled: [],
+			queue: [],
+			overdue: [],
+			tomorrow: [],
+			openEntry: null,
+			docs: [],
+			materials: [],
+			tz,
+			today
+		};
 	const [jobs, unscheduled, queue, overdue, openEntries, dayEntries, tomorrow, offToday, dayNote] =
 		await Promise.all([
 			listJobs(ctx.orgId, { from, to, technicianId: me.id }),
@@ -1538,6 +1552,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	);
 	return {
 		member: me,
+		tz,
+		today,
 		jobs,
 		unscheduled,
 		queue,
