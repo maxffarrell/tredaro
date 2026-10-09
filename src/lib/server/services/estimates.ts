@@ -378,7 +378,8 @@ export async function estimateProgress(ctx: OrgContext, id: string) {
 	const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
 	const [{ invoiced }] = await db
 		.select({
-			invoiced: sql<number>`coalesce(sum(ii.qty * ii.unit_price), 0)`.mapWith(Number)
+			invoiced:
+				sql<number>`coalesce(sum(${invoiceItem.qty} * ${invoiceItem.unitPrice}), 0)`.mapWith(Number)
 		})
 		.from(invoiceItem)
 		.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
