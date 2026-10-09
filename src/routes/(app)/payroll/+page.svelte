@@ -53,6 +53,19 @@
 		end = to;
 		goto(`?from=${start}`, { replaceState: true });
 	};
+	// True when the current range is exactly one calendar month — ‹ › then page
+	// by month instead of a fixed day span (a 31-day shift lands inside the next month).
+	const isMonth = $derived(
+		start === monthStart(start) && end === addDays(monthStart(addDays(start, 32)), -1)
+	);
+	const nav = (dir: 1 | -1) => {
+		if (isMonth) {
+			const nextStart = dir === 1 ? monthStart(addDays(start, 32)) : monthStart(addDays(start, -1));
+			pick(nextStart, addDays(monthStart(addDays(nextStart, 32)), -1));
+		} else {
+			pick(addDays(start, dir * span), addDays(end, dir * span));
+		}
+	};
 
 	const rows = $derived(await getPayroll({ from: start, to: end }));
 
@@ -115,8 +128,8 @@
 			<Button
 				size="icon"
 				variant="ghost"
-				aria-label="Previous week"
-				onclick={() => pick(addDays(start, -span), addDays(end, -span))}><ChevronLeft /></Button
+				aria-label={isMonth ? 'Previous month' : 'Previous period'}
+				onclick={() => nav(-1)}><ChevronLeft /></Button
 			>
 			<Button
 				size="sm"
@@ -127,8 +140,8 @@
 			<Button
 				size="icon"
 				variant="ghost"
-				aria-label="Next week"
-				onclick={() => pick(addDays(start, span), addDays(end, span))}><ChevronRight /></Button
+				aria-label={isMonth ? 'Next month' : 'Next period'}
+				onclick={() => nav(1)}><ChevronRight /></Button
 			>
 			<Button size="sm" variant="outline" href="/api/export/payroll.csv?from={start}&to={end}"
 				><Download /> Export</Button
@@ -176,7 +189,7 @@
 		<Empty.Root class="border">
 			<Empty.Header>
 				<Empty.Media><Timer /></Empty.Media>
-				<Empty.Title>No time logged this week</Empty.Title>
+				<Empty.Title>No time logged {isMonth ? 'this month' : 'this week'}</Empty.Title>
 				<Empty.Description>Entries from My Day and job timers appear here.</Empty.Description>
 			</Empty.Header>
 		</Empty.Root>
