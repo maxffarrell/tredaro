@@ -19,14 +19,18 @@
 		getCalendarFeed,
 		requestTimeOff
 	} from '#lib/remote/jobs.remote.ts';
+	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
+	import { getCustomerOpenBalance, recordPayment } from '#lib/remote/billing.remote.ts';
+	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
-	import { errMsg } from '#lib/format.ts';
+	import { errMsg, formatMoney } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
 	import Navigation from '@lucide/svelte/icons/navigation';
@@ -42,7 +46,11 @@
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
 	import Receipt from '@lucide/svelte/icons/receipt';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import HandCoins from '@lucide/svelte/icons/hand-coins';
 
+	const settings = await getSettings();
+	const currency = settings.currency;
 	const day = $derived(await getMyDay());
 	const tomorrowSchedMin = $derived(
 		(day.tomorrow ?? []).reduce(
@@ -111,6 +119,15 @@
 	let expDesc = $state('');
 	let expVendor = $state('');
 	let expAmount = $state(0);
+	let textCustomerId = $state<string | null>(null);
+	let textMsg = $state('');
+	let collectCustomerId = $state<string | null>(null);
+	let collectAmount = $state(0);
+	let collectMethod = $state('cash');
+	let collectNotes = $state('');
+	const collectBal = $derived(
+		collectCustomerId ? await getCustomerOpenBalance(collectCustomerId) : null
+	);
 	let noteText = $state('');
 
 	// photo capture — one shared input; the menu sets the job + phase, then clicks it
@@ -164,6 +181,26 @@
 		}
 	}
 
+	async function sendText() {
+		if (!textCustomerId || !textMsg.trim()) return;
+			await textCustomerCmd({ customerId: textCustomerId, message: textMsg.trim() });
+			toast.success('Text sent');
+			textCustomerId = null;
+			textMsg = '';
+			toast.error(errMsg(err, 'Could not send text'));
+	async function collect() {
+		if (!collectCustomerId || collectAmount <= 0) return;
+			await recordPayment({
+				customerId: collectCustomerId,
+				amount: collectAmount,
+				method: collectMethod as 'card' | 'cash' | 'check' | 'bank' | 'stripe' | 'other',
+				notes: collectNotes.trim() || undefined
+			});
+			toast.success('Payment recorded');
+			collectCustomerId = null;
+			collectAmount = 0;
+			collectNotes = '';
+			toast.error(errMsg(err, 'Could not record payment'));
 	async function saveNote() {
 		if (!noteJobId || !noteText.trim()) return;
 		pending = `${noteJobId}:note`;
@@ -333,6 +370,17 @@
 						title="Log a job expense (permit, parking, misc)"
 						onclick={() => (expJobId = j.job.id)}><Receipt /> Expense</Button
 					>
+					{#if j.customerPhone}
+						<Button
+							size="sm"
+							variant="ghost"
+							disabled={pending !== null}
+							title="Text the customer"
+							onclick={() => (textCustomerId = j.job.customerId)}><MessageSquare /> Text</Button
+						>
+					{/if}
+						title="Collect a payment on site"
+						onclick={() => (collectCustomerId = j.job.customerId)}><HandCoins /> Collect</Button
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							{#snippet child({ props })}
@@ -691,3 +739,45 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+	open={textCustomerId !== null}
+		if (!v) textCustomerId = null;
+			<Dialog.Title>Text the customer</Dialog.Title>
+				>Sends from your company's number — replies land in the inbox.</Dialog.Description
+		<Textarea rows={3} bind:value={textMsg} placeholder="Running about 15 minutes behind…" />
+			<Button variant="outline" onclick={() => (textCustomerId = null)}>Cancel</Button>
+			<Button onclick={sendText} disabled={!textMsg.trim()}>Send text</Button>
+	open={collectCustomerId !== null}
+		if (!v) collectCustomerId = null;
+			<Dialog.Title>Collect payment</Dialog.Title>
+			<Dialog.Description>
+				{#if collectBal?.count}
+					{collectBal.count} open charge{collectBal.count === 1 ? '' : 's'} — balance {formatMoney(
+						collectBal.open,
+						currency
+					)}. Applies oldest-first.
+				{:else}
+					Nothing owed — record anyway to log a prepayment credit.
+				{/if}
+			</Dialog.Description>
+				<Label for="collect-amt">Amount</Label>
+				<MoneyInput id="collect-amt" bind:value={collectAmount} />
+				{#if collectBal?.open}
+					<Button
+						variant="link"
+						class="h-auto p-0 text-xs"
+						onclick={() => (collectAmount = collectBal!.open)}>Fill full balance</Button
+					>
+				{/if}
+				<Label>Method</Label>
+				<Select.Root type="single" bind:value={collectMethod}>
+					<Select.Trigger class="h-8 w-full">{collectMethod}</Select.Trigger>
+					<Select.Content>
+						{#each ['cash', 'check', 'card', 'bank', 'other'] as m (m)}
+							<Select.Item value={m} class="capitalize">{m}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<Label for="collect-notes">Notes (optional)</Label>
+				<Input id="collect-notes" bind:value={collectNotes} placeholder="Check #1234" />
+			<Button variant="outline" onclick={() => (collectCustomerId = null)}>Cancel</Button>
+			<Button onclick={collect} disabled={collectAmount <= 0}>Record payment</Button>

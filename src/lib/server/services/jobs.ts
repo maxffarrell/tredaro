@@ -701,6 +701,19 @@ export async function updateJob(
 			console.error('tech reschedule email failed', err)
 		);
 	}
+	// Customer-facing reschedule notice — armed whenever an already-scheduled
+	// slot actually moves (first-time scheduling is covered by job_scheduled).
+	if (
+		start !== undefined &&
+		existing.startsAt &&
+		row?.startsAt &&
+		existing.startsAt.getTime() !== row.startsAt.getTime()
+	) {
+		const { notifyJobRescheduledCustomer } = await import('./notifications.ts');
+		notifyJobRescheduledCustomer(ctx.orgId, id).catch((err) =>
+			console.error('customer reschedule notify failed', err)
+		);
+	}
 	if (set.blocked !== undefined && set.blocked !== existing.blocked)
 		await emit({
 			orgId: ctx.orgId,

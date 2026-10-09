@@ -1218,6 +1218,26 @@ export async function listCharges(orgId: string, status?: string) {
 		.orderBy(desc(charge.dueDate));
 }
 
+/** Open balance + count for one customer — used by the field "collect payment" dialog. */
+export async function customerOpenBalance(orgId: string, customerId: string) {
+	const [row] = await db
+		.select({
+			open: sql<number>`coalesce(sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)), 0)`.mapWith(
+				Number
+			),
+			count: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.customerId, customerId),
+				eq(charge.status, 'open')
+			)
+		);
+	return { open: row?.open ?? 0, count: row?.count ?? 0 };
+}
+
 export async function addCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeInput>) {
 	const row = await db.transaction(async (tx) => {
 		const [r] = await tx
