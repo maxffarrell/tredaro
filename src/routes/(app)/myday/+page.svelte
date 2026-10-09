@@ -674,7 +674,7 @@
 		</Alert.Root>
 	{/if}
 
-	{#if day.member && (day.jobs.length || day.minutesLogged > 0 || day.pendingApprovalMin > 0)}
+	{#if day.member && (day.jobs.length || day.minutesLogged > 0 || day.pendingApprovalMin > 0 || day.monthCommissionCents > 0)}
 		{@const done = day.jobs.filter((j) => j.job.status === 'done').length}
 		{@const left = day.jobs.length - done}
 		{@const next = day.jobs.find((j) => j.job.status !== 'done' && j.job.startsAt)}
@@ -766,6 +766,13 @@
 						<span class="text-emerald-600 dark:text-emerald-400"
 							>({Math.floor(day.weekApprovedMin / 60)}h {day.weekApprovedMin % 60}m approved)</span
 						>{/if}</span
+				>
+			{/if}
+			{#if day.monthCommissionCents > 0}
+				<span class="text-muted-foreground tabular-nums"
+					>· commission: <span class="font-semibold text-emerald-600 dark:text-emerald-400"
+						>{formatMoney(day.monthCommissionCents, currency)}</span
+					> this month</span
 				>
 			{/if}
 			{#if day.tomorrow.length}

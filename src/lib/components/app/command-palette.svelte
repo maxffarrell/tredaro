@@ -9,6 +9,8 @@
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Wrench from '@lucide/svelte/icons/wrench';
+	import Package from '@lucide/svelte/icons/package';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 	let query = $state('');
@@ -21,7 +23,9 @@
 		job: CalendarDays,
 		estimate: CreditCard,
 		jobType: CreditCard,
-		pricebook: CreditCard
+		pricebook: CreditCard,
+		equipment: Wrench,
+		inventory: Package
 	};
 	const actions = [
 		{ label: 'New customer', href: '/customers?new=1' },

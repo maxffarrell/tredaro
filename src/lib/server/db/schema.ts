@@ -387,6 +387,8 @@ export const jobType = pgTable(
 		requireSignature: boolean('require_signature').notNull().default(false),
 		/** At least one job document (permit/contract) required before completion. */
 		requireDocument: boolean('require_document').notNull().default(false),
+		/** Technician must have a time entry (clocked in) before marking the job on-site. */
+		requireTimer: boolean('require_time').notNull().default(false),
 		/** Whether the type is selectable on the public /book page. */
 		bookable: boolean('bookable').notNull().default(true),
 		active: boolean('active').notNull().default(true),
