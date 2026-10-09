@@ -20,6 +20,7 @@ import {
 	purchaseOrder,
 	purchaseOrderItem,
 	serviceAgreement,
+	serviceLocation,
 	user,
 	outer
 } from '#lib/server/db/schema.ts';
@@ -694,6 +695,30 @@ async function revenueByCustomerType(orgId: string) {
 		.orderBy(desc(sql`sum(${payment.amount})`));
 }
 
+/** Collected payments per service ZIP (last 90 days) — territory view for scheduling/marketing. */
+async function revenueByZip(orgId: string) {
+	return db
+		.select({
+			zip: serviceLocation.zip,
+			n: sql<number>`count(*)`.mapWith(Number),
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(invoice, eq(charge.invoiceId, invoice.id))
+		.innerJoin(job, eq(invoice.jobId, job.id))
+		.innerJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				gte(payment.paidAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		)
+		.groupBy(serviceLocation.zip)
+		.orderBy(desc(sql`sum(${payment.amount})`))
+		.limit(10);
+}
+
 /** Agreements cancelled over the last 90 days (churn signal). */
 async function churnedAgreements(orgId: string) {
 	const [row] = await db
@@ -872,7 +897,8 @@ export async function getReports(orgId: string) {
 		estAccuracy,
 		callbacks,
 		revWeekday,
-		lost
+		lost,
+		zipRows
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -914,7 +940,8 @@ export async function getReports(orgId: string) {
 		estimateAccuracy(orgId),
 		callbackRate(orgId),
 		revenueByWeekday(orgId),
-		lostByReason(orgId)
+		lostByReason(orgId),
+		revenueByZip(orgId)
 	]);
 	return {
 		completedJobs,
@@ -957,7 +984,8 @@ export async function getReports(orgId: string) {
 		estAccuracy,
 		callbacks,
 		revWeekday,
-		lostByReason: lost
+		lostByReason: lost,
+		revByZip: zipRows
 	};
 }
 

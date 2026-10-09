@@ -92,6 +92,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			requireSignature: input.requireSignature,
 			requireDocument: input.requireDocument,
 			requireTimer: input.requireTimer,
+			requiresHelper: input.requiresHelper,
 			bookable: input.bookable,
 			active: input.active
 		})
@@ -116,6 +117,7 @@ const jobSelect = {
 	job,
 	jobTypeName: jobType.name,
 	typeDurationMin: jobType.durationMin,
+	typeRequiresHelper: jobType.requiresHelper,
 	color: jobType.color,
 	customerName: customer.name,
 	companyName: customer.companyName,
@@ -472,6 +474,7 @@ export async function createJob(
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
 	if (!c) error(404, 'Customer not found');
 	if (c.onHold) error(409, 'Customer is on credit hold — resolve the balance first');
+	if (c.doNotService) error(409, 'Customer is flagged do-not-service');
 
 	const jt = input.jobTypeId
 		? (
@@ -486,6 +489,8 @@ export async function createJob(
 
 	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
+	if (start && jt?.requiresHelper && !input.helperId)
+		error(409, 'This job type needs a second tech — pick a helper before scheduling');
 	const durationMin = opts.durationMin ?? jt?.durationMin ?? 60;
 	// Tech resolution: explicit pick > job type default > the customer's preferred tech.
 	const technicianId = input.technicianId ?? jt?.technicianId ?? c.preferredMemberId ?? null;
@@ -778,6 +783,19 @@ export async function updateJob(
 		);
 	// The helper gets the same time-off guard when they're newly added or the slot moves.
 	const effectiveHelper = set.helperId === undefined ? existing.helperId : set.helperId;
+	// Two-person job types can't be scheduled without a helper on the job.
+	if (effectiveStart) {
+		const typeId = set.jobTypeId === undefined ? existing.jobTypeId : set.jobTypeId;
+		if (typeId && !effectiveHelper) {
+			const [type] = await db
+				.select({ requiresHelper: jobType.requiresHelper })
+				.from(jobType)
+				.where(and(eq(jobType.id, typeId), eq(jobType.organizationId, ctx.orgId)))
+				.limit(1);
+			if (type?.requiresHelper)
+				error(409, 'This job type needs a second tech — pick a helper before scheduling');
+		}
+	}
 	if (
 		effectiveHelper &&
 		effectiveStart &&
