@@ -19,8 +19,10 @@ import {
 	charge,
 	user
 } from '#lib/server/db/schema.ts';
-import { localDate, localTime } from '#lib/tz.ts';
+import { alias } from 'drizzle-orm/pg-core';
+import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import { exportWorkspace } from '#lib/server/services/backup.ts';
+import { getSettings } from '#lib/server/services/settings.ts';
 import type { RequestHandler } from './$types';
 
 const cell = (v: unknown) => {
@@ -36,6 +38,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 	const kind = params.kind?.replace(/\.(csv|json)$/, '');
 	const from = url.searchParams.get('from');
 	const to = url.searchParams.get('to');
+	const badDay = (d: string | null) => d != null && !/^\d{4}-\d{2}-\d{2}$/.test(d);
+	if (badDay(from) || badDay(to)) error(400, 'from/to must be YYYY-MM-DD');
 	const toBound = to ? `${to}T23:59:59.999Z` : null;
 	const filenameDate = new Date().toISOString().slice(0, 10);
 
@@ -461,6 +465,65 @@ export const GET: RequestHandler = async ({ params, url }) => {
 					r.durationMin ?? '',
 					r.description,
 					r.active ? 'yes' : 'no'
+				])
+			)
+		].join('\n');
+	} else if (kind === 'payroll') {
+		// Week's time entries for payroll import — same org-tz bounds as /payroll, admins only.
+		if (ctx.role === 'member') error(403, 'Only owners and admins can export payroll');
+		if (!from || !to) error(400, 'Pass ?from=&to= YYYY-MM-DD');
+		const t = (await getSettings(ctx.orgId)).timezone;
+		const approver = alias(user, 'payroll_approver');
+		const rows = await db
+			.select({
+				memberName: user.name,
+				jobNumber: job.number,
+				customerName: customer.name,
+				startedAt: jobTimeEntry.startedAt,
+				endedAt: jobTimeEntry.endedAt,
+				approvedAt: jobTimeEntry.approvedAt,
+				approvedByName: approver.name,
+				note: jobTimeEntry.note
+			})
+			.from(jobTimeEntry)
+			.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
+			.leftJoin(user, eq(member.userId, user.id))
+			.leftJoin(approver, eq(jobTimeEntry.approvedById, approver.id))
+			.leftJoin(job, eq(jobTimeEntry.jobId, job.id))
+			.leftJoin(customer, eq(job.customerId, customer.id))
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					gte(jobTimeEntry.startedAt, zonedToUtc(`${from}T00:00`, t)),
+					lt(jobTimeEntry.startedAt, zonedToUtc(`${addDays(to, 1)}T00:00`, t))
+				)
+			)
+			.orderBy(asc(user.name), asc(jobTimeEntry.startedAt));
+		body = [
+			row([
+				'Member',
+				'Job',
+				'Customer',
+				'Date',
+				'Start',
+				'End',
+				'Minutes',
+				'Approved',
+				'Approved by',
+				'Note'
+			]),
+			...rows.map((r) =>
+				row([
+					r.memberName ?? '—',
+					r.jobNumber ? `J-${r.jobNumber}` : '',
+					r.customerName ?? '',
+					localDate(r.startedAt, t),
+					localTime(r.startedAt, t),
+					r.endedAt ? localTime(r.endedAt, t) : '',
+					r.endedAt ? Math.round((r.endedAt.getTime() - r.startedAt.getTime()) / 60000) : '',
+					r.approvedAt ? 'yes' : 'no',
+					r.approvedByName ?? '',
+					r.note
 				])
 			)
 		].join('\n');

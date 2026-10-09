@@ -1402,7 +1402,9 @@
 										· {e.entry.note}{/if}
 								</p>
 								{#if e.entry.approvedAt}
-									<p class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Approved</p>
+									<p class="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+										Approved{e.approvedByName ? ` · ${e.approvedByName}` : ''}
+									</p>
 								{/if}
 							</div>
 							{#if time.isAdmin && e.entry.endedAt}
