@@ -284,8 +284,8 @@
 		{@const next = day.jobs.find((j) => j.job.status !== 'done' && j.job.startsAt)}
 		{@const lastEnd = day.jobs
 			.filter((j) => j.job.endsAt && j.job.status !== 'cancelled')
-			.map((j) => j.job.endsAt)
-			.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+			.map((j) => j.job.endsAt?.getTime() ?? 0)
+			.sort((a, b) => a - b)
 			.at(-1)}
 		{@const schedMin = day.jobs.reduce(
 			(m, j) =>
@@ -309,7 +309,9 @@
 				>
 			{/if}
 			{#if lastEnd}
-				<span class="text-muted-foreground tabular-nums">ends ~{localTime(lastEnd, tz)}</span>
+				<span class="text-muted-foreground tabular-nums"
+					>ends ~{localTime(new Date(lastEnd), tz)}</span
+				>
 			{/if}
 			<span class="text-muted-foreground tabular-nums"
 				>{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged</span
