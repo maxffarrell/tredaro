@@ -229,6 +229,7 @@
 						<Table.Head>Item</Table.Head>
 						<Table.Head class="hidden md:table-cell">Kind</Table.Head>
 						<Table.Head class="hidden md:table-cell">Category</Table.Head>
+						<Table.Head class="hidden text-right md:table-cell">Cost</Table.Head>
 						<Table.Head class="text-right">Price</Table.Head>
 						<Table.Head>Status</Table.Head>
 					</Table.Row>
