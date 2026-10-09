@@ -40,10 +40,10 @@
 		return new Date(`${ym}-02T00:00:00Z`).toLocaleString('en', { month: 'short', year: '2-digit' });
 	}
 
-	const fmtHours = (min: number) =>
-		min >= 60
-			? `${Math.floor(min / 60)}h${min % 60 ? ` ${Math.round(min % 60)}m` : ''}`
-			: `${Math.round(min)}m`;
+	const fmtHours = (min: number) => {
+		const m = Math.round(min);
+		return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`;
+	};
 	const maxLabor = Math.max(1, ...r.labor.map((l) => l.minutes));
 </script>
 
