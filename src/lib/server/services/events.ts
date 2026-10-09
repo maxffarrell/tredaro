@@ -122,6 +122,8 @@ export async function testWebhookDelivery(orgId: string, hookId: string) {
 			signal: AbortSignal.timeout(10_000)
 		});
 		status = res.status;
+	} catch {
+		// unreachable endpoint — status 0 is the failure signal, don't 500 the command
 	} finally {
 		await db
 			.update(webhook)
