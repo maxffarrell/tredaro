@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
-import { and, asc, desc, eq, getTableColumns, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
+	activity,
 	agreementPlan,
 	charge,
 	companySettings,
@@ -658,6 +659,7 @@ export async function createPricebookItem(
 			price: input.price,
 			durationMin: input.durationMin ?? null,
 			jobTypeId: input.jobTypeId ?? null,
+			taxable: input.taxable,
 			active: input.active
 		})
 		.returning();
@@ -753,7 +755,8 @@ export async function listInvoices(orgId: string, status?: string) {
 				),
 			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on c.id = p.charge_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 				Number
-			)
+			),
+			viewed: sql<boolean>`exists (select 1 from ${activity} a where a.entity_type = 'invoice' and a.entity_id = ${outer(invoice.id)} and a.action = 'viewed')`
 		})
 		.from(invoice)
 		.innerJoin(customer, eq(invoice.customerId, customer.id))
@@ -857,8 +860,26 @@ export async function createInvoice(
 			});
 	}
 	const rateBps = c.taxRateBps ?? settings.taxRateBps;
+	// Per-item taxable flag: lines linked to a non-taxable pricebook item stay
+	// out of the tax base; unlinked lines (incl. the discount line) are taxable.
+	const linkedIds = [
+		...new Set(items.map((i) => i.pricebookItemId).filter((x): x is string => !!x))
+	];
+	const taxableById = new Map(
+		linkedIds.length
+			? (
+					await db
+						.select({ id: pricebookItem.id, taxable: pricebookItem.taxable })
+						.from(pricebookItem)
+						.where(inArray(pricebookItem.id, linkedIds))
+				).map((r) => [r.id, r.taxable])
+			: []
+	);
 	if (rateBps > 0 && !c.taxExempt) {
-		const tax = Math.round((lineTotal(items) * rateBps) / 10000);
+		const taxBase = lineTotal(
+			items.filter((i) => !(i.pricebookItemId && taxableById.get(i.pricebookItemId) === false))
+		);
+		const tax = Math.round((taxBase * rateBps) / 10000);
 		if (tax > 0)
 			items.push({
 				pricebookItemId: null,
@@ -978,6 +999,31 @@ export async function publicInvoice(id: string) {
 		.innerJoin(organization, eq(organization.id, invoice.organizationId))
 		.where(eq(invoice.id, id));
 	if (!row) error(404, 'Invoice not found');
+	// First customer open of the public link leaves a 'viewed' trail for staff.
+	const [seen] = await db
+		.select({ id: activity.id })
+		.from(activity)
+		.where(
+			and(
+				eq(activity.entityType, 'invoice'),
+				eq(activity.entityId, id),
+				eq(activity.action, 'viewed')
+			)
+		)
+		.limit(1);
+	if (!seen) {
+		await emit({
+			orgId: row.invoice.organizationId,
+			entityType: 'invoice',
+			entityId: id,
+			action: 'viewed',
+			summary: `${row.customerName} opened invoice INV-${row.invoice.number}`
+		});
+		const { notifyStaffInvoiceViewed } = await import('./notifications.ts');
+		notifyStaffInvoiceViewed(row.invoice.organizationId, id).catch((err) =>
+			console.error('invoice-viewed alert failed', err)
+		);
+	}
 	const [items, [{ paid = 0 } = {}], [settings]] = await Promise.all([
 		db
 			.select()

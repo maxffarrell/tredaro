@@ -11,6 +11,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { toast } from 'svelte-sonner';
 	import {
 		getPricebook,
@@ -54,6 +55,7 @@
 	let category = $state('');
 	let jobTypeId = $state('');
 	let active = $state(true);
+	let taxable = $state(true);
 
 	function openItem(i?: (typeof items)[number]) {
 		itemId = i?.id ?? null;
@@ -65,6 +67,7 @@
 		category = i?.category ?? '';
 		jobTypeId = i?.jobTypeId ?? '';
 		active = i?.active ?? true;
+		taxable = i?.taxable ?? true;
 		open = true;
 	}
 
@@ -79,7 +82,8 @@
 				price,
 				durationMin,
 				category,
-				jobTypeId: jobTypeId || null
+				jobTypeId: jobTypeId || null,
+				taxable
 			};
 			if (itemId) {
 				await updatePricebookItem({ id: itemId, ...input, active }).updates(getPricebook);
@@ -317,6 +321,15 @@
 			<Field.Field>
 				<Field.Label for="pb-desc">Description</Field.Label>
 				<Textarea id="pb-desc" rows={2} bind:value={description} />
+			</Field.Field>
+			<Field.Field>
+				<label class="flex items-center gap-2 text-sm font-medium">
+					<Switch bind:checked={taxable} /> Taxable
+				</label>
+				<Field.Description
+					>Non-taxable items (e.g. labor in some states) are excluded from the sales-tax line on
+					invoices.</Field.Description
+				>
 			</Field.Field>
 			{#if itemId}
 				<Field.Field>

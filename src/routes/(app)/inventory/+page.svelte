@@ -76,6 +76,7 @@
 	let unitCost = $state<number | null>(0);
 	let notes = $state('');
 	let location = $state('');
+	let supplierSku = $state('');
 
 	function openItem(i?: (typeof rows)[number]) {
 		itemId = i?.item.id ?? null;
@@ -87,6 +88,7 @@
 		unitCost = i?.item.unitCost ?? 0;
 		notes = i?.item.notes ?? '';
 		location = i?.item.location ?? '';
+		supplierSku = i?.item.supplierSku ?? '';
 		open = true;
 	}
 
@@ -97,6 +99,7 @@
 			const input = {
 				name,
 				sku,
+				supplierSku,
 				unit,
 				location,
 				qtyOnHand,
@@ -435,7 +438,9 @@
 								>{i.item.sku || '—'}</Table.Cell
 							>
 							<Table.Cell class="hidden text-muted-foreground lg:table-cell"
-								>{i.item.location || '—'}</Table.Cell
+								>{i.item.location || '—'}{i.item.supplierSku
+									? ` · ${i.item.supplierSku}`
+									: ''}</Table.Cell
 							>
 							<Table.Cell class="text-right tabular-nums"
 								>{i.item.qtyOnHand} {i.item.unit}</Table.Cell
@@ -636,9 +641,13 @@
 					<Field.Label for="inv-unit">Unit</Field.Label>
 					<Input id="inv-unit" bind:value={unit} placeholder="each" />
 				</Field.Field>
-				<Field.Field class="col-span-2">
+				<Field.Field>
 					<Field.Label for="inv-location">Location</Field.Label>
 					<Input id="inv-location" bind:value={location} placeholder="Bay 2 · Van A" />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="inv-supplier-sku">Supplier SKU</Field.Label>
+					<Input id="inv-supplier-sku" bind:value={supplierSku} placeholder="vendor part #" />
 				</Field.Field>
 			</div>
 			<div class="grid grid-cols-3 gap-4">

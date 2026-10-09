@@ -1637,6 +1637,34 @@ export async function notifyStaffEstimateViewed(orgId: string, estimateId: strin
 	}
 }
 
+/** Customer opened their public invoice link — staff alert, once per invoice. */
+export async function notifyStaffInvoiceViewed(orgId: string, invoiceId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ number: invoice.number, customerName: customer.name })
+		.from(invoice)
+		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.where(eq(invoice.id, invoiceId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'invoice_viewed', invoiceId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `INV-${row.number} viewed — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Invoice INV-${row.number} was opened`,
+				lines: [
+					`${row.customerName} just viewed invoice INV-${row.number} — a good moment to follow up on payment.`
+				],
+				action: { label: 'Open billing', url: `${appOrigin()}/billing` }
+			})
+		});
+	}
+}
+
 /** Customer clicked "Request changes" on the public estimate — staff alert, once per estimate. */
 export async function notifyStaffEstimateChanges(orgId: string, estimateId: string, note: string) {
 	const flags = await notifFlags(orgId);

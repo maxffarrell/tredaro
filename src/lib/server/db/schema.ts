@@ -304,6 +304,8 @@ export const pricebookItem = pgTable(
 		durationMin: integer('duration_min'),
 		/** Job type this item typically bills to; drives estimate "suggested items". */
 		jobTypeId: text('job_type_id').references(() => jobType.id, { onDelete: 'set null' }),
+		/** Excluded from the sales-tax base when false (e.g. non-taxable labor). */
+		taxable: boolean('taxable').notNull().default(true),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -767,6 +769,8 @@ export const inventoryItem = pgTable(
 		unit: text('unit').notNull().default('each'),
 		/** Where it lives in the warehouse/van ("Bay 2", "Van A"). */
 		location: text('location').notNull().default(''),
+		/** Supplier's own SKU — makes reordering/POs unambiguous. */
+		supplierSku: text('supplier_sku').notNull().default(''),
 		qtyOnHand: integer('qty_on_hand').notNull().default(0),
 		/** Attention-card alert when on-hand drops to this level; null = never alert. */
 		reorderPoint: integer('reorder_point'),

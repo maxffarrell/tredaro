@@ -172,6 +172,8 @@ export const pricebookItemInput = v.object({
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)))
 	),
 	jobTypeId: v.optional(v.nullable(idSchema)),
+	/** Excluded from the sales-tax base when false. */
+	taxable: v.optional(v.boolean(), true),
 	active: v.optional(v.boolean(), true)
 });
 export const pricebookImportRow = v.object({
@@ -201,6 +203,7 @@ export const inventoryItemInput = v.object({
 	sku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	unit: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), 'each'),
 	location: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
+	supplierSku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
 	reorderPoint: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
 	unitCost: v.optional(cents, 0),

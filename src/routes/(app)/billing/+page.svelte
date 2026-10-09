@@ -459,7 +459,11 @@
 						<Table.Body>
 							{#each invoices.filter((i) => !customerFilter || i.invoice.customerId === customerFilter) as inv (inv.invoice.id)}
 								<Table.Row>
-									<Table.Cell class="font-medium">INV-{inv.invoice.number}</Table.Cell>
+									<Table.Cell class="font-medium"
+										>INV-{inv.invoice.number}{#if inv.viewed}
+											<Badge variant="outline" class="ml-1 text-xs">viewed</Badge>
+										{/if}</Table.Cell
+									>
 									<Table.Cell>
 										<a href="/customers/{inv.invoice.customerId}" class="hover:underline"
 											>{inv.customerName}</a
