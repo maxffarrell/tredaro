@@ -97,6 +97,12 @@ export const companySettings = pgTable('company_settings', {
 	bookingEnabled: boolean('booking_enabled').notNull().default(true),
 	/** Custom confirmation message on the booking success card (blank = default copy). */
 	bookingMessage: text('booking_message').notNull().default(''),
+	/** Require staff accept/decline on online bookings before they enter the queue. */
+	bookingReview: boolean('booking_review').notNull().default(false),
+	/** Comma-separated YYYY-MM-DD dates the booking page rejects (holidays/closures). */
+	bookingBlackouts: text('booking_blackouts').notNull().default(''),
+	/** Hours before an appointment the reminder email/text goes out (daily cron). */
+	reminderHours: integer('reminder_hours').notNull().default(36),
 	/** Per-workspace counters for human-readable document numbers. */
 	nextJobNumber: integer('next_job_number').notNull().default(1),
 	nextEstimateNumber: integer('next_estimate_number').notNull().default(1),
@@ -430,6 +436,8 @@ export const job = pgTable(
 		warranty: boolean('warranty').notNull().default(false),
 		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
 		preferredTime: text('preferred_time'),
+		/** Online booking awaiting staff accept/decline (org review mode). */
+		needsReview: boolean('needs_review').notNull().default(false),
 		/** Communicated arrival window shown to customer/tech ("8-10 AM"); display only. */
 		arrivalWindow: text('arrival_window'),
 		/** Visit window; null while unscheduled. */

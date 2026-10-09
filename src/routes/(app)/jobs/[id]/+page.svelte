@@ -5,6 +5,8 @@
 	import History from '@lucide/svelte/icons/history';
 	import BellPlus from '@lucide/svelte/icons/bell-plus';
 	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import Globe from '@lucide/svelte/icons/globe';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Progress } from '#lib/components/ui/progress/index.js';
@@ -44,7 +46,8 @@
 		markNoShow,
 		signJob,
 		sendJobEta,
-		sendServiceReport
+		sendServiceReport,
+		reviewBooking
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices, getStaff } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -643,6 +646,18 @@
 		duplicating = false;
 	}
 
+	let reviewing = $state(false);
+	async function review(approve: boolean) {
+		reviewing = true;
+		try {
+			await reviewBooking({ jobId: id, approve }).updates(getJob, getJobs, getDispatchBoard);
+			toast[approve ? 'success' : 'info'](approve ? 'Booking accepted' : 'Booking declined');
+		} catch (err) {
+			toast.error(errMsg(err, 'Review failed'));
+		}
+		reviewing = false;
+	}
+
 	let note = $state('');
 	async function addNote(e: SubmitEvent) {
 		e.preventDefault();
@@ -838,6 +853,34 @@
 		</DropdownMenu.Root>
 	{/snippet}
 </PageHeader>
+
+{#if j.job.needsReview}
+	<div class="px-4 pt-4 md:px-6 md:pt-6">
+		<Alert.Root
+			class="border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"
+		>
+			<Globe />
+			<Alert.Title>Online booking — needs review</Alert.Title>
+			<Alert.Description class="flex flex-wrap items-center gap-x-4 gap-y-2">
+				<span
+					>This came in through the booking page{j.job.preferredTime
+						? ` — asked for ${j.job.preferredTime}`
+						: ''}. Accept it into the queue or decline it.</span
+				>
+				<span class="flex gap-2">
+					<Button size="sm" disabled={reviewing} onclick={() => review(true)}>Accept</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						class="text-destructive"
+						disabled={reviewing}
+						onclick={() => review(false)}>Decline</Button
+					>
+				</span>
+			</Alert.Description>
+		</Alert.Root>
+	</div>
+{/if}
 
 <div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-3">
 	<!-- details + edit form -->

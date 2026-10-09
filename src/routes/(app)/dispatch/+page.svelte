@@ -8,7 +8,13 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
-	import { copyWeek, getDispatchBoard, sendDayEtas, updateJob } from '#lib/remote/jobs.remote.ts';
+	import {
+		copyWeek,
+		getDispatchBoard,
+		reviewBooking,
+		sendDayEtas,
+		updateJob
+	} from '#lib/remote/jobs.remote.ts';
 	import { setDayNote } from '#lib/remote/followups.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
@@ -203,6 +209,18 @@
 
 	const queueRequests = $derived(filteredQueue.filter((j) => j.job.source === 'booking'));
 	const queueOthers = $derived(filteredQueue.filter((j) => j.job.source !== 'booking'));
+
+	let reviewBusy = $state('');
+	async function review(jobId: string, approve: boolean) {
+		reviewBusy = jobId;
+		try {
+			await reviewBooking({ jobId, approve }).updates(getDispatchBoard);
+			toast[approve ? 'success' : 'info'](approve ? 'Booking accepted' : 'Booking declined');
+		} catch (err) {
+			toast.error(errMsg(err, 'Review failed'));
+		}
+		reviewBusy = '';
+	}
 
 	const waitingDays = (created: Date | string) =>
 		Math.max(0, Math.floor((Date.now() - new Date(created).getTime()) / 86_400_000));
@@ -537,6 +555,9 @@
 					{#if j.job.source === 'booking' && waitingDays(j.job.createdAt) === 0}· <span
 							class="text-blue-600 dark:text-blue-400">new request</span
 						>{/if}
+					{#if j.job.needsReview}· <span class="font-medium text-amber-600 dark:text-amber-400"
+							>needs review</span
+						>{/if}
 					{#if !j.customerPhone}· <span class="text-red-500">no phone</span>{/if}
 					{#if j.city}· {j.city}{/if}
 					{#if j.job.preferredTime}
@@ -558,6 +579,24 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
+			{#if j.job.needsReview}
+				<div class="mt-1.5 flex shrink-0 flex-col gap-1">
+					<Button
+						size="sm"
+						variant="outline"
+						class="h-7 px-2 text-xs"
+						disabled={reviewBusy === j.job.id}
+						onclick={() => review(j.job.id, true)}>Accept</Button
+					>
+					<Button
+						size="sm"
+						variant="ghost"
+						class="h-7 px-2 text-xs text-destructive"
+						disabled={reviewBusy === j.job.id}
+						onclick={() => review(j.job.id, false)}>Decline</Button
+					>
+				</div>
+			{/if}
 		</div>
 	{/snippet}
 	<!-- Unscheduled queue -->

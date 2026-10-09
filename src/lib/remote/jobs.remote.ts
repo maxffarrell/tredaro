@@ -153,6 +153,18 @@ export const createJob = command(jobInput, async (input) => {
 	void getCustomer(input.customerId).refresh();
 	return j;
 });
+export const reviewBooking = command(
+	v.object({ jobId: v.string(), approve: v.boolean() }),
+	async (input) => {
+		const ctx = await requireOrg();
+		const r = await svc.reviewBooking(ctx, input.jobId, input.approve);
+		await refreshQuery(getJobs, undefined);
+		await refreshQuery(getDispatchBoard, undefined);
+		await refreshQuery(getJob, input.jobId);
+		await refreshQuery(getDashboard, undefined);
+		return r;
+	}
+);
 export const markNoShow = command(idSchema, async (jobId) => {
 	const ctx = await requireOrg();
 	const copy = await svc.markNoShow(ctx, jobId);

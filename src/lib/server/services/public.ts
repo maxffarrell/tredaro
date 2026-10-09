@@ -157,6 +157,16 @@ export async function requestBooking(
 		}
 	}
 
+	// Closed days: comma-separated YYYY-MM-DD blackout dates (holidays/closures).
+	if (settings.bookingBlackouts && input.preferredTime) {
+		const m = /^(\d{4}-\d{2}-\d{2})/.exec(input.preferredTime);
+		const closed = settings.bookingBlackouts
+			.split(',')
+			.map((d) => d.trim())
+			.filter(Boolean);
+		if (m && closed.includes(m[1])) error(400, "We're closed that day — pick another date.");
+	}
+
 	// Reuse an existing customer with the same email (or same phone digits when the
 	// email doesn't match) rather than stacking duplicates from repeat bookings.
 	const [existing] = await db
@@ -252,6 +262,8 @@ export async function requestBooking(
 		},
 		{ source: 'booking' }
 	);
+	if (settings.bookingReview)
+		await db.update(job).set({ needsReview: true }).where(eq(job.id, j.id));
 
 	await emit({
 		orgId: org.id,

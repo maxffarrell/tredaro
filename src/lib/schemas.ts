@@ -566,7 +566,10 @@ export const settingsInput = v.object({
 	laborRoundingMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(120))),
 	serviceZips: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000))),
 	bookingEnabled: v.optional(v.boolean()),
-	bookingMessage: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
+	bookingMessage: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	bookingReview: v.optional(v.boolean()),
+	bookingBlackouts: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	reminderHours: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(168)))
 });
 
 /** Segment + message for a one-off customer announcement blast. */

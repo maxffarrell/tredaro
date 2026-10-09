@@ -1059,7 +1059,11 @@ export async function runReminders(orgId: string) {
 	await flushSmsOutbox(orgId);
 	await expireEstimates(orgId);
 	const now = new Date();
-	const horizon = new Date(now.getTime() + 36 * 60 * 60 * 1000);
+	const [st] = await db
+		.select({ hours: companySettings.reminderHours })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	const horizon = new Date(now.getTime() + (st?.hours ?? 36) * 3600_000);
 	const upcoming = await db
 		.select({ id: job.id })
 		.from(job)
