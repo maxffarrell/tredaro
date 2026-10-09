@@ -443,6 +443,9 @@
 							>
 							{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span
 								>{/if}
+							{#if j.depOpen}· <span class="text-amber-600 dark:text-amber-400"
+									>dep J-{j.depNumber}</span
+								>{/if}
 							{#if j.city}· {j.city}{/if}
 							{#if j.job.preferredTime}
 								<br /><span class="text-amber-600 dark:text-amber-400"
@@ -537,6 +540,10 @@
 												: 'unscheduled'}
 											{#if j.job.blocked}
 												· <span class="text-amber-600 dark:text-amber-400">parts</span>
+											{/if}
+											{#if j.depOpen}
+												· <span class="text-amber-600 dark:text-amber-400">dep J-{j.depNumber}</span
+												>
 											{/if}
 										</p>
 									</button>

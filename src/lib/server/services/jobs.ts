@@ -134,6 +134,15 @@ const jobSelect = {
 	invoiced:
 		sql<boolean>`exists (select 1 from ${charge} c where c.job_id = ${outer(job.id)} and c.invoice_id is not null)`.mapWith(
 			Boolean
+		),
+	/** Number of the predecessor job, when one is set. */
+	depNumber: sql<
+		number | null
+	>`(select dep.number from job dep where dep.id = ${outer(job.dependsOnJobId)})`.mapWith(Number),
+	/** True while the predecessor job exists and isn't done or cancelled. */
+	depOpen:
+		sql<boolean>`(select dep.status not in ('done','cancelled') from job dep where dep.id = ${outer(job.dependsOnJobId)})`.mapWith(
+			Boolean
 		)
 };
 
@@ -148,6 +157,7 @@ export async function listJobs(
 		officeId?: string;
 		equipmentId?: string;
 		blocked?: boolean;
+		customerId?: string;
 	}
 ) {
 	return db
@@ -174,7 +184,8 @@ export async function listJobs(
 					: undefined,
 				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined,
 				opts.equipmentId ? eq(job.equipmentId, opts.equipmentId) : undefined,
-				opts.blocked ? eq(job.blocked, true) : undefined
+				opts.blocked ? eq(job.blocked, true) : undefined,
+				opts.customerId ? eq(job.customerId, opts.customerId) : undefined
 			)
 		)
 		.orderBy(
@@ -333,7 +344,49 @@ export async function getJob(orgId: string, id: string) {
 				)[0].n
 			: 0;
 
-	return { ...row, events, openBalance: open, costing, sameDay, techDay };
+	const depOptions = await db
+		.select({ id: job.id, number: job.number, summary: job.summary, status: job.status })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.customerId, row.job.customerId),
+				ne(job.id, id),
+				sql`${job.status} not in ('done', 'cancelled')`
+			)
+		)
+		.orderBy(asc(job.number));
+
+	return { ...row, events, openBalance: open, costing, sameDay, techDay, depOptions };
+}
+
+/** J-number of the unfinished predecessor blocking a job, or null when unblocked. */
+async function depBlock(orgId: string, dependsOnJobId: string | null | undefined) {
+	if (!dependsOnJobId) return null;
+	const [dep] = await db
+		.select({ number: job.number, status: job.status })
+		.from(job)
+		.where(and(eq(job.organizationId, orgId), eq(job.id, dependsOnJobId)));
+	return dep && dep.status !== 'done' && dep.status !== 'cancelled' ? dep.number : null;
+}
+
+/** Validate a depends_on choice: exists in org, isn't self, and doesn't loop back. */
+async function assertValidDependency(orgId: string, jobId: string | null, depId: string) {
+	const [dep] = await db
+		.select({ id: job.id, dependsOnJobId: job.dependsOnJobId })
+		.from(job)
+		.where(and(eq(job.organizationId, orgId), eq(job.id, depId)));
+	if (!dep) error(404, 'Depends-on job not found');
+	if (jobId === null) return;
+	let cur: string | null = depId;
+	for (let i = 0; i < 30 && cur; i++) {
+		if (cur === jobId) error(409, 'That would create a dependency loop');
+		const [d] = await db
+			.select({ dependsOnJobId: job.dependsOnJobId })
+			.from(job)
+			.where(and(eq(job.organizationId, orgId), eq(job.id, cur)));
+		cur = d?.dependsOnJobId ?? null;
+	}
 }
 
 /** Creates a job. `startsAt` is a wall-clock time in the workspace timezone; omit for unscheduled. */
@@ -359,6 +412,7 @@ export async function createJob(
 			)[0]
 		: null;
 	if (input.jobTypeId && !jt) error(404, 'Job type not found');
+	if (input.dependsOnJobId) await assertValidDependency(ctx.orgId, null, input.dependsOnJobId);
 
 	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
@@ -387,6 +441,7 @@ export async function createJob(
 			priority: input.priority,
 			preferredTime: input.preferredTime ?? null,
 			source: opts.source ?? 'manual',
+			dependsOnJobId: input.dependsOnJobId ?? null,
 			status: start ? 'scheduled' : 'unscheduled',
 			startsAt: start,
 			endsAt: start ? new Date(start.getTime() + durationMin * 60_000) : null
@@ -537,6 +592,7 @@ export async function updateJob(
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)));
 	if (!existing) error(404, 'Job not found');
 	if (existing.status === 'done') error(409, 'Job is done — edit is locked');
+	if (set.dependsOnJobId) await assertValidDependency(ctx.orgId, id, set.dependsOnJobId);
 
 	const start =
 		set.startsAt === undefined
@@ -596,6 +652,7 @@ export async function updateJob(
 			description: set.description,
 			priority: set.priority,
 			blocked: set.blocked,
+			dependsOnJobId: set.dependsOnJobId,
 			startsAt: start,
 			endsAt,
 			status,
@@ -705,6 +762,12 @@ export async function recordJobEvent(
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, input.jobId)));
 	if (!j) error(404, 'Job not found');
 	if (j.status === 'done' || j.status === 'cancelled') error(409, `Job is ${j.status}`);
+
+	// Dependencies: a job waiting on a predecessor can't be dispatched or completed.
+	if (input.kind !== 'note') {
+		const blocking = await depBlock(ctx.orgId, j.dependsOnJobId);
+		if (blocking) error(409, `Blocked by J-${blocking} — finish it first`);
+	}
 
 	// Job-type completion gates — the tech must finish the checklist and/or attach
 	// a photo before the job can be marked complete.

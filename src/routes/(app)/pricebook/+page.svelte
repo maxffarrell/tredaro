@@ -21,6 +21,7 @@
 		adjustPricebookPrices
 	} from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatMoney } from '#lib/format.ts';
+	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Search from '@lucide/svelte/icons/search';
@@ -29,6 +30,7 @@
 	import { parseCsv } from '#lib/csv.ts';
 
 	const currency = await getCurrency();
+	const jobTypes = $derived(await getJobTypes());
 	let q = $state('');
 	let items = $state(await getPricebook());
 	let catFilter = $state('');
@@ -50,6 +52,7 @@
 	let price = $state(0);
 	let durationMin = $state<number | null>(null);
 	let category = $state('');
+	let jobTypeId = $state('');
 	let active = $state(true);
 
 	function openItem(i?: (typeof items)[number]) {
@@ -60,6 +63,7 @@
 		price = i?.price ?? 0;
 		durationMin = i?.durationMin ?? null;
 		category = i?.category ?? '';
+		jobTypeId = i?.jobTypeId ?? '';
 		active = i?.active ?? true;
 		open = true;
 	}
@@ -68,7 +72,15 @@
 		e.preventDefault();
 		pending = true;
 		try {
-			const input = { name, kind, description, price, durationMin, category };
+			const input = {
+				name,
+				kind,
+				description,
+				price,
+				durationMin,
+				category,
+				jobTypeId: jobTypeId || null
+			};
 			if (itemId) {
 				await updatePricebookItem({ id: itemId, ...input, active }).updates(getPricebook);
 			} else {
@@ -215,7 +227,12 @@
 				<Table.Body>
 					{#each shown as i (i.id)}
 						<Table.Row class="cursor-pointer" onclick={() => openItem(i)}>
-							<Table.Cell class="font-medium">{i.name}</Table.Cell>
+							<Table.Cell class="font-medium"
+								>{i.name}{#if i.jobTypeId}
+									<span class="text-muted-foreground"
+										>· {jobTypes.find((t) => t.id === i.jobTypeId)?.name ?? ''}</span
+									>{/if}</Table.Cell
+							>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">{i.kind}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{i.category || '—'}</Table.Cell
@@ -281,6 +298,21 @@
 			<Field.Field>
 				<Field.Label for="pb-dur">Duration (minutes, optional)</Field.Label>
 				<Input id="pb-dur" type="number" min={5} bind:value={durationMin} />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label>Job type</Field.Label>
+				<Select.Root type="single" bind:value={jobTypeId}>
+					<Select.Trigger class="w-full"
+						>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="">None</Select.Item>
+						{#each jobTypes.filter((t) => t.active) as t (t.id)}
+							<Select.Item value={t.id}>{t.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<Field.Description>Suggests this item when quoting that kind of work.</Field.Description>
 			</Field.Field>
 			<Field.Field>
 				<Field.Label for="pb-desc">Description</Field.Label>

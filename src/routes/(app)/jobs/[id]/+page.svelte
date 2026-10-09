@@ -123,6 +123,7 @@
 	let summary = $state(j.job.summary);
 	let description = $state(j.job.description);
 	let priority = $state(j.job.priority);
+	let dependsOnJobId = $state(j.job.dependsOnJobId ?? '');
 	let startsAt = $state(
 		j.job.startsAt
 			? `${localDate(j.job.startsAt, settings.timezone)}T${localTime(j.job.startsAt, settings.timezone)}`
@@ -145,6 +146,7 @@
 			summary = j.job.summary;
 			description = j.job.description;
 			priority = j.job.priority;
+			dependsOnJobId = j.job.dependsOnJobId ?? '';
 			startsAt = j.job.startsAt
 				? `${localDate(j.job.startsAt, settings.timezone)}T${localTime(j.job.startsAt, settings.timezone)}`
 				: '';
@@ -170,6 +172,7 @@
 				summary,
 				description,
 				priority,
+				dependsOnJobId: dependsOnJobId || null,
 				startsAt: startsAt || null,
 				durationMin
 			}).updates(getJob, getJobs, getDispatchBoard);
@@ -557,6 +560,13 @@
 		{#if j.job.source && j.job.source !== 'manual'}
 			<Badge variant="secondary" class="capitalize">via {j.job.source}</Badge>
 		{/if}
+		{#if j.depOpen}
+			<a href="/jobs/{j.job.dependsOnJobId}"
+				><Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+					>blocked by J-{j.depNumber}</Badge
+				></a
+			>
+		{/if}
 		{#if j.sameDay}
 			<Badge variant="outline" class="hidden text-amber-600 sm:inline-flex dark:text-amber-400"
 				>{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today</Badge
@@ -789,6 +799,26 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label>Depends on</Field.Label>
+						<Select.Root type="single" bind:value={dependsOnJobId}>
+							<Select.Trigger class="w-full"
+								>{(() => {
+									const d = j.depOptions.find((x) => x.id === dependsOnJobId);
+									return d ? `J-${d.number} ${d.summary || ''}` : 'None';
+								})()}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">None</Select.Item>
+								{#each j.depOptions as d (d.id)}
+									<Select.Item value={d.id}>J-{d.number} {d.summary || ''}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Field.Description
+							>Can't be dispatched or completed until that job is done.</Field.Description
+						>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label>Technician</Field.Label>

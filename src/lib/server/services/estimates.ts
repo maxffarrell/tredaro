@@ -171,6 +171,7 @@ export async function createEstimate(
 			number,
 			customerId: input.customerId,
 			serviceLocationId: input.serviceLocationId ?? null,
+			jobTypeId: input.jobTypeId ?? null,
 			notes: input.notes
 		})
 		.returning();
@@ -200,6 +201,7 @@ export async function updateEstimate(
 		.update(estimate)
 		.set({
 			serviceLocationId: input.serviceLocationId,
+			jobTypeId: input.jobTypeId,
 			notes: input.notes,
 			validUntil: input.validUntil
 		})
@@ -235,6 +237,7 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 				number: e.number,
 				customerId: e.customerId,
 				serviceLocationId: e.serviceLocationId,
+				jobTypeId: e.jobTypeId,
 				notes: e.notes,
 				version: e.version + 1,
 				supersedesId: e.id
@@ -583,6 +586,7 @@ async function applyDecision(
 			{
 				customerId: est.customerId,
 				serviceLocationId: est.serviceLocationId,
+				jobTypeId: est.jobTypeId,
 				summary: `From estimate E-${est.number}`,
 				description,
 				preferredTime: null,

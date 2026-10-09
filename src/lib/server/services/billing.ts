@@ -477,6 +477,7 @@ export async function createPricebookItem(
 			description: input.description,
 			price: input.price,
 			durationMin: input.durationMin ?? null,
+			jobTypeId: input.jobTypeId ?? null,
 			active: input.active
 		})
 		.returning();

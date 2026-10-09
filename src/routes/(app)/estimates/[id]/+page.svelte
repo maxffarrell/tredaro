@@ -29,6 +29,9 @@
 		invoiceEstimate
 	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
+	import { getPricebook } from '#lib/remote/billing.remote.ts';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Send from '@lucide/svelte/icons/send';
 	import Mail from '@lucide/svelte/icons/mail';
@@ -50,12 +53,15 @@
 	const est = $derived(await getEstimate(id));
 	const settings = await getSettings();
 	const currency = settings.currency;
+	const jobTypes = $derived(await getJobTypes());
+	const pricebookItems = $derived(await getPricebook());
 
 	const draft = $derived(est.estimate.status === 'draft');
 	const linkedJob = $derived(est.linkedJob ?? null);
 
 	let notes = $state('');
 	let validUntil = $state('');
+	let jobTypeId = $state('');
 	let items = $state<
 		{
 			pricebookItemId: string | null;
@@ -71,6 +77,7 @@
 			loadedId = est.estimate.id;
 			notes = est.estimate.notes;
 			validUntil = est.estimate.validUntil ?? '';
+			jobTypeId = est.estimate.jobTypeId ?? '';
 			items = est.items.map((i) => ({
 				pricebookItemId: i.item.pricebookItemId,
 				name: i.item.name,
@@ -81,6 +88,16 @@
 		}
 	});
 	let pending = $state(false);
+	const suggestions = $derived(
+		jobTypeId
+			? pricebookItems.filter(
+					(pi) =>
+						pi.jobTypeId === jobTypeId &&
+						pi.active &&
+						!items.some((i) => i.pricebookItemId === pi.id)
+				)
+			: []
+	);
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
 
 	async function save(e: SubmitEvent) {
@@ -89,6 +106,7 @@
 		try {
 			await updateEstimate({
 				id,
+				jobTypeId: jobTypeId || null,
 				notes,
 				validUntil: validUntil || null,
 				items: items
@@ -326,6 +344,45 @@
 						>
 						<span class="font-medium tabular-nums">Total {formatMoney(totalCents, currency)}</span>
 					</div>
+					<Field.Field>
+						<Field.Label>Job type</Field.Label>
+						<Select.Root type="single" bind:value={jobTypeId}>
+							<Select.Trigger class="w-full"
+								>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">None</Select.Item>
+								{#each jobTypes.filter((t) => t.active) as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Field.Description
+							>Drives suggested items below and the job type on approval.</Field.Description
+						>
+					</Field.Field>
+					{#if suggestions.length}
+						<div class="flex flex-wrap items-center gap-2 text-sm">
+							<span class="text-muted-foreground">Suggested:</span>
+							{#each suggestions as sg (sg.id)}
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() =>
+										(items = [
+											...items,
+											{
+												pricebookItemId: sg.id,
+												name: sg.name,
+												qty: 1,
+												unitPrice: sg.price,
+												optional: false
+											}
+										])}>{sg.name}</Button
+								>
+							{/each}
+						</div>
+					{/if}
 					<Field.Field>
 						<Field.Label for="ed-notes">Notes</Field.Label>
 						<Textarea id="ed-notes" rows={3} bind:value={notes} />

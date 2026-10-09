@@ -159,6 +159,7 @@ export const pricebookItemInput = v.object({
 	durationMin: v.optional(
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)))
 	),
+	jobTypeId: v.optional(v.nullable(idSchema)),
 	active: v.optional(v.boolean(), true)
 });
 export const pricebookImportRow = v.object({
@@ -295,7 +296,9 @@ export const jobInput = v.object({
 	priority: v.optional(v.picklist(jobPriorities), 'normal'),
 	preferredTime: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(200))), null),
 	/** Omit for an unscheduled job. */
-	startsAt: v.optional(v.nullable(localDateTime))
+	startsAt: v.optional(v.nullable(localDateTime)),
+	/** Predecessor job that must complete before this one can be scheduled. */
+	dependsOnJobId: v.optional(v.nullable(idSchema))
 });
 export const jobUpdate = v.object({
 	id: idSchema,
@@ -312,7 +315,9 @@ export const jobUpdate = v.object({
 	startsAt: v.optional(v.nullable(localDateTime)),
 	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440))),
 	cancelled: v.optional(v.boolean()),
-	cancelReason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
+	cancelReason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	/** Predecessor job that must complete before this one can be scheduled. */
+	dependsOnJobId: v.optional(v.nullable(idSchema))
 });
 
 /** Technician or dispatcher status ping on a job. */
@@ -355,12 +360,14 @@ const lineItem = v.object({
 export const estimateInput = v.object({
 	customerId: idSchema,
 	serviceLocationId: v.optional(v.nullable(idSchema)),
+	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	items: v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item'))
 });
 export const estimateUpdate = v.object({
 	id: idSchema,
 	serviceLocationId: v.optional(v.nullable(idSchema)),
+	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
 	validUntil: v.optional(v.nullable(isoDate)),
 	items: v.optional(v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item')))

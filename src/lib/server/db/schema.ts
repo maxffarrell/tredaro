@@ -287,6 +287,8 @@ export const pricebookItem = pgTable(
 		price: integer('price').notNull(),
 		/** Typical duration for scheduling; null for materials. */
 		durationMin: integer('duration_min'),
+		/** Job type this item typically bills to; drives estimate "suggested items". */
+		jobTypeId: text('job_type_id').references(() => jobType.id, { onDelete: 'set null' }),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -370,6 +372,10 @@ export const job = pgTable(
 		startsAt: timestamp('starts_at', { withTimezone: true }),
 		endsAt: timestamp('ends_at', { withTimezone: true }),
 		source: jobSource('source').notNull().default('manual'),
+		/** Predecessor job that must finish before this one can be scheduled/started. */
+		dependsOnJobId: text('depends_on_job_id').references((): AnyPgColumn => job.id, {
+			onDelete: 'set null'
+		}),
 		estimateId: text('estimate_id'),
 		/** For agreement-generated visits: the agreement + which visit of the billed period. */
 		serviceAgreementId: text('service_agreement_id'),
@@ -491,6 +497,8 @@ export const estimate = pgTable(
 		decisionNote: text('decision_note'),
 		/** Job created on approval. */
 		jobId: text('job_id'),
+		/** Kind of work quoted; drives suggested pricebook items + job type on approval. */
+		jobTypeId: text('job_type_id').references(() => jobType.id, { onDelete: 'set null' }),
 		/** Revision number — a revised estimate shares the number of the one it supersedes. */
 		version: integer('version').notNull().default(1),
 		/** Earlier revision this one replaces (set null keeps history queryable). */
