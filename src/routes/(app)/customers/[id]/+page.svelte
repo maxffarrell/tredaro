@@ -43,6 +43,7 @@
 		updateContact,
 		removeContact
 	} from '#lib/remote/customers.remote.ts';
+	import { addFollowUp, completeFollowUp, removeFollowUp } from '#lib/remote/followups.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
 	import {
 		getSchedules,
@@ -53,7 +54,7 @@
 	import { getJobTypes, getTechnicians } from '#lib/remote/jobs.remote.ts';
 	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
-	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getSettings, getStaff } from '#lib/remote/workspace.remote.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import AirVent from '@lucide/svelte/icons/air-vent';
@@ -62,6 +63,7 @@
 	import Download from '@lucide/svelte/icons/download';
 	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import UserPlus from '@lucide/svelte/icons/user-plus';
+	import BellPlus from '@lucide/svelte/icons/bell-plus';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Phone from '@lucide/svelte/icons/phone';
 	import Mail from '@lucide/svelte/icons/mail';
@@ -209,6 +211,7 @@
 		(c.customer.contactPref ?? '') as '' | 'email' | 'sms'
 	);
 	const technicians = $derived(await getTechnicians());
+	const staff = $derived(await getStaff());
 	let saving = $state(false);
 	let loadedId = '';
 	$effect(() => {
@@ -333,6 +336,40 @@
 			toast.error(errMsg(err, 'Could not save contact'));
 		}
 		contactPending = false;
+	}
+
+	// ------- follow-ups -------
+	let fupOpen = $state(false);
+	let fupPending = $state(false);
+	let fupNote = $state('');
+	let fupDue = $state('');
+	let fupMember = $state('');
+
+	const todayIso = $derived(localDate(new Date(), tz));
+
+	function openFollowUp() {
+		fupNote = '';
+		fupDue = todayIso;
+		fupMember = '';
+		fupOpen = true;
+	}
+
+	async function saveFollowUp(e: SubmitEvent) {
+		e.preventDefault();
+		fupPending = true;
+		try {
+			await addFollowUp({
+				note: fupNote.trim(),
+				dueOn: fupDue,
+				customerId: id,
+				memberId: fupMember || null
+			}).updates(getCustomer);
+			toast.success('Follow-up added');
+			fupOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add follow-up'));
+		}
+		fupPending = false;
 	}
 
 	async function deleteContact(ct: (typeof c.contacts)[number]) {
@@ -938,6 +975,82 @@
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
 				<Card.Title class="text-base"
+					>Follow-ups{#if c.followUps.filter((f) => !f.doneAt).length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>({c.followUps.filter((f) => !f.doneAt).length} open)</span
+						>{/if}</Card.Title
+				>
+				<Button size="sm" variant="outline" onclick={openFollowUp}><Plus /> Add</Button>
+			</Card.Header>
+			<Card.Content class="space-y-2 px-4">
+				{#each c.followUps as f (f.id)}
+					<div
+						class="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm {f.doneAt
+							? 'opacity-50'
+							: ''}"
+					>
+						<div class="min-w-0 flex-1">
+							<span class="flex items-center gap-2 font-medium"
+								>{f.note}
+								{#if f.jobNumber}
+									<a href="/jobs/{f.jobId}" class="shrink-0"
+										><Badge variant="outline" class="font-normal">J-{f.jobNumber}</Badge></a
+									>
+								{/if}</span
+							>
+							<span class="mt-1 flex items-center gap-2 text-xs">
+								{#if f.doneAt}
+									<span class="text-muted-foreground">done {formatDate(f.doneAt)}</span>
+								{:else}
+									<span
+										class={f.dueOn < todayIso
+											? 'font-medium text-red-600 dark:text-red-400'
+											: f.dueOn === todayIso
+												? 'font-medium text-amber-600 dark:text-amber-400'
+												: 'text-muted-foreground'}
+										>due {f.dueOn}{f.dueOn < todayIso ? ' — overdue' : ''}</span
+									>
+								{/if}
+								<span class="text-muted-foreground">· {f.assignee}</span>
+							</span>
+						</div>
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger
+								class="inline-flex size-7 shrink-0 items-center justify-center rounded-md hover:bg-accent"
+							>
+								<EllipsisVertical class="size-4" />
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="end">
+								{#if !f.doneAt}
+									<DropdownMenu.Item onclick={() => completeFollowUp(f.id).updates(getCustomer)}
+										>Mark done</DropdownMenu.Item
+									>
+								{/if}
+								<DropdownMenu.Item
+									class="text-destructive"
+									onclick={() => removeFollowUp(f.id).updates(getCustomer)}
+									>Remove</DropdownMenu.Item
+								>
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					</div>
+				{:else}
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><BellPlus /></Empty.Media>
+							<Empty.Title class="text-sm">No follow-ups</Empty.Title>
+							<Empty.Description class="text-xs"
+								>Remind yourself or a teammate to check back.</Empty.Description
+							>
+						</Empty.Header>
+					</Empty.Root>
+				{/each}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base"
 					>Service locations{#if c.locations.length > 1}
 						<span class="ml-1 text-xs font-normal text-muted-foreground"
 							>({c.locations.length})</span
@@ -1443,6 +1556,48 @@
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={locPending}>{locPending ? 'Saving…' : 'Save'}</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={fupOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>New follow-up</Dialog.Title>
+			<Dialog.Description
+				>A dated reminder — it shows here, on the dashboard when due, and in the assignee's inbox.</Dialog.Description
+			>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={saveFollowUp}>
+			<Field.Field>
+				<Field.Label for="fup-note">Note</Field.Label>
+				<Input id="fup-note" bind:value={fupNote} placeholder="Call about the quote…" required />
+			</Field.Field>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="fup-due">Due</Field.Label>
+					<Input id="fup-due" type="date" bind:value={fupDue} required />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="fup-member">Assign to</Field.Label>
+					<Select.Root type="single" bind:value={fupMember}>
+						<Select.Trigger id="fup-member" class="w-full"
+							>{staff.find((m) => m.id === fupMember)?.name ?? 'Me'}</Select.Trigger
+						>
+						<Select.Content>
+							<Select.Item value="">Me</Select.Item>
+							{#each staff as m (m.id)}
+								<Select.Item value={m.id}>{m.name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={fupPending || !fupNote.trim() || !fupDue}
+					>{fupPending ? 'Saving…' : 'Add follow-up'}</Button
+				>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

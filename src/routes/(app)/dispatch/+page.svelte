@@ -9,8 +9,10 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { copyWeek, getDispatchBoard, sendDayEtas, updateJob } from '#lib/remote/jobs.remote.ts';
+	import { setDayNote } from '#lib/remote/followups.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { addDays } from '#lib/tz.ts';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -23,6 +25,7 @@
 	import Printer from '@lucide/svelte/icons/printer';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
+	import StickyNote from '@lucide/svelte/icons/sticky-note';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
@@ -30,16 +33,51 @@
 	let queueFilter = $state('');
 	let dayFilter = $state('');
 	const weekDays = $derived(Array.from({ length: 7 }, (_, i) => addDays(start, i)));
+	const coversDay = (j: (typeof board.scheduled)[number], day: string) => {
+		if (!j.job.startsAt) return false;
+		const startDay = localDate(new Date(j.job.startsAt), tz);
+		const endDay = j.job.endsAt ? localDate(new Date(j.job.endsAt), tz) : startDay;
+		return startDay <= day && day <= endDay;
+	};
 	const dayJobs = (jobs: (typeof board.scheduled)[number][]) =>
-		dayFilter
-			? jobs.filter((j) => j.job.startsAt && localDate(new Date(j.job.startsAt), tz) === dayFilter)
-			: jobs;
+		dayFilter ? jobs.filter((j) => coversDay(j, dayFilter)) : jobs;
 	const officeName = $derived(offices.find((o) => o.id === officeId)?.name ?? '');
 	const tz = settings.timezone;
 
 	const todayStr = localDate(new Date(), tz);
 	let start = $state(page.url.searchParams.get('from') ?? todayStr);
 	let etaPending = $state(false);
+
+	// ------- per-tech day note -------
+	let noteOpen = $state(false);
+	let notePending = $state(false);
+	let noteMemberId = $state('');
+	let noteOn = $state('');
+	let noteText = $state('');
+	let noteName = $state('');
+
+	function openDayNote(techId: string, name: string) {
+		noteMemberId = techId;
+		noteName = name;
+		noteOn = dayFilter || todayStr;
+		noteText = board.dayNotes.find((n) => n.memberId === techId && n.on === noteOn)?.note ?? '';
+		noteOpen = true;
+	}
+
+	async function saveDayNote(e: SubmitEvent) {
+		e.preventDefault();
+		notePending = true;
+		try {
+			await setDayNote({ memberId: noteMemberId, on: noteOn, note: noteText.trim() }).updates(
+				getDispatchBoard
+			);
+			toast.success(noteText.trim() ? 'Note saved' : 'Note cleared');
+			noteOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save note'));
+		}
+		notePending = false;
+	}
 
 	async function textEtas() {
 		const day = dayFilter || todayStr;
@@ -633,6 +671,20 @@
 							></span>
 						{/if}
 						{group.name}
+						{#if techId}
+							{@const hasNote = board.dayNotes.some(
+								(n) => n.memberId === techId && n.on === (dayFilter || todayStr)
+							)}
+							<button
+								class="inline-flex size-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-accent {hasNote
+									? 'text-amber-600 dark:text-amber-400'
+									: 'text-muted-foreground/50'}"
+								title="Day note for {group.name} on {dayFilter || todayStr}"
+								onclick={() => openDayNote(techId, group.name)}
+							>
+								<StickyNote class="size-3.5" />
+							</button>
+						{/if}
 						{#if group.jobs.length}
 							<Badge variant="outline" class="font-normal text-muted-foreground"
 								>{group.jobs.length} job{group.jobs.length === 1 ? '' : 's'} ·
@@ -700,6 +752,9 @@
 											{j.job.startsAt
 												? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 												: 'unscheduled'}
+											{#if j.job.endsAt && j.job.startsAt && localDate(j.job.endsAt, tz) !== localDate(j.job.startsAt, tz)}
+												→ {localDate(j.job.endsAt, tz)}
+											{/if}
 											{#if j.job.blocked}
 												· <span class="text-amber-600 dark:text-amber-400">parts</span>
 											{/if}
@@ -718,3 +773,41 @@
 		{/each}
 	</div>
 </div>
+
+<!-- per-tech day note -->
+<Dialog.Root bind:open={noteOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Day note — {noteName}</Dialog.Title>
+			<Dialog.Description>Shown as a banner on their My Day.</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-3" onsubmit={saveDayNote}>
+			<Input
+				type="date"
+				value={noteOn}
+				required
+				onchange={(e) => {
+					noteOn = e.currentTarget.value;
+					noteText =
+						board.dayNotes.find((n) => n.memberId === noteMemberId && n.on === noteOn)?.note ?? '';
+				}}
+			/>
+			<Input placeholder="Note for {noteOn}…" maxlength={200} bind:value={noteText} />
+			<div class="flex justify-end gap-2">
+				{#if noteText || board.dayNotes.some((n) => n.memberId === noteMemberId && n.on === noteOn)}
+					<Button
+						type="button"
+						size="sm"
+						variant="ghost"
+						onclick={() => {
+							noteText = '';
+						}}>Clear</Button
+					>
+				{/if}
+				<Button type="submit" size="sm" disabled={notePending}
+					>{notePending ? 'Saving…' : 'Save'}</Button
+				>
+			</div>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>

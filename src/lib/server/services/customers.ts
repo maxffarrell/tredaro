@@ -22,6 +22,7 @@ import {
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
+import { listFollowUps } from './followups.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
@@ -242,9 +243,12 @@ export async function getCustomer(orgId: string, id: string) {
 				.limit(25)
 		: [];
 
+	const followUps = await listFollowUps(orgId, { customerId: id });
+
 	return {
 		...row,
 		contacts,
+		followUps,
 		locations,
 		agreements,
 		jobs,

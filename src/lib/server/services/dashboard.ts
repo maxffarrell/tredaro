@@ -21,6 +21,7 @@ import {
 	outer
 } from '#lib/server/db/schema.ts';
 import { monthlyRecurring } from './billing.ts';
+import { dueFollowUps } from './followups.ts';
 import { localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 
 /** KPIs, today's route and unscheduled queue for the dashboard. */
@@ -302,6 +303,8 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(serviceAgreement.nextChargeAt))
 		.limit(4);
 
+	const dueFollowUpRows = await dueFollowUps(orgId, today);
+
 	const blockedJobs = await db
 		.select({ id: job.id, number: job.number, summary: job.summary, customerName: customer.name })
 		.from(job)
@@ -439,6 +442,17 @@ export async function dashboard(orgId: string) {
 		recentActivity,
 		recentCustomers,
 		attention: [
+			...dueFollowUpRows.map((f) => ({
+				tone: 'amber' as const,
+				href: f.jobId
+					? `/jobs/${f.jobId}`
+					: f.customerId
+						? `/customers/${f.customerId}`
+						: '/dashboard',
+				text: `Follow-up: ${f.note}`,
+				sub: `due ${f.dueOn} · ${f.assignee}${f.customerName ? ` · ${f.customerName}` : ''}`,
+				amountCents: null as number | null
+			})),
 			...overdueCharges.map((c) => ({
 				tone: 'red' as const,
 				href: '/billing',

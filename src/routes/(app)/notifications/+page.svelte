@@ -82,7 +82,8 @@
 		inbound_sms_staff: 'Text from customer',
 		estimate_changes: 'Change request',
 		quote_request: 'Quote request',
-		auto_charge_failed: 'auto-charge failed'
+		auto_charge_failed: 'auto-charge failed',
+		follow_up_due: 'Follow-up due'
 	};
 
 	/** Where each kind's entity usually lives. */
@@ -107,6 +108,7 @@
 		if (kind === 'payment_receipt' || kind === 'job_completed') return `/jobs/${entityId}`;
 		if (kind === 'inbound_sms_staff' || kind === 'auto_charge_failed')
 			return `/customers/${entityId.split(':')[0]}`;
+		if (kind === 'follow_up_due') return entityId.split(':')[1] || '/dashboard';
 		return null;
 	}
 </script>

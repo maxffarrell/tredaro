@@ -543,6 +543,15 @@
 		})}
 	</p>
 
+	{#if day.dayNote}
+		<Alert.Root
+			class="border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900/40 dark:bg-blue-950/30"
+		>
+			<StickyNote />
+			<Alert.Title>Dispatch note for today</Alert.Title>
+			<Alert.Description>{day.dayNote}</Alert.Description>
+		</Alert.Root>
+	{/if}
 	{#if day.offToday}
 		<Alert.Root
 			class="border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"

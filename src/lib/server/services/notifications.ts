@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
 import type { OrgContext } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -14,6 +14,7 @@ import {
 	job,
 	payment,
 	serviceAgreement,
+	followUp,
 	jobType,
 	notificationLog,
 	organization,
@@ -1136,6 +1137,51 @@ export async function runReminders(orgId: string) {
 	const tz = await orgTimezone(orgId);
 	const name = await orgName(orgId);
 	const today = localDate(now, tz);
+
+	// Staff follow-ups due today or earlier — inbox row + email to the assignee.
+	const dueFollowUpRows = await db
+		.select({
+			id: followUp.id,
+			note: followUp.note,
+			dueOn: followUp.dueOn,
+			customerId: followUp.customerId,
+			jobId: followUp.jobId,
+			email: user.email,
+			customerName: customer.name,
+			jobNumber: job.number
+		})
+		.from(followUp)
+		.innerJoin(member, eq(followUp.memberId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.leftJoin(customer, eq(followUp.customerId, customer.id))
+		.leftJoin(job, eq(followUp.jobId, job.id))
+		.where(
+			and(eq(followUp.organizationId, orgId), isNull(followUp.doneAt), lte(followUp.dueOn, today))
+		);
+	for (const f of dueFollowUpRows) {
+		if (!f.email) continue;
+		const link = f.jobId
+			? `/jobs/${f.jobId}`
+			: f.customerId
+				? `/customers/${f.customerId}`
+				: '/dashboard';
+		if (!(await logOnce(orgId, 'follow_up_due', `${f.id}:${link}`, f.email))) continue;
+		await sendEmail({
+			to: f.email,
+			subject: `Follow-up due today — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Follow-up due ${f.dueOn}`,
+				lines: [
+					f.note,
+					f.customerName ? `Customer: ${f.customerName}` : '',
+					f.jobNumber ? `Job: J-${f.jobNumber}` : ''
+				].filter(Boolean),
+				action: { label: 'Open', url: `${appOrigin()}${link}` }
+			})
+		});
+	}
+
 	const todays = await db
 		.select({
 			memberId: job.technicianId,

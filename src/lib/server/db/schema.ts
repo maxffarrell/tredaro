@@ -1035,3 +1035,44 @@ export const smsOutbox = pgTable(
 	},
 	(t) => [index('sms_outbox_pending_idx').on(t.organizationId, t.sendAfter)]
 );
+
+/** A dated reminder for a staff member, optionally tied to a customer/job. */
+export const followUp = pgTable(
+	'follow_up',
+	{
+		id: id(),
+		organizationId: orgId(),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => member.id, { onDelete: 'cascade' }),
+		customerId: text('customer_id').references(() => customer.id, { onDelete: 'cascade' }),
+		jobId: text('job_id').references(() => job.id, { onDelete: 'cascade' }),
+		note: text('note').notNull(),
+		/** Org-local date it should be done by. */
+		dueOn: date('due_on', { mode: 'string' }).notNull(),
+		doneAt: timestamp('done_at', { withTimezone: true }),
+		...timestamps
+	},
+	(t) => [
+		index('follow_up_member_due_idx').on(t.memberId, t.dueOn),
+		index('follow_up_customer_idx').on(t.customerId),
+		index('follow_up_job_idx').on(t.jobId)
+	]
+);
+
+/** A dispatcher's note pinned to one tech's day — banner on My Day, marker on the board. */
+export const memberDayNote = pgTable(
+	'member_day_note',
+	{
+		id: id(),
+		organizationId: orgId(),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => member.id, { onDelete: 'cascade' }),
+		/** Org-local date the note applies to. */
+		on: date('on', { mode: 'string' }).notNull(),
+		note: text('note').notNull(),
+		...timestamps
+	},
+	(t) => [uniqueIndex('member_day_note_member_on_idx').on(t.memberId, t.on)]
+);

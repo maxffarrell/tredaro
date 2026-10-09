@@ -105,6 +105,22 @@ export const contactUpdate = v.object({
 });
 export const contactDeleteInput = v.object({ id: idSchema, customerId: idSchema });
 
+/** A staff reminder tied to a customer/job, due on an org-local date. */
+export const followUpInput = v.object({
+	note: requiredText('Note'),
+	dueOn: isoDate,
+	customerId: v.optional(v.nullable(idSchema)),
+	jobId: v.optional(v.nullable(idSchema)),
+	memberId: v.optional(v.nullable(idSchema))
+});
+
+/** A dispatcher's note pinned to one tech's day (empty note clears). */
+export const dayNoteInput = v.object({
+	memberId: idSchema,
+	on: isoDate,
+	note: v.pipe(v.string(), v.trim(), v.maxLength(200))
+});
+
 export const serviceLocationInput = v.object({
 	customerId: idSchema,
 	label: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ''),

@@ -19,6 +19,7 @@ import {
 import { db } from '#lib/server/db/index.ts';
 import { createInvoice } from './billing.ts';
 import { listJobMaterials } from './inventory.ts';
+import { listFollowUps } from './followups.ts';
 import {
 	charge,
 	customer,
@@ -34,6 +35,7 @@ import {
 	jobTimeEntry,
 	jobType,
 	member,
+	memberDayNote,
 	memberTimeOff,
 	office,
 	payment,
@@ -401,7 +403,8 @@ export async function getJob(orgId: string, id: string) {
 		techDay,
 		depOptions,
 		depJobs,
-		locJobs
+		locJobs,
+		followUps: await listFollowUps(orgId, { jobId: id })
 	};
 }
 
@@ -1274,7 +1277,7 @@ export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
 export async function dispatchBoard(orgId: string, from: Date, to: Date, officeId?: string) {
 	const fromIso = from.toISOString().slice(0, 10);
 	const toIso = to.toISOString().slice(0, 10);
-	const [scheduled, unscheduled, technicians, timeOff] = await Promise.all([
+	const [scheduled, unscheduled, technicians, timeOff, dayNotes] = await Promise.all([
 		listJobs(orgId, { from, to, officeId }),
 		listJobs(orgId, { unscheduled: true, officeId }),
 		listTechnicians(orgId),
@@ -1287,9 +1290,19 @@ export async function dispatchBoard(orgId: string, from: Date, to: Date, officeI
 					lte(memberTimeOff.startsOn, toIso),
 					gte(memberTimeOff.endsOn, fromIso)
 				)
+			),
+		db
+			.select()
+			.from(memberDayNote)
+			.where(
+				and(
+					eq(memberDayNote.organizationId, orgId),
+					gte(memberDayNote.on, fromIso),
+					lte(memberDayNote.on, toIso)
+				)
 			)
 	]);
-	return { scheduled, unscheduled, technicians, timeOff };
+	return { scheduled, unscheduled, technicians, timeOff, dayNotes };
 }
 
 /** Technicians = staff members of the org. */
@@ -1316,7 +1329,8 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
 	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
-	const [jobs, unscheduled, overdue, openEntries, dayEntries, tomorrow, offToday] =
+	const tz = (await getSettings(ctx.orgId)).timezone;
+	const [jobs, unscheduled, overdue, openEntries, dayEntries, tomorrow, offToday, dayNote] =
 		await Promise.all([
 			listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 			listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
@@ -1365,8 +1379,20 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					and(
 						eq(memberTimeOff.organizationId, ctx.orgId),
 						eq(memberTimeOff.memberId, me.id),
-						lte(memberTimeOff.startsOn, from.toISOString().slice(0, 10)),
-						gte(memberTimeOff.endsOn, from.toISOString().slice(0, 10))
+						lte(memberTimeOff.startsOn, localDate(from, tz)),
+						gte(memberTimeOff.endsOn, localDate(from, tz))
+					)
+				)
+				.limit(1),
+			// Dispatcher note pinned to today — banner on My Day.
+			db
+				.select({ note: memberDayNote.note })
+				.from(memberDayNote)
+				.where(
+					and(
+						eq(memberDayNote.organizationId, ctx.orgId),
+						eq(memberDayNote.memberId, me.id),
+						eq(memberDayNote.on, localDate(from, tz))
 					)
 				)
 				.limit(1)
@@ -1410,6 +1436,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		minutesLogged,
 		tomorrow,
 		offToday: offToday[0] ?? null,
+		dayNote: dayNote[0]?.note ?? '',
 		materials
 	};
 }
