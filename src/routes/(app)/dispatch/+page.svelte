@@ -269,7 +269,14 @@
 				);
 				cursor += j?.typeDurationMin ?? 60;
 			}
+			const misses = [...selected].filter((id) => {
+				const j = board.unscheduled.find((x) => x.job.id === id);
+				const t = board.technicians.find((x) => x.id === bulkTech);
+				return j && t && !qualifiedFor(t, j.job.jobTypeId);
+			}).length;
 			toast.success(`Assigned ${selected.size} job${selected.size > 1 ? 's' : ''}`);
+			if (misses)
+				toast.warning(`${misses} assigned job${misses > 1 ? "s aren't" : " isn't"} tagged for the tech`);
 			selected.clear();
 		} catch (err) {
 			toast.error(errMsg(err, 'Bulk assign failed'));
@@ -329,6 +336,12 @@
 					...(job ? { startsAt: when } : {})
 				}).updates(getDispatchBoard);
 				toast.success('Job reassigned');
+				// Dragged job may come from the scheduled list too — resolve its type.
+				const dragged =
+					job ??
+					board.scheduled.find((x) => x.job.id === jobId) ??
+					board.unscheduled.find((x) => x.job.id === jobId);
+				if (dragged) warnIfUnqualified(dragged.job.jobTypeId, techId || null);
 			}
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not move job'));
@@ -336,11 +349,19 @@
 	}
 
 	/** One-click queue assign: tech + slot into the filtered day (or today) after their last job. */
+	function qualifiedFor(t: { skillTags: string }, jobTypeId: string | null) {
+		return !jobTypeId || !t.skillTags || t.skillTags.split(',').includes(jobTypeId);
+	}
+	function warnIfUnqualified(jobTypeId: string | null, techId: string | null) {
+		if (!techId) return;
+		const t = board.technicians.find((x) => x.id === techId);
+		if (t && !qualifiedFor(t, jobTypeId))
+			toast.warning(`Heads-up: ${t.name} isn't tagged for this job type`);
+	}
+
 	/** Best-fit tech for a queue job on the target day: qualified (skill tags) with the lightest load. */
 	function suggestTech(j: (typeof filteredQueue)[number], day: string) {
-		const qualified = board.technicians.filter(
-			(t) => !j.job.jobTypeId || !t.skillTags || t.skillTags.split(',').includes(j.job.jobTypeId)
-		);
+		const qualified = board.technicians.filter((t) => qualifiedFor(t, j.job.jobTypeId));
 		if (!qualified.length) return null;
 		const load = (id: string) =>
 			board.scheduled
@@ -394,6 +415,7 @@
 				getDispatchBoard
 			);
 			toast.success('Assigned');
+			warnIfUnqualified(j.job.jobTypeId, techId);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not assign'));
 		}
@@ -646,7 +668,10 @@
 					<Select.Content>
 						<Select.Item value="__auto__">Auto (best fit)</Select.Item>
 						{#each board.technicians as t (t.id)}
-							<Select.Item value={t.id}>{t.name}</Select.Item>
+							<Select.Item value={t.id}
+								>{t.name}{#if !qualifiedFor(t, j.job.jobTypeId)}
+									<span class="text-amber-600"> · not tagged</span>{/if}</Select.Item
+							>
 						{/each}
 					</Select.Content>
 				</Select.Root>

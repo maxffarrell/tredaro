@@ -875,6 +875,8 @@ export const inventoryItem = pgTable(
 		qtyOnHand: integer('qty_on_hand').notNull().default(0),
 		/** Attention-card alert when on-hand drops to this level; null = never alert. */
 		reorderPoint: integer('reorder_point'),
+		/** Restock target: POs order up to this on-hand level; null = 2×reorder heuristic. */
+		parLevel: integer('par_level'),
 		/** Cost per unit in minor units (cents). */
 		unitCost: integer('unit_cost').notNull().default(0),
 		notes: text('notes').notNull().default(''),

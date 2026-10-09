@@ -256,6 +256,7 @@ export const inventoryItemInput = v.object({
 	supplierSku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
 	reorderPoint: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+	parLevel: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
 	unitCost: v.optional(cents, 0),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), '')
 });

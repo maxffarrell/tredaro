@@ -575,7 +575,8 @@ export async function publicEstimate(id: string) {
 		.from(companySettings)
 		.where(eq(companySettings.organizationId, row.estimate.organizationId));
 	row.estimate = withExpiry(row.estimate);
-	// First customer open of a sent estimate leaves a 'viewed' trail for staff.
+	// Every customer open of a sent estimate leaves a 'viewed' trail (the staff
+	// alert stays first-open-only via notifyStaffEstimateViewed's own dedupe).
 	if (row.estimate.status === 'sent') {
 		const [seen] = await db
 			.select({ id: activity.id })
@@ -588,14 +589,14 @@ export async function publicEstimate(id: string) {
 				)
 			)
 			.limit(1);
+		await emit({
+			orgId: row.estimate.organizationId,
+			entityType: 'estimate',
+			entityId: id,
+			action: 'viewed',
+			summary: `${row.customerName} opened estimate E-${row.estimate.number}`
+		});
 		if (!seen) {
-			await emit({
-				orgId: row.estimate.organizationId,
-				entityType: 'estimate',
-				entityId: id,
-				action: 'viewed',
-				summary: `${row.customerName} opened estimate E-${row.estimate.number}`
-			});
 			const { notifyStaffEstimateViewed } = await import('./notifications.ts');
 			notifyStaffEstimateViewed(row.estimate.organizationId, id).catch((err) =>
 				console.error('estimate-viewed alert failed', err)

@@ -74,6 +74,7 @@
 	let unit = $state('each');
 	let qtyOnHand = $state(0);
 	let reorderPoint = $state<number | null>(null);
+	let parLevel = $state<number | null>(null);
 	let unitCost = $state<number | null>(0);
 	let notes = $state('');
 	let location = $state('');
@@ -86,6 +87,7 @@
 		unit = i?.item.unit ?? 'each';
 		qtyOnHand = i?.item.qtyOnHand ?? 0;
 		reorderPoint = i?.item.reorderPoint ?? null;
+		parLevel = i?.item.parLevel ?? null;
 		unitCost = i?.item.unitCost ?? 0;
 		notes = i?.item.notes ?? '';
 		location = i?.item.location ?? '';
@@ -105,6 +107,7 @@
 				location,
 				qtyOnHand,
 				reorderPoint,
+				parLevel,
 				unitCost: unitCost ?? 0,
 				notes
 			};
@@ -203,7 +206,10 @@
 			? [
 					{
 						inventoryItemId: pre.item.id,
-						qty: Math.max((pre.item.reorderPoint ?? 0) * 2 - pre.item.qtyOnHand, 1),
+						qty: Math.max(
+							(pre.item.parLevel ?? (pre.item.reorderPoint ?? 0) * 2) - pre.item.qtyOnHand,
+							1
+						),
 						unitCost: pre.item.unitCost
 					}
 				]
@@ -457,7 +463,9 @@
 								>{i.item.qtyOnHand} {i.item.unit}</Table.Cell
 							>
 							<Table.Cell class="hidden text-right text-muted-foreground tabular-nums md:table-cell"
-								>{i.item.reorderPoint ?? '—'}</Table.Cell
+								>{i.item.reorderPoint ?? '—'}{#if i.item.parLevel != null}
+									<span title="Restock to {i.item.parLevel}">→{i.item.parLevel}</span
+									>{/if}</Table.Cell
 							>
 							<Table.Cell class="hidden text-right tabular-nums md:table-cell"
 								>{i.item.unitCost ? formatMoney(i.item.unitCost, currency) : '—'}</Table.Cell
@@ -678,7 +686,7 @@
 					<Input id="inv-supplier-sku" bind:value={supplierSku} placeholder="vendor part #" />
 				</Field.Field>
 			</div>
-			<div class="grid grid-cols-3 gap-4">
+			<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
 				<Field.Field>
 					<Field.Label for="inv-qty">On hand</Field.Label>
 					<Input id="inv-qty" type="number" min={0} bind:value={qtyOnHand} />
@@ -686,6 +694,10 @@
 				<Field.Field>
 					<Field.Label for="inv-reorder">Reorder at</Field.Label>
 					<Input id="inv-reorder" type="number" min={0} bind:value={reorderPoint} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="inv-par">Restock to</Field.Label>
+					<Input id="inv-par" type="number" min={0} bind:value={parLevel} placeholder="2× reorder" />
 				</Field.Field>
 				<Field.Field>
 					<Field.Label>Unit cost</Field.Label>

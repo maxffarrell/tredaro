@@ -911,7 +911,10 @@ export async function runRestock(orgId: string) {
 			inventoryItemId: i.id,
 			name: i.name,
 			unit: i.unit,
-			qty: Math.max(1, i.reorderPoint! * 2 - i.qtyOnHand),
+			qty: Math.max(
+				1,
+				(i.parLevel ?? i.reorderPoint! * 2) - i.qtyOnHand
+			),
 			unitCost: i.unitCost
 		}))
 	);
