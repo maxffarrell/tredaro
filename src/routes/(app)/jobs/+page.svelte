@@ -50,15 +50,41 @@
 	const now = $state(new Date());
 	let tab = $state(page.url.searchParams.get('status') ?? 'all');
 	let techId = $state(page.url.searchParams.get('tech') ?? '');
+	let period = $state('');
+	const localIso = (d: Date) => d.toLocaleDateString('en-CA');
+	const periodRange = $derived.by((): { from?: string; to?: string } => {
+		const now = new Date();
+		if (period === 'today') {
+			const t = localIso(now);
+			return { from: t, to: localIso(new Date(now.getTime() + 86400_000)) };
+		}
+		if (period === 'week') {
+			const day = (now.getDay() + 6) % 7; // Monday start
+			const mon = now.getTime() - day * 86400_000;
+			return { from: localIso(new Date(mon)), to: localIso(new Date(mon + 7 * 86400_000)) };
+		}
+		if (period === 'month')
+			return {
+				from: localIso(new Date(now.getFullYear(), now.getMonth(), 1)),
+				to: localIso(new Date(now.getFullYear(), now.getMonth() + 1, 1))
+			};
+		if (period === '30d')
+			return {
+				from: localIso(new Date(now.getTime() - 30 * 86400_000)),
+				to: localIso(new Date(now.getTime() + 86400_000))
+			};
+		return {};
+	});
 	const counts = $derived(await getJobCounts(techId ? { technicianId: techId } : undefined));
 	const jobs = $derived(
 		await getJobs(
-			tab === 'all' && !techId
+			tab === 'all' && !techId && !period
 				? undefined
 				: {
 						...(tab === 'all' || tab === 'blocked' ? {} : { status: [tab] }),
 						...(tab === 'blocked' ? { blocked: true } : {}),
-						...(techId ? { technicianId: techId } : {})
+						...(techId ? { technicianId: techId } : {}),
+						...periodRange
 					}
 		)
 	);
@@ -181,6 +207,30 @@
 				</Select.Content>
 			</Select.Root>
 		{/if}
+		<Select.Root
+			type="single"
+			value={period || 'any'}
+			onValueChange={(v) => (period = v === 'any' ? '' : v)}
+		>
+			<Select.Trigger class="h-8 w-36"
+				>{period === 'today'
+					? 'Today'
+					: period === 'week'
+						? 'This week'
+						: period === 'month'
+							? 'This month'
+							: period === '30d'
+								? 'Last 30 days'
+								: 'Any time'}</Select.Trigger
+			>
+			<Select.Content>
+				<Select.Item value="any">Any time</Select.Item>
+				<Select.Item value="today">Today</Select.Item>
+				<Select.Item value="week">This week</Select.Item>
+				<Select.Item value="month">This month</Select.Item>
+				<Select.Item value="30d">Last 30 days</Select.Item>
+			</Select.Content>
+		</Select.Root>
 		{#if unassignedCount}
 			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
 				>{unassignedCount} unassigned</Badge

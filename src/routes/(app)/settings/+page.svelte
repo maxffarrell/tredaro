@@ -35,6 +35,7 @@
 		getStaff,
 		updateCommission,
 		updateLaborCost,
+		setDispatchVisible,
 		setMemberColor,
 		setStaffAlerts,
 		setMemberSkills,
@@ -370,6 +371,15 @@
 	function skillIds(s: (typeof staff)[number]) {
 		return s.skillTags ? s.skillTags.split(',').filter(Boolean) : [];
 	}
+	async function saveDispatchVisible(s: (typeof staff)[number], on: boolean) {
+		try {
+			await setDispatchVisible({ memberId: s.id, dispatchVisible: on }).updates(getStaff);
+			toast.success(on ? `${s.name} is on the dispatch board` : `${s.name} hidden from dispatch`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update'));
+		}
+	}
+
 	async function saveMemberColor(s: (typeof staff)[number], color: string) {
 		try {
 			await setMemberColor({ memberId: s.id, color }).updates(getStaff);
@@ -1013,6 +1023,16 @@
 											onCheckedChange={(v) => saveStaffAlerts(s, v)}
 										/>
 										alerts
+									</label>
+									<label
+										class="flex items-center gap-1 text-xs text-muted-foreground"
+										title="Show on the dispatch board and in tech pickers"
+									>
+										<Switch
+											checked={s.dispatchVisible}
+											onCheckedChange={(v) => saveDispatchVisible(s, v)}
+										/>
+										dispatch
 									</label>
 									<span
 										class="flex items-center gap-1"

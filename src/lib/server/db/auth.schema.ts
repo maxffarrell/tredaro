@@ -104,6 +104,8 @@ export const member = pgTable(
 		skillTags: text('skill_tags').notNull().default(''),
 		/** Accent color on the dispatch board column (hex, empty = none). */
 		color: text('color').notNull().default(''),
+		/** Whether this member appears on the dispatch board / tech pickers. */
+		dispatchVisible: boolean('dispatch_visible').default(true).notNull(),
 		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => [

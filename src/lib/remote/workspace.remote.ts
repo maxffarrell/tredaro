@@ -158,6 +158,7 @@ export const getStaff = query(async () => {
 			staffAlerts: member.staffAlerts,
 			skillTags: member.skillTags,
 			color: member.color,
+			dispatchVisible: member.dispatchVisible,
 			createdAt: member.createdAt
 		})
 		.from(member)
@@ -247,6 +248,23 @@ export const setMemberColor = command(memberColorInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ color: input.color })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const dispatchVisibleInput = v.object({
+	memberId: idSchema,
+	dispatchVisible: v.boolean()
+});
+
+/** Shows/hides a member on the dispatch board and in tech pickers (office staff, owners). */
+export const setDispatchVisible = command(dispatchVisibleInput, async (input) => {
+	const { orgId } = await requireOrg('admin');
+	const [row] = await db
+		.update(member)
+		.set({ dispatchVisible: input.dispatchVisible })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');

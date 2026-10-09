@@ -1303,7 +1303,7 @@ export async function listTechnicians(orgId: string) {
 		})
 		.from(member)
 		.innerJoin(user, eq(member.userId, user.id))
-		.where(eq(member.organizationId, orgId))
+		.where(and(eq(member.organizationId, orgId), eq(member.dispatchVisible, true)))
 		.orderBy(asc(user.name));
 }
 
