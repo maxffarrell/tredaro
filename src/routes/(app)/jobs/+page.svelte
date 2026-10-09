@@ -154,7 +154,7 @@
 <div class="space-y-4 p-4 md:p-6">
 	<div class="flex flex-wrap items-center gap-3">
 		<Tabs.Root bind:value={tab}>
-			<Tabs.List class="flex-wrap">
+			<Tabs.List class="flex-nowrap overflow-x-auto">
 				{#each STATUS_TABS as [value, label] (value)}
 					<Tabs.Trigger {value}
 						>{label}{#if value !== 'all' && counts[value]}&nbsp;({counts[value]}){/if}</Tabs.Trigger

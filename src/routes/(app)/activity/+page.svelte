@@ -124,8 +124,11 @@
 								{r.actorName ?? r.actorEmail ?? 'System'}
 							</Table.Cell>
 							<Table.Cell class="hidden md:table-cell">
-								<Badge variant="secondary" class="font-normal"
-									>{r.activity.entityType}.{r.activity.action}</Badge
+								<Badge variant="secondary" class="font-normal capitalize"
+									>{r.activity.entityType.replaceAll('_', ' ')} · {r.activity.action.replaceAll(
+										'_',
+										' '
+									)}</Badge
 								>
 							</Table.Cell>
 						</Table.Row>

@@ -339,7 +339,7 @@
 	</div>
 
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -465,7 +465,7 @@
 				><Plus /> Transfer to truck</Button
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -507,7 +507,7 @@
 			<Card.Title class="text-base">Purchase orders</Card.Title>
 			<Button size="sm" variant="outline" onclick={() => openPo()}><Plus /> New PO</Button>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>

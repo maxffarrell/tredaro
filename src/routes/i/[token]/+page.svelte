@@ -133,24 +133,27 @@
 					<p class="mt-1 text-sm text-muted-foreground">Thanks, {customerName}.</p>
 				</Card.Content>
 			</Card.Root>
-		{:else}
+		{:else if providers.length}
 			<Card.Root class="print:hidden">
 				<Card.Header>
 					<Card.Title class="text-base">Pay {formatMoney(balance, currency)}</Card.Title>
 					<Card.Description>Pay this invoice online — secure checkout.</Card.Description>
 				</Card.Header>
 				<Card.Content class="px-6">
-					{#if providers.length}
-						<div class="flex flex-wrap gap-2">
-							{#each providers as p (p.id)}
-								<Button onclick={() => pay(p.id)} disabled={paying}>{p.payLabel}</Button>
-							{/each}
-						</div>
-					{:else}
-						<p class="text-sm text-muted-foreground">
-							{orgName} hasn't enabled online payment — contact them to pay.
-						</p>
-					{/if}
+					<div class="flex flex-wrap gap-2">
+						{#each providers as p (p.id)}
+							<Button onclick={() => pay(p.id)} disabled={paying}>{p.payLabel}</Button>
+						{/each}
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{:else}
+			<Card.Root>
+				<Card.Content class="py-6 text-center">
+					<p class="font-semibold">Amount due: {formatMoney(balance, currency)}</p>
+					<p class="mt-1 text-sm text-muted-foreground">
+						{orgName} hasn't enabled online payment — contact them to pay.
+					</p>
 				</Card.Content>
 			</Card.Root>
 		{/if}

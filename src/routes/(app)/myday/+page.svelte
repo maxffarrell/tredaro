@@ -257,7 +257,7 @@
 
 <PageHeader title="My Day" actions={calActions} />
 
-<div class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 md:p-6">
+<div class="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 md:p-6">
 	<p class="text-sm text-muted-foreground">
 		{new Date(`${day.today}T12:00:00Z`).toLocaleDateString('en-US', {
 			weekday: 'long',

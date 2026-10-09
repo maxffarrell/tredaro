@@ -253,7 +253,7 @@
 				</Select.Root>
 			{/if}
 			{#if peakDay}
-				<Badge variant="outline"
+				<Badge class="hidden md:inline-flex" variant="outline"
 					>peak {new Date(`${peakDay[0]}T12:00:00Z`).toLocaleDateString('en-US', {
 						weekday: 'short',
 						timeZone: 'UTC'
@@ -261,37 +261,41 @@
 				>
 			{/if}
 			{#if weekCount}
-				<Badge variant="outline">{weekCount} this week</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline">{weekCount} this week</Badge>
 			{/if}
 			{#if bookedOnline}
-				<Badge variant="outline" class="text-muted-foreground">{bookedOnline} booked online</Badge>
+				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex"
+					>{bookedOnline} booked online</Badge
+				>
 			{/if}
 			{#if doneThisWeek}
-				<Badge variant="outline">{doneThisWeek} done</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline">{doneThisWeek} done</Badge>
 			{/if}
 			{#if techsOn}
-				<Badge variant="outline" class="text-muted-foreground"
+				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex"
 					>{techsOn} tech{techsOn === 1 ? '' : 's'} on today</Badge
 				>
 			{/if}
 			{#if schedTodayMin > 0}
-				<Badge variant="outline"
+				<Badge class="hidden md:inline-flex" variant="outline"
 					>{Math.floor(schedTodayMin / 60)}h {Math.round(schedTodayMin % 60)}m sched today</Badge
 				>
 			{/if}
 			{#if avgPerTechToday}
-				<Badge variant="outline">avg {avgPerTechToday.toFixed(1)} jobs/tech today</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline"
+					>avg {avgPerTechToday.toFixed(1)} jobs/tech today</Badge
+				>
 			{/if}
 			{#if unassignedToday}
-				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400"
 					>{unassignedToday} unassigned today</Badge
 				>
 			{/if}
 			{#if offThisWeek}
-				<Badge variant="outline">{offThisWeek} off this week</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline">{offThisWeek} off this week</Badge>
 			{/if}
 			{#if offToday}
-				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400"
 					>{offToday} off today</Badge
 				>
 			{/if}

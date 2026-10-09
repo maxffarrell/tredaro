@@ -550,12 +550,12 @@
 			<Badge variant="secondary" class="capitalize">via {j.job.source}</Badge>
 		{/if}
 		{#if j.sameDay}
-			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+			<Badge variant="outline" class="hidden text-amber-600 sm:inline-flex dark:text-amber-400"
 				>{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today</Badge
 			>
 		{/if}
 		{#if j.techDay}
-			<Badge variant="outline" class="text-muted-foreground"
+			<Badge variant="outline" class="hidden text-muted-foreground sm:inline-flex"
 				>{j.techDay + 1} on {matTechName}'s day</Badge
 			>
 		{/if}

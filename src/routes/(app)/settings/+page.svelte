@@ -426,7 +426,7 @@
 		</Tabs.List>
 
 		<Tabs.Content value="general">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Workspace</Card.Title>
 					<Card.Description>Timezone, currency and the public booking page.</Card.Description>
@@ -819,7 +819,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root class="mt-4 max-w-2xl">
+			<Card.Root class="mt-4 max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Preferences</Card.Title>
 					<Card.Description>Saved to this browser, not your profile.</Card.Description>
@@ -857,7 +857,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="offices">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header class="flex-row items-center justify-between">
 					<div>
 						<Card.Title class="text-base">Offices</Card.Title>
@@ -890,7 +890,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="team">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Team ({staff.length} members)</Card.Title>
 					<Card.Description>Staff become technicians on the dispatch board.</Card.Description>
@@ -977,7 +977,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Time off</Card.Title>
 					<Card.Description
@@ -1035,7 +1035,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="jobtypes">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header class="flex-row items-center justify-between space-y-0">
 					<div>
 						<Card.Title class="text-base">Job types</Card.Title>
@@ -1304,7 +1304,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="demo">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Demo data</Card.Title>
 					<Card.Description
