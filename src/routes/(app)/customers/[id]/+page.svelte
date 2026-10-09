@@ -219,6 +219,7 @@
 	let smsOptOut = $state(c.customer.smsOptOut);
 	let emailOptOut = $state(c.customer.emailOptOut);
 	let onHold = $state(c.customer.onHold);
+	let doNotService = $state(c.customer.doNotService);
 	let taxExempt = $state(c.customer.taxExempt);
 	let taxRatePct = $state(c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '');
 	let leadSource = $state(c.customer.leadSource);
@@ -285,6 +286,7 @@
 			smsOptOut = c.customer.smsOptOut;
 			emailOptOut = c.customer.emailOptOut;
 			onHold = c.customer.onHold;
+			doNotService = c.customer.doNotService;
 			taxExempt = c.customer.taxExempt;
 			taxRatePct = c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '';
 			leadSource = c.customer.leadSource;
@@ -314,6 +316,7 @@
 				smsOptOut,
 				emailOptOut,
 				onHold,
+				doNotService,
 				taxExempt,
 				taxRateBps:
 					taxRatePct === '' || taxRatePct == null ? null : Math.round(Number(taxRatePct) * 100),
@@ -774,6 +777,9 @@
 		{#if c.customer.onHold}
 			<StatusBadge status="overdue" label="credit hold" />
 		{/if}
+		{#if c.customer.doNotService}
+			<Badge variant="destructive">do not service</Badge>
+		{/if}
 		{#if dupes.length}
 			<Button
 				size="sm"
@@ -1032,6 +1038,9 @@
 						</label>
 						<label class="flex items-center gap-2 text-sm">
 							<Switch bind:checked={onHold} /> Credit hold — block new jobs
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<Switch bind:checked={doNotService} /> Do not service — block all new work
 						</label>
 						<label class="flex items-center gap-2 text-sm">
 							<Switch bind:checked={taxExempt} /> Tax exempt — no sales tax on invoices

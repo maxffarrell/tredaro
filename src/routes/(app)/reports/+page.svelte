@@ -555,6 +555,21 @@
 					{/each}
 				</div>
 			{/if}
+			{#if r.revByZip.length}
+				<div class="mt-3 space-y-1.5">
+					<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+						By service ZIP (90d)
+					</p>
+					{#each r.revByZip as z (z.zip)}
+						<div class="flex items-center justify-between text-sm">
+							<span class="tabular-nums">{z.zip}</span>
+							<span class="tabular-nums"
+								>{formatMoney(z.total, currency, true)} · {z.n} payment{z.n === 1 ? '' : 's'}</span
+							>
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

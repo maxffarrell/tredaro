@@ -163,6 +163,7 @@
 	let jtReqSignature = $state(false);
 	let jtReqDoc = $state(false);
 	let jtReqTimer = $state(false);
+	let jtReqHelper = $state(false);
 	let jtBookable = $state(true);
 	let jtActive = $state(true);
 
@@ -180,6 +181,7 @@
 		jtReqSignature = t?.requireSignature ?? false;
 		jtReqDoc = t?.requireDocument ?? false;
 		jtReqTimer = t?.requireTimer ?? false;
+		jtReqHelper = t?.requiresHelper ?? false;
 		jtBookable = t?.bookable ?? true;
 		jtActive = t?.active ?? true;
 		jtOpen = true;
@@ -203,6 +205,7 @@
 			requireSignature: jtReqSignature,
 			requireDocument: jtReqDoc,
 			requireTimer: jtReqTimer,
+			requiresHelper: jtReqHelper,
 			bookable: jtBookable,
 			active: jtActive
 		};
@@ -2002,6 +2005,19 @@
 					</p>
 				</div>
 				<Switch id="jt-req-timer" checked={jtReqTimer} onCheckedChange={(v) => (jtReqTimer = v)} />
+			</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-req-helper" class="text-sm font-medium">2-person job</label>
+					<p class="text-xs text-muted-foreground">
+						Scheduling is blocked until a helper (second tech) is assigned.
+					</p>
+				</div>
+				<Switch
+					id="jt-req-helper"
+					checked={jtReqHelper}
+					onCheckedChange={(v) => (jtReqHelper = v)}
+				/>
 			</div>
 			<div class="flex items-center justify-between">
 				<div>

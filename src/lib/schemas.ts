@@ -59,6 +59,8 @@ export const customerInput = v.object({
 	preferredMemberId: v.optional(v.nullable(idSchema)),
 	/** Credit hold — blocks new jobs until cleared. */
 	onHold: v.optional(v.boolean(), false),
+	/** Hard block on new work (jobs, bookings, portal requests). */
+	doNotService: v.optional(v.boolean(), false),
 	/** Skip the org sales-tax line on this customer's invoices. */
 	taxExempt: v.optional(v.boolean(), false),
 	/** Per-customer sales-tax rate override in basis points; null = org default. */
@@ -368,6 +370,7 @@ export const jobTypeInput = v.object({
 	requireSignature: v.optional(v.boolean(), false),
 	requireDocument: v.optional(v.boolean(), false),
 	requireTimer: v.optional(v.boolean(), false),
+	requiresHelper: v.optional(v.boolean(), false),
 	/** Whether the type appears on the public booking page. */
 	bookable: v.optional(v.boolean(), true),
 	active: v.optional(v.boolean(), true)

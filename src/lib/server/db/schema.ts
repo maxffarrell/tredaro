@@ -161,6 +161,8 @@ export const customer = pgTable(
 		leadSource: text('lead_source'),
 		/** Credit hold — blocks new jobs/bookings until the balance is resolved. */
 		onHold: boolean('on_hold').notNull().default(false),
+		/** Hard block on new work — stronger than credit hold (no jobs, bookings or requests). */
+		doNotService: boolean('do_not_service').notNull().default(false),
 		/** Tax-exempt account — invoices skip the org's sales-tax line. */
 		taxExempt: boolean('tax_exempt').notNull().default(false),
 		/** Per-customer sales-tax override in basis points; null = org default rate. */
@@ -391,6 +393,8 @@ export const jobType = pgTable(
 		requireDocument: boolean('require_document').notNull().default(false),
 		/** Technician must have a time entry (clocked in) before marking the job on-site. */
 		requireTimer: boolean('require_time').notNull().default(false),
+		/** Two-person job — scheduling is blocked until a helper (second tech) is assigned. */
+		requiresHelper: boolean('requires_helper').notNull().default(false),
 		/** Whether the type is selectable on the public /book page. */
 		bookable: boolean('bookable').notNull().default(true),
 		active: boolean('active').notNull().default(true),

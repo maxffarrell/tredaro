@@ -434,6 +434,11 @@
 										class="ml-1 px-1 py-0 text-[10px] text-red-600 dark:text-red-400">hold</Badge
 									>
 								{/if}
+								{#if c.doNotService}
+									<Badge variant="destructive" class="ml-1 px-1 py-0 text-[10px]"
+										>do not service</Badge
+									>
+								{/if}
 								{#if c.companyName}<span class="text-muted-foreground">
 										· {c.companyName}</span
 									>{/if}
