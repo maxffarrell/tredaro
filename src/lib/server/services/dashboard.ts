@@ -101,8 +101,8 @@ export async function dashboard(orgId: string) {
 	// Daily collections for the last 7 local days — the KPI card's mini bar chart.
 	const payments7 = await db
 		.select({
-			day: sql<string>`to_char(timezone(${tz}, ${outer(payment.paidAt)}), 'YYYY-MM-DD')`,
-			total: sql<number>`coalesce(sum(${outer(payment.amount)}), 0)`.mapWith(Number)
+			day: sql<string>`to_char(timezone(${tz}, ${payment.paidAt}), 'YYYY-MM-DD')`,
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 		})
 		.from(payment)
 		.where(
@@ -112,7 +112,7 @@ export async function dashboard(orgId: string) {
 				lt(payment.paidAt, dayEnd)
 			)
 		)
-		.groupBy(sql`to_char(timezone(${tz}, ${outer(payment.paidAt)}), 'YYYY-MM-DD')`);
+		.groupBy(sql`to_char(timezone(${tz}, ${payment.paidAt}), 'YYYY-MM-DD')`);
 	const byDay = new Map(payments7.map((p) => [p.day, p.total]));
 	const paymentsWeek = Array.from({ length: 7 }, (_, i) => {
 		const d = new Date(Date.parse(today) - (6 - i) * 24 * 60 * 60 * 1000)
