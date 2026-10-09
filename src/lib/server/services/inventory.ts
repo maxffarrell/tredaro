@@ -23,7 +23,7 @@ export async function listItems(orgId: string) {
 			item: inventoryItem,
 			used: sql<boolean>`exists(select 1 from ${jobMaterial} jm where jm.inventory_item_id = inventory_item.id)`,
 			trucked:
-				sql<number>`coalesce((select sum(ts.qty) from ${truckStock} ts where ts.inventory_item_id = ${inventoryItem.id}), 0)`.mapWith(
+				sql<number>`coalesce((select sum(ts.qty) from ${truckStock} ts where ts.inventory_item_id = inventory_item.id), 0)`.mapWith(
 					Number
 				)
 		})
