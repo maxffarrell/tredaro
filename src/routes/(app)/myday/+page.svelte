@@ -759,6 +759,15 @@
 					approval</span
 				>
 			{/if}
+			{#if day.weekLoggedMin > 0}
+				<span class="text-muted-foreground tabular-nums"
+					>· this week {Math.floor(day.weekLoggedMin / 60)}h {day.weekLoggedMin %
+						60}m{#if day.weekApprovedMin > 0}
+						<span class="text-emerald-600 dark:text-emerald-400"
+							>({Math.floor(day.weekApprovedMin / 60)}h {day.weekApprovedMin % 60}m approved)</span
+						>{/if}</span
+				>
+			{/if}
 			{#if day.tomorrow.length}
 				{@const first = day.tomorrow.find((j) => j.job.startsAt)}
 				<span class="text-muted-foreground tabular-nums"

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from 'drizzle-orm';
 import type { OrgContext } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -1069,6 +1069,28 @@ export async function runWeeklyDigest(orgId: string) {
 				inArray(job.status, ['scheduled', 'dispatched', 'in_progress'])
 			)
 		);
+	// Finished-but-unapproved time still sitting in the payroll queue.
+	const [payroll] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			minutes:
+				sql<number>`coalesce(sum(extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(jobTimeEntry)
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, orgId),
+				isNotNull(jobTimeEntry.endedAt),
+				isNull(jobTimeEntry.approvedAt)
+			)
+		);
+	const pendingMin = Math.round(payroll?.minutes ?? 0);
+	const payrollLine =
+		(payroll?.n ?? 0) > 0
+			? `${payroll!.n} time entr${payroll!.n === 1 ? 'y' : 'ies'} (${Math.floor(pendingMin / 60)}h${pendingMin % 60 ? ` ${pendingMin % 60}m` : ''}) awaiting payroll approval.`
+			: null;
 
 	const cur = await orgCurrencyOf(orgId);
 	const name = await orgName(orgId);
@@ -1084,9 +1106,12 @@ export async function runWeeklyDigest(orgId: string) {
 					`${done?.n ?? 0} job(s) completed in the last 7 days.`,
 					`${formatMoney(collected?.total ?? 0, cur)} collected in the last 7 days.`,
 					`${formatMoney(receivables?.total ?? 0, cur)} still open in receivables.`,
-					`${upcoming?.n ?? 0} job(s) scheduled in the next 7 days.`
+					`${upcoming?.n ?? 0} job(s) scheduled in the next 7 days.`,
+					...(payrollLine ? [payrollLine] : [])
 				],
-				action: { label: 'Open dashboard', url: `${appOrigin()}/dashboard` }
+				action: payrollLine
+					? { label: 'Review payroll', url: `${appOrigin()}/payroll` }
+					: { label: 'Open dashboard', url: `${appOrigin()}/dashboard` }
 			})
 		});
 	}

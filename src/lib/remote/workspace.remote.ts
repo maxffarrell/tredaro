@@ -155,6 +155,7 @@ export const getStaff = query(async () => {
 			role: member.role,
 			commissionPct: member.commissionPct,
 			laborCostCents: member.laborCostCents,
+			overtimePct: member.overtimePct,
 			staffAlerts: member.staffAlerts,
 			skillTags: member.skillTags,
 			color: member.color,
@@ -195,6 +196,23 @@ export const updateLaborCost = command(laborCostInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ laborCostCents: input.laborCostCents })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const overtimeInput = v.object({
+	memberId: idSchema,
+	overtimePct: v.pipe(v.number(), v.integer(), v.minValue(100), v.maxValue(300))
+});
+
+/** Sets a technician's overtime multiplier — % of labor cost past 40h in a payroll week. */
+export const updateOvertimePct = command(overtimeInput, async (input) => {
+	const { orgId } = await requireOrg();
+	const [row] = await db
+		.update(member)
+		.set({ overtimePct: input.overtimePct })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');

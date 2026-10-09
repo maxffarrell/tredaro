@@ -98,6 +98,8 @@ export const member = pgTable(
 		commissionPct: integer('commission_pct').default(0).notNull(),
 		/** Loaded cost per hour (cents) — turns logged time into a job margin cost. */
 		laborCostCents: integer('labor_cost_cents').default(0).notNull(),
+		/** Overtime multiplier % on labor cost past 40h in a payroll week (150 = 1.5×). */
+		overtimePct: integer('overtime_pct').default(150).notNull(),
 		/** Whether this member gets staff notification emails (bookings, decisions, digest). */
 		staffAlerts: boolean('staff_alerts').default(true).notNull(),
 		/** Comma-joined job_type ids the tech is qualified for; empty = qualified for all. */

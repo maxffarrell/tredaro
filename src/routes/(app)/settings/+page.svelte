@@ -38,6 +38,7 @@
 		getStaff,
 		updateCommission,
 		updateLaborCost,
+		updateOvertimePct,
 		setDispatchVisible,
 		setMemberColor,
 		setStaffAlerts,
@@ -387,6 +388,16 @@
 				laborCostCents: Math.round(dollars * 100)
 			}).updates(getStaff);
 			toast.success(`Labor cost set`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+	}
+
+	async function saveOvertime(s: (typeof staff)[number], el: Event) {
+		const pct = Math.round(Number((el.target as HTMLInputElement).value) || 0);
+		try {
+			await updateOvertimePct({ memberId: s.id, overtimePct: pct }).updates(getStaff);
+			toast.success(`Overtime set to ${pct}%`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
 		}
@@ -1158,6 +1169,21 @@
 											onchange={(e) => saveLaborCost(s, e)}
 										/>
 										/hr cost
+									</label>
+									<label
+										class="flex items-center gap-1 text-xs text-muted-foreground"
+										title="Overtime multiplier past 40h in a payroll week (150 = 1.5× the loaded rate)"
+									>
+										<Input
+											type="number"
+											min={100}
+											max={300}
+											step={10}
+											class="h-7 w-16"
+											value={s.overtimePct}
+											onchange={(e) => saveOvertime(s, e)}
+										/>
+										% OT
 									</label>
 									<label
 										class="flex items-center gap-1 text-xs text-muted-foreground"

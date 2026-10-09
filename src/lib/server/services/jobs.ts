@@ -1475,6 +1475,7 @@ export async function payrollHours(ctx: OrgContext, from: Date, to: Date) {
 			memberName: user.name,
 			approvedByName: approver.name,
 			laborCostCents: member.laborCostCents,
+			overtimePct: member.overtimePct,
 			jobId: job.id,
 			jobNumber: job.number,
 			jobSummary: job.summary,
@@ -1665,9 +1666,14 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			docs: [],
 			materials: [],
 			pendingApprovalMin: 0,
+			weekLoggedMin: 0,
+			weekApprovedMin: 0,
 			tz,
 			today
 		};
+	// Monday of the local week containing `from` — bounds the "this week" strip.
+	const weekDow = new Date(`${today}T12:00:00Z`).getUTCDay();
+	const weekStart = zonedToUtc(`${addDays(today, -((weekDow + 6) % 7))}T00:00`, tz);
 	const [
 		jobs,
 		unscheduled,
@@ -1678,7 +1684,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		tomorrow,
 		offToday,
 		dayNote,
-		pendingApproval
+		pendingApproval,
+		weekSums
 	] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
@@ -1763,6 +1770,27 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					isNull(jobTimeEntry.approvedAt),
 					gte(jobTimeEntry.startedAt, new Date(from.getTime() - 30 * 24 * 60 * 60 * 1000))
 				)
+			),
+		// Own finished minutes this week, split by payroll approval — the "this week" strip.
+		db
+			.select({
+				logged:
+					sql<number>`coalesce(sum(extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60), 0)`.mapWith(
+						Number
+					),
+				approved:
+					sql<number>`coalesce(sum(case when ${jobTimeEntry.approvedAt} is not null then extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60 else 0 end), 0)`.mapWith(
+						Number
+					)
+			})
+			.from(jobTimeEntry)
+			.where(
+				and(
+					eq(jobTimeEntry.organizationId, ctx.orgId),
+					eq(jobTimeEntry.memberId, me.id),
+					isNotNull(jobTimeEntry.endedAt),
+					gte(jobTimeEntry.startedAt, weekStart)
+				)
 			)
 	]);
 	// Tech's manual stop order (route_order) takes precedence over the start-time sort.
@@ -1828,6 +1856,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		offToday: offToday[0] ?? null,
 		dayNote: dayNote[0]?.note ?? '',
 		pendingApprovalMin: Math.round(pendingApproval[0]?.minutes ?? 0),
+		weekLoggedMin: Math.round(weekSums[0]?.logged ?? 0),
+		weekApprovedMin: Math.round(weekSums[0]?.approved ?? 0),
 		docs,
 		materials
 	};

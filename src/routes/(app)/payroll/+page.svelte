@@ -103,12 +103,33 @@
 	const approvedMin = $derived(
 		rows.filter((r) => r.entry.approvedAt).reduce((s, r) => s + minutesOf(r.entry), 0)
 	);
-	// Estimated labor cost for a set of rows — member loaded rate × minutes.
-	const costOf = (list: typeof rows) =>
-		list.reduce(
-			(s, r) => s + (r.laborCostCents ? (minutesOf(r.entry) / 60) * r.laborCostCents : 0),
-			0
-		);
+	// Estimated labor cost for a set of rows — loaded rate × minutes, with the
+	// member's overtimePct applied past 40h within each member+week bucket.
+	const costOf = (list: typeof rows) => {
+		const byWeek = new SvelteMap<string, typeof rows>();
+		for (const r of list) {
+			if (!r.laborCostCents) continue;
+			const key = `${r.entry.memberId}:${mondayOf(localDate(r.entry.startedAt, tz))}`;
+			const arr = byWeek.get(key);
+			if (arr) arr.push(r);
+			else byWeek.set(key, [r]);
+		}
+		let total = 0;
+		for (const wkRows of byWeek.values()) {
+			wkRows.sort((a, b) => a.entry.startedAt.getTime() - b.entry.startedAt.getTime());
+			const rate = wkRows[0].laborCostCents ?? 0;
+			const otPct = wkRows[0].overtimePct ?? 150;
+			let cum = 0;
+			for (const r of wkRows) {
+				const min = minutesOf(r.entry);
+				const before = cum;
+				cum += min;
+				const ot = Math.max(0, cum - Math.max(40 * 60, before));
+				total += ((min - ot) / 60) * rate + (ot / 60) * rate * (otPct / 100);
+			}
+		}
+		return total;
+	};
 	const totalCost = $derived(costOf(rows));
 
 	const pendingAll = $derived(pendingCount(rows));
@@ -281,7 +302,10 @@
 						<Badge
 							variant="outline"
 							class="border-amber-300 font-normal text-amber-700 dark:text-amber-400"
-							title="{fmtDur(sumMin(g.rows) - 40 * 60)} over a 40-hour week">OT</Badge
+							title="{fmtDur(
+								sumMin(g.rows) - 40 * 60
+							)} over a 40-hour week — est. labor priced at {g.rows[0]?.overtimePct ??
+								150}% of the base rate">OT</Badge
 						>
 					{/if}
 					{#if pending > 0 && memberId}
