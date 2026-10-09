@@ -46,6 +46,8 @@
 	let changesSent = $state(false);
 	let prefNote = $state('');
 	let prefSent = $state(false);
+	/** Job created by this session's approval — `est` is the pre-decision load. */
+	let approvedJobId = $state<string | null>(null);
 
 	async function sendPreference() {
 		if (!prefNote.trim()) {
@@ -88,7 +90,7 @@
 		}
 		pending = true;
 		try {
-			await decidePublicEstimate({
+			const row = await decidePublicEstimate({
 				token: page.params.token!,
 				approve,
 				name: name.trim(),
@@ -97,6 +99,7 @@
 					? items.filter((i) => i.optional && !excluded.has(i.id)).map((i) => i.id)
 					: []
 			});
+			approvedJobId = row?.jobId ?? null;
 			decided = approve ? 'approved' : 'declined';
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not submit'));
@@ -203,7 +206,7 @@
 					<p class="mt-1 text-sm text-muted-foreground">
 						{orgName} will reach out to schedule the work.
 					</p>
-					{#if est.jobId}
+					{#if est.jobId || approvedJobId}
 						{#if prefSent}
 							<p class="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
 								Got it — they'll schedule around your note.
