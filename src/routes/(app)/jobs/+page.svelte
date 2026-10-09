@@ -185,6 +185,9 @@
 		{#if todayCount}
 			<Badge variant="outline">{todayCount} today</Badge>
 		{/if}
+		{#if counts.doneThisMonth}
+			<Badge variant="outline">{counts.doneThisMonth} done this month</Badge>
+		{/if}
 		{#if unconfirmed}
 			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
 				>{unconfirmed} unconfirmed</Badge

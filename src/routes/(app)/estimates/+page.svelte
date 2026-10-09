@@ -51,6 +51,9 @@
 	let items = $state([{ name: '', qty: 1, unitPrice: 0 }]);
 
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+	const awaitingConversion = $derived(
+		estimates.filter((e) => e.estimate.status === 'approved').length
+	);
 	const expiringSoon = $derived.by(() => {
 		const in7 = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
 		const today = new Date().toISOString().slice(0, 10);
@@ -126,7 +129,8 @@
 				estimates.reduce((s, e) => s + e.total, 0),
 				currency
 			)} across {estimates.length} estimate{estimates.length === 1 ? '' : 's'}{#if winRate !== null}
-				· {winRate}% won (of decided){/if}
+				· {winRate}% won (of decided){/if}{#if awaitingConversion}
+				· {awaitingConversion} awaiting conversion{/if}
 		</p>
 	{/if}
 	{#if tab === 'approved' && estimates.length}

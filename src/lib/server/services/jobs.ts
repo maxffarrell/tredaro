@@ -214,6 +214,21 @@ export async function jobCounts(orgId: string, technicianId?: string) {
 			)
 		);
 	counts.blocked = b?.n ?? 0;
+	const monthStart = new Date(
+		`${localDate(new Date(), (await getSettings(orgId)).timezone).slice(0, 7)}-01T00:00:00Z`
+	);
+	const [dm] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				gte(job.completedAt, monthStart),
+				technicianId ? eq(job.technicianId, technicianId) : undefined
+			)
+		);
+	counts.doneThisMonth = dm?.n ?? 0;
 	return counts;
 }
 

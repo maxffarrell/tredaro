@@ -52,6 +52,9 @@
 					)
 			: 0
 	);
+	const weekCount = $derived(
+		board ? board.scheduled.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length : 0
+	);
 	const unassignedToday = $derived(
 		board
 			? board.scheduled.filter(
@@ -201,6 +204,9 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
+			{/if}
+			{#if weekCount}
+				<Badge variant="outline">{weekCount} this week</Badge>
 			{/if}
 			{#if doneThisWeek}
 				<Badge variant="outline">{doneThisWeek} done</Badge>
