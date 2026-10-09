@@ -225,7 +225,10 @@ export const scheduleAgreementVisits = command(scheduleVisitsInput, async (input
 				void notifyTechAssigned(ctx.orgId, j.id, j.technicianId).catch(() => {});
 			scheduled.push(v.jobId);
 		} catch (e) {
-			failed.push({ jobId: v.jobId, message: e instanceof Error ? e.message : String(e) });
+			const msg =
+				(e as { body?: { message?: string } })?.body?.message ??
+				(e instanceof Error ? e.message : String(e));
+			failed.push({ jobId: v.jobId, message: msg });
 		}
 	}
 	await refreshQuery(getJobs, undefined);
