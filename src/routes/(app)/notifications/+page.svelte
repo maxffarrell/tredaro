@@ -71,6 +71,7 @@
 	const KIND_LABELS: Record<string, string> = {
 		booking_staff_alert: 'Booking request',
 		estimate_viewed: 'Estimate viewed',
+		estimate_hot: 'Hot lead',
 		estimate_decision: 'Estimate answered',
 		low_stock: 'Low stock',
 		parts_delay: 'Parts delay',
@@ -100,6 +101,7 @@
 			kind === 'estimate_viewed' ||
 			kind === 'estimate_decision' ||
 			kind === 'estimate_changes' ||
+			kind === 'estimate_hot' ||
 			kind === 'quote_request'
 		)
 			return `/estimates/${entityId}`;

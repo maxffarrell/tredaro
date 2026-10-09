@@ -4,6 +4,7 @@ import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from 'dri
 import type { OrgContext } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
+	activity,
 	charge,
 	companySettings,
 	customer,
@@ -1258,6 +1259,50 @@ export async function runReminders(orgId: string) {
 			)
 		);
 	for (const e of expiringEstimates) await notifyEstimateExpiring(orgId, e.id);
+
+	// Hot leads — a sent estimate the customer opened ≥2× without deciding.
+	const hot = await db
+		.select({
+			id: estimate.id,
+			number: estimate.number,
+			customerId: estimate.customerId,
+			customerName: customer.name,
+			views: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			activity,
+			and(
+				eq(activity.entityType, 'estimate'),
+				eq(activity.entityId, estimate.id),
+				eq(activity.action, 'viewed')
+			)
+		)
+		.where(and(eq(estimate.organizationId, orgId), eq(estimate.status, 'sent')))
+		.groupBy(estimate.id, estimate.number, estimate.customerId, customer.name)
+		.having(sql`count(*) >= 2`);
+	if (hot.length) {
+		const admins = await adminEmails(orgId);
+		const name2 = await orgName(orgId);
+		for (const h of hot) {
+			for (const a of admins) {
+				if (!(await logOnce(orgId, 'estimate_hot', h.id, a))) continue;
+				await sendEmail({
+					to: a,
+					subject: `Hot lead: ${h.customerName} re-opened E-${h.number} — ${name2}`,
+					...renderEmail({
+						orgName: name2,
+						heading: 'A customer is circling back',
+						lines: [
+							`${h.customerName} has opened estimate E-${h.number} ${h.views} times without answering — a good moment to call.`,
+							`Open the estimate: ${appOrigin()}/estimates/${h.id}`
+						]
+					})
+				});
+			}
+		}
+	}
 
 	// Due-soon nudges — standalone open charges (payment-plan installments,
 	// manual charges) due within 3 days. Invoice charges use invoice reminders.
