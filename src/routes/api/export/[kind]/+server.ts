@@ -483,6 +483,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				endedAt: jobTimeEntry.endedAt,
 				approvedAt: jobTimeEntry.approvedAt,
 				approvedByName: approver.name,
+				laborCostCents: member.laborCostCents,
 				note: jobTimeEntry.note
 			})
 			.from(jobTimeEntry)
@@ -510,6 +511,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				'Minutes',
 				'Approved',
 				'Approved by',
+				'Labor cost',
 				'Note'
 			]),
 			...rows.map((r) =>
@@ -523,6 +525,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 					r.endedAt ? Math.round((r.endedAt.getTime() - r.startedAt.getTime()) / 60000) : '',
 					r.approvedAt ? 'yes' : 'no',
 					r.approvedByName ?? '',
+					r.endedAt && r.laborCostCents
+						? money(
+								Math.round(
+									((r.endedAt.getTime() - r.startedAt.getTime()) / 60000 / 60) * r.laborCostCents
+								)
+							)
+						: '',
 					r.note
 				])
 			)
