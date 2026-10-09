@@ -341,6 +341,29 @@ export const approveTimeEntry = command(
 	}
 );
 
+export const approveAllTimeEntries = command(idSchema, async (jobId) => {
+	const r = await svc.approveAllTimeEntries(await requireOrg(), jobId);
+	await refreshQuery(getTimeEntries, jobId);
+	return r;
+});
+
+export const moveDayStop = command(
+	v.object({
+		memberId: idSchema,
+		on: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/)),
+		jobId: idSchema,
+		direction: v.picklist(['up', 'down'])
+	}),
+	async (input) => {
+		const ctx = await requireOrg();
+		const t = await tz();
+		const r = await svc.moveDayStop(ctx, t, input.memberId, input.on, input.jobId, input.direction);
+		await refreshQuery(getDispatchBoard, undefined);
+		await refreshQuery(getMyDay, undefined);
+		return r;
+	}
+);
+
 export const deleteTimeEntry = command(
 	v.object({ id: idSchema, jobId: idSchema }),
 	async ({ id, jobId }) => {

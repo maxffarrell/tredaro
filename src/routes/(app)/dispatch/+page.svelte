@@ -11,6 +11,7 @@
 	import {
 		copyWeek,
 		getDispatchBoard,
+		moveDayStop,
 		reviewBooking,
 		sendDayEtas,
 		updateJob
@@ -33,6 +34,8 @@
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
 	import ChevronsUp from '@lucide/svelte/icons/chevrons-up';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
@@ -46,8 +49,19 @@
 		const endDay = j.job.endsAt ? localDate(new Date(j.job.endsAt), tz) : startDay;
 		return startDay <= day && day <= endDay;
 	};
-	const dayJobs = (jobs: (typeof board.scheduled)[number][]) =>
-		dayFilter ? jobs.filter((j) => coversDay(j, dayFilter)) : jobs;
+	const dayJobs = (jobs: (typeof board.scheduled)[number][]) => {
+		const rows = dayFilter ? jobs.filter((j) => coversDay(j, dayFilter)) : jobs;
+		if (!dayFilter) return rows;
+		return rows
+			.slice()
+			.sort(
+				(a, b) =>
+					(a.job.routeOrder ?? Number.MAX_SAFE_INTEGER) -
+						(b.job.routeOrder ?? Number.MAX_SAFE_INTEGER) ||
+					(a.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+						(b.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER)
+			);
+	};
 	const officeName = $derived(offices.find((o) => o.id === officeId)?.name ?? '');
 	const tz = settings.timezone;
 
@@ -383,6 +397,27 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not assign'));
 		}
+	}
+
+	let reorderPending = $state(false);
+	async function moveStop(
+		techId: string,
+		j: (typeof board.scheduled)[number],
+		direction: 'up' | 'down'
+	) {
+		if (!dayFilter) return;
+		reorderPending = true;
+		try {
+			await moveDayStop({
+				memberId: techId,
+				on: dayFilter,
+				jobId: j.job.id,
+				direction
+			}).updates(getDispatchBoard);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not move stop'));
+		}
+		reorderPending = false;
 	}
 
 	const byTech = $derived.by(() => {
@@ -806,8 +841,8 @@
 						</p>
 					{:else}
 						<ul class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-							{#each dayJobs(group.jobs) as j (j.job.id)}
-								<li>
+							{#each dayJobs(group.jobs) as j, i (j.job.id)}
+								<li class="flex items-stretch gap-1">
 									<button
 										class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
 										draggable="true"
@@ -855,6 +890,32 @@
 											{/if}
 										</p>
 									</button>
+									{#if dayFilter && techId && dayJobs(group.jobs).length > 1}
+										<div class="flex shrink-0 flex-col justify-center gap-0.5">
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-6"
+												disabled={i === 0 || reorderPending}
+												aria-label="Move stop earlier"
+												title="Move stop earlier"
+												onclick={() => moveStop(techId, j, 'up')}
+											>
+												<ChevronUp class="size-3.5" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-6"
+												disabled={i === dayJobs(group.jobs).length - 1 || reorderPending}
+												aria-label="Move stop later"
+												title="Move stop later"
+												onclick={() => moveStop(techId, j, 'down')}
+											>
+												<ChevronDown class="size-3.5" />
+											</Button>
+										</div>
+									{/if}
 								</li>
 							{/each}
 						</ul>

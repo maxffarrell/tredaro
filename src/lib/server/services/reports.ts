@@ -351,7 +351,15 @@ async function laborByTechnician(orgId: string) {
 			jobs: sql<number>`count(distinct ${jobTimeEntry.jobId})`.mapWith(Number),
 			entries: sql<number>`count(*)`.mapWith(Number),
 			minutes: sql<number>`${minutes}`.mapWith(Number),
-			open: sql<number>`count(*) filter (where ${jobTimeEntry.endedAt} is null)`.mapWith(Number)
+			open: sql<number>`count(*) filter (where ${jobTimeEntry.endedAt} is null)`.mapWith(Number),
+			approvedMin:
+				sql<number>`coalesce(sum(extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60) filter (where ${jobTimeEntry.endedAt} is not null and ${jobTimeEntry.approvedAt} is not null), 0)`.mapWith(
+					Number
+				),
+			unapprovedMin:
+				sql<number>`coalesce(sum(extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60) filter (where ${jobTimeEntry.endedAt} is not null and ${jobTimeEntry.approvedAt} is null), 0)`.mapWith(
+					Number
+				)
 		})
 		.from(jobTimeEntry)
 		.innerJoin(member, eq(jobTimeEntry.memberId, member.id))
