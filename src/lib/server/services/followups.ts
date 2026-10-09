@@ -93,6 +93,26 @@ export async function completeFollowUp(ctx: OrgContext, id: string) {
 	return row;
 }
 
+/** Push an open follow-up's due date out `days` days (snooze). */
+export async function snoozeFollowUp(ctx: OrgContext, id: string, days: number) {
+	const [row] = await db
+		.select()
+		.from(followUp)
+		.where(
+			and(eq(followUp.organizationId, ctx.orgId), eq(followUp.id, id), isNull(followUp.doneAt))
+		);
+	if (!row) error(404, 'Follow-up not found');
+	const due = new Date(`${row.dueOn}T00:00:00Z`);
+	due.setUTCDate(due.getUTCDate() + days);
+	const dueOn = due.toISOString().slice(0, 10);
+	const [updated] = await db
+		.update(followUp)
+		.set({ dueOn })
+		.where(eq(followUp.id, row.id))
+		.returning();
+	return updated;
+}
+
 export async function removeFollowUp(ctx: OrgContext, id: string) {
 	const [row] = await db
 		.delete(followUp)

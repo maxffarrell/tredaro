@@ -49,7 +49,12 @@
 		removeCustomerDoc,
 		shareCustomerDoc
 	} from '#lib/remote/customers.remote.ts';
-	import { addFollowUp, completeFollowUp, removeFollowUp } from '#lib/remote/followups.remote.ts';
+	import {
+		addFollowUp,
+		completeFollowUp,
+		removeFollowUp,
+		snoozeFollowUp
+	} from '#lib/remote/followups.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
 	import {
 		getSchedules,
@@ -796,6 +801,13 @@
 			target="_blank"
 			title="Printable service history"><Printer /></Button
 		>
+		<Button
+			size="sm"
+			variant="outline"
+			href="/customers/{id}/statement"
+			target="_blank"
+			title="Printable statement of open charges">Statement</Button
+		>
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 		<Button
 			size="sm"
@@ -1132,6 +1144,14 @@
 								{#if !f.doneAt}
 									<DropdownMenu.Item onclick={() => completeFollowUp(f.id).updates(getCustomer)}
 										>Mark done</DropdownMenu.Item
+									>
+									<DropdownMenu.Item
+										onclick={() => snoozeFollowUp({ id: f.id, days: 1 }).updates(getCustomer)}
+										>Snooze 1 day</DropdownMenu.Item
+									>
+									<DropdownMenu.Item
+										onclick={() => snoozeFollowUp({ id: f.id, days: 7 }).updates(getCustomer)}
+										>Snooze 1 week</DropdownMenu.Item
 									>
 								{/if}
 								<DropdownMenu.Item
