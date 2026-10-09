@@ -102,6 +102,8 @@ export const member = pgTable(
 		staffAlerts: boolean('staff_alerts').default(true).notNull(),
 		/** Comma-joined job_type ids the tech is qualified for; empty = qualified for all. */
 		skillTags: text('skill_tags').notNull().default(''),
+		/** Accent color on the dispatch board column (hex, empty = none). */
+		color: text('color').notNull().default(''),
 		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => [

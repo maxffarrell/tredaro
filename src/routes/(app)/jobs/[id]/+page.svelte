@@ -626,6 +626,13 @@
 				>{j.techDay + 1} on {matTechName}'s day</Badge
 			>
 		{/if}
+		{#each j.locJobs as l (l.id)}
+			<a href="/jobs/{l.id}" class="hidden lg:inline"
+				><Badge variant="outline" class="text-muted-foreground" title="Also at this location"
+					>also here: J-{l.number}</Badge
+				></a
+			>
+		{/each}
 		{#if j.job.status === 'scheduled'}
 			<Button size="sm" variant="outline" onclick={() => event('dispatched')}
 				><Truck /> Dispatch</Button

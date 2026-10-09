@@ -532,6 +532,8 @@ export const estimate = pgTable(
 		decisionNote: text('decision_note'),
 		/** Staff-only notes — never shown on the public quote. */
 		internalNotes: text('internal_notes').notNull().default(''),
+		/** Customer's purchase-order / reference number, printed on the quote. */
+		customerPo: text('customer_po').notNull().default(''),
 		/** Job created on approval. */
 		jobId: text('job_id'),
 		/** Kind of work quoted; drives suggested pricebook items + job type on approval. */

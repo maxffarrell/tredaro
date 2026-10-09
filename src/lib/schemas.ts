@@ -392,6 +392,7 @@ export const estimateInput = v.object({
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	internalNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	customerPo: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	items: v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item'))
 });
 export const estimateUpdate = v.object({
@@ -400,6 +401,7 @@ export const estimateUpdate = v.object({
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
 	internalNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	customerPo: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80))),
 	validUntil: v.optional(v.nullable(isoDate)),
 	items: v.optional(v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item')))
 });

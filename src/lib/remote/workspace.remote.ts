@@ -157,6 +157,7 @@ export const getStaff = query(async () => {
 			laborCostCents: member.laborCostCents,
 			staffAlerts: member.staffAlerts,
 			skillTags: member.skillTags,
+			color: member.color,
 			createdAt: member.createdAt
 		})
 		.from(member)
@@ -228,6 +229,24 @@ export const setStaffAlerts = command(staffAlertsInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ staffAlerts: input.staffAlerts })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const memberColorInput = v.object({
+	memberId: idSchema,
+	/** Hex swatch shown on the member's dispatch column ('' clears). */
+	color: v.pipe(v.string(), v.trim(), v.regex(/^$|^#[0-9a-fA-F]{6}$/, 'Pick a hex color'))
+});
+
+/** Sets a member's dispatch-column accent color. */
+export const setMemberColor = command(memberColorInput, async (input) => {
+	const { orgId } = await requireOrg('admin');
+	const [row] = await db
+		.update(member)
+		.set({ color: input.color })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');

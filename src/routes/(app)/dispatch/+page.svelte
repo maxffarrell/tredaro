@@ -627,6 +627,11 @@
 			>
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2 text-base">
+						{@const techColor = board.technicians.find((t) => t.id === techId)?.color ?? ''}
+						{#if techColor}
+							<span class="inline-block size-2.5 shrink-0 rounded-full" style:background={techColor}
+							></span>
+						{/if}
 						{group.name}
 						{#if group.jobs.length}
 							<Badge variant="outline" class="font-normal text-muted-foreground"

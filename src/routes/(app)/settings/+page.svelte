@@ -35,6 +35,7 @@
 		getStaff,
 		updateCommission,
 		updateLaborCost,
+		setMemberColor,
 		setStaffAlerts,
 		setMemberSkills,
 		getSmsOutbox,
@@ -369,6 +370,15 @@
 	function skillIds(s: (typeof staff)[number]) {
 		return s.skillTags ? s.skillTags.split(',').filter(Boolean) : [];
 	}
+	async function saveMemberColor(s: (typeof staff)[number], color: string) {
+		try {
+			await setMemberColor({ memberId: s.id, color }).updates(getStaff);
+			toast.success('Dispatch color saved');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save color'));
+		}
+	}
+
 	async function setSkills(s: (typeof staff)[number], ids: string[]) {
 		try {
 			await setMemberSkills({ memberId: s.id, jobTypeIds: ids }).updates(getStaff);
@@ -1004,6 +1014,27 @@
 										/>
 										alerts
 									</label>
+									<span
+										class="flex items-center gap-1"
+										title="Accent color on this member's dispatch column"
+									>
+										<input
+											type="color"
+											class="size-6 cursor-pointer rounded border bg-transparent p-0"
+											value={s.color || '#e2e8f0'}
+											onchange={(e) => saveMemberColor(s, e.currentTarget.value)}
+											aria-label="Dispatch color for {s.name}"
+										/>
+										{#if s.color}
+											<Button
+												size="sm"
+												variant="ghost"
+												class="size-6 px-0 text-muted-foreground"
+												title="Clear dispatch color"
+												onclick={() => saveMemberColor(s, '')}>×</Button
+											>
+										{/if}
+									</span>
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger
 											class="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-accent"

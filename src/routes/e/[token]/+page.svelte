@@ -143,6 +143,9 @@
 				{#if est.validUntil && est.status === 'sent'}
 					<p class="text-xs text-muted-foreground">Valid until {formatDate(est.validUntil)}</p>
 				{/if}
+				{#if est.customerPo}
+					<p class="text-xs text-muted-foreground">PO: {est.customerPo}</p>
+				{/if}
 			</div>
 			<div class="flex items-center gap-2">
 				<StatusBadge status={decided ?? est.status} />
