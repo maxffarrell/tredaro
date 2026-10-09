@@ -10,6 +10,7 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
@@ -26,7 +27,9 @@
 		duplicateEstimate,
 		approveEstimateStaff,
 		declineEstimateStaff,
-		invoiceEstimate
+		invoiceEstimate,
+		getEstimateProgress,
+		progressInvoiceEstimate
 	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
@@ -48,6 +51,7 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FilePen from '@lucide/svelte/icons/file-pen';
 	import Eye from '@lucide/svelte/icons/eye';
+	import Percent from '@lucide/svelte/icons/percent';
 
 	const id = $derived(page.params.id!);
 	const est = $derived(await getEstimate(id));
@@ -55,6 +59,7 @@
 	const currency = settings.currency;
 	const jobTypes = $derived(await getJobTypes());
 	const pricebookItems = $derived(await getPricebook());
+	const prog = $derived(await getEstimateProgress(id));
 
 	const draft = $derived(est.estimate.status === 'draft');
 	const linkedJob = $derived(est.linkedJob ?? null);
@@ -143,6 +148,9 @@
 	}
 
 	let resending = $state(false);
+	let progOpen = $state(false);
+	let progPct = $state(100);
+	let progBusy = $state(false);
 	async function resend() {
 		resending = true;
 		try {
@@ -173,6 +181,31 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not create invoice'));
 		}
+	}
+
+	async function progressInvoice() {
+		progBusy = true;
+		try {
+			const inv = await progressInvoiceEstimate({
+				id,
+				pct: Math.min(100, Math.max(1, progPct))
+			}).updates(getEstimate, getEstimates);
+			toast.success(`Draft invoice INV-${inv!.number} created`);
+			progOpen = false;
+			goto('/billing');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not create invoice'));
+		} finally {
+			progBusy = false;
+		}
+	}
+
+	function openProgress() {
+		progPct =
+			prog.total > 0
+				? Math.max(1, Math.round((100 * (prog.total - prog.invoiced)) / prog.total))
+				: 100;
+		progOpen = true;
 	}
 
 	async function decide(approve: boolean) {
@@ -250,6 +283,12 @@
 		{/if}
 		{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
 			<Button size="sm" variant="outline" onclick={invoice}><Receipt /> Invoice</Button>
+			<Button
+				size="sm"
+				variant="outline"
+				disabled={prog.total <= prog.invoiced}
+				onclick={openProgress}><Percent /> Invoice %</Button
+			>
 		{/if}
 		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={duplicate}
 			><CopyPlus /> Duplicate</Button
@@ -271,6 +310,11 @@
 				{/if}
 				{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
 					<DropdownMenu.Item onclick={revise}><FilePen /> Revise</DropdownMenu.Item>
+				{/if}
+				{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
+					<DropdownMenu.Item disabled={prog.total <= prog.invoiced} onclick={openProgress}
+						><Percent /> Invoice %</DropdownMenu.Item
+					>
 				{/if}
 				<DropdownMenu.Item onclick={duplicate}><CopyPlus /> Duplicate</DropdownMenu.Item>
 				<DropdownMenu.Item onclick={() => window.open(`/estimates/${id}/print`, '_blank')}
@@ -521,3 +565,30 @@
 		</Card.Root>
 	</div>
 </div>
+
+<Dialog.Root bind:open={progOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Progress invoice</Dialog.Title>
+			<Dialog.Description>
+				Bill part of estimate E-{est.estimate.number} now; the remainder stays open for later invoices.
+			</Dialog.Description>
+		</Dialog.Header>
+		<p class="text-sm text-muted-foreground">
+			Already invoiced {formatMoney(prog.invoiced, currency)} of {formatMoney(
+				prog.total,
+				currency
+			)}.
+		</p>
+		<Field.Field>
+			<Field.Label for="prog-pct">Percent to bill</Field.Label>
+			<Input id="prog-pct" type="number" min={1} max={100} bind:value={progPct} />
+		</Field.Field>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (progOpen = false)}>Cancel</Button>
+			<Button disabled={progBusy || !progPct} onclick={progressInvoice}
+				>{progBusy ? 'Creating…' : 'Create invoice'}</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

@@ -91,3 +91,19 @@ export const invoiceEstimate = command(idSchema, async (id) => {
 	await refreshQuery(getCharges, undefined);
 	return inv;
 });
+
+export const getEstimateProgress = query(idSchema, async (id) => {
+	return svc.estimateProgress(await requireOrg(), id);
+});
+
+export const progressInvoiceEstimate = command(
+	v.object({ id: idSchema, pct: v.pipe(v.number(), v.minValue(1), v.maxValue(100)) }),
+	async ({ id, pct }) => {
+		const inv = await svc.progressInvoiceEstimate(await requireOrg(), id, pct);
+		await refreshQuery(getEstimate, id);
+		await refreshQuery(getEstimateProgress, id);
+		await refreshQuery(getInvoices, undefined);
+		await refreshQuery(getCharges, undefined);
+		return inv;
+	}
+);

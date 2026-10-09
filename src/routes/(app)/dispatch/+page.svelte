@@ -20,6 +20,7 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Inbox from '@lucide/svelte/icons/inbox';
+	import Printer from '@lucide/svelte/icons/printer';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
@@ -227,10 +228,37 @@
 	}
 
 	/** One-click queue assign: tech + slot into the filtered day (or today) after their last job. */
+	/** Best-fit tech for a queue job on the target day: qualified (skill tags) with the lightest load. */
+	function suggestTech(j: (typeof filteredQueue)[number], day: string) {
+		const qualified = board.technicians.filter(
+			(t) => !j.job.jobTypeId || !t.skillTags || t.skillTags.split(',').includes(j.job.jobTypeId)
+		);
+		if (!qualified.length) return null;
+		const load = (id: string) =>
+			board.scheduled
+				.filter(
+					(x) =>
+						x.job.technicianId === id &&
+						x.job.startsAt &&
+						x.job.endsAt &&
+						localDate(new Date(x.job.startsAt), tz) === day
+				)
+				.reduce((m, x) => m + (+new Date(x.job.endsAt!) - +new Date(x.job.startsAt!)) / 60000, 0);
+		return qualified.sort((a, b) => load(a.id) - load(b.id))[0].id;
+	}
+
 	async function quickAssign(j: (typeof filteredQueue)[number], techId: string) {
 		if (!techId) return;
 		try {
 			const day = dayFilter || todayStr;
+			if (techId === '__auto__') {
+				const pick = suggestTech(j, day);
+				if (!pick) {
+					toast.error('No qualified tech on this board');
+					return;
+				}
+				techId = pick;
+			}
 			const toInput = (d: Date | string) => `${localDate(new Date(d), tz)}T${localTime(d, tz)}`;
 			const group = byTech.find(([id]) => id === techId)?.[1];
 			const last = (group?.jobs ?? [])
@@ -369,6 +397,14 @@
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(7)}
 				><ChevronRight /></Button
 			>
+			<Button
+				variant="outline"
+				size="icon"
+				class="size-8"
+				title="Print this week's schedule"
+				href="/dispatch/print?from={start}"
+				target="_blank"><Printer /></Button
+			>
 		</div>
 	{/snippet}
 </PageHeader>
@@ -431,6 +467,7 @@
 					title="Assign to a tech on {dayFilter || todayStr}">Assign</Select.Trigger
 				>
 				<Select.Content>
+					<Select.Item value="__auto__">Auto (best fit)</Select.Item>
 					{#each board.technicians as t (t.id)}
 						<Select.Item value={t.id}>{t.name}</Select.Item>
 					{/each}
