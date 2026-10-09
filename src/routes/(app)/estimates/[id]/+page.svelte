@@ -1,4 +1,6 @@
 <script lang="ts">
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -213,20 +215,51 @@
 			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
 		{/if}
 		{#if est.estimate.status === 'sent'}
-			<Button size="sm" variant="outline" onclick={resend} disabled={resending}
-				><Mail /> {resending ? 'Resending…' : 'Resend'}</Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				onclick={resend}
+				disabled={resending}><Mail /> {resending ? 'Resending…' : 'Resend'}</Button
 			>
 			<Button size="sm" variant="outline" onclick={() => decide(true)}><Check /> Approve</Button>
 			<Button size="sm" variant="outline" onclick={() => decide(false)}><X /> Decline</Button>
 		{/if}
 		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
-			<Button size="sm" variant="outline" onclick={revise}><FilePen /> Revise</Button>
+			<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={revise}
+				><FilePen /> Revise</Button
+			>
 		{/if}
 		{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
 			<Button size="sm" variant="outline" onclick={invoice}><Receipt /> Invoice</Button>
 		{/if}
-		<Button size="sm" variant="outline" onclick={duplicate}><CopyPlus /> Duplicate</Button>
-		<Button size="sm" variant="outline" href="/estimates/{id}/print"><Printer /> Print</Button>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={duplicate}
+			><CopyPlus /> Duplicate</Button
+		>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" href="/estimates/{id}/print"
+			><Printer /> Print</Button
+		>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="inline-flex size-8 items-center justify-center rounded-md border hover:bg-accent md:hidden"
+			>
+				<EllipsisVertical class="size-4" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				{#if est.estimate.status === 'sent'}
+					<DropdownMenu.Item disabled={resending} onclick={resend}
+						><Mail /> Resend</DropdownMenu.Item
+					>
+				{/if}
+				{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
+					<DropdownMenu.Item onclick={revise}><FilePen /> Revise</DropdownMenu.Item>
+				{/if}
+				<DropdownMenu.Item onclick={duplicate}><CopyPlus /> Duplicate</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => window.open(`/estimates/${id}/print`, '_blank')}
+					><Printer /> Print</DropdownMenu.Item
+				>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	{/snippet}
 </PageHeader>
 

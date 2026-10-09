@@ -1,4 +1,6 @@
 <script lang="ts">
+	import CalendarX2 from '@lucide/svelte/icons/calendar-x-2';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { ApiPermissions } from '#lib/api-permissions.ts';
@@ -1004,7 +1006,14 @@
 								>
 							</li>
 						{:else}
-							<li class="py-2 text-sm text-muted-foreground">No time off scheduled.</li>
+							<li class="list-none">
+								<Empty.Root class="border-0 py-3">
+									<Empty.Header>
+										<Empty.Media><CalendarX2 /></Empty.Media>
+										<Empty.Title class="text-sm">No time off scheduled</Empty.Title>
+									</Empty.Header>
+								</Empty.Root>
+							</li>
 						{/each}
 					</ul>
 					<form

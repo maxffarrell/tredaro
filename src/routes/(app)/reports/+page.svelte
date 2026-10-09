@@ -1,4 +1,10 @@
 <script lang="ts">
+	import Users from '@lucide/svelte/icons/users';
+	import Wallet from '@lucide/svelte/icons/wallet';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Wrench from '@lucide/svelte/icons/wrench';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
@@ -88,7 +94,12 @@
 					<span class="tabular-nums">{m.count}</span>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No customers yet.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Users /></Empty.Media>
+						<Empty.Title class="text-sm">No customers yet</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</Card.Content>
 	</Card.Root>
@@ -109,7 +120,12 @@
 					<span class="tabular-nums">{formatMoney(m.total, currency, true)}</span>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No payments yet.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Wallet /></Empty.Media>
+						<Empty.Title class="text-sm">No payments yet</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 			{#if r.avgTicket != null}
 				<p class="pt-2 text-sm text-muted-foreground">
@@ -141,7 +157,12 @@
 					<span class="tabular-nums">{p.count}</span>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No active agreements.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><FileText /></Empty.Media>
+						<Empty.Title class="text-sm">No active agreements</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 			{#if r.churnedAgreements > 0}
 				<p class="pt-2 text-sm text-muted-foreground">
@@ -550,7 +571,13 @@
 					>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No time logged in the last 30 days.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Clock /></Empty.Media>
+						<Empty.Title class="text-sm">No time logged</Empty.Title>
+						<Empty.Description>In the last 30 days.</Empty.Description>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</Card.Content>
 	</Card.Root>
@@ -575,7 +602,12 @@
 					>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No technicians.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Wrench /></Empty.Media>
+						<Empty.Title class="text-sm">No technicians</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</Card.Content>
 	</Card.Root>
