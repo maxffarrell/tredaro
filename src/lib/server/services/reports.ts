@@ -355,7 +355,8 @@ async function techPerformance(orgId: string) {
 		db
 			.select({
 				memberId: job.technicianId,
-				jobs: sql<number>`count(*)`.mapWith(Number)
+				jobs: sql<number>`count(*)`.mapWith(Number),
+				avgRating: sql<number>`avg(${job.rating})`.mapWith(Number)
 			})
 			.from(job)
 			.where(
@@ -408,7 +409,7 @@ async function techPerformance(orgId: string) {
 				.where(eq(member.organizationId, orgId))
 		).map((r) => [r.memberId, r])
 	);
-	const doneMap = new Map(done.map((r) => [r.memberId, r.jobs]));
+	const doneMap = new Map(done.map((r) => [r.memberId, r]));
 	const hoursMap = new Map(hours.map((r) => [r.memberId, r.minutes]));
 	const revMap = new Map(revenue.map((r) => [r.memberId, r.total]));
 	return [...ids]
@@ -419,11 +420,13 @@ async function techPerformance(orgId: string) {
 			return {
 				memberId,
 				name: info?.name ?? 'Former staff',
-				jobsDone: doneMap.get(memberId) ?? 0,
+				jobsDone: doneMap.get(memberId)?.jobs ?? 0,
+				avgRating: doneMap.get(memberId)?.avgRating ?? null,
 				minutes: hoursMap.get(memberId) ?? 0,
 				// Logged labor per completed job — a rough "efficiency" read.
 				avgMinPerJob:
-					Math.round(((hoursMap.get(memberId) ?? 0) / (doneMap.get(memberId) || 1)) * 10) / 10,
+					Math.round(((hoursMap.get(memberId) ?? 0) / (doneMap.get(memberId)?.jobs || 1)) * 10) /
+					10,
 				revenue,
 				commissionPct: pct,
 				commission: Math.round((revenue * pct) / 100)

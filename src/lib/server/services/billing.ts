@@ -12,6 +12,7 @@ import {
 	invoice,
 	invoiceItem,
 	job,
+	jobExpense,
 	jobMaterial,
 	jobTimeEntry,
 	inventoryItem,
@@ -1093,6 +1094,14 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		.from(job)
 		.where(and(eq(job.organizationId, orgId), eq(job.id, jobId)));
 	if (!j) error(404, 'Job not found');
+	// Billable job expenses (permits, subcontractors) ride along as their own lines.
+	const exps = (await db.select().from(jobExpense).where(eq(jobExpense.jobId, jobId))).map((e) => ({
+		pricebookItemId: null,
+		name: `Expense — ${e.description}`,
+		description: e.vendor ?? '',
+		qty: 1,
+		unitPrice: e.amount
+	}));
 	if (j.estimateId) {
 		const items = await db
 			.select()
@@ -1102,13 +1111,16 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		if (items.length) {
 			return {
 				job: j,
-				items: items.map((i) => ({
-					pricebookItemId: i.pricebookItemId,
-					name: i.name,
-					description: i.description,
-					qty: i.qty,
-					unitPrice: i.unitPrice
-				}))
+				items: [
+					...items.map((i) => ({
+						pricebookItemId: i.pricebookItemId,
+						name: i.name,
+						description: i.description,
+						qty: i.qty,
+						unitPrice: i.unitPrice
+					})),
+					...exps
+				]
 			};
 		}
 	}
@@ -1178,7 +1190,8 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 				qty: m.qty,
 				unitPrice: m.unitPrice
 			})),
-			...labor
+			...labor,
+			...exps
 		]
 	};
 }

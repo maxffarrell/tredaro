@@ -300,6 +300,7 @@
 						<Table.Head class="text-right">Hrs/job</Table.Head>
 						<Table.Head class="text-right">Collected</Table.Head>
 						<Table.Head class="text-right">Commission</Table.Head>
+						<Table.Head class="text-right">Rating</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -319,10 +320,13 @@
 									? `${formatMoney(t.commission, currency, true)} (${t.commissionPct}%)`
 									: '—'}</Table.Cell
 							>
+							<Table.Cell class="text-right tabular-nums"
+								>{t.avgRating ? `${t.avgRating.toFixed(1)}★` : '—'}</Table.Cell
+							>
 						</Table.Row>
 					{:else}
 						<Table.Row
-							><Table.Cell colspan={6} class="text-muted-foreground"
+							><Table.Cell colspan={7} class="text-muted-foreground"
 								>No technician activity in the last 90 days.</Table.Cell
 							></Table.Row
 						>

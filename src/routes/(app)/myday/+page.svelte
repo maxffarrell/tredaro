@@ -12,6 +12,7 @@
 	import {
 		getMyDay,
 		recordJobEvent,
+		addJobExpense,
 		signJob,
 		startTimer,
 		stopTimer,
@@ -23,6 +24,7 @@
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { errMsg } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
@@ -39,6 +41,7 @@
 	import Phone from '@lucide/svelte/icons/phone';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
+	import Receipt from '@lucide/svelte/icons/receipt';
 
 	const day = $derived(await getMyDay());
 	const tomorrowSchedMin = $derived(
@@ -104,6 +107,10 @@
 		ptoPending = false;
 	}
 	let noteJobId = $state<string | null>(null);
+	let expJobId = $state<string | null>(null);
+	let expDesc = $state('');
+	let expVendor = $state('');
+	let expAmount = $state(0);
 	let noteText = $state('');
 
 	// photo capture — one shared input; the menu sets the job + phase, then clicks it
@@ -136,6 +143,25 @@
 		}
 		(e.currentTarget as HTMLInputElement).value = '';
 		uploadingPhoto = null;
+	}
+
+	async function saveExpense() {
+		if (!expJobId || !expDesc.trim() || expAmount <= 0) return;
+		try {
+			await addJobExpense({
+				jobId: expJobId,
+				description: expDesc.trim(),
+				vendor: expVendor.trim(),
+				amount: expAmount
+			}).updates(getMyDay);
+			toast.success('Expense logged — the office can bill it');
+			expJobId = null;
+			expDesc = '';
+			expVendor = '';
+			expAmount = 0;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not log expense'));
+		}
 	}
 
 	async function saveNote() {
@@ -299,6 +325,13 @@
 						variant="ghost"
 						disabled={pending !== null}
 						onclick={() => (noteJobId = j.job.id)}><StickyNote /> Note</Button
+					>
+					<Button
+						size="sm"
+						variant="ghost"
+						disabled={pending !== null}
+						title="Log a job expense (permit, parking, misc)"
+						onclick={() => (expJobId = j.job.id)}><Receipt /> Expense</Button
 					>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
@@ -623,3 +656,38 @@
 		if (jobId) advance(jobId, 'completed', note);
 	}}
 />
+
+<Dialog.Root
+	open={expJobId !== null}
+	onOpenChange={(v) => {
+		if (!v) expJobId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Job expense</Dialog.Title>
+			<Dialog.Description
+				>Permits, parking, subcontractors — billable on the job's invoice.</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<div class="space-y-1.5">
+				<Label for="exp-desc">Description</Label>
+				<Input id="exp-desc" bind:value={expDesc} placeholder="Permit fee" />
+			</div>
+			<div class="space-y-1.5">
+				<Label for="exp-vendor">Vendor (optional)</Label>
+				<Input id="exp-vendor" bind:value={expVendor} placeholder="City of Austin" />
+			</div>
+			<div class="space-y-1.5">
+				<Label for="exp-amt">Amount</Label>
+				<MoneyInput id="exp-amt" bind:value={expAmount} />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (expJobId = null)}>Cancel</Button>
+			<Button onclick={saveExpense} disabled={!expDesc.trim() || expAmount <= 0}>Log expense</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
