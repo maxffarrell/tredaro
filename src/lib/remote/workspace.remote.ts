@@ -326,6 +326,12 @@ export const getWebhookDeliveries = query(idSchema, async (hookId) => {
 	return eventsSvc.listWebhookDeliveries(orgId, hookId);
 });
 
+/** Re-POSTs a failed delivery's stored payload — records a new attempt row. */
+export const retryWebhookDelivery = command(idSchema, async (deliveryId) => {
+	const { orgId } = await requireOrg('admin');
+	return eventsSvc.retryWebhookDelivery(orgId, deliveryId);
+});
+
 export const seedDemo = command(v.object({}), async () => {
 	const ctx = await requireOrg('admin');
 	const [existing] = await db

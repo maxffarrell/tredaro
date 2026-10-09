@@ -34,6 +34,7 @@
 		deleteWebhook,
 		testWebhook,
 		getWebhookDeliveries,
+		retryWebhookDelivery,
 		getStaff,
 		updateCommission,
 		updateLaborCost,
@@ -465,6 +466,21 @@
 			return;
 		}
 		hookHistory = { ...hookHistory, [id]: await getWebhookDeliveries(id) };
+	}
+	let retryingDelivery = $state('');
+	async function retryDelivery(hookId: string, deliveryId: string) {
+		retryingDelivery = deliveryId;
+		try {
+			const status = await retryWebhookDelivery(deliveryId);
+			toast[status > 0 && status < 400 ? 'success' : 'error'](
+				status > 0 ? `Redelivered — HTTP ${status}` : 'Retry failed — endpoint unreachable'
+			);
+			hookHistory = { ...hookHistory, [hookId]: await getWebhookDeliveries(hookId) };
+			webhooks = await getWebhooks();
+		} catch (err) {
+			toast.error(errMsg(err, 'Retry failed'));
+		}
+		retryingDelivery = '';
 	}
 	async function addWebhook(e: SubmitEvent) {
 		e.preventDefault();
@@ -1556,6 +1572,15 @@
 															<span class="text-muted-foreground"
 																>{formatRelative(d.createdAt)}</span
 															>
+															{#if d.canRetry && !(d.status > 0 && d.status < 400)}
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	class="h-6 px-2 text-xs"
+																	disabled={retryingDelivery === d.id}
+																	onclick={() => retryDelivery(w.id, d.id)}>Retry</Button
+																>
+															{/if}
 														</li>
 													{:else}
 														<li class="px-4 py-2 text-xs text-muted-foreground">

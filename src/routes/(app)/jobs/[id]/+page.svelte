@@ -130,6 +130,7 @@
 	);
 	let summary = $state(j.job.summary);
 	let description = $state(j.job.description);
+	let jobTags = $state((j.job.tags ?? []).join(', '));
 	let priority = $state(j.job.priority);
 	let dependsOnJobId = $state(j.job.dependsOnJobId ?? '');
 	let arrivalWindow = $state(j.job.arrivalWindow ?? '');
@@ -159,6 +160,7 @@
 			equipmentId = j.job.equipmentId ?? '';
 			summary = j.job.summary;
 			description = j.job.description;
+			jobTags = (j.job.tags ?? []).join(', ');
 			priority = j.job.priority;
 			dependsOnJobId = j.job.dependsOnJobId ?? '';
 			arrivalWindow = j.job.arrivalWindow ?? '';
@@ -190,6 +192,10 @@
 				summary,
 				description,
 				priority,
+				tags: jobTags
+					.split(',')
+					.map((t) => t.trim())
+					.filter(Boolean),
 				dependsOnJobId: dependsOnJobId || null,
 				arrivalWindow: arrivalWindow || null,
 				startsAt: startsAt || null,
@@ -1033,6 +1039,15 @@
 					<Field.Field class="sm:col-span-2">
 						<Field.Label for="d-desc">Notes</Field.Label>
 						<Textarea id="d-desc" rows={4} bind:value={description} disabled={locked} />
+					</Field.Field>
+					<Field.Field class="sm:col-span-2">
+						<Field.Label for="d-tags">Tags</Field.Label>
+						<Input
+							id="d-tags"
+							bind:value={jobTags}
+							disabled={locked}
+							placeholder="callback, permit, VIP — comma-separated"
+						/>
 					</Field.Field>
 					{#if !locked}
 						<div class="sm:col-span-2">
