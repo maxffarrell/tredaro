@@ -1099,7 +1099,10 @@ export async function runReminders(orgId: string) {
 				eq(job.status, 'done'),
 				isNull(job.rating),
 				isNull(job.cancelledAt),
-				gte(sql`coalesce(${job.endsAt}, ${job.updatedAt})`, new Date(now.getTime() - 7 * 86400_000))
+				gte(
+					sql`coalesce(${job.endsAt}, ${job.updatedAt})`,
+					sql`cast(${new Date(now.getTime() - 7 * 86400_000).toISOString()} as timestamptz)`
+				)
 			)
 		);
 	const ratingFlags = await notifFlags(orgId);
