@@ -442,6 +442,7 @@
 	const materials = $derived(await getJobMaterials({ jobId: id }));
 
 	// ------- photos -------
+	let lightbox = $state<(typeof photos)[number] | null>(null);
 	let photoPhase = $state<'before' | 'during' | 'after'>('during');
 	const PHASE_ORDER: Record<string, number> = { before: 0, during: 1, after: 2 };
 	const photos = $derived(
@@ -1619,14 +1620,14 @@
 					<ul class="grid grid-cols-3 gap-2">
 						{#each photos as p (p.id)}
 							<li class="group relative">
-								<a href="/files/job-photo/{p.id}" target="_blank" rel="noreferrer">
+								<button type="button" class="w-full cursor-zoom-in" onclick={() => (lightbox = p)}>
 									<img
 										src="/files/job-photo/{p.id}"
 										alt={p.fileName}
 										class="aspect-square w-full rounded-md border object-cover"
 										loading="lazy"
 									/>
-								</a>
+								</button>
 								{#if !locked}
 									<div
 										class="absolute top-1 right-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
@@ -1999,5 +2000,22 @@
 				>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root open={!!lightbox} onOpenChange={(v) => !v && (lightbox = null)}>
+	<Dialog.Content class="max-w-3xl p-2 sm:p-4">
+		{#if lightbox}
+			<img
+				src="/files/job-photo/{lightbox.id}"
+				alt={lightbox.fileName}
+				class="max-h-[80vh] w-full rounded-md object-contain"
+			/>
+			<p class="mt-2 flex items-center justify-between px-1 text-xs text-muted-foreground">
+				<span class="truncate">{lightbox.fileName}</span>
+				{#if lightbox.phase}<Badge variant="outline" class="capitalize">{lightbox.phase}</Badge
+					>{/if}
+			</p>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>
