@@ -126,6 +126,22 @@ export const createInvoice = command(invoiceInput, async (input) => {
 	void getCustomer(input.customerId).refresh();
 	return inv;
 });
+/** One click: draft an invoice per completed-but-uninvoiced job for a customer. */
+export const invoiceUninvoicedJobs = command(
+	v.object({ customerId: v.string(), dueDate: v.string() }),
+	async (input) => {
+		const res = await svc.invoiceUninvoicedJobs(
+			await requireOrg(),
+			input.customerId,
+			input.dueDate
+		);
+		await refreshQuery(getInvoices, undefined);
+		await refreshQuery(getCharges, undefined);
+		await refreshQuery(getDashboard, undefined);
+		void getCustomer(input.customerId).refresh();
+		return res;
+	}
+);
 export const updateInvoice = command(invoiceUpdate, async (input) => {
 	const inv = await svc.updateInvoice(await requireOrg(), input);
 	await refreshQuery(getInvoices, undefined);

@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
-import { and, asc, desc, eq, getTableColumns, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -1247,6 +1247,53 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 			...exps
 		]
 	};
+}
+
+/**
+ * Batch invoicing: drafts one invoice per completed-but-uninvoiced job for a
+ * customer. Each invoice is prefilled the same way as the job page's
+ * "New invoice" flow (estimate scope or job type + materials + labor + expenses).
+ * Jobs whose prefill yields no billable lines are skipped and reported.
+ */
+export async function invoiceUninvoicedJobs(ctx: OrgContext, customerId: string, dueDate: string) {
+	const [c] = await db
+		.select({ id: customer.id })
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)));
+	if (!c) error(404, 'Customer not found');
+	const jobs = await db
+		.select({ id: job.id, number: job.number })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, ctx.orgId),
+				eq(job.customerId, customerId),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt),
+				sql`not exists (select 1 from ${invoice} i where i.job_id = ${outer(job.id)})`
+			)
+		)
+		.orderBy(asc(job.completedAt));
+	let created = 0;
+	let skipped = 0;
+	const numbers: number[] = [];
+	for (const j of jobs) {
+		const pre = await invoicePrefill(ctx.orgId, j.id);
+		if (!pre.items.length) {
+			skipped++;
+			continue;
+		}
+		await createInvoice(ctx, {
+			customerId,
+			jobId: j.id,
+			dueDate,
+			notes: `Auto-drafted for J-${j.number}`,
+			items: pre.items
+		});
+		created++;
+		numbers.push(j.number);
+	}
+	return { created, skipped, numbers };
 }
 
 // ---------- Charges & payments ----------

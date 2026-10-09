@@ -28,6 +28,7 @@ import {
 	customer,
 	equipment,
 	inventoryItem,
+	truckStock,
 	invoice,
 	job,
 	jobExpense,
@@ -1739,6 +1740,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			weekLoggedMin: 0,
 			weekApprovedMin: 0,
 			monthCommissionCents: 0,
+			truckLow: [],
 			tz,
 			today
 		};
@@ -1759,7 +1761,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		dayNote,
 		pendingApproval,
 		weekSums,
-		commissionSum
+		commissionSum,
+		truckLow
 	] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
 		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
@@ -1881,7 +1884,27 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					eq(job.technicianId, me.id),
 					gte(payment.paidAt, monthStart)
 				)
+			),
+		// Truck items at/below the warehouse reorder point — low-stock chip on My Day.
+		db
+			.select({
+				name: inventoryItem.name,
+				unit: inventoryItem.unit,
+				qty: truckStock.qty,
+				reorderPoint: inventoryItem.reorderPoint
+			})
+			.from(truckStock)
+			.innerJoin(inventoryItem, eq(truckStock.inventoryItemId, inventoryItem.id))
+			.where(
+				and(
+					eq(truckStock.organizationId, ctx.orgId),
+					eq(truckStock.memberId, me.id),
+					sql`${inventoryItem.reorderPoint} is not null`,
+					sql`${truckStock.qty} <= ${inventoryItem.reorderPoint}`
+				)
 			)
+			.orderBy(asc(truckStock.qty))
+			.limit(10)
 	]);
 	// Tech's manual stop order (route_order) takes precedence over the start-time sort.
 	jobs.sort(
@@ -1952,7 +1975,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			((commissionSum[0]?.total ?? 0) * (me.commissionPct ?? 0)) / 100
 		),
 		docs,
-		materials
+		materials,
+		truckLow
 	};
 }
 
@@ -2077,7 +2101,28 @@ export async function setTimeOffStatus(ctx: OrgContext, id: string, status: 'app
 		.where(and(eq(memberTimeOff.id, id), eq(memberTimeOff.organizationId, ctx.orgId)))
 		.returning();
 	if (!row) error(404, 'Request not found');
-	return row;
+	// Approving doesn't move jobs already scheduled inside the window — return
+	// them so the admin gets warned and can reassign on the dispatch board.
+	let conflicts: { id: string; number: number; startsAt: Date | null }[] = [];
+	if (status === 'approved') {
+		const tz = (await getSettings(ctx.orgId)).timezone;
+		const dayStart = zonedToUtc(`${row.startsOn}T00:00`, tz);
+		const dayEnd = zonedToUtc(`${addDays(row.endsOn, 1)}T00:00`, tz);
+		conflicts = await db
+			.select({ id: job.id, number: job.number, startsAt: job.startsAt })
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, ctx.orgId),
+					eq(job.technicianId, row.memberId),
+					inArray(job.status, ['scheduled', 'dispatched', 'in_progress']),
+					lt(job.startsAt, dayEnd),
+					sql`coalesce(${job.endsAt}, ${job.startsAt}) >= ${dayStart}`
+				)
+			)
+			.orderBy(asc(job.startsAt));
+	}
+	return { row, conflicts };
 }
 
 export async function deleteTimeOff(ctx: OrgContext, id: string) {

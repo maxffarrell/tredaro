@@ -487,9 +487,10 @@ export const requestTimeOff = command(timeOffRequestInput, async (input) => {
 });
 
 export const setTimeOffStatus = command(timeOffStatusInput, async (input) => {
-	const row = await svc.setTimeOffStatus(await requireOrg('admin'), input.id, input.status);
+	const res = await svc.setTimeOffStatus(await requireOrg('admin'), input.id, input.status);
 	await refreshQuery(getTimeOff, undefined);
-	return row;
+	await refreshQuery(getDispatchBoard, undefined);
+	return res;
 });
 
 export const deleteTimeOff = command(idSchema, async (id) => {

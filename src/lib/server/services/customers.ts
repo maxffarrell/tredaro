@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -251,6 +251,20 @@ export async function getCustomer(orgId: string, id: string) {
 	const followUps = await listFollowUps(orgId, { customerId: id });
 	const documents = await listCustomerDocs(orgId, id);
 
+	// Completed jobs with no linked invoice — the "Invoice all" button count.
+	const [uninvoicedDone] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.customerId, id),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt),
+				sql`not exists (select 1 from ${invoice} i where i.job_id = ${outer(job.id)})`
+			)
+		);
+
 	return {
 		...row,
 		contacts,
@@ -266,6 +280,7 @@ export async function getCustomer(orgId: string, id: string) {
 		equipment: equipmentRows,
 		nextJob,
 		openEstimates: openEst,
+		uninvoicedJobs: uninvoicedDone?.n ?? 0,
 		stats: { jobCount: stats.jobCount, invoiced: money.invoiced, collected: money.collected }
 	};
 }
