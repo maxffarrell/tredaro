@@ -71,6 +71,7 @@
 	const withPortal = $derived(visible.filter((c) => c.portalLinked).length);
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
 	const residentialCount = $derived(visible.filter((c) => c.type === 'residential').length);
+	const withEquipment = $derived(visible.filter((c) => c.hasEquipment).length);
 	const underAgreement = $derived(visible.filter((c) => c.hasAgreement).length);
 
 	const withOpenQuote = $derived(visible.filter((c) => c.hasOpenQuote).length);
@@ -317,7 +318,8 @@
 			· {companyCount} companies{/if}{#if residentialCount}
 			· {residentialCount} residential{/if}{#if noUpcoming}
 			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}
-			· {underAgreement} under agreement{/if}{#if neverServiced}
+			· {underAgreement} under agreement{/if}{#if withEquipment}
+			· {withEquipment} with equipment{/if}{#if neverServiced}
 			· {neverServiced} never serviced{/if}{#if withOpenQuote}
 			· {withOpenQuote} with open quote{/if}{#if leadOnly}
 			· {leadOnly} lead-only{/if}{#if inactiveCount}

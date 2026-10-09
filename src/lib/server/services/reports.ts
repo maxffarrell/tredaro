@@ -5,6 +5,7 @@ import {
 	charge,
 	customer,
 	estimate,
+	estimateItem,
 	invoice,
 	invoiceItem,
 	inventoryItem,
@@ -160,6 +161,26 @@ async function avgJobMinutes(orgId: string) {
 				isNotNull(job.startsAt),
 				isNotNull(job.endsAt),
 				gte(job.completedAt, new Date(Date.now() - 30 * 86400_000))
+			)
+		);
+	return v ?? null;
+}
+
+/** Avg line items per non-draft estimate (90d). */
+async function avgItemsPerEstimate(orgId: string) {
+	const [{ v }] = await db
+		.select({
+			v: sql<number>`count(*) * 1.0 / nullif(count(distinct ${estimateItem.estimateId}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(estimateItem)
+		.innerJoin(estimate, eq(estimateItem.estimateId, estimate.id))
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				ne(estimate.status, 'draft'),
+				gte(estimate.createdAt, new Date(Date.now() - 90 * 86400_000))
 			)
 		);
 	return v ?? null;
@@ -650,7 +671,8 @@ export async function getReports(orgId: string) {
 		repeat,
 		jobValue,
 		jobMin,
-		cancel
+		cancel,
+		avgItems
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -683,7 +705,8 @@ export async function getReports(orgId: string) {
 		repeatRate(orgId),
 		avgJobValue(orgId),
 		avgJobMinutes(orgId),
-		cancelRate(orgId)
+		cancelRate(orgId),
+		avgItemsPerEstimate(orgId)
 	]);
 	return {
 		completedJobs,
@@ -717,7 +740,8 @@ export async function getReports(orgId: string) {
 		repeatRate: repeat,
 		avgJobValue: jobValue,
 		avgJobMinutes: jobMin,
-		cancelRate: cancel
+		cancelRate: cancel,
+		avgItemsPerQuote: avgItems
 	};
 }
 

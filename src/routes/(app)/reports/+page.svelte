@@ -159,7 +159,8 @@
 			<Card.Description
 				>{approvalRate}% approval on decided estimates{#if r.estimateDecisionDays != null}
 					· avg {r.estimateDecisionDays.toFixed(1)}d to decision{/if}{#if avgSent != null}
-					· avg {formatMoney(avgSent, currency, true)} per sent{/if}</Card.Description
+					· avg {formatMoney(avgSent, currency, true)} per sent{/if}{#if r.avgItemsPerQuote}
+					· avg {r.avgItemsPerQuote.toFixed(1)} items per quote{/if}</Card.Description
 			>
 		</Card.Header>
 		<Card.Content class="px-0">

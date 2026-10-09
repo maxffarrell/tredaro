@@ -298,6 +298,11 @@
 		<div class="flex flex-wrap gap-4 rounded-lg border bg-card px-4 py-2.5 text-sm">
 			<span class="tabular-nums"><span class="font-semibold">{done}</span> done</span>
 			<span class="tabular-nums"><span class="font-semibold">{left}</span> left</span>
+			{#if day.jobs.filter((j) => j.job.equipmentId).length}
+				<span class="text-muted-foreground tabular-nums"
+					>{day.jobs.filter((j) => j.job.equipmentId).length} on equipment</span
+				>
+			{/if}
 			{#if day.jobs.filter((j) => j.confirmed).length}
 				<span class="text-muted-foreground tabular-nums"
 					>{day.jobs.filter((j) => j.confirmed).length} confirmed</span
