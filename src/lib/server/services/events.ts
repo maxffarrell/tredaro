@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { error } from '@sveltejs/kit';
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { activity, user, webhook } from '#lib/server/db/schema.ts';
@@ -61,32 +62,73 @@ async function deliverWebhooks(event: TredaroEvent) {
 		.from(webhook)
 		.where(and(eq(webhook.organizationId, event.organizationId), eq(webhook.enabled, true)));
 
+	async function deliver(h: (typeof hooks)[number]) {
+		const body = JSON.stringify(event);
+		let status = 0;
+		try {
+			const res = await fetch(h.url, {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+					'x-tredaro-event': event.type,
+					'x-tredaro-signature': signPayload(h.secret, body)
+				},
+				body,
+				signal: AbortSignal.timeout(10_000)
+			});
+			status = res.status;
+		} finally {
+			await db
+				.update(webhook)
+				.set({ lastDeliveryAt: new Date(), lastDeliveryStatus: status })
+				.where(eq(webhook.id, h.id));
+		}
+		return status;
+	}
+
 	await Promise.allSettled(
-		hooks
-			.filter((h) => h.events.includes('*') || h.events.includes(event.type))
-			.map(async (h) => {
-				const body = JSON.stringify(event);
-				let status = 0;
-				try {
-					const res = await fetch(h.url, {
-						method: 'POST',
-						headers: {
-							'content-type': 'application/json',
-							'x-tredaro-event': event.type,
-							'x-tredaro-signature': signPayload(h.secret, body)
-						},
-						body,
-						signal: AbortSignal.timeout(10_000)
-					});
-					status = res.status;
-				} finally {
-					await db
-						.update(webhook)
-						.set({ lastDeliveryAt: new Date(), lastDeliveryStatus: status })
-						.where(eq(webhook.id, h.id));
-				}
-			})
+		hooks.filter((h) => h.events.includes('*') || h.events.includes(event.type)).map(deliver)
 	);
+}
+
+/** Sends a signed `webhook.test` event to one endpoint so admins can verify wiring. */
+export async function testWebhookDelivery(orgId: string, hookId: string) {
+	const [h] = await db
+		.select()
+		.from(webhook)
+		.where(and(eq(webhook.id, hookId), eq(webhook.organizationId, orgId)))
+		.limit(1);
+	if (!h) error(404, 'Webhook not found');
+	const event: TredaroEvent = {
+		id: crypto.randomUUID(),
+		type: 'webhook.test',
+		organizationId: orgId,
+		entity: { type: 'webhook', id: hookId },
+		summary: 'Test delivery from Settings',
+		data: {},
+		createdAt: new Date().toISOString()
+	};
+	const body = JSON.stringify(event);
+	let status = 0;
+	try {
+		const res = await fetch(h.url, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				'x-tredaro-event': event.type,
+				'x-tredaro-signature': signPayload(h.secret, body)
+			},
+			body,
+			signal: AbortSignal.timeout(10_000)
+		});
+		status = res.status;
+	} finally {
+		await db
+			.update(webhook)
+			.set({ lastDeliveryAt: new Date(), lastDeliveryStatus: status })
+			.where(eq(webhook.id, h.id));
+	}
+	return status;
 }
 
 // ---------- feed ----------

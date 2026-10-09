@@ -32,6 +32,7 @@
 		createWebhook,
 		toggleWebhook,
 		deleteWebhook,
+		testWebhook,
 		getStaff,
 		updateCommission,
 		updateLaborCost,
@@ -67,6 +68,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Trash from '@lucide/svelte/icons/trash-2';
+	import Send from '@lucide/svelte/icons/send';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
@@ -450,6 +452,7 @@
 	// ------- webhooks -------
 	let hookUrl = $state('');
 	let hookEvents = $state('job.created,job.completed,payment.recorded');
+	let testingHook = $state('');
 	async function addWebhook(e: SubmitEvent) {
 		e.preventDefault();
 		pending = true;
@@ -1452,6 +1455,41 @@
 										<Table.Cell class="text-xs text-muted-foreground"
 											>{w.events.length} events</Table.Cell
 										>
+										<Table.Cell class="text-xs text-muted-foreground">
+											{#if w.lastDeliveryAt}
+												<span
+													class={w.lastDeliveryStatus && w.lastDeliveryStatus < 400
+														? 'text-green-600'
+														: 'text-destructive'}>{w.lastDeliveryStatus || 'failed'}</span
+												>
+											{:else}
+												never
+											{/if}
+										</Table.Cell>
+										<Table.Cell class="text-right">
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-7"
+												title="Send a test event"
+												disabled={testingHook === w.id}
+												onclick={async () => {
+													testingHook = w.id;
+													try {
+														const status = await testWebhook(w.id);
+														toast[status > 0 && status < 400 ? 'success' : 'error'](
+															status > 0
+																? `Test delivered — HTTP ${status}`
+																: 'Test failed — endpoint unreachable'
+														);
+														webhooks = await getWebhooks();
+													} catch (err) {
+														toast.error(errMsg(err, 'Test failed'));
+													}
+													testingHook = '';
+												}}><Send class="size-4" /></Button
+											>
+										</Table.Cell>
 										<Table.Cell
 											><Switch
 												checked={w.enabled}

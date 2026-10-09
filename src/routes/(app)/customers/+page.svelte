@@ -20,7 +20,9 @@
 		getCustomers,
 		createCustomer,
 		importCustomers,
-		checkCustomerDuplicates
+		checkCustomerDuplicates,
+		previewAnnouncement,
+		sendAnnouncement
 	} from '#lib/remote/customers.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { parseCsv, toCsv } from '#lib/csv.ts';
@@ -31,6 +33,7 @@
 	import Download from '@lucide/svelte/icons/download';
 	import Upload from '@lucide/svelte/icons/upload';
 	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
+	import Megaphone from '@lucide/svelte/icons/megaphone';
 
 	const currency = await getCurrency();
 	let q = $state('');
@@ -99,6 +102,50 @@
 
 	let open = $state(page.url.searchParams.get('new') === '1');
 	let pending = $state(false);
+
+	// ------- announcements -------
+	let announceOpen = $state(false);
+	let anType = $state<'any' | 'residential' | 'commercial'>('any');
+	let anTag = $state('');
+	let anStatus = $state<'any' | 'active' | 'inactive'>('active');
+	let anChannel = $state<'email' | 'sms' | 'both'>('email');
+	let anSubject = $state('');
+	let anBody = $state('');
+	let anPending = $state(false);
+	let anPreview = $state<{ total: number; emails: number; phones: number } | null>(null);
+	async function refreshAnnounce() {
+		try {
+			anPreview = await previewAnnouncement({ type: anType, tag: anTag, status: anStatus });
+		} catch {
+			anPreview = null;
+		}
+	}
+	function openAnnounce() {
+		announceOpen = true;
+		void refreshAnnounce();
+	}
+	async function runAnnounce() {
+		anPending = true;
+		try {
+			const r = await sendAnnouncement({
+				type: anType,
+				tag: anTag,
+				status: anStatus,
+				channel: anChannel,
+				subject: anSubject,
+				body: anBody
+			});
+			toast.success(
+				`Announcement sent — ${r.emailed} email${r.emailed === 1 ? '' : 's'}, ${r.texted} text${r.texted === 1 ? '' : 's'}${r.skipped ? ` (${r.skipped} unreachable)` : ''}`
+			);
+			announceOpen = false;
+			anSubject = '';
+			anBody = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send announcement'));
+		}
+		anPending = false;
+	}
 	let type = $state<'residential' | 'commercial'>('residential');
 	let companyName = $state('');
 	let name = $state('');
@@ -216,6 +263,7 @@
 
 <PageHeader title="Customers">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" onclick={openAnnounce}><Megaphone /> Announce</Button>
 		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
 			><Upload /> Import</Button
 		>
@@ -523,6 +571,128 @@
 			<Button onclick={runImport} disabled={importPending || !importRows.length}>
 				{importPending ? 'Importing…' : `Import ${importRows.length || ''}`}
 			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- announcement blast -->
+<Dialog.Root bind:open={announceOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Customer announcement</Dialog.Title>
+			<Dialog.Description>
+				Send a one-off message to a segment — opt-outs and quiet hours apply, and the same message
+				can't be sent twice.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-4">
+			<div class="grid grid-cols-3 gap-3">
+				<Field.Field>
+					<Field.Label>Type</Field.Label>
+					<Select.Root
+						type="single"
+						value={anType}
+						onValueChange={(v: string) => {
+							anType = v as typeof anType;
+							void refreshAnnounce();
+						}}
+					>
+						<Select.Trigger class="w-full capitalize"
+							>{anType === 'any' ? 'All types' : anType}</Select.Trigger
+						>
+						<Select.Content>
+							<Select.Item value="any">All types</Select.Item>
+							<Select.Item value="residential">Residential</Select.Item>
+							<Select.Item value="commercial">Commercial</Select.Item>
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label>Tag</Field.Label>
+					<Select.Root
+						type="single"
+						value={anTag}
+						onValueChange={(v: string) => {
+							anTag = v;
+							void refreshAnnounce();
+						}}
+					>
+						<Select.Trigger class="w-full">{anTag || 'All tags'}</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="">All tags</Select.Item>
+							{#each allTags as t (t)}
+								<Select.Item value={t}>{t}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label>Status</Field.Label>
+					<Select.Root
+						type="single"
+						value={anStatus}
+						onValueChange={(v: string) => {
+							anStatus = v as typeof anStatus;
+							void refreshAnnounce();
+						}}
+					>
+						<Select.Trigger class="w-full capitalize"
+							>{anStatus === 'any' ? 'Any' : anStatus}</Select.Trigger
+						>
+						<Select.Content>
+							<Select.Item value="any">Any</Select.Item>
+							<Select.Item value="active">Active</Select.Item>
+							<Select.Item value="inactive">Inactive</Select.Item>
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+			</div>
+			<Field.Field>
+				<Field.Label>Channel</Field.Label>
+				<Select.Root
+					type="single"
+					value={anChannel}
+					onValueChange={(v: string) => (anChannel = v as typeof anChannel)}
+				>
+					<Select.Trigger class="w-full capitalize">{anChannel}</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="email">Email</Select.Item>
+						<Select.Item value="sms">Text (SMS)</Select.Item>
+						<Select.Item value="both">Email + text</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
+			{#if anChannel !== 'sms'}
+				<Field.Field>
+					<Field.Label for="an-subject">Subject</Field.Label>
+					<Input id="an-subject" bind:value={anSubject} placeholder="Off-season special…" />
+				</Field.Field>
+			{/if}
+			<Field.Field>
+				<Field.Label for="an-body">Message</Field.Label>
+				<Textarea
+					id="an-body"
+					rows={4}
+					bind:value={anBody}
+					placeholder="We're scheduling fall tune-ups now — reply or book online…"
+				/>
+			</Field.Field>
+			{#if anPreview}
+				<p class="text-xs text-muted-foreground">
+					{anPreview.total} customer{anPreview.total === 1 ? '' : 's'} match — {anPreview.emails}
+					reachable by email, {anPreview.phones} by text.
+				</p>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (announceOpen = false)}>Cancel</Button>
+			<Button
+				onclick={runAnnounce}
+				disabled={anPending ||
+					!anBody.trim() ||
+					(anChannel !== 'sms' && !anSubject.trim()) ||
+					!anPreview?.total}>Send</Button
+			>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

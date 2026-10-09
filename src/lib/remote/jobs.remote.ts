@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { refreshQuery } from './_refresh.ts';
@@ -10,6 +11,7 @@ import {
 	notifyJobScheduled,
 	notifyPartsDelay,
 	notifyTechAssigned,
+	notifyServiceReport,
 	textJobEta,
 	textDayEtas
 } from '#lib/server/services/notifications.ts';
@@ -422,3 +424,11 @@ export const removeJobExpense = command(idSchema, async (expenseId) => {
 });
 
 export const getCalendarFeed = query(async () => svc.calendarFeed(await requireOrg()));
+
+export const sendServiceReport = command(idSchema, async (id) => {
+	const ctx = await requireOrg();
+	const j = await svc.getJob(ctx.orgId, id);
+	if (j.job.status !== 'done') error(409, 'Complete the job before sending its service report');
+	await notifyServiceReport(ctx.orgId, id);
+	return { url: svc.serviceReportUrl(id) };
+});

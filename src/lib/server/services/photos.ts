@@ -302,6 +302,20 @@ export async function readPortalCustomerDoc(userId: string, id: string) {
 	return { row: row.doc, bytes };
 }
 
+/** Reads a shared photo for the public service-report page — the /r/<token> route
+ * verifies the job token first, so this only checks the photo belongs to that
+ * job and is customer-shared. */
+export async function readSharedJobPhoto(jobId: string, id: string) {
+	const [row] = await db
+		.select()
+		.from(jobPhoto)
+		.where(and(eq(jobPhoto.id, id), eq(jobPhoto.jobId, jobId), eq(jobPhoto.shared, true)))
+		.limit(1);
+	if (!row) error(404, 'Photo not found');
+	const bytes = await readFile(row.path);
+	return { row, bytes };
+}
+
 export async function deleteCustomerDoc(ctx: OrgContext, id: string) {
 	const [row] = await db
 		.delete(customerDocument)

@@ -43,7 +43,8 @@
 		duplicateJob,
 		markNoShow,
 		signJob,
-		sendJobEta
+		sendJobEta,
+		sendServiceReport
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices, getStaff } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -96,6 +97,7 @@
 	import Printer from '@lucide/svelte/icons/printer';
 	import Plus from '@lucide/svelte/icons/plus';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 
 	const id = $derived(page.params.id!);
@@ -204,6 +206,18 @@
 	let cancelOpen = $state(false);
 	let etaOpen = $state(false);
 	let etaPending = $state(false);
+	let reportSending = $state(false);
+	async function sendReport() {
+		reportSending = true;
+		try {
+			await sendServiceReport(id).updates(getJob);
+			toast.success('Service report sent to the customer');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send report'));
+		}
+		reportSending = false;
+	}
+
 	async function sendEta(minutes: number) {
 		etaPending = true;
 		try {
@@ -700,6 +714,14 @@
 		{/if}
 		{#if j.job.status === 'done'}
 			<Button size="sm" variant="outline" disabled={rebooking} onclick={rebook}>Book again</Button>
+			<Button
+				size="sm"
+				variant="ghost"
+				class="hidden md:inline-flex"
+				title="Send service report — emails/texts the customer their visit summary"
+				disabled={reportSending}
+				onclick={sendReport}><ClipboardCheck /></Button
+			>
 		{/if}
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
@@ -785,6 +807,11 @@
 								)}`,
 								'_blank'
 							)}><Navigation2 /> Directions</DropdownMenu.Item
+					>
+				{/if}
+				{#if j.job.status === 'done'}
+					<DropdownMenu.Item disabled={reportSending} onclick={sendReport}
+						><ClipboardCheck /> Send service report</DropdownMenu.Item
 					>
 				{/if}
 				{#if j.customerPhone}

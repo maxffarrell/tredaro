@@ -312,6 +312,12 @@ export const deleteWebhook = command(idSchema, async (id) => {
 	void getWebhooks().refresh();
 });
 
+/** POSTs a signed webhook.test event to the endpoint and reports the status. */
+export const testWebhook = command(idSchema, async (id) => {
+	const { orgId } = await requireOrg('admin');
+	return eventsSvc.testWebhookDelivery(orgId, id);
+});
+
 export const seedDemo = command(v.object({}), async () => {
 	const ctx = await requireOrg('admin');
 	const [existing] = await db

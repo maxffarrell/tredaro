@@ -564,6 +564,23 @@ export const settingsInput = v.object({
 	bookingMessage: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
 });
 
+/** Segment + message for a one-off customer announcement blast. */
+export const announcementInput = v.object({
+	type: v.picklist(['any', 'residential', 'commercial']),
+	tag: v.pipe(v.string(), v.trim(), v.maxLength(60)),
+	status: v.picklist(['any', 'active', 'inactive']),
+	channel: v.picklist(['email', 'sms', 'both']),
+	/** Required whenever the blast includes email. */
+	subject: v.pipe(v.string(), v.trim(), v.maxLength(120)),
+	body: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(1000))
+});
+
+export const announcementSegmentInput = v.object({
+	type: v.picklist(['any', 'residential', 'commercial']),
+	tag: v.pipe(v.string(), v.trim(), v.maxLength(60)),
+	status: v.picklist(['any', 'active', 'inactive'])
+});
+
 export const webhookInput = v.object({
 	url: v.pipe(v.string(), v.trim(), v.url('Use a full https:// URL')),
 	events: v.array(v.pipe(v.string(), v.trim(), v.maxLength(60)))
