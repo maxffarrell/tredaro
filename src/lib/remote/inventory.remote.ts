@@ -106,6 +106,22 @@ const poTransition = v.object({
 	id: idSchema,
 	to: v.picklist(['ordered', 'received', 'cancelled'])
 });
+const poReceive = v.object({
+	id: idSchema,
+	lines: v.array(
+		v.object({ itemId: idSchema, qty: v.pipe(v.number(), v.integer(), v.minValue(1)) })
+	)
+});
+
+/** Receive some/all units on an ordered PO — stock updates, PO closes when complete. */
+export const receivePurchaseOrder = command(poReceive, async (input) => {
+	const r = await svc.receivePurchaseOrderLines(await requireOrg('admin'), input.id, input.lines);
+	await refreshQuery(getPurchaseOrders, undefined);
+	await refreshQuery(getInventory, undefined);
+	await refreshQuery(getDashboard, undefined);
+	return r;
+});
+
 export const transitionPurchaseOrder = command(poTransition, async (input) => {
 	const r = await svc.transitionPurchaseOrder(await requireOrg('admin'), input.id, input.to);
 	await refreshQuery(getPurchaseOrders, undefined);

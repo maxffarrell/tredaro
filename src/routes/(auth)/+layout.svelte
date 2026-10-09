@@ -3,7 +3,7 @@
 	let { children } = $props();
 </script>
 
-<div class="grid min-h-svh lg:grid-cols-2">
+<div class="grid min-h-svh grid-cols-1 lg:grid-cols-2">
 	<div class="flex flex-col justify-center p-8">
 		<div class="mx-auto w-full max-w-sm">
 			<a href="/" class="mb-8 flex items-center gap-2 font-semibold"><Logo /> Tredaro</a>

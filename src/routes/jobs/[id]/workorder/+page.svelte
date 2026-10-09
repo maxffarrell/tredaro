@@ -19,7 +19,7 @@
 		.filter(Boolean)
 		.join(' ');
 	const when = j.job.startsAt
-		? `${localDate(j.job.startsAt, settings.timezone)} ${localTime(j.job.startsAt, settings.timezone)}`
+		? `${localDate(j.job.startsAt, settings.timezone)} ${localTime(j.job.startsAt, settings.timezone)}${j.job.arrivalWindow ? ` (arrival ${j.job.arrivalWindow})` : ''}`
 		: 'Unscheduled';
 </script>
 
@@ -38,6 +38,7 @@
 					<p class="text-lg font-bold">{settings.orgName}</p>
 					{#if settings.address}<p class="text-sm">{settings.address}</p>{/if}
 					{#if settings.phone}<p class="text-sm">{settings.phone}</p>{/if}
+					{#if settings.licenseNumber}<p class="text-sm">Lic. #{settings.licenseNumber}</p>{/if}
 				</div>
 				<div class="text-right">
 					<h1 class="text-2xl font-bold tracking-tight">Work order</h1>
@@ -133,6 +134,13 @@
 						</div>
 					{/each}
 				</div>
+			</div>
+		{/if}
+
+		{#if j.job.completionNotes}
+			<div class="mt-8">
+				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Work performed</p>
+				<p class="mt-1 text-sm whitespace-pre-wrap">{j.job.completionNotes}</p>
 			</div>
 		{/if}
 

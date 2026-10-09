@@ -29,7 +29,9 @@ import {
 	checklistToggleInput,
 	jobSignatureInput,
 	jobExpenseInput,
-	jobRepeatInput
+	jobRepeatInput,
+	localDateTime,
+	optionalText
 } from '#lib/schemas.ts';
 
 const tz = async () => {
@@ -246,6 +248,21 @@ export const addTimeEntry = command(timeEntryInput, async (input) => {
 	return t;
 });
 
+export const updateTimeEntry = command(
+	v.object({
+		id: idSchema,
+		jobId: idSchema,
+		startedAt: localDateTime,
+		endedAt: v.optional(v.nullable(localDateTime)),
+		note: optionalText
+	}),
+	async ({ id, ...input }) => {
+		await svc.updateTimeEntry(await requireOrg(), await tz(), id, input);
+		await refreshQuery(getTimeEntries, input.jobId);
+		await refreshQuery(getJob, input.jobId);
+	}
+);
+
 export const deleteTimeEntry = command(
 	v.object({ id: idSchema, jobId: idSchema }),
 	async ({ id, jobId }) => {
@@ -263,6 +280,20 @@ export const addTimeOff = command(timeOffInput, async (input) => {
 	await refreshQuery(getTimeOff, undefined);
 	return row;
 });
+const timeOffRequestInput = v.object({
+	startsOn: v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD')),
+	endsOn: v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD')),
+	reason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), '')
+});
+
+/** The signed-in tech marks their own time off from My Day. */
+export const requestTimeOff = command(timeOffRequestInput, async (input) => {
+	const row = await svc.requestTimeOff(await requireOrg(), input);
+	await refreshQuery(getTimeOff, undefined);
+	await refreshQuery(getMyDay, undefined);
+	return row;
+});
+
 export const deleteTimeOff = command(idSchema, async (id) => {
 	await svc.deleteTimeOff(await requireOrg('admin'), id);
 	await refreshQuery(getTimeOff, undefined);

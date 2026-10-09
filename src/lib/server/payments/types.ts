@@ -14,6 +14,8 @@ export type CheckoutInput = {
 	row: ProviderRow | null;
 	/** App-relative paths for post-checkout redirects (defaults to the customer portal). */
 	paths?: { success: string; cancel: string };
+	/** Extra key/values passed through to the provider's session metadata. */
+	meta?: Record<string, string>;
 };
 
 /**
@@ -40,6 +42,30 @@ export type PaymentProvider = {
 	supportsCurrency(currency: string): boolean;
 	/** Returns the provider-hosted checkout URL. */
 	checkout(input: CheckoutInput): Promise<string>;
+	/**
+	 * Hosted page where the customer saves a card for future charges (no payment taken).
+	 * The provider's webhook writes the saved-card refs onto the customer row.
+	 */
+	saveCard?(input: CheckoutInput): Promise<string>;
+	/**
+	 * Charge a previously saved card off-session. Returns the provider payment id on
+	 * success, or `null` when the charge cannot complete unattended (e.g. it needs
+	 * authentication or the card was declined) — the caller then leaves the charge open.
+	 */
+	chargeSaved?(input: {
+		orgId: string;
+		customerId: string;
+		email: string | null;
+		/** Minor units. */
+		amount: number;
+		currency: string;
+		description: string;
+		/** Provider's customer object id. */
+		customerRef: string;
+		/** Provider's saved payment-method ref. */
+		paymentRef: string;
+		row: ProviderRow | null;
+	}): Promise<string | null>;
 	/** Verifies and handles a webhook delivery. Returns `false` when the signature is invalid. */
 	handleWebhook(body: string, headers: Headers): Promise<boolean>;
 	/** Providers where each workspace connects its own account. */

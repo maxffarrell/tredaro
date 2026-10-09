@@ -1,4 +1,10 @@
 <script lang="ts">
+	import Users from '@lucide/svelte/icons/users';
+	import Wallet from '@lucide/svelte/icons/wallet';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Wrench from '@lucide/svelte/icons/wrench';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
@@ -49,7 +55,7 @@
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-6 p-4 md:p-6 lg:grid-cols-2">
+<div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-2">
 	<Card.Root class="lg:col-span-2">
 		<Card.Header>
 			<Card.Title class="text-base">Completed jobs — last 30 days</Card.Title>
@@ -88,7 +94,12 @@
 					<span class="tabular-nums">{m.count}</span>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No customers yet.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Users /></Empty.Media>
+						<Empty.Title class="text-sm">No customers yet</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</Card.Content>
 	</Card.Root>
@@ -109,7 +120,12 @@
 					<span class="tabular-nums">{formatMoney(m.total, currency, true)}</span>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No payments yet.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Wallet /></Empty.Media>
+						<Empty.Title class="text-sm">No payments yet</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 			{#if r.avgTicket != null}
 				<p class="pt-2 text-sm text-muted-foreground">
@@ -141,7 +157,12 @@
 					<span class="tabular-nums">{p.count}</span>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No active agreements.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><FileText /></Empty.Media>
+						<Empty.Title class="text-sm">No active agreements</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 			{#if r.churnedAgreements > 0}
 				<p class="pt-2 text-sm text-muted-foreground">
@@ -163,7 +184,7 @@
 					· avg {r.avgItemsPerQuote.toFixed(1)} items per quote{/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Body>
 					{#each r.estimates as e (e.status)}
@@ -195,7 +216,7 @@
 					· {Math.round(r.cancelRate)}% cancelled (30d){/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -234,7 +255,7 @@
 					· {r.repeatRate.repeats}/{r.repeatRate.customers} repeat customers (90d){/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -279,6 +300,7 @@
 						<Table.Head class="text-right">Hrs/job</Table.Head>
 						<Table.Head class="text-right">Collected</Table.Head>
 						<Table.Head class="text-right">Commission</Table.Head>
+						<Table.Head class="text-right">Rating</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -298,10 +320,13 @@
 									? `${formatMoney(t.commission, currency, true)} (${t.commissionPct}%)`
 									: '—'}</Table.Cell
 							>
+							<Table.Cell class="text-right tabular-nums"
+								>{t.avgRating ? `${t.avgRating.toFixed(1)}★` : '—'}</Table.Cell
+							>
 						</Table.Row>
 					{:else}
 						<Table.Row
-							><Table.Cell colspan={6} class="text-muted-foreground"
+							><Table.Cell colspan={7} class="text-muted-foreground"
 								>No technician activity in the last 90 days.</Table.Cell
 							></Table.Row
 						>
@@ -323,7 +348,12 @@
 					)} ({formatMoney(r.materialsMargin.sell, currency)} sell − {formatMoney(
 						r.materialsMargin.cost,
 						currency
-					)} cost){/if}</Card.Description
+					)} cost){/if}{#if r.profit.filter((j) => j.schedMin > 0 && j.billed > 0).length}
+					· avg {formatMoney(
+						r.profit.reduce((a, j) => a + j.billed, 0) /
+							(r.profit.reduce((a, j) => a + j.schedMin, 0) / 60 || 1),
+						currency
+					)}/sched-hr{/if}</Card.Description
 			>
 		</Card.Header>
 		<Card.Content>
@@ -545,7 +575,13 @@
 					>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No time logged in the last 30 days.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Clock /></Empty.Media>
+						<Empty.Title class="text-sm">No time logged</Empty.Title>
+						<Empty.Description>In the last 30 days.</Empty.Description>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</Card.Content>
 	</Card.Root>
@@ -570,7 +606,12 @@
 					>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">No technicians.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Wrench /></Empty.Media>
+						<Empty.Title class="text-sm">No technicians</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</Card.Content>
 	</Card.Root>
@@ -580,7 +621,7 @@
 			<Card.Title class="text-base">Office performance</Card.Title>
 			<Card.Description>Jobs and revenue collected by office — all time</Card.Description>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -619,7 +660,7 @@
 				>Completed jobs and revenue collected by job type — all time</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -656,7 +697,7 @@
 					· {formatMoney(r.refunds, currency)} refunded in 90d{/if}</Card.Description
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -688,7 +729,7 @@
 
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Jobs by source</Card.Title></Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -719,7 +760,7 @@
 		<Card.Header
 			><Card.Title class="text-base">Completion rate — last 90 days</Card.Title></Card.Header
 		>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -777,12 +818,58 @@
 		</Card.Content>
 	</Card.Root>
 
+	{#if r.ratings.n}
+		<Card.Root>
+			<Card.Header
+				><Card.Title class="text-base">Visit ratings — last 90 days</Card.Title></Card.Header
+			>
+			<Card.Content>
+				<p class="text-3xl font-semibold tabular-nums">
+					{r.ratings.avg?.toFixed(1)}<span class="text-base text-muted-foreground">/5</span>
+				</p>
+				<p class="text-sm text-muted-foreground">
+					{r.ratings.n} rating{r.ratings.n === 1 ? '' : 's'} from customers{#if r.ratings.low}
+						· <span class="text-amber-600 dark:text-amber-400"
+							>{r.ratings.low} at 3 stars or less</span
+						>{/if}
+				</p>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	{#if r.estAccuracy.count}
+		<Card.Root>
+			<Card.Header
+				><Card.Title class="text-base">Estimate accuracy — converted quotes</Card.Title
+				></Card.Header
+			>
+			<Card.Content>
+				{#if r.estAccuracy.avgVariancePct != null}
+					<p class="text-3xl font-semibold tabular-nums">
+						{r.estAccuracy.avgVariancePct > 0 ? '+' : ''}{r.estAccuracy.avgVariancePct}%
+					</p>
+					<p class="text-sm text-muted-foreground">
+						avg invoiced vs quoted across {r.estAccuracy.count} converted estimate{r.estAccuracy
+							.count === 1
+							? ''
+							: 's'} — positive means billed over quote
+					</p>
+				{:else}
+					<p class="text-sm text-muted-foreground">
+						{r.estAccuracy.count} converted estimate{r.estAccuracy.count === 1 ? '' : 's'} — no quoted
+						totals to compare yet
+					</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	{#if r.topMaterials.length}
 		<Card.Root>
 			<Card.Header
 				><Card.Title class="text-base">Top materials used — last 90 days</Card.Title></Card.Header
 			>
-			<Card.Content class="px-0">
+			<Card.Content class="overflow-x-auto px-0">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>

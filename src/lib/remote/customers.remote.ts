@@ -4,6 +4,7 @@ import { refreshQuery } from './_refresh.ts';
 import { getDashboard } from './workspace.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/customers.ts';
+import { chargeOpenBalance } from '#lib/server/services/billing.ts';
 import { portalToken } from '#lib/server/services/portal.ts';
 import { listJobs } from '#lib/server/services/jobs.ts';
 import { emailStatement, textCustomer } from '#lib/server/services/notifications.ts';
@@ -59,6 +60,19 @@ export const updateCustomer = command(customerUpdate, async (input) => {
 	// Contact fields drive duplicate detection — a new shared email/phone flags it.
 	await refreshQuery(getCustomerDuplicates, c!.id);
 	return c;
+});
+
+export const chargeCardOnFile = command(idSchema, async (customerId) => {
+	const result = await chargeOpenBalance(await requireOrg(), customerId);
+	await refreshQuery(getCustomer, customerId);
+	await refreshQuery(getDashboard);
+	return result;
+});
+
+export const removeSavedCard = command(idSchema, async (customerId) => {
+	await svc.removeSavedCard(await requireOrg(), customerId);
+	await refreshQuery(getCustomer, customerId);
+	return { ok: true };
 });
 
 export const revokePortalAccess = command(idSchema, async (customerId) => {

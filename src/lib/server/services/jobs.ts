@@ -81,6 +81,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			checklist: input.checklist,
 			requireChecklist: input.requireChecklist,
 			requirePhoto: input.requirePhoto,
+			requireSignature: input.requireSignature,
 			active: input.active
 		})
 		.returning();
@@ -134,6 +135,15 @@ const jobSelect = {
 	invoiced:
 		sql<boolean>`exists (select 1 from ${charge} c where c.job_id = ${outer(job.id)} and c.invoice_id is not null)`.mapWith(
 			Boolean
+		),
+	/** Number of the predecessor job, when one is set. */
+	depNumber: sql<
+		number | null
+	>`(select dep.number from job dep where dep.id = ${outer(job.dependsOnJobId)})`.mapWith(Number),
+	/** True while the predecessor job exists and isn't done or cancelled. */
+	depOpen:
+		sql<boolean>`(select dep.status not in ('done','cancelled') from job dep where dep.id = ${outer(job.dependsOnJobId)})`.mapWith(
+			Boolean
 		)
 };
 
@@ -148,6 +158,7 @@ export async function listJobs(
 		officeId?: string;
 		equipmentId?: string;
 		blocked?: boolean;
+		customerId?: string;
 	}
 ) {
 	return db
@@ -174,7 +185,8 @@ export async function listJobs(
 					: undefined,
 				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined,
 				opts.equipmentId ? eq(job.equipmentId, opts.equipmentId) : undefined,
-				opts.blocked ? eq(job.blocked, true) : undefined
+				opts.blocked ? eq(job.blocked, true) : undefined,
+				opts.customerId ? eq(job.customerId, opts.customerId) : undefined
 			)
 		)
 		.orderBy(
@@ -333,7 +345,62 @@ export async function getJob(orgId: string, id: string) {
 				)[0].n
 			: 0;
 
-	return { ...row, events, openBalance: open, costing, sameDay, techDay };
+	const depOptions = await db
+		.select({ id: job.id, number: job.number, summary: job.summary, status: job.status })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.customerId, row.job.customerId),
+				ne(job.id, id),
+				sql`${job.status} not in ('done', 'cancelled')`
+			)
+		)
+		.orderBy(asc(job.number));
+
+	// Open jobs waiting on this one ("blocks" list).
+	const depJobs = await db
+		.select({ id: job.id, number: job.number, summary: job.summary, status: job.status })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.dependsOnJobId, id),
+				sql`${job.status} not in ('done', 'cancelled')`
+			)
+		)
+		.orderBy(asc(job.number));
+
+	return { ...row, events, openBalance: open, costing, sameDay, techDay, depOptions, depJobs };
+}
+
+/** J-number of the unfinished predecessor blocking a job, or null when unblocked. */
+async function depBlock(orgId: string, dependsOnJobId: string | null | undefined) {
+	if (!dependsOnJobId) return null;
+	const [dep] = await db
+		.select({ number: job.number, status: job.status })
+		.from(job)
+		.where(and(eq(job.organizationId, orgId), eq(job.id, dependsOnJobId)));
+	return dep && dep.status !== 'done' && dep.status !== 'cancelled' ? dep.number : null;
+}
+
+/** Validate a depends_on choice: exists in org, isn't self, and doesn't loop back. */
+async function assertValidDependency(orgId: string, jobId: string | null, depId: string) {
+	const [dep] = await db
+		.select({ id: job.id, dependsOnJobId: job.dependsOnJobId })
+		.from(job)
+		.where(and(eq(job.organizationId, orgId), eq(job.id, depId)));
+	if (!dep) error(404, 'Depends-on job not found');
+	if (jobId === null) return;
+	let cur: string | null = depId;
+	for (let i = 0; i < 30 && cur; i++) {
+		if (cur === jobId) error(409, 'That would create a dependency loop');
+		const [d] = await db
+			.select({ dependsOnJobId: job.dependsOnJobId })
+			.from(job)
+			.where(and(eq(job.organizationId, orgId), eq(job.id, cur)));
+		cur = d?.dependsOnJobId ?? null;
+	}
 }
 
 /** Creates a job. `startsAt` is a wall-clock time in the workspace timezone; omit for unscheduled. */
@@ -359,6 +426,7 @@ export async function createJob(
 			)[0]
 		: null;
 	if (input.jobTypeId && !jt) error(404, 'Job type not found');
+	if (input.dependsOnJobId) await assertValidDependency(ctx.orgId, null, input.dependsOnJobId);
 
 	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
@@ -386,7 +454,10 @@ export async function createJob(
 			description: input.description,
 			priority: input.priority,
 			preferredTime: input.preferredTime ?? null,
+			warranty: input.warranty ?? false,
+			arrivalWindow: input.arrivalWindow ?? null,
 			source: opts.source ?? 'manual',
+			dependsOnJobId: input.dependsOnJobId ?? null,
 			status: start ? 'scheduled' : 'unscheduled',
 			startsAt: start,
 			endsAt: start ? new Date(start.getTime() + durationMin * 60_000) : null
@@ -435,6 +506,8 @@ export async function duplicateJob(ctx: OrgContext, jobId: string) {
 			description: src.description,
 			priority: src.priority,
 			preferredTime: src.preferredTime,
+			warranty: src.warranty,
+			arrivalWindow: src.arrivalWindow,
 			source: 'manual',
 			status: 'unscheduled'
 		})
@@ -537,6 +610,7 @@ export async function updateJob(
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)));
 	if (!existing) error(404, 'Job not found');
 	if (existing.status === 'done') error(409, 'Job is done — edit is locked');
+	if (set.dependsOnJobId) await assertValidDependency(ctx.orgId, id, set.dependsOnJobId);
 
 	const start =
 		set.startsAt === undefined
@@ -596,6 +670,10 @@ export async function updateJob(
 			description: set.description,
 			priority: set.priority,
 			blocked: set.blocked,
+			warranty: set.warranty,
+			dependsOnJobId: set.dependsOnJobId,
+			arrivalWindow: set.arrivalWindow,
+			completionNotes: set.completionNotes,
 			startsAt: start,
 			endsAt,
 			status,
@@ -621,6 +699,19 @@ export async function updateJob(
 		const { notifyTechRescheduled } = await import('./notifications.ts');
 		notifyTechRescheduled(ctx.orgId, id, row.technicianId).catch((err) =>
 			console.error('tech reschedule email failed', err)
+		);
+	}
+	// Customer-facing reschedule notice — armed whenever an already-scheduled
+	// slot actually moves (first-time scheduling is covered by job_scheduled).
+	if (
+		start !== undefined &&
+		existing.startsAt &&
+		row?.startsAt &&
+		existing.startsAt.getTime() !== row.startsAt.getTime()
+	) {
+		const { notifyJobRescheduledCustomer } = await import('./notifications.ts');
+		notifyJobRescheduledCustomer(ctx.orgId, id).catch((err) =>
+			console.error('customer reschedule notify failed', err)
 		);
 	}
 	if (set.blocked !== undefined && set.blocked !== existing.blocked)
@@ -706,13 +797,20 @@ export async function recordJobEvent(
 	if (!j) error(404, 'Job not found');
 	if (j.status === 'done' || j.status === 'cancelled') error(409, `Job is ${j.status}`);
 
+	// Dependencies: a job waiting on a predecessor can't be dispatched or completed.
+	if (input.kind !== 'note') {
+		const blocking = await depBlock(ctx.orgId, j.dependsOnJobId);
+		if (blocking) error(409, `Blocked by J-${blocking} — finish it first`);
+	}
+
 	// Job-type completion gates — the tech must finish the checklist and/or attach
 	// a photo before the job can be marked complete.
 	if (input.kind === 'completed' && j.jobTypeId) {
 		const [type] = await db
 			.select({
 				requireChecklist: jobType.requireChecklist,
-				requirePhoto: jobType.requirePhoto
+				requirePhoto: jobType.requirePhoto,
+				requireSignature: jobType.requireSignature
 			})
 			.from(jobType)
 			.where(eq(jobType.id, j.jobTypeId));
@@ -730,6 +828,8 @@ export async function recordJobEvent(
 				.where(eq(jobPhoto.jobId, input.jobId));
 			if (n === 0) error(409, 'Attach at least one photo before completing');
 		}
+		if (type?.requireSignature && !j.signature)
+			error(409, 'Capture the customer signature before completing');
 	}
 
 	const [memberRow] = await db
@@ -769,7 +869,8 @@ export async function recordJobEvent(
 			.update(job)
 			.set({
 				status,
-				completedAt: status === 'done' ? new Date() : undefined
+				completedAt: status === 'done' ? new Date() : undefined,
+				completionNotes: status === 'done' && input.note ? input.note : undefined
 			})
 			.where(eq(job.id, input.jobId));
 	}
@@ -777,19 +878,45 @@ export async function recordJobEvent(
 		await startTimerFor(ctx.orgId, input.jobId, memberRow.id, ctx.userId);
 	if (input.kind === 'completed') {
 		await stopOpenTimers(ctx.orgId, input.jobId);
+		// Release dependents: inbox + email the technician on each job this unblocks.
+		const dependents = await db
+			.select({ id: job.id })
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, ctx.orgId),
+					eq(job.dependsOnJobId, input.jobId),
+					sql`${job.status} not in ('done', 'cancelled')`
+				)
+			);
+		if (dependents.length) {
+			const { notifyJobUnblocked } = await import('./notifications.ts');
+			for (const d of dependents)
+				void notifyJobUnblocked(ctx.orgId, d.id, j.number).catch((err) =>
+					console.error('unblocked alert failed', err)
+				);
+		}
 		const settings = await getSettings(ctx.orgId);
-		if (settings.autoInvoiceOnComplete) {
+		if (settings.autoInvoiceOnComplete && !j.warranty) {
 			const materials = await listJobMaterials(ctx.orgId, input.jobId);
 			const [existingInvoice] = await db
 				.select({ id: invoice.id })
 				.from(invoice)
 				.where(and(eq(invoice.organizationId, ctx.orgId), eq(invoice.jobId, input.jobId)))
 				.limit(1);
-			if (materials.length && !existingInvoice)
+			if (materials.length && !existingInvoice) {
+				const [cust] = await db
+					.select({ termsDays: customer.termsDays })
+					.from(customer)
+					.where(eq(customer.id, j.customerId))
+					.limit(1);
 				await createInvoice(ctx, {
 					customerId: j.customerId,
 					jobId: j.id,
-					dueDate: addDays(localDate(new Date(), settings.timezone), settings.invoiceTermsDays),
+					dueDate: addDays(
+						localDate(new Date(), settings.timezone),
+						cust?.termsDays ?? settings.invoiceTermsDays
+					),
 					notes: `Auto-created when J-${j.number} was completed — review before sending`,
 					items: materials.map((m) => ({
 						name: m.itemName,
@@ -798,6 +925,7 @@ export async function recordJobEvent(
 						unitPrice: m.material.unitPrice
 					}))
 				});
+			}
 		}
 	}
 	await emit({
@@ -846,6 +974,24 @@ const memberFor = async (ctx: OrgContext) =>
 			.innerJoin(user, eq(member.userId, user.id))
 			.where(and(eq(member.organizationId, ctx.orgId), eq(member.userId, ctx.userId)))
 	)[0];
+
+/** A staff member marks their own time off from My Day — trusted, flagged to admins. */
+export async function requestTimeOff(
+	ctx: OrgContext,
+	input: { startsOn: string; endsOn: string; reason: string }
+) {
+	const me = await memberFor(ctx);
+	if (!me) error(403, 'Only staff can request time off');
+	const row = await addTimeOff(ctx, { memberId: me.id, ...input });
+	const { notifyTimeOffRequest } = await import('./notifications.ts');
+	void notifyTimeOffRequest(
+		ctx.orgId,
+		me.id,
+		input.startsOn === input.endsOn ? input.startsOn : `${input.startsOn} – ${input.endsOn}`,
+		input.reason
+	).catch((err) => console.error('time-off alert failed', err));
+	return row;
+}
 
 const requireJob = async (orgId: string, jobId: string) => {
 	const [j] = await db
@@ -993,6 +1139,29 @@ export async function addTimeEntry(
 	return row;
 }
 
+/** Edits an entry's times/note. Members can edit their own; admin/owner can edit anyone's. */
+export async function updateTimeEntry(
+	ctx: OrgContext,
+	tz: string,
+	entryId: string,
+	input: { startedAt: string; endedAt?: string | null; note?: string | null }
+) {
+	const [row] = await db
+		.select()
+		.from(jobTimeEntry)
+		.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)));
+	if (!row) error(404, 'Entry not found');
+	const me = await memberFor(ctx);
+	if (row.memberId !== me?.id && ctx.role === 'member') error(403, 'Admins only');
+	const startedAt = zonedToUtc(input.startedAt, tz);
+	const endedAt = input.endedAt ? zonedToUtc(input.endedAt, tz) : null;
+	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
+	await db
+		.update(jobTimeEntry)
+		.set({ startedAt, endedAt, note: input.note ?? '' })
+		.where(eq(jobTimeEntry.id, entryId));
+}
+
 /** Deletes an entry. Members can delete their own; admin/owner can delete anyone's. */
 export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
 	const [row] = await db
@@ -1032,7 +1201,7 @@ export async function dispatchBoard(orgId: string, from: Date, to: Date, officeI
 /** Technicians = staff members of the org. */
 export async function listTechnicians(orgId: string) {
 	return db
-		.select({ id: member.id, name: user.name })
+		.select({ id: member.id, name: user.name, skillTags: member.skillTags })
 		.from(member)
 		.innerJoin(user, eq(member.userId, user.id))
 		.where(eq(member.organizationId, orgId))
@@ -1387,6 +1556,8 @@ export async function repeatJob(
 					description: src.job.description,
 					priority: src.job.priority,
 					preferredTime: null,
+					warranty: src.job.warranty,
+					arrivalWindow: null,
 					startsAt
 				},
 				{ source: src.job.source ?? 'manual' }

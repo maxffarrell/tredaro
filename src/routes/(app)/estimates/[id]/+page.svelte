@@ -1,4 +1,6 @@
 <script lang="ts">
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -8,6 +10,7 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
@@ -24,9 +27,14 @@
 		duplicateEstimate,
 		approveEstimateStaff,
 		declineEstimateStaff,
-		invoiceEstimate
+		invoiceEstimate,
+		getEstimateProgress,
+		progressInvoiceEstimate
 	} from '#lib/remote/estimates.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
+	import { getPricebook } from '#lib/remote/billing.remote.ts';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Send from '@lucide/svelte/icons/send';
 	import Mail from '@lucide/svelte/icons/mail';
@@ -43,17 +51,22 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FilePen from '@lucide/svelte/icons/file-pen';
 	import Eye from '@lucide/svelte/icons/eye';
+	import Percent from '@lucide/svelte/icons/percent';
 
 	const id = $derived(page.params.id!);
 	const est = $derived(await getEstimate(id));
 	const settings = await getSettings();
 	const currency = settings.currency;
+	const jobTypes = $derived(await getJobTypes());
+	const pricebookItems = $derived(await getPricebook());
+	const prog = $derived(await getEstimateProgress(id));
 
 	const draft = $derived(est.estimate.status === 'draft');
 	const linkedJob = $derived(est.linkedJob ?? null);
 
 	let notes = $state('');
 	let validUntil = $state('');
+	let jobTypeId = $state('');
 	let items = $state<
 		{
 			pricebookItemId: string | null;
@@ -69,6 +82,7 @@
 			loadedId = est.estimate.id;
 			notes = est.estimate.notes;
 			validUntil = est.estimate.validUntil ?? '';
+			jobTypeId = est.estimate.jobTypeId ?? '';
 			items = est.items.map((i) => ({
 				pricebookItemId: i.item.pricebookItemId,
 				name: i.item.name,
@@ -79,6 +93,16 @@
 		}
 	});
 	let pending = $state(false);
+	const suggestions = $derived(
+		jobTypeId
+			? pricebookItems.filter(
+					(pi) =>
+						pi.jobTypeId === jobTypeId &&
+						pi.active &&
+						!items.some((i) => i.pricebookItemId === pi.id)
+				)
+			: []
+	);
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
 
 	async function save(e: SubmitEvent) {
@@ -87,6 +111,7 @@
 		try {
 			await updateEstimate({
 				id,
+				jobTypeId: jobTypeId || null,
 				notes,
 				validUntil: validUntil || null,
 				items: items
@@ -123,6 +148,9 @@
 	}
 
 	let resending = $state(false);
+	let progOpen = $state(false);
+	let progPct = $state(100);
+	let progBusy = $state(false);
 	async function resend() {
 		resending = true;
 		try {
@@ -153,6 +181,31 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not create invoice'));
 		}
+	}
+
+	async function progressInvoice() {
+		progBusy = true;
+		try {
+			const inv = await progressInvoiceEstimate({
+				id,
+				pct: Math.min(100, Math.max(1, progPct))
+			}).updates(getEstimate, getEstimates);
+			toast.success(`Draft invoice INV-${inv!.number} created`);
+			progOpen = false;
+			goto('/billing');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not create invoice'));
+		} finally {
+			progBusy = false;
+		}
+	}
+
+	function openProgress() {
+		progPct =
+			prog.total > 0
+				? Math.max(1, Math.round((100 * (prog.total - prog.invoiced)) / prog.total))
+				: 100;
+		progOpen = true;
 	}
 
 	async function decide(approve: boolean) {
@@ -213,24 +266,66 @@
 			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
 		{/if}
 		{#if est.estimate.status === 'sent'}
-			<Button size="sm" variant="outline" onclick={resend} disabled={resending}
-				><Mail /> {resending ? 'Resending…' : 'Resend'}</Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				onclick={resend}
+				disabled={resending}><Mail /> {resending ? 'Resending…' : 'Resend'}</Button
 			>
 			<Button size="sm" variant="outline" onclick={() => decide(true)}><Check /> Approve</Button>
 			<Button size="sm" variant="outline" onclick={() => decide(false)}><X /> Decline</Button>
 		{/if}
 		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
-			<Button size="sm" variant="outline" onclick={revise}><FilePen /> Revise</Button>
+			<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={revise}
+				><FilePen /> Revise</Button
+			>
 		{/if}
 		{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
 			<Button size="sm" variant="outline" onclick={invoice}><Receipt /> Invoice</Button>
+			<Button
+				size="sm"
+				variant="outline"
+				disabled={prog.total <= prog.invoiced}
+				onclick={openProgress}><Percent /> Invoice %</Button
+			>
 		{/if}
-		<Button size="sm" variant="outline" onclick={duplicate}><CopyPlus /> Duplicate</Button>
-		<Button size="sm" variant="outline" href="/estimates/{id}/print"><Printer /> Print</Button>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={duplicate}
+			><CopyPlus /> Duplicate</Button
+		>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" href="/estimates/{id}/print"
+			><Printer /> Print</Button
+		>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="inline-flex size-8 items-center justify-center rounded-md border hover:bg-accent md:hidden"
+			>
+				<EllipsisVertical class="size-4" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				{#if est.estimate.status === 'sent'}
+					<DropdownMenu.Item disabled={resending} onclick={resend}
+						><Mail /> Resend</DropdownMenu.Item
+					>
+				{/if}
+				{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
+					<DropdownMenu.Item onclick={revise}><FilePen /> Revise</DropdownMenu.Item>
+				{/if}
+				{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
+					<DropdownMenu.Item disabled={prog.total <= prog.invoiced} onclick={openProgress}
+						><Percent /> Invoice %</DropdownMenu.Item
+					>
+				{/if}
+				<DropdownMenu.Item onclick={duplicate}><CopyPlus /> Duplicate</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => window.open(`/estimates/${id}/print`, '_blank')}
+					><Printer /> Print</DropdownMenu.Item
+				>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-6 p-4 md:p-6 lg:grid-cols-3">
+<div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-3">
 	<Card.Root class="lg:col-span-2">
 		<Card.Header><Card.Title class="text-base">Items</Card.Title></Card.Header>
 		<Card.Content>
@@ -293,6 +388,45 @@
 						>
 						<span class="font-medium tabular-nums">Total {formatMoney(totalCents, currency)}</span>
 					</div>
+					<Field.Field>
+						<Field.Label>Job type</Field.Label>
+						<Select.Root type="single" bind:value={jobTypeId}>
+							<Select.Trigger class="w-full"
+								>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">None</Select.Item>
+								{#each jobTypes.filter((t) => t.active) as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Field.Description
+							>Drives suggested items below and the job type on approval.</Field.Description
+						>
+					</Field.Field>
+					{#if suggestions.length}
+						<div class="flex flex-wrap items-center gap-2 text-sm">
+							<span class="text-muted-foreground">Suggested:</span>
+							{#each suggestions as sg (sg.id)}
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() =>
+										(items = [
+											...items,
+											{
+												pricebookItemId: sg.id,
+												name: sg.name,
+												qty: 1,
+												unitPrice: sg.price,
+												optional: false
+											}
+										])}>{sg.name}</Button
+								>
+							{/each}
+						</div>
+					{/if}
 					<Field.Field>
 						<Field.Label for="ed-notes">Notes</Field.Label>
 						<Textarea id="ed-notes" rows={3} bind:value={notes} />
@@ -431,3 +565,30 @@
 		</Card.Root>
 	</div>
 </div>
+
+<Dialog.Root bind:open={progOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Progress invoice</Dialog.Title>
+			<Dialog.Description>
+				Bill part of estimate E-{est.estimate.number} now; the remainder stays open for later invoices.
+			</Dialog.Description>
+		</Dialog.Header>
+		<p class="text-sm text-muted-foreground">
+			Already invoiced {formatMoney(prog.invoiced, currency)} of {formatMoney(
+				prog.total,
+				currency
+			)}.
+		</p>
+		<Field.Field>
+			<Field.Label for="prog-pct">Percent to bill</Field.Label>
+			<Input id="prog-pct" type="number" min={1} max={100} bind:value={progPct} />
+		</Field.Field>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (progOpen = false)}>Cancel</Button>
+			<Button disabled={progBusy || !progPct} onclick={progressInvoice}
+				>{progBusy ? 'Creating…' : 'Create invoice'}</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

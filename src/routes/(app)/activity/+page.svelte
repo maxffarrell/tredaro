@@ -96,7 +96,7 @@
 	{/if}
 
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -124,8 +124,11 @@
 								{r.actorName ?? r.actorEmail ?? 'System'}
 							</Table.Cell>
 							<Table.Cell class="hidden md:table-cell">
-								<Badge variant="secondary" class="font-normal"
-									>{r.activity.entityType}.{r.activity.action}</Badge
+								<Badge variant="secondary" class="font-normal capitalize"
+									>{r.activity.entityType.replaceAll('_', ' ')} · {r.activity.action.replaceAll(
+										'_',
+										' '
+									)}</Badge
 								>
 							</Table.Cell>
 						</Table.Row>

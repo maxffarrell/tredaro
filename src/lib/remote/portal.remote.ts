@@ -47,6 +47,26 @@ export const requestService = command(portalRequestInput, async (input) => {
 	return r;
 });
 
+/** Customer rates a completed visit — 1-5 stars + optional note. */
+export const rateVisit = command(
+	v.object({
+		customerId: idSchema,
+		jobId: idSchema,
+		rating: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(5)),
+		note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), '')
+	}),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		const r = await svc.rateVisit(c.organizationId, c.id, input.jobId, input.rating, input.note);
+		const { notifyVisitRated } = await import('#lib/server/services/notifications.ts');
+		void notifyVisitRated(c.organizationId, input.jobId, input.rating).catch((err) =>
+			console.error('visit-rated alert failed', err)
+		);
+		void getPortalOverview(c.id).refresh();
+		return r;
+	}
+);
+
 /** Customer confirms an upcoming visit — writes a 'confirmed' job event staff see on the timeline. */
 export const confirmVisit = command(
 	v.object({ customerId: idSchema, jobId: idSchema }),
@@ -89,9 +109,22 @@ export const getProviders = query(idSchema, async (customerId) => {
 });
 
 export const startCheckout = command(
-	v.object({ customerId: idSchema, provider: v.string() }),
-	async ({ customerId, provider }) => {
+	v.object({
+		customerId: idSchema,
+		provider: v.string(),
+		charges: v.optional(v.array(idSchema))
+	}),
+	async ({ customerId, provider, charges }) => {
 		const c = await myCustomer(customerId);
-		return { url: await svc.portalCheckout(c.id, provider) };
+		return { url: await svc.portalCheckout(c.id, provider, charges) };
+	}
+);
+
+/** Hosted setup page where the customer saves a card for automatic payments. */
+export const saveCardOnFile = command(
+	v.object({ customerId: idSchema, provider: v.string() }),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		return { url: await svc.portalSaveCard(c.id, input.provider) };
 	}
 );

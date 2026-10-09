@@ -9,6 +9,8 @@ import {
 	customer,
 	estimate,
 	estimateItem,
+	invoice,
+	invoiceItem,
 	job,
 	pricebookItem,
 	serviceLocation,
@@ -171,6 +173,7 @@ export async function createEstimate(
 			number,
 			customerId: input.customerId,
 			serviceLocationId: input.serviceLocationId ?? null,
+			jobTypeId: input.jobTypeId ?? null,
 			notes: input.notes
 		})
 		.returning();
@@ -200,6 +203,7 @@ export async function updateEstimate(
 		.update(estimate)
 		.set({
 			serviceLocationId: input.serviceLocationId,
+			jobTypeId: input.jobTypeId,
 			notes: input.notes,
 			validUntil: input.validUntil
 		})
@@ -235,6 +239,7 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 				number: e.number,
 				customerId: e.customerId,
 				serviceLocationId: e.serviceLocationId,
+				jobTypeId: e.jobTypeId,
 				notes: e.notes,
 				version: e.version + 1,
 				supersedesId: e.id
@@ -327,11 +332,17 @@ export async function invoiceEstimate(ctx: OrgContext, id: string) {
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
 	if (!items.length) error(409, 'Estimate has no line items');
-	const settings = await getSettings(ctx.orgId);
+	const [settings, [cust]] = await Promise.all([
+		getSettings(ctx.orgId),
+		db.select().from(customer).where(eq(customer.id, e.customerId)).limit(1)
+	]);
 	const inv = await createInvoice(ctx, {
 		customerId: e.customerId,
 		jobId: e.jobId ?? null,
-		dueDate: addDays(localDate(new Date(), settings.timezone), settings.invoiceTermsDays),
+		dueDate: addDays(
+			localDate(new Date(), settings.timezone),
+			cust?.termsDays ?? settings.invoiceTermsDays
+		),
 		notes: `From estimate E-${e.number}${e.version > 1 ? ` v${e.version}` : ''}`,
 		items: items.map((it) => ({
 			pricebookItemId: it.pricebookItemId,
@@ -348,6 +359,79 @@ export async function invoiceEstimate(ctx: OrgContext, id: string) {
 		entityId: id,
 		action: 'invoiced',
 		summary: `Estimate E-${e.number} invoiced as INV-${inv.number}`,
+		data: { invoiceId: inv.id }
+	});
+	return inv;
+}
+
+/** Total billed so far against an estimate's progress-billing lines. */
+export async function estimateProgress(ctx: OrgContext, id: string) {
+	const [e] = await db
+		.select()
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
+	if (!e) error(404, 'Estimate not found');
+	const items = await db
+		.select({ qty: estimateItem.qty, unitPrice: estimateItem.unitPrice })
+		.from(estimateItem)
+		.where(eq(estimateItem.estimateId, id));
+	const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+	const [{ invoiced }] = await db
+		.select({
+			invoiced:
+				sql<number>`coalesce(sum(${invoiceItem.qty} * ${invoiceItem.unitPrice}), 0)`.mapWith(Number)
+		})
+		.from(invoiceItem)
+		.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
+		.where(and(eq(invoiceItem.description, `estimate:${id}`), sql`${invoice.status} <> 'void'`));
+	return { total, invoiced };
+}
+
+/**
+ * Progress billing: cuts an invoice for `pct`% of the estimate total as a single
+ * "Progress billing" line (marked `estimate:<id>` so the running total is computable).
+ */
+export async function progressInvoiceEstimate(ctx: OrgContext, id: string, pct: number) {
+	const [e] = await db
+		.select()
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
+	if (!e) error(404, 'Estimate not found');
+	if (e.status !== 'approved' && e.status !== 'converted')
+		error(409, 'Only approved estimates can be invoiced');
+	const { total, invoiced } = await estimateProgress(ctx, id);
+	const remaining = total - invoiced;
+	if (remaining <= 0) error(409, 'Estimate already fully invoiced');
+	const amount = Math.min(Math.round((total * pct) / 100), remaining);
+	const [settings, [cust]] = await Promise.all([
+		getSettings(ctx.orgId),
+		db.select().from(customer).where(eq(customer.id, e.customerId)).limit(1)
+	]);
+	const inv = await createInvoice(ctx, {
+		customerId: e.customerId,
+		jobId: e.jobId ?? null,
+		dueDate: addDays(
+			localDate(new Date(), settings.timezone),
+			cust?.termsDays ?? settings.invoiceTermsDays
+		),
+		notes: `Progress billing — estimate E-${e.number} (${pct}%)`,
+		items: [
+			{
+				pricebookItemId: null,
+				name: `Progress billing — ${pct}% of estimate E-${e.number}`,
+				description: `estimate:${e.id}`,
+				qty: 1,
+				unitPrice: amount
+			}
+		]
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'estimate',
+		entityId: id,
+		action: 'invoiced',
+		summary: `Estimate E-${e.number} progress-invoiced ${pct}% as INV-${inv.number}`,
 		data: { invoiceId: inv.id }
 	});
 	return inv;
@@ -583,6 +667,7 @@ async function applyDecision(
 			{
 				customerId: est.customerId,
 				serviceLocationId: est.serviceLocationId,
+				jobTypeId: est.jobTypeId,
 				summary: `From estimate E-${est.number}`,
 				description,
 				preferredTime: null,
@@ -591,6 +676,8 @@ async function applyDecision(
 			{ source: 'estimate' }
 		);
 		jobId = created!.id;
+		// Link back so invoicePrefill bills the estimate's items for this job.
+		await db.update(job).set({ estimateId: est.id }).where(eq(job.id, jobId));
 
 		// Deposit on approval: when the org collects a percentage up front, cut a
 		// deposit invoice for that share of the estimate total and email the pay link.

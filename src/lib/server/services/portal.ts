@@ -322,21 +322,52 @@ export async function requestService(
 	return { job: row, estimate: null };
 }
 
-/** Starts a provider checkout for the customer's full open balance. */
-export async function portalCheckout(customerId: string, providerId: string) {
+/**
+ * Starts a provider checkout. `chargeIds` limits payment to that selection of open
+ * charges (per-charge portal pay); omitted = full open balance.
+ */
+export async function portalCheckout(customerId: string, providerId: string, chargeIds?: string[]) {
 	const overview = await portalOverview(customerId);
 	if (overview.balance <= 0) error(400, 'Nothing to pay');
 	const provider = providers.find((p) => p.id === providerId);
 	if (!provider?.configured()) error(404, 'Unknown provider');
 	const row = await providerRow(overview.customer.organizationId, providerId);
 	if (!provider.ready(row)) error(400, `${provider.name} is not available right now`);
+	let amount = overview.balance;
+	let meta: Record<string, string> | undefined;
+	if (chargeIds?.length) {
+		const wanted = new Set(chargeIds);
+		const picked = overview.openCharges.filter((c) => wanted.has(c.charge.id));
+		amount = picked.reduce((sum, c) => sum + (c.charge.amount - c.paid), 0);
+		if (!picked.length || amount <= 0) error(400, 'Selected charges are already paid');
+		meta = { tredaroChargeIds: picked.map((c) => c.charge.id).join(',') };
+	}
 	return provider.checkout({
 		orgId: overview.customer.organizationId,
 		customerId,
 		email: overview.customer.email,
-		amount: overview.balance,
+		amount,
 		currency: overview.settings?.currency ?? 'usd',
 		description: `Balance payment — ${overview.customer.name}`,
+		meta,
+		row
+	});
+}
+
+/** Portal self-service: hosted page where the customer saves a card for auto-charges. */
+export async function portalSaveCard(customerId: string, providerId: string) {
+	const overview = await portalOverview(customerId);
+	const provider = providers.find((p) => p.id === providerId);
+	if (!provider?.configured() || !provider.saveCard) error(404, 'Unknown provider');
+	const row = await providerRow(overview.customer.organizationId, providerId);
+	if (!provider.ready(row)) error(400, `${provider.name} is not available right now`);
+	return provider.saveCard({
+		orgId: overview.customer.organizationId,
+		customerId,
+		email: overview.customer.email,
+		amount: 0,
+		currency: overview.settings?.currency ?? 'usd',
+		description: `Card on file — ${overview.customer.name}`,
 		row
 	});
 }
@@ -347,7 +378,14 @@ export async function availableProviders(orgId: string, currency: string) {
 	for (const p of providers) {
 		if (!p.configured() || !p.supportsCurrency(currency)) continue;
 		const row = await providerRow(orgId, p.id);
-		if (p.ready(row)) out.push({ id: p.id, name: p.name, payLabel: p.payLabel, newTab: p.newTab });
+		if (p.ready(row))
+			out.push({
+				id: p.id,
+				name: p.name,
+				payLabel: p.payLabel,
+				newTab: p.newTab,
+				canSaveCard: !!p.saveCard
+			});
 	}
 	return out;
 }
@@ -406,6 +444,43 @@ export async function requestReschedule(
 		entityId: jobId,
 		action: 'reschedule_requested',
 		summary: `J-${j.number} reschedule requested by customer`
+	});
+	return { ok: true };
+}
+
+/** Customer rates a completed visit — 1..5 stars + optional note, once per visit. */
+export async function rateVisit(
+	orgId: string,
+	customerId: string,
+	jobId: string,
+	rating: number,
+	note: string
+) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.id, jobId),
+				eq(job.customerId, customerId),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt)
+			)
+		);
+	if (!j) error(404, 'Visit not found');
+	if (j.rating) error(409, 'Already rated');
+	await db
+		.update(job)
+		.set({ rating, ratingNote: note || null, ratedAt: new Date() })
+		.where(eq(job.id, jobId));
+	await emit({
+		orgId,
+		actorId: null,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'rated',
+		summary: `J-${j.number} rated ${rating}/5 by the customer${note ? ` — ${note}` : ''}`
 	});
 	return { ok: true };
 }

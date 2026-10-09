@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 
-const optionalText = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(5000))));
+export const optionalText = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(5000))));
 const requiredText = (label: string) =>
 	v.pipe(v.string(), v.trim(), v.nonEmpty(`${label} is required`), v.maxLength(200));
 const isoDate = v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD'));
@@ -39,7 +39,7 @@ export const jobEventKinds = [
 export const estimateStatuses = ['draft', 'sent', 'approved', 'declined', 'converted'] as const;
 export const invoiceStatuses = ['open', 'void'] as const;
 export const chargeKinds = ['job', 'agreement', 'initial', 'other'] as const;
-export const chargeStatuses = ['open', 'paid', 'void'] as const;
+export const chargeStatuses = ['open', 'paid', 'void', 'written_off'] as const;
 export const paymentMethods = ['card', 'cash', 'check', 'bank', 'stripe', 'other'] as const;
 
 export const customerInput = v.object({
@@ -60,7 +60,17 @@ export const customerInput = v.object({
 	/** Credit hold — blocks new jobs until cleared. */
 	onHold: v.optional(v.boolean(), false),
 	/** Skip the org sales-tax line on this customer's invoices. */
-	taxExempt: v.optional(v.boolean(), false)
+	taxExempt: v.optional(v.boolean(), false),
+	/** Per-customer sales-tax rate override in basis points; null = org default. */
+	taxRateBps: v.optional(
+		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000)))
+	),
+	/** Per-customer invoice terms in days; null = org default. */
+	termsDays: v.optional(
+		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(3650)))
+	),
+	/** Preferred channel for scheduling comms; null = both email + text. */
+	contactPref: v.optional(v.nullable(v.picklist(['email', 'sms'])))
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),
@@ -116,6 +126,8 @@ export const agreementPlanInput = v.object({
 	interval: v.optional(v.picklist(agreementIntervals), 'month'),
 	initialFee: v.optional(cents, 0),
 	includedVisits: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+	/** % off invoiced work for customers under an active agreement on this plan. */
+	discountPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)), 0),
 	/** Job type generated visits default to; null = untyped. */
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	listed: v.optional(v.boolean(), true),
@@ -159,6 +171,9 @@ export const pricebookItemInput = v.object({
 	durationMin: v.optional(
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440)))
 	),
+	jobTypeId: v.optional(v.nullable(idSchema)),
+	/** Excluded from the sales-tax base when false. */
+	taxable: v.optional(v.boolean(), true),
 	active: v.optional(v.boolean(), true)
 });
 export const pricebookImportRow = v.object({
@@ -187,6 +202,8 @@ export const inventoryItemInput = v.object({
 	name: requiredText('Name'),
 	sku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	unit: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), 'each'),
+	location: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
+	supplierSku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
 	reorderPoint: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
 	unitCost: v.optional(cents, 0),
@@ -276,12 +293,13 @@ export const jobTypeInput = v.object({
 	checklist: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(200))), []),
 	requireChecklist: v.optional(v.boolean(), false),
 	requirePhoto: v.optional(v.boolean(), false),
+	requireSignature: v.optional(v.boolean(), false),
 	active: v.optional(v.boolean(), true)
 });
 export const jobTypeUpdate = v.object({ id: idSchema, ...v.partial(jobTypeInput).entries });
 
 /** Local wall-clock time (`YYYY-MM-DDTHH:mm`) in the workspace timezone. */
-const localDateTime = v.pipe(v.string(), v.isoDateTime('Use YYYY-MM-DDTHH:mm'));
+export const localDateTime = v.pipe(v.string(), v.isoDateTime('Use YYYY-MM-DDTHH:mm'));
 
 export const jobInput = v.object({
 	jobTypeId: v.optional(v.nullable(idSchema)),
@@ -295,7 +313,13 @@ export const jobInput = v.object({
 	priority: v.optional(v.picklist(jobPriorities), 'normal'),
 	preferredTime: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(200))), null),
 	/** Omit for an unscheduled job. */
-	startsAt: v.optional(v.nullable(localDateTime))
+	startsAt: v.optional(v.nullable(localDateTime)),
+	/** Predecessor job that must complete before this one can be scheduled. */
+	dependsOnJobId: v.optional(v.nullable(idSchema)),
+	/** Communicated arrival window shown to customer/tech. */
+	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60)))),
+	/** Warranty/no-charge work — skips auto-invoice-on-complete. */
+	warranty: v.optional(v.boolean())
 });
 export const jobUpdate = v.object({
 	id: idSchema,
@@ -312,7 +336,15 @@ export const jobUpdate = v.object({
 	startsAt: v.optional(v.nullable(localDateTime)),
 	durationMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(1440))),
 	cancelled: v.optional(v.boolean()),
-	cancelReason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)))
+	cancelReason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	/** Predecessor job that must complete before this one can be scheduled. */
+	dependsOnJobId: v.optional(v.nullable(idSchema)),
+	/** Communicated arrival window shown to customer/tech. */
+	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60)))),
+	/** Warranty/no-charge work. */
+	warranty: v.optional(v.boolean()),
+	/** Tech's "work performed" summary (set at completion, editable after). */
+	completionNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000)))
 });
 
 /** Technician or dispatcher status ping on a job. */
@@ -355,12 +387,14 @@ const lineItem = v.object({
 export const estimateInput = v.object({
 	customerId: idSchema,
 	serviceLocationId: v.optional(v.nullable(idSchema)),
+	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	items: v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item'))
 });
 export const estimateUpdate = v.object({
 	id: idSchema,
 	serviceLocationId: v.optional(v.nullable(idSchema)),
+	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
 	validUntil: v.optional(v.nullable(isoDate)),
 	items: v.optional(v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item')))
@@ -427,6 +461,7 @@ export const settingsInput = v.object({
 	address: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50))),
 	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
+	licenseNumber: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
 	reviewUrl: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	emailNotifications: v.optional(v.boolean()),
 	smsNotifications: v.optional(v.boolean()),
@@ -437,6 +472,7 @@ export const settingsInput = v.object({
 	bookingNoticeDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(90))),
 	taxRateBps: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000))),
 	bookingDailyLimit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
+	bookingDeposit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10000000))),
 	lateFeeCents: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100000))),
 	estimateDepositPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
 	laborRoundingMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(120))),

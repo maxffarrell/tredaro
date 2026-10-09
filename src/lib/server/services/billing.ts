@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
-import { and, asc, desc, eq, getTableColumns, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
+	activity,
 	agreementPlan,
 	charge,
 	companySettings,
@@ -11,6 +12,7 @@ import {
 	invoice,
 	invoiceItem,
 	job,
+	jobExpense,
 	jobMaterial,
 	jobTimeEntry,
 	inventoryItem,
@@ -73,6 +75,7 @@ export async function createPlan(
 			interval: input.interval,
 			initialFee: input.initialFee,
 			includedVisits: input.includedVisits ?? null,
+			discountPct: input.discountPct,
 			jobTypeId: input.jobTypeId ?? null,
 			listed: input.listed,
 			active: input.active
@@ -192,6 +195,7 @@ export async function createAgreement(
 			dueDate: start,
 			amount: p.initialFee
 		});
+		await applyUnappliedCredit(ctx.orgId, input.customerId);
 	}
 	if (p.amount > 0) {
 		await postAgreementCharge(ctx.orgId, row!.id, start, p);
@@ -232,7 +236,10 @@ async function completeIfTermDone(
 	return true;
 }
 
-/** Posts the recurring charge for one period. Idempotent via the period unique index. */
+/**
+ * Posts the recurring charge for one period. Idempotent via the period unique index.
+ * Returns the inserted charge, or null when it already existed.
+ */
 async function postAgreementCharge(
 	orgId: string,
 	agreementId: string,
@@ -240,7 +247,7 @@ async function postAgreementCharge(
 	p: { name: string; amount: number },
 	q: typeof db = db
 ) {
-	await q
+	const [row] = await q
 		.insert(charge)
 		.values({
 			organizationId: orgId,
@@ -257,7 +264,164 @@ async function postAgreementCharge(
 			dueDate: periodStart,
 			amount: p.amount
 		})
-		.onConflictDoNothing();
+		.onConflictDoNothing()
+		.returning();
+	if (row) await applyUnappliedCredit(orgId, row.customerId, q);
+	return row ?? null;
+}
+
+/**
+ * Attempts to settle a freshly posted recurring charge against the customer's saved
+ * card. On success the payment lands through recordOnlinePayment (which also emails
+ * the receipt); on any failure the charge stays open and staff get an inbox row.
+ */
+async function autoChargeAgreement(
+	orgId: string,
+	posted: { id: string; customerId: string; amount: number; description: string | null }
+) {
+	const [c] = await db
+		.select({
+			savedCardProvider: customer.savedCardProvider,
+			savedCardCustomer: customer.savedCardCustomer,
+			savedCardRef: customer.savedCardRef,
+			savedCardLabel: customer.savedCardLabel,
+			email: customer.email
+		})
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, posted.customerId)));
+	if (!c?.savedCardProvider || !c.savedCardCustomer || !c.savedCardRef) return;
+
+	const provider = providers.find((p) => p.id === c.savedCardProvider);
+	if (!provider?.chargeSaved) return;
+	const row = await providerRow(orgId, provider.id);
+	if (!provider.ready(row)) return;
+
+	const [settings] = await db
+		.select({ currency: companySettings.currency })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	const paymentId = await provider.chargeSaved({
+		orgId,
+		customerId: posted.customerId,
+		email: c.email,
+		amount: posted.amount,
+		currency: settings?.currency ?? 'usd',
+		description: posted.description ?? 'Recurring charge',
+		customerRef: c.savedCardCustomer,
+		paymentRef: c.savedCardRef,
+		row
+	});
+	if (paymentId) {
+		const { recordOnlinePayment } = await import('#lib/server/payments/record.ts');
+		await recordOnlinePayment({
+			orgId,
+			customerId: posted.customerId,
+			amount: posted.amount,
+			method: provider.id === 'stripe' ? 'stripe' : 'other',
+			externalId: paymentId,
+			provider: provider.name
+		});
+		await emit({
+			orgId,
+			entityType: 'customer',
+			entityId: posted.customerId,
+			action: 'auto_charged',
+			summary: `${formatMoney(posted.amount, settings?.currency ?? 'usd')} auto-charged to ${c.savedCardLabel ?? 'card on file'}`
+		});
+		return;
+	}
+	const { notifyAutoChargeFailed, emailAutoChargeFailedToCustomer } =
+		await import('./notifications.ts');
+	await notifyAutoChargeFailed(orgId, posted.customerId, posted.id, c.savedCardLabel);
+	await emailAutoChargeFailedToCustomer(
+		orgId,
+		posted.customerId,
+		posted.id,
+		posted.amount,
+		c.savedCardLabel
+	);
+}
+
+/**
+ * Staff-initiated "charge card on file" — settles the customer's open charges
+ * oldest-first through their saved card. Stops allocating on the first declined
+ * charge and reports how much landed.
+ */
+export async function chargeOpenBalance(ctx: OrgContext, customerId: string) {
+	const [c] = await db
+		.select()
+		.from(customer)
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)));
+	if (!c) error(404, 'Customer not found');
+	if (!c.savedCardProvider || !c.savedCardCustomer || !c.savedCardRef)
+		error(409, 'No card on file for this customer');
+	const provider = providers.find((p) => p.id === c.savedCardProvider);
+	if (!provider?.chargeSaved) error(409, 'This payment provider cannot charge saved cards');
+	const row = await providerRow(ctx.orgId, provider.id);
+	if (!provider.ready(row)) error(409, `${provider.name} is not available right now`);
+	const open = await db
+		.select({
+			id: charge.id,
+			description: charge.description,
+			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, ctx.orgId),
+				eq(charge.customerId, customerId),
+				eq(charge.status, 'open'),
+				sql`${charge.amount} > 0`
+			)
+		)
+		.orderBy(asc(charge.dueDate), asc(charge.createdAt));
+	if (!open.some((ch) => ch.open > 0)) error(400, 'Nothing to charge — balance is clear');
+	const [settings] = await db
+		.select({ currency: companySettings.currency })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, ctx.orgId));
+	const { recordOnlinePayment } = await import('#lib/server/payments/record.ts');
+	let charged = 0;
+	let failed = 0;
+	for (const ch of open) {
+		if (ch.open <= 0) continue;
+		const paymentId = await provider.chargeSaved({
+			orgId: ctx.orgId,
+			customerId,
+			email: c.email,
+			amount: ch.open,
+			currency: settings?.currency ?? 'usd',
+			description: ch.description || `Charge for ${c.name}`,
+			customerRef: c.savedCardCustomer,
+			paymentRef: c.savedCardRef,
+			row
+		});
+		if (!paymentId) {
+			failed += ch.open;
+			continue;
+		}
+		await recordOnlinePayment({
+			orgId: ctx.orgId,
+			customerId,
+			amount: ch.open,
+			method: provider.id === 'stripe' ? 'stripe' : 'other',
+			externalId: paymentId,
+			provider: provider.name,
+			chargeIds: [ch.id]
+		});
+		charged += ch.open;
+	}
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId ?? null,
+		entityType: 'customer',
+		entityId: customerId,
+		action: 'card_charged',
+		summary: `${formatMoney(charged, settings?.currency ?? 'usd')} charged to ${c.savedCardLabel ?? 'card on file'}${failed ? ` (${formatMoney(failed, settings?.currency ?? 'usd')} declined)` : ''}`
+	});
+	return { charged, failed };
 }
 
 export async function updateAgreement(
@@ -310,11 +474,23 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 
 	const period = m.nextChargeAt.toISOString().slice(0, 10);
 	const next = nextPeriod(period, p.interval);
+	let postedCharge: {
+		id: string;
+		customerId: string;
+		amount: number;
+		description: string | null;
+	} | null = null;
 	// Charge + roll-forward + visit generation commit together — a failure
 	// anywhere leaves the agreement untouched so the button stays truthful.
 	await db.transaction(async (tx) => {
 		if (p.amount > 0)
-			await postAgreementCharge(ctx.orgId, m.id, period, p, tx as unknown as typeof db);
+			postedCharge = await postAgreementCharge(
+				ctx.orgId,
+				m.id,
+				period,
+				p,
+				tx as unknown as typeof db
+			);
 		const done = await completeIfTermDone(m, tx as unknown as typeof db);
 		if (!done)
 			await tx
@@ -331,6 +507,9 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 		action: 'charged_early',
 		summary: `${p.name} charged early for period ${period}`
 	});
+	// Auto-charge after the transaction commits — the provider call must not
+	// hold the tx open, and an already-posted charge skips itself anyway.
+	if (postedCharge) await autoChargeAgreement(ctx.orgId, postedCharge);
 	return { period };
 }
 
@@ -424,7 +603,10 @@ export async function runBilling(orgId: string) {
 		// Catch up on any missed periods (install was offline).
 		let termDone = false;
 		while (new Date(`${period}T00:00:00Z`) < now) {
-			if (p.amount > 0) await postAgreementCharge(orgId, m.id, period, p);
+			if (p.amount > 0) {
+				const postedCharge = await postAgreementCharge(orgId, m.id, period, p);
+				if (postedCharge) await autoChargeAgreement(orgId, postedCharge);
+			}
 			lastPosted = period;
 			posted++;
 			if (await completeIfTermDone(m)) {
@@ -477,6 +659,8 @@ export async function createPricebookItem(
 			description: input.description,
 			price: input.price,
 			durationMin: input.durationMin ?? null,
+			jobTypeId: input.jobTypeId ?? null,
+			taxable: input.taxable,
 			active: input.active
 		})
 		.returning();
@@ -572,7 +756,8 @@ export async function listInvoices(orgId: string, status?: string) {
 				),
 			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on c.id = p.charge_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 				Number
-			)
+			),
+			viewed: sql<boolean>`exists (select 1 from ${activity} a where a.entity_type = 'invoice' and a.entity_id = ${outer(invoice.id)} and a.action = 'viewed')`
 		})
 		.from(invoice)
 		.innerJoin(customer, eq(invoice.customerId, customer.id))
@@ -625,6 +810,22 @@ export async function getInvoice(orgId: string, id: string) {
  * Issues an invoice: stores the line items and posts one receivable for the total.
  * `items` defaults to the job's approved estimate items when `fromEstimate` is set.
  */
+/** Highest member discount % across the customer's active agreements (0 = none). */
+async function activeDiscountPct(orgId: string, customerId: string) {
+	const [row] = await db
+		.select({ pct: sql<number>`coalesce(max(${agreementPlan.discountPct}), 0)`.mapWith(Number) })
+		.from(serviceAgreement)
+		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
+		.where(
+			and(
+				eq(serviceAgreement.organizationId, orgId),
+				eq(serviceAgreement.customerId, customerId),
+				eq(serviceAgreement.status, 'active')
+			)
+		);
+	return row?.pct ?? 0;
+}
+
 export async function createInvoice(
 	ctx: { orgId: string; userId?: string | null },
 	input: v.InferOutput<typeof s.invoiceInput>
@@ -645,12 +846,45 @@ export async function createInvoice(
 	const number = await nextNumber(ctx.orgId, 'invoice');
 	const settings = await getSettings(ctx.orgId);
 	const items = [...input.items];
-	if (settings.taxRateBps > 0 && !c.taxExempt) {
-		const tax = Math.round((lineTotal(input.items) * settings.taxRateBps) / 10000);
+	// Membership perk: customers under an active agreement get the plan's % off work.
+	// Applied as a negative line BEFORE tax so tax is on the discounted amount.
+	const discountPct = await activeDiscountPct(ctx.orgId, input.customerId);
+	if (discountPct > 0) {
+		const off = Math.round((lineTotal(items) * discountPct) / 100);
+		if (off > 0)
+			items.push({
+				pricebookItemId: null,
+				name: `Membership discount (${discountPct}%)`,
+				description: '',
+				qty: 1,
+				unitPrice: -off
+			});
+	}
+	const rateBps = c.taxRateBps ?? settings.taxRateBps;
+	// Per-item taxable flag: lines linked to a non-taxable pricebook item stay
+	// out of the tax base; unlinked lines (incl. the discount line) are taxable.
+	const linkedIds = [
+		...new Set(items.map((i) => i.pricebookItemId).filter((x): x is string => !!x))
+	];
+	const taxableById = new Map(
+		linkedIds.length
+			? (
+					await db
+						.select({ id: pricebookItem.id, taxable: pricebookItem.taxable })
+						.from(pricebookItem)
+						.where(inArray(pricebookItem.id, linkedIds))
+				).map((r) => [r.id, r.taxable])
+			: []
+	);
+	if (rateBps > 0 && !c.taxExempt) {
+		const taxBase = lineTotal(
+			items.filter((i) => !(i.pricebookItemId && taxableById.get(i.pricebookItemId) === false))
+		);
+		const tax = Math.round((taxBase * rateBps) / 10000);
 		if (tax > 0)
 			items.push({
 				pricebookItemId: null,
-				name: `Sales tax (${settings.taxRateBps / 100}%)`,
+				name: `Sales tax (${rateBps / 100}%)`,
 				description: '',
 				qty: 1,
 				unitPrice: tax
@@ -691,6 +925,7 @@ export async function createInvoice(
 				dueDate: input.dueDate,
 				amount: total
 			});
+			await applyUnappliedCredit(ctx.orgId, input.customerId, tx);
 		}
 		return row!;
 	});
@@ -765,6 +1000,31 @@ export async function publicInvoice(id: string) {
 		.innerJoin(organization, eq(organization.id, invoice.organizationId))
 		.where(eq(invoice.id, id));
 	if (!row) error(404, 'Invoice not found');
+	// First customer open of the public link leaves a 'viewed' trail for staff.
+	const [seen] = await db
+		.select({ id: activity.id })
+		.from(activity)
+		.where(
+			and(
+				eq(activity.entityType, 'invoice'),
+				eq(activity.entityId, id),
+				eq(activity.action, 'viewed')
+			)
+		)
+		.limit(1);
+	if (!seen) {
+		await emit({
+			orgId: row.invoice.organizationId,
+			entityType: 'invoice',
+			entityId: id,
+			action: 'viewed',
+			summary: `${row.customerName} opened invoice INV-${row.invoice.number}`
+		});
+		const { notifyStaffInvoiceViewed } = await import('./notifications.ts');
+		notifyStaffInvoiceViewed(row.invoice.organizationId, id).catch((err) =>
+			console.error('invoice-viewed alert failed', err)
+		);
+	}
 	const [items, [{ paid = 0 } = {}], [settings]] = await Promise.all([
 		db
 			.select()
@@ -834,6 +1094,14 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		.from(job)
 		.where(and(eq(job.organizationId, orgId), eq(job.id, jobId)));
 	if (!j) error(404, 'Job not found');
+	// Billable job expenses (permits, subcontractors) ride along as their own lines.
+	const exps = (await db.select().from(jobExpense).where(eq(jobExpense.jobId, jobId))).map((e) => ({
+		pricebookItemId: null,
+		name: `Expense — ${e.description}`,
+		description: e.vendor ?? '',
+		qty: 1,
+		unitPrice: e.amount
+	}));
 	if (j.estimateId) {
 		const items = await db
 			.select()
@@ -843,13 +1111,16 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		if (items.length) {
 			return {
 				job: j,
-				items: items.map((i) => ({
-					pricebookItemId: i.pricebookItemId,
-					name: i.name,
-					description: i.description,
-					qty: i.qty,
-					unitPrice: i.unitPrice
-				}))
+				items: [
+					...items.map((i) => ({
+						pricebookItemId: i.pricebookItemId,
+						name: i.name,
+						description: i.description,
+						qty: i.qty,
+						unitPrice: i.unitPrice
+					})),
+					...exps
+				]
 			};
 		}
 	}
@@ -919,7 +1190,8 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 				qty: m.qty,
 				unitPrice: m.unitPrice
 			})),
-			...labor
+			...labor,
+			...exps
 		]
 	};
 }
@@ -946,19 +1218,43 @@ export async function listCharges(orgId: string, status?: string) {
 		.orderBy(desc(charge.dueDate));
 }
 
-export async function addCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeInput>) {
+/** Open balance + count for one customer — used by the field "collect payment" dialog. */
+export async function customerOpenBalance(orgId: string, customerId: string) {
 	const [row] = await db
-		.insert(charge)
-		.values({
-			organizationId: ctx.orgId,
-			customerId: input.customerId,
-			jobId: input.jobId ?? null,
-			kind: input.kind,
-			description: input.description ?? null,
-			amount: input.amount,
-			dueDate: input.dueDate
+		.select({
+			open: sql<number>`coalesce(sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)), 0)`.mapWith(
+				Number
+			),
+			count: sql<number>`count(*)`.mapWith(Number)
 		})
-		.returning();
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.customerId, customerId),
+				eq(charge.status, 'open')
+			)
+		);
+	return { open: row?.open ?? 0, count: row?.count ?? 0 };
+}
+
+export async function addCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeInput>) {
+	const row = await db.transaction(async (tx) => {
+		const [r] = await tx
+			.insert(charge)
+			.values({
+				organizationId: ctx.orgId,
+				customerId: input.customerId,
+				jobId: input.jobId ?? null,
+				kind: input.kind,
+				description: input.description ?? null,
+				amount: input.amount,
+				dueDate: input.dueDate
+			})
+			.returning();
+		await applyUnappliedCredit(ctx.orgId, input.customerId, tx);
+		return r!;
+	});
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId ?? null,
@@ -1004,16 +1300,139 @@ export async function addCredit(
 
 export async function updateCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeUpdate>) {
 	const { id, ...set } = input;
+	if (set.status === 'written_off') {
+		const [cur] = await db
+			.select({ status: charge.status })
+			.from(charge)
+			.where(and(eq(charge.organizationId, ctx.orgId), eq(charge.id, id)));
+		if (!cur) error(404, 'Charge not found');
+		if (cur.status !== 'open') error(409, 'Only open charges can be written off');
+	}
 	const [row] = await db
 		.update(charge)
 		.set(set)
 		.where(and(eq(charge.organizationId, ctx.orgId), eq(charge.id, id)))
 		.returning();
 	if (!row) error(404, 'Charge not found');
+	if (set.status === 'written_off')
+		await emit({
+			orgId: ctx.orgId,
+			entityType: 'charge',
+			entityId: id,
+			action: 'written_off',
+			summary: `Charge written off — $${(row.amount / 100).toFixed(2)}`
+		});
 	return row;
 }
 
 /** Records a payment and applies it to the customer's open charges oldest-first. */
+/**
+ * Moves the customer's unapplied credit (payment rows with charge_id null) onto their
+ * open charges, oldest first. Never mutates the original payment: each allocation is a
+ * matching pair — a positive row against the charge plus a negative unapplied row — so
+ * the unapplied pool shrinks while the received-money ledger stays intact.
+ * Runs inside the transaction that created the charge when `q` is a tx handle.
+ */
+/** Duck-typed db handle so callers can pass a live transaction. */
+type DbOrTx = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete' | 'execute'>;
+
+export async function applyUnappliedCredit(orgId: string, customerId: string, q: DbOrTx = db) {
+	// Positive unapplied rows net of the negative 'applied:<id>' slices already
+	// written against them (computed in JS — a correlated sql`` subquery can't
+	// reference the outer row unambiguously). Each credit pools what remains.
+	const netRows = await q
+		.select({ id: payment.id, amount: payment.amount, reference: payment.reference })
+		.from(payment)
+		.where(
+			and(
+				eq(payment.customerId, customerId),
+				eq(payment.organizationId, orgId),
+				sql`${payment.chargeId} is null`,
+				sql`${payment.refundedAt} is null`
+			)
+		);
+	const usedBy = new Map<string, number>();
+	for (const r of netRows)
+		if (r.reference?.startsWith('applied:'))
+			usedBy.set(r.reference.slice(8), (usedBy.get(r.reference.slice(8)) ?? 0) + r.amount);
+	const credits = await q
+		.select()
+		.from(payment)
+		.where(
+			and(
+				eq(payment.customerId, customerId),
+				eq(payment.organizationId, orgId),
+				sql`${payment.chargeId} is null`,
+				sql`${payment.amount} > 0`,
+				sql`${payment.refundedAt} is null`
+			)
+		)
+		.orderBy(asc(payment.paidAt), asc(payment.createdAt));
+	if (!credits.length) return;
+	const open = await q
+		.select({
+			id: charge.id,
+			description: charge.description,
+			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.customerId, customerId),
+				eq(charge.status, 'open'),
+				sql`${charge.amount} > 0`
+			)
+		)
+		.orderBy(asc(charge.dueDate), asc(charge.createdAt));
+	let applied = 0;
+	for (const credit of credits) {
+		let pool = credit.amount + (usedBy.get(credit.id) ?? 0);
+		if (pool <= 0) continue;
+		for (const ch of open) {
+			if (pool <= 0) break;
+			if (ch.open <= 0) continue;
+			const take = Math.min(ch.open, pool);
+			const now = new Date();
+			await q.insert(payment).values([
+				{
+					organizationId: orgId,
+					customerId,
+					chargeId: ch.id,
+					amount: take,
+					method: credit.method,
+					reference: credit.reference,
+					notes: `Credit applied to ${ch.description || 'charge'}`,
+					recordedBy: credit.recordedBy,
+					paidAt: credit.paidAt
+				},
+				{
+					organizationId: orgId,
+					customerId,
+					chargeId: null,
+					amount: -take,
+					method: credit.method,
+					reference: `applied:${credit.id}`,
+					notes: `Credit applied to ${ch.description || 'charge'}`,
+					recordedBy: credit.recordedBy,
+					paidAt: now
+				}
+			]);
+			ch.open -= take;
+			pool -= take;
+			applied += take;
+		}
+	}
+	if (!applied) return;
+	await q.execute(sql`
+		update ${charge} c set status = 'paid', updated_at = now()
+		where c.organization_id = ${orgId} and c.status = 'open' and c.amount > 0
+		  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id) >= c.amount
+	`);
+}
+
 export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof s.paymentInput>) {
 	const [c] = await db
 		.select()

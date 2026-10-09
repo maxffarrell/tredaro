@@ -1,4 +1,11 @@
 <script lang="ts">
+	import Receipt from '@lucide/svelte/icons/receipt';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import CreditCard from '@lucide/svelte/icons/credit-card';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import Mails from '@lucide/svelte/icons/mails';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -29,6 +36,8 @@
 		textCustomerCmd,
 		emailStatementCmd,
 		getEquipmentJobs,
+		removeSavedCard,
+		chargeCardOnFile,
 		revokePortalAccess
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
@@ -188,8 +197,13 @@
 	let emailOptOut = $state(c.customer.emailOptOut);
 	let onHold = $state(c.customer.onHold);
 	let taxExempt = $state(c.customer.taxExempt);
+	let taxRatePct = $state(c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '');
 	let leadSource = $state(c.customer.leadSource);
 	let preferredMemberId = $state(c.customer.preferredMemberId ?? '');
+	let termsDays = $state<number | ''>(c.customer.termsDays ?? '');
+	let contactPref = $state<'' | 'email' | 'sms'>(
+		(c.customer.contactPref ?? '') as '' | 'email' | 'sms'
+	);
 	const technicians = $derived(await getTechnicians());
 	let saving = $state(false);
 	let loadedId = '';
@@ -208,8 +222,11 @@
 			emailOptOut = c.customer.emailOptOut;
 			onHold = c.customer.onHold;
 			taxExempt = c.customer.taxExempt;
+			taxRatePct = c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '';
 			leadSource = c.customer.leadSource;
 			preferredMemberId = c.customer.preferredMemberId ?? '';
+			termsDays = c.customer.termsDays ?? '';
+			contactPref = (c.customer.contactPref ?? '') as '' | 'email' | 'sms';
 		}
 	});
 
@@ -234,8 +251,12 @@
 				emailOptOut,
 				onHold,
 				taxExempt,
+				taxRateBps:
+					taxRatePct === '' || taxRatePct == null ? null : Math.round(Number(taxRatePct) * 100),
 				leadSource,
-				preferredMemberId: preferredMemberId || null
+				preferredMemberId: preferredMemberId || null,
+				termsDays: termsDays === '' || termsDays == null ? null : Number(termsDays),
+				contactPref: contactPref || null
 			});
 			toast.success('Customer saved');
 		} catch (err) {
@@ -393,6 +414,32 @@
 	}
 
 	let revokePending = $state(false);
+	let cardPending = $state(false);
+	async function removeCard() {
+		cardPending = true;
+		try {
+			await removeSavedCard(id).updates(getCustomer);
+			toast.success('Card on file removed');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not remove the card'));
+		}
+		cardPending = false;
+	}
+	let chargingCard = $state(false);
+	async function chargeCard() {
+		chargingCard = true;
+		try {
+			const r = await chargeCardOnFile(id).updates(getCustomer);
+			if (r.failed)
+				toast.error(
+					`${formatMoney(r.charged, currency)} charged — ${formatMoney(r.failed, currency)} declined`
+				);
+			else toast.success(`Charged ${formatMoney(r.charged, currency)} to the card on file`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not charge the card'));
+		}
+		chargingCard = false;
+	}
 	async function revokePortal() {
 		revokePending = true;
 		try {
@@ -468,33 +515,90 @@
 				><TriangleAlert /> {dupes.length} possible duplicate{dupes.length > 1 ? 's' : ''}</Button
 			>
 		{:else}
-			<Button size="sm" variant="outline" onclick={() => (mergeOpen = true)}
-				><GitMerge /> Merge</Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				onclick={() => (mergeOpen = true)}><GitMerge /> Merge</Button
 			>
 		{/if}
 		{#if c.customer.phone}
-			<Button size="sm" variant="outline" href="tel:{c.customer.phone}" title="Call"
-				><Phone /></Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				href="tel:{c.customer.phone}"
+				title="Call"><Phone /></Button
 			>
-			<Button size="sm" variant="outline" href="sms:{c.customer.phone}" title="Text"
-				><MessageSquare /></Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				href="sms:{c.customer.phone}"
+				title="Text"><MessageSquare /></Button
 			>
 		{/if}
 		{#if c.customer.email}
-			<Button size="sm" variant="outline" href="mailto:{c.customer.email}" title="Email"
-				><Mail /></Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				href="mailto:{c.customer.email}"
+				title="Email"><Mail /></Button
 			>
 		{/if}
-		<Button size="sm" variant="outline" onclick={copyPortal}><Link2 /> Portal link</Button>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={copyPortal}
+			><Link2 /> Portal link</Button
+		>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="inline-flex size-8 items-center justify-center rounded-md border hover:bg-accent md:hidden"
+			>
+				<EllipsisVertical class="size-4" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Item onclick={() => (mergeOpen = true)}><GitMerge /> Merge</DropdownMenu.Item>
+				{#if c.customer.phone}
+					<DropdownMenu.Item onclick={() => (window.location.href = `tel:${c.customer.phone}`)}
+						><Phone /> Call</DropdownMenu.Item
+					>
+					<DropdownMenu.Item onclick={() => (window.location.href = `sms:${c.customer.phone}`)}
+						><MessageSquare /> Text</DropdownMenu.Item
+					>
+				{/if}
+				{#if c.customer.email}
+					<DropdownMenu.Item onclick={() => (window.location.href = `mailto:${c.customer.email}`)}
+						><Mail /> Email</DropdownMenu.Item
+					>
+				{/if}
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item onclick={copyPortal}><Link2 /> Portal link</DropdownMenu.Item>
+				{#if c.customer.portalUserId}
+					<DropdownMenu.Item disabled={revokePending} onclick={revokePortal}
+						>Revoke portal</DropdownMenu.Item
+					>
+				{/if}
+				<DropdownMenu.Item
+					onclick={() =>
+						(window.location.href = `/api/export/statement.csv?customer=${c.customer.id}`)}
+					><Download /> Statement</DropdownMenu.Item
+				>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 		{#if c.customer.portalUserId}
-			<Button size="sm" variant="outline" onclick={revokePortal} disabled={revokePending}
-				>Revoke portal</Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				onclick={revokePortal}
+				disabled={revokePending}>Revoke portal</Button
 			>
 		{/if}
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 		<Button
 			size="sm"
 			variant="outline"
+			class="hidden md:inline-flex"
 			href="/api/export/statement.csv?customer={c.customer.id}"
 			download><Download /> Statement</Button
 		>
@@ -510,7 +614,7 @@
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-6 p-4 md:p-6 xl:grid-cols-3">
+<div class="grid grid-cols-1 gap-6 p-4 md:p-6 xl:grid-cols-3">
 	<!-- customer record + locations -->
 	<div class="space-y-6">
 		<Card.Root>
@@ -527,6 +631,35 @@
 						{#each c.customer.tags as t (t)}
 							<Badge variant="secondary">{t}</Badge>
 						{/each}
+					</div>
+				{/if}
+				{#if c.customer.savedCardLabel}
+					<div
+						class="mb-3 flex items-center justify-between gap-2 rounded-md border border-dashed p-2 text-xs"
+					>
+						<span class="flex items-center gap-1.5 text-muted-foreground"
+							><CreditCard class="size-3.5" />
+							{c.customer.savedCardLabel} on file — recurring charges auto-collect</span
+						>
+						<span class="flex gap-1">
+							<Button
+								variant="ghost"
+								size="sm"
+								class="h-6 px-2 text-xs"
+								disabled={chargingCard ||
+									!c.charges.some(
+										(ch) => ch.charge.status === 'open' && ch.charge.amount - ch.paid > 0
+									)}
+								onclick={chargeCard}>Charge now</Button
+							>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="h-6 px-2 text-xs"
+								disabled={cardPending}
+								onclick={removeCard}>Remove</Button
+							>
+						</span>
 					</div>
 				{/if}
 				<form class="space-y-4" onsubmit={saveCustomer}>
@@ -621,6 +754,53 @@
 						<label class="flex items-center gap-2 text-sm">
 							<Switch bind:checked={taxExempt} /> Tax exempt — no sales tax on invoices
 						</label>
+						<label class="flex items-center gap-2 text-sm">
+							Invoice terms
+							<Input
+								type="number"
+								min={0}
+								max={3650}
+								class="w-24"
+								bind:value={termsDays}
+								placeholder="org default"
+								aria-label="Invoice terms (days)"
+							/>
+							<span class="text-xs text-muted-foreground">days — blank uses workspace default</span>
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							Preferred contact
+							<Select.Root type="single" bind:value={contactPref}>
+								<Select.Trigger class="w-40"
+									>{contactPref === 'email'
+										? 'Email'
+										: contactPref === 'sms'
+											? 'Text message'
+											: 'No preference'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="">No preference</Select.Item>
+									<Select.Item value="email">Email</Select.Item>
+									<Select.Item value="sms">Text message</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<span class="text-xs text-muted-foreground">scheduling notifications only</span>
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							Tax rate
+							<Input
+								type="number"
+								min={0}
+								max={300}
+								step={0.01}
+								class="w-24"
+								disabled={taxExempt}
+								bind:value={taxRatePct}
+								placeholder="org default"
+								aria-label="Sales tax rate %"
+							/>
+							<span class="text-xs text-muted-foreground">% — blank uses the workspace default</span
+							>
+						</label>
 						<p class="text-xs text-muted-foreground">
 							Suppresses appointment reminders, follow-ups, and invoices/estimate emails for this
 							customer.
@@ -667,7 +847,12 @@
 						</p>
 					</button>
 				{:else}
-					<p class="py-3 text-sm text-muted-foreground">No service locations yet.</p>
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><MapPin /></Empty.Media>
+							<Empty.Title class="text-sm">No service locations</Empty.Title>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</Card.Content>
 		</Card.Root>
@@ -683,6 +868,14 @@
 									e.equipment.warrantyUntil &&
 									!eqExpired(e.equipment.warrantyUntil)
 							).length} in warranty)</span
+						>{/if}{#if c.equipment.filter((e) => e.equipment.active && e.equipment.nextServiceDue && eqExpired(e.equipment.nextServiceDue)).length}
+						<span class="ml-1 text-xs font-normal text-amber-600 dark:text-amber-400"
+							>· {c.equipment.filter(
+								(e) =>
+									e.equipment.active &&
+									e.equipment.nextServiceDue &&
+									eqExpired(e.equipment.nextServiceDue)
+							).length} service due</span
 						>{/if}</Card.Title
 				>
 				<Button size="sm" variant="outline" onclick={() => openEquipment()}>
@@ -736,14 +929,23 @@
 						{/if}
 					</button>
 				{:else}
-					<p class="py-3 text-sm text-muted-foreground">No equipment on file.</p>
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><AirVent /></Empty.Media>
+							<Empty.Title class="text-sm">No equipment on file</Empty.Title>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</Card.Content>
 		</Card.Root>
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base">Maintenance schedules</Card.Title>
+				<Card.Title class="text-base"
+					>Maintenance schedules{#if schedules.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">({schedules.length})</span
+						>{/if}</Card.Title
+				>
 				<Button size="sm" variant="outline" onclick={() => (addingSc = !addingSc)}>
 					<Repeat /> Add
 				</Button>
@@ -864,7 +1066,12 @@
 						>
 					</div>
 				{:else}
-					<p class="py-3 text-sm text-muted-foreground">No automated emails or texts sent yet.</p>
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><Mails /></Empty.Media>
+							<Empty.Title class="text-sm">No automated emails or texts yet</Empty.Title>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</Card.Content>
 		</Card.Root>
@@ -878,6 +1085,17 @@
 					>Jobs{#if c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length}
 						<span class="ml-1 text-xs font-normal text-muted-foreground"
 							>({c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length} open)</span
+						>{/if}{#if c.jobs
+						.filter((j) => j.job.status === 'done' && j.job.completedAt)
+						.map((j) => new Date(j.job.completedAt!).getTime())
+						.reduce((a, b) => Math.max(a, b), 0)}
+						{@const lastVisit = Math.max(
+							...c.jobs
+								.filter((j) => j.job.status === 'done' && j.job.completedAt)
+								.map((j) => new Date(j.job.completedAt!).getTime())
+						)}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>· last visit {Math.max(1, Math.floor((Date.now() - lastVisit) / 86400000))}d ago</span
 						>{/if}</Card.Title
 				>
 				<div class="flex items-center gap-3">
@@ -892,7 +1110,7 @@
 					<Button size="sm" variant="outline" href="/jobs?new=1&customer={id}"><Plus /> New</Button>
 				</div>
 			</Card.Header>
-			<Card.Content class="px-0">
+			<Card.Content class="overflow-x-auto px-0">
 				<Table.Root>
 					<Table.Body>
 						{#each c.jobs as j (j.job.id)}
@@ -920,7 +1138,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		<div class="grid gap-6 lg:grid-cols-2">
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
 					<Card.Title class="text-base"
@@ -947,7 +1165,12 @@
 							</p>
 						</div>
 					{:else}
-						<p class="py-3 text-sm text-muted-foreground">No service agreements.</p>
+						<Empty.Root class="border-0 py-3">
+							<Empty.Header>
+								<Empty.Media><FileText /></Empty.Media>
+								<Empty.Title class="text-sm">No service agreements</Empty.Title>
+							</Empty.Header>
+						</Empty.Root>
 					{/each}
 				</Card.Content>
 			</Card.Root>
@@ -955,7 +1178,12 @@
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
 					<Card.Title class="text-base"
-						>Estimates{#if c.openEstimates?.n}
+						>Estimates{#if c.estimates.filter( (e) => ['approved', 'converted'].includes(e.status) ).length}
+							<span class="ml-1 text-xs font-normal text-muted-foreground"
+								>({c.estimates.filter((e) => ['approved', 'converted'].includes(e.status)).length}
+								won)</span
+							>{/if}
+						{#if c.openEstimates?.n}
 							<span class="ml-1 text-xs font-normal text-muted-foreground"
 								>({c.openEstimates.n} open · {formatMoney(c.openEstimates.total, currency)})</span
 							>{/if}</Card.Title
@@ -964,7 +1192,7 @@
 						><Plus /> New</Button
 					>
 				</Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each c.estimates as e (e.id)}
@@ -1011,7 +1239,7 @@
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<div class="grid gap-4 sm:grid-cols-2">
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<div class="rounded-lg bg-muted/50 p-3">
 						<p class="text-xs text-muted-foreground">Open balance</p>
 						<p class="text-xl font-semibold tabular-nums">
@@ -1055,7 +1283,14 @@
 							>
 						</li>
 					{:else}
-						<li class="text-muted-foreground">No billing activity.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-3">
+								<Empty.Header>
+									<Empty.Media><Receipt /></Empty.Media>
+									<Empty.Title class="text-sm">No billing activity</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 			</Card.Content>
@@ -1222,7 +1457,12 @@
 									>
 								</div>
 							{:else}
-								<p class="text-xs text-muted-foreground">No jobs on this unit yet.</p>
+								<Empty.Root class="border-0 py-3">
+									<Empty.Header>
+										<Empty.Media><Wrench /></Empty.Media>
+										<Empty.Title class="text-sm">No jobs on this unit yet</Empty.Title>
+									</Empty.Header>
+								</Empty.Root>
 							{/each}
 						</div>
 					{/await}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PackagePlus from '@lucide/svelte/icons/package-plus';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
@@ -22,6 +23,7 @@
 		deleteInventoryItem,
 		getPurchaseOrders,
 		createPurchaseOrder,
+		receivePurchaseOrder,
 		transitionPurchaseOrder,
 		deletePurchaseOrder,
 		getTruckStock,
@@ -73,6 +75,8 @@
 	let reorderPoint = $state<number | null>(null);
 	let unitCost = $state<number | null>(0);
 	let notes = $state('');
+	let location = $state('');
+	let supplierSku = $state('');
 
 	function openItem(i?: (typeof rows)[number]) {
 		itemId = i?.item.id ?? null;
@@ -83,6 +87,8 @@
 		reorderPoint = i?.item.reorderPoint ?? null;
 		unitCost = i?.item.unitCost ?? 0;
 		notes = i?.item.notes ?? '';
+		location = i?.item.location ?? '';
+		supplierSku = i?.item.supplierSku ?? '';
 		open = true;
 	}
 
@@ -90,7 +96,17 @@
 		e.preventDefault();
 		pending = true;
 		try {
-			const input = { name, sku, unit, qtyOnHand, reorderPoint, unitCost: unitCost ?? 0, notes };
+			const input = {
+				name,
+				sku,
+				supplierSku,
+				unit,
+				location,
+				qtyOnHand,
+				reorderPoint,
+				unitCost: unitCost ?? 0,
+				notes
+			};
 			if (itemId) await updateInventoryItem({ id: itemId, ...input }).updates(getInventory);
 			else await createInventoryItem(input).updates(getInventory);
 			toast.success('Item saved');
@@ -233,6 +249,43 @@
 			toast.error(errMsg(err, 'Could not update PO'));
 		}
 	}
+	// ------- partial receive -------
+	let rcOpen = $state(false);
+	let rcPending = $state(false);
+	let rcLines = $state<
+		{ itemId: string; name: string; unit: string; remaining: number; qty: number }[]
+	>([]);
+	function openReceive() {
+		if (!poView) return;
+		rcLines = poView.items
+			.filter((i) => i.qty - i.receivedQty > 0)
+			.map((i) => ({
+				itemId: i.id,
+				name: i.name,
+				unit: i.unit,
+				remaining: i.qty - i.receivedQty,
+				qty: i.qty - i.receivedQty
+			}));
+		rcOpen = true;
+	}
+	async function doReceive() {
+		rcPending = true;
+		try {
+			const lines = rcLines.filter((l) => l.qty > 0).map((l) => ({ itemId: l.itemId, qty: l.qty }));
+			const r = await receivePurchaseOrder({ id: poView!.po.id, lines }).updates(
+				getPurchaseOrders,
+				getInventory
+			);
+			toast.success(r.status === 'received' ? 'PO received in full' : 'Partial receipt recorded');
+			rcOpen = false;
+			poView = null;
+			pos = await getPurchaseOrders();
+			rows = await getInventory();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not record receipt'));
+		}
+		rcPending = false;
+	}
 	async function removePo(id: string) {
 		try {
 			await deletePurchaseOrder(id).updates(getPurchaseOrders);
@@ -260,7 +313,7 @@
 		<Button size="sm" variant="outline" href="/api/export/inventory.csv" download>
 			<Download /> Export CSV
 		</Button>
-		<Badge variant="secondary" class="mr-2"
+		<Badge variant="secondary" class="mr-2 hidden md:inline-flex"
 			>{items.length} item{items.length === 1 ? '' : 's'} ·
 			{formatMoney(totalValue, currency)} on hand</Badge
 		>
@@ -275,7 +328,7 @@
 			(p) => p.po.expectedOn && p.po.expectedOn < new Date().toISOString().slice(0, 10)
 		)}
 		{#if openPos.length}
-			<Badge variant="outline" class="mr-2"
+			<Badge variant="outline" class="mr-2 hidden md:inline-flex"
 				>{openPos.length} open PO{openPos.length === 1 ? '' : 's'} ·
 				{formatMoney(
 					openPos.reduce((m, p) => m + p.total, 0),
@@ -285,7 +338,7 @@
 		{/if}
 		{@const draftPos = openPos.filter((p) => p.po.status === 'draft')}
 		{#if draftPos.length}
-			<Badge variant="outline" class="mr-2 text-muted-foreground"
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
 				>{draftPos.length} PO draft · {formatMoney(
 					draftPos.reduce((m, p) => m + p.total, 0),
 					currency
@@ -293,16 +346,18 @@
 			>
 		{/if}
 		{#if orderedPos.length}
-			<Badge variant="outline" class="mr-2">{orderedPos.length} awaiting delivery</Badge>
+			<Badge variant="outline" class="mr-2 hidden md:inline-flex"
+				>{orderedPos.length} awaiting delivery</Badge
+			>
 		{/if}
 		{#if latePos.length}
-			<Badge variant="outline" class="mr-2 text-red-600 dark:text-red-400"
+			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400"
 				>{latePos.length} PO late</Badge
 			>
 		{/if}
 		{@const truckedTotal = items.reduce((m, r) => m + (r.trucked ?? 0), 0)}
 		{#if truckedTotal}
-			<Badge variant="outline" class="mr-2 text-muted-foreground"
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
 				>{truckedTotal} in trucks{#if items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0)}
 					· {formatMoney(
 						items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0),
@@ -311,20 +366,27 @@
 			>
 		{/if}
 		{#if lowCount}
-			<Badge variant="outline" class="mr-2 text-amber-600 dark:text-amber-400">{lowCount} low</Badge
+			<Badge variant="outline" class="mr-2 hidden text-amber-600 md:inline-flex dark:text-amber-400"
+				>{lowCount} low</Badge
 			>
 		{/if}
 		{#if outCount}
-			<Badge variant="outline" class="mr-2 text-red-600 dark:text-red-400">{outCount} out</Badge>
+			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400"
+				>{outCount} out</Badge
+			>
 		{/if}
 		{#if noCostCount}
-			<Badge variant="outline" class="mr-2 text-muted-foreground">{noCostCount} no cost</Badge>
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
+				>{noCostCount} no cost</Badge
+			>
 		{/if}
 		{#if unusedCount}
-			<Badge variant="outline" class="mr-2 text-muted-foreground">{unusedCount} unused</Badge>
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
+				>{unusedCount} unused</Badge
+			>
 		{/if}
 		{#if unmonitoredCount}
-			<Badge variant="outline" class="mr-2 text-muted-foreground"
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
 				>{unmonitoredCount} no reorder pt</Badge
 			>
 		{/if}
@@ -339,12 +401,13 @@
 	</div>
 
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Item</Table.Head>
 						<Table.Head class="hidden md:table-cell">SKU</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Location</Table.Head>
 						<Table.Head class="text-right">On hand</Table.Head>
 						<Table.Head class="hidden text-right md:table-cell">Reorder at</Table.Head>
 						<Table.Head class="hidden text-right md:table-cell">Unit cost</Table.Head>
@@ -365,9 +428,19 @@
 										>{i.trucked} on {i.truckCount} truck{i.truckCount === 1 ? '' : 's'}</span
 									>
 								{/if}
+								{#if i.onOrder}
+									<span class="ml-1 text-xs font-normal text-muted-foreground"
+										>· {i.onOrder} on order</span
+									>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{i.item.sku || '—'}</Table.Cell
+							>
+							<Table.Cell class="hidden text-muted-foreground lg:table-cell"
+								>{i.item.location || '—'}{i.item.supplierSku
+									? ` · ${i.item.supplierSku}`
+									: ''}</Table.Cell
 							>
 							<Table.Cell class="text-right tabular-nums"
 								>{i.item.qtyOnHand} {i.item.unit}</Table.Cell
@@ -460,7 +533,7 @@
 				><Plus /> Transfer to truck</Button
 			>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -502,7 +575,7 @@
 			<Card.Title class="text-base">Purchase orders</Card.Title>
 			<Button size="sm" variant="outline" onclick={() => openPo()}><Plus /> New PO</Button>
 		</Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -532,8 +605,14 @@
 						</Table.Row>
 					{:else}
 						<Table.Row>
-							<Table.Cell colspan={6} class="text-center text-muted-foreground">
-								No purchase orders yet — create one for items running low.
+							<Table.Cell colspan={6}>
+								<Empty.Root class="border-0">
+									<Empty.Header>
+										<Empty.Media><PackagePlus /></Empty.Media>
+										<Empty.Title>No purchase orders yet</Empty.Title>
+										<Empty.Description>Create one for items running low.</Empty.Description>
+									</Empty.Header>
+								</Empty.Root>
 							</Table.Cell>
 						</Table.Row>
 					{/each}
@@ -561,6 +640,14 @@
 				<Field.Field>
 					<Field.Label for="inv-unit">Unit</Field.Label>
 					<Input id="inv-unit" bind:value={unit} placeholder="each" />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="inv-location">Location</Field.Label>
+					<Input id="inv-location" bind:value={location} placeholder="Bay 2 · Van A" />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="inv-supplier-sku">Supplier SKU</Field.Label>
+					<Input id="inv-supplier-sku" bind:value={supplierSku} placeholder="vendor part #" />
 				</Field.Field>
 			</div>
 			<div class="grid grid-cols-3 gap-4">
@@ -715,7 +802,14 @@
 			<Table.Body>
 				{#each poView?.items ?? [] as i (i.id)}
 					<Table.Row>
-						<Table.Cell class="font-medium">{i.name}</Table.Cell>
+						<Table.Cell class="font-medium"
+							>{i.name}
+							{#if i.receivedQty > 0}
+								<span class="ml-1 text-xs text-muted-foreground"
+									>{i.receivedQty}/{i.qty} received</span
+								>
+							{/if}</Table.Cell
+						>
 						<Table.Cell class="text-right tabular-nums">{i.qty} {i.unit}</Table.Cell>
 						<Table.Cell class="text-right tabular-nums"
 							>{i.unitCost ? formatMoney(i.qty * i.unitCost, currency) : '—'}</Table.Cell
@@ -740,14 +834,47 @@
 					<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}
 						>Cancel PO</Button
 					>
-					<Button onclick={() => transitionPo(poView!.po.id, 'received')}
-						><ClipboardList /> Receive stock</Button
-					>
+					<Button onclick={openReceive}><ClipboardList /> Receive stock</Button>
 				{:else}
 					<span></span>
 				{/if}
 			</Dialog.Footer>
 		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- receive stock (partial ok) -->
+<Dialog.Root bind:open={rcOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Receive stock — PO-{poView?.po.number}</Dialog.Title>
+			<Dialog.Description>
+				Enter how much of each line arrived. The PO stays open until every line is fully received.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			{#each rcLines as l (l.itemId)}
+				<div class="flex items-center gap-3">
+					<div class="min-w-0 flex-1">
+						<p class="truncate text-sm font-medium">{l.name}</p>
+						<p class="text-xs text-muted-foreground">{l.remaining} {l.unit} outstanding</p>
+					</div>
+					<Input
+						type="number"
+						class="w-24 text-right"
+						min={0}
+						max={l.remaining}
+						bind:value={l.qty}
+					/>
+				</div>
+			{/each}
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => rcLines.forEach((l) => (l.qty = 0))}>Clear</Button>
+			<Button onclick={doReceive} disabled={rcPending || rcLines.every((l) => l.qty <= 0)}
+				>{rcPending ? 'Receiving…' : 'Receive'}</Button
+			>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
 
@@ -820,7 +947,12 @@
 					>
 				</div>
 			{:else}
-				<p class="py-6 text-center text-sm text-muted-foreground">No movements yet.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><History /></Empty.Media>
+						<Empty.Title>No movements yet</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</div>
 	</Dialog.Content>

@@ -1,4 +1,12 @@
 <script lang="ts">
+	import Clock from '@lucide/svelte/icons/clock';
+	import Receipt from '@lucide/svelte/icons/receipt';
+	import Image from '@lucide/svelte/icons/image';
+	import History from '@lucide/svelte/icons/history';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { Progress } from '#lib/components/ui/progress/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -27,6 +35,7 @@
 		startTimer,
 		stopTimer,
 		addTimeEntry,
+		updateTimeEntry,
 		deleteTimeEntry,
 		createJob,
 		repeatJob,
@@ -80,6 +89,7 @@
 	import Play from '@lucide/svelte/icons/play';
 	import Square from '@lucide/svelte/icons/square';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Printer from '@lucide/svelte/icons/printer';
 	import Plus from '@lucide/svelte/icons/plus';
 	import PenLine from '@lucide/svelte/icons/pen-line';
@@ -115,6 +125,8 @@
 	let summary = $state(j.job.summary);
 	let description = $state(j.job.description);
 	let priority = $state(j.job.priority);
+	let dependsOnJobId = $state(j.job.dependsOnJobId ?? '');
+	let arrivalWindow = $state(j.job.arrivalWindow ?? '');
 	let startsAt = $state(
 		j.job.startsAt
 			? `${localDate(j.job.startsAt, settings.timezone)}T${localTime(j.job.startsAt, settings.timezone)}`
@@ -137,6 +149,8 @@
 			summary = j.job.summary;
 			description = j.job.description;
 			priority = j.job.priority;
+			dependsOnJobId = j.job.dependsOnJobId ?? '';
+			arrivalWindow = j.job.arrivalWindow ?? '';
 			startsAt = j.job.startsAt
 				? `${localDate(j.job.startsAt, settings.timezone)}T${localTime(j.job.startsAt, settings.timezone)}`
 				: '';
@@ -162,6 +176,8 @@
 				summary,
 				description,
 				priority,
+				dependsOnJobId: dependsOnJobId || null,
+				arrivalWindow: arrivalWindow || null,
 				startsAt: startsAt || null,
 				durationMin
 			}).updates(getJob, getJobs, getDispatchBoard);
@@ -206,9 +222,13 @@
 		cancelling = false;
 	}
 
-	async function event(kind: 'dispatched' | 'en_route' | 'on_site' | 'completed') {
+	async function event(kind: 'dispatched' | 'en_route' | 'on_site' | 'completed', note?: string) {
 		try {
-			await recordJobEvent({ jobId: id, kind }).updates(getJob, getJobs, getDispatchBoard);
+			await recordJobEvent({ jobId: id, kind, note: note || null }).updates(
+				getJob,
+				getJobs,
+				getDispatchBoard
+			);
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -219,13 +239,14 @@
 	let signOpen = $state(false);
 	let signThenComplete = $state(false);
 	let signPending = $state(false);
+	let completionNote = $state('');
 	async function saveSignature(name: string, dataUrl: string) {
 		signPending = true;
 		try {
 			await signJob({ jobId: id, name, signature: dataUrl }).updates(getJob);
 			signOpen = false;
 			toast.success('Signature saved');
-			if (signThenComplete) await event('completed');
+			if (signThenComplete) await event('completed', completionNote);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save signature'));
 		}
@@ -234,6 +255,7 @@
 	}
 	function openSign(complete: boolean) {
 		signThenComplete = complete;
+		if (complete) completionNote = '';
 		signOpen = true;
 	}
 
@@ -289,26 +311,53 @@
 	}
 
 	let addingTime = $state(false);
+	let editTimeId = $state<string | null>(null);
 	let teMember = $state('');
 	let teStart = $state('');
 	let teEnd = $state('');
 	let teNote = $state('');
+	function startEditTime(e: {
+		entry: { id: string; startedAt: Date; endedAt: Date | null; note: string };
+	}) {
+		editTimeId = e.entry.id;
+		teStart = `${localDate(e.entry.startedAt, tz)}T${localTime(e.entry.startedAt, tz)}`;
+		teEnd = e.entry.endedAt
+			? `${localDate(e.entry.endedAt, tz)}T${localTime(e.entry.endedAt, tz)}`
+			: '';
+		teNote = e.entry.note;
+		addingTime = true;
+	}
+	function resetTimeForm() {
+		addingTime = false;
+		editTimeId = null;
+		teStart = teEnd = teNote = '';
+		teMember = '';
+	}
 	async function logTime(e: SubmitEvent) {
 		e.preventDefault();
 		try {
-			await addTimeEntry({
-				jobId: id,
-				memberId: teMember || null,
-				startedAt: teStart,
-				endedAt: teEnd || null,
-				note: teNote
-			}).updates(getTimeEntries, getJob);
-			addingTime = false;
-			teStart = teEnd = teNote = '';
-			teMember = '';
-			toast.success('Time logged');
+			if (editTimeId) {
+				await updateTimeEntry({
+					id: editTimeId,
+					jobId: id,
+					startedAt: teStart,
+					endedAt: teEnd || null,
+					note: teNote
+				}).updates(getTimeEntries, getJob);
+			} else {
+				await addTimeEntry({
+					jobId: id,
+					memberId: teMember || null,
+					startedAt: teStart,
+					endedAt: teEnd || null,
+					note: teNote
+				}).updates(getTimeEntries, getJob);
+			}
+			const wasEdit = !!editTimeId;
+			resetTimeForm();
+			toast.success(wasEdit ? 'Entry updated' : 'Time logged');
 		} catch (err) {
-			toast.error(errMsg(err, 'Could not log time'));
+			toast.error(errMsg(err, 'Could not save time'));
 		}
 	}
 	async function removeTime(entryId: string) {
@@ -549,13 +598,30 @@
 		{#if j.job.source && j.job.source !== 'manual'}
 			<Badge variant="secondary" class="capitalize">via {j.job.source}</Badge>
 		{/if}
+		{#if j.depOpen}
+			<a href="/jobs/{j.job.dependsOnJobId}"
+				><Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+					>blocked by J-{j.depNumber}</Badge
+				></a
+			>
+		{/if}
+		{#each j.depJobs as d (d.id)}
+			<a href="/jobs/{d.id}"
+				><Badge variant="outline" class="text-blue-600 dark:text-blue-400"
+					>blocks J-{d.number}</Badge
+				></a
+			>
+		{/each}
+		{#if j.job.rating}
+			<Badge variant="secondary" title={j.job.ratingNote ?? ''}>★ {j.job.rating}/5</Badge>
+		{/if}
 		{#if j.sameDay}
-			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+			<Badge variant="outline" class="hidden text-amber-600 sm:inline-flex dark:text-amber-400"
 				>{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today</Badge
 			>
 		{/if}
 		{#if j.techDay}
-			<Badge variant="outline" class="text-muted-foreground"
+			<Badge variant="outline" class="hidden text-muted-foreground sm:inline-flex"
 				>{j.techDay + 1} on {matTechName}'s day</Badge
 			>
 		{/if}
@@ -585,6 +651,7 @@
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
 		{/if}
 		<Button
+			class="hidden md:inline-flex"
 			size="sm"
 			variant="ghost"
 			title="Copy job — same details, new unscheduled job"
@@ -592,6 +659,7 @@
 			onclick={dupe}><Copy /></Button
 		>
 		<Button
+			class="hidden md:inline-flex"
 			size="sm"
 			variant="ghost"
 			href="/jobs/{id}/workorder"
@@ -600,6 +668,7 @@
 		>
 		{#if j.address1}
 			<Button
+				class="hidden md:inline-flex"
 				size="sm"
 				variant="ghost"
 				href="https://www.google.com/maps/search/{encodeURIComponent(
@@ -611,6 +680,7 @@
 		{/if}
 		{#if j.customerPhone}
 			<Button
+				class="hidden md:inline-flex"
 				size="sm"
 				variant="ghost"
 				title="Text the customer an ETA"
@@ -621,7 +691,7 @@
 			<Button
 				size="sm"
 				variant="ghost"
-				class="text-amber-600 dark:text-amber-500"
+				class="hidden text-amber-600 md:inline-flex dark:text-amber-500"
 				title="Customer no-show — cancel and rebook as unscheduled"
 				disabled={noShowing}
 				onclick={noShow}><UserX /></Button
@@ -629,21 +699,61 @@
 			<Button
 				size="sm"
 				variant="ghost"
-				class="text-destructive"
+				class="hidden text-destructive md:inline-flex"
 				title="Cancel job"
 				onclick={() => (cancelOpen = true)}><Ban /></Button
 			>
 		{/if}
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="inline-flex size-8 items-center justify-center rounded-md hover:bg-accent md:hidden"
+			>
+				<EllipsisVertical class="size-4" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Item disabled={duplicating} onclick={dupe}
+					><Copy /> Copy job</DropdownMenu.Item
+				>
+				<DropdownMenu.Item onclick={() => window.open(`/jobs/${id}/workorder`, '_blank')}
+					><Printer /> Print work order</DropdownMenu.Item
+				>
+				{#if j.address1}
+					<DropdownMenu.Item
+						onclick={() =>
+							window.open(
+								`https://www.google.com/maps/search/${encodeURIComponent(
+									`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`
+								)}`,
+								'_blank'
+							)}><Navigation2 /> Directions</DropdownMenu.Item
+					>
+				{/if}
+				{#if j.customerPhone}
+					<DropdownMenu.Item onclick={() => (etaOpen = true)}
+						><MessageSquare /> Text customer ETA</DropdownMenu.Item
+					>
+				{/if}
+				{#if !locked}
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item disabled={noShowing} onclick={noShow}
+						><UserX /> Customer no-show</DropdownMenu.Item
+					>
+					<DropdownMenu.Item variant="destructive" onclick={() => (cancelOpen = true)}
+						><Ban /> Cancel job</DropdownMenu.Item
+					>
+				{/if}
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-6 p-4 md:p-6 lg:grid-cols-3">
+<div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-3">
 	<!-- details + edit form -->
 	<div class="space-y-6 lg:col-span-2">
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Details</Card.Title></Card.Header>
 			<Card.Content>
-				<form class="grid gap-4 sm:grid-cols-2" onsubmit={save}>
+				<form class="grid grid-cols-1 gap-4 sm:grid-cols-2" onsubmit={save}>
 					<Field.Field>
 						<Field.Label>Customer</Field.Label>
 						<p class="pt-2 text-sm">
@@ -739,6 +849,26 @@
 						</Select.Root>
 					</Field.Field>
 					<Field.Field>
+						<Field.Label>Depends on</Field.Label>
+						<Select.Root type="single" bind:value={dependsOnJobId}>
+							<Select.Trigger class="w-full"
+								>{(() => {
+									const d = j.depOptions.find((x) => x.id === dependsOnJobId);
+									return d ? `J-${d.number} ${d.summary || ''}` : 'None';
+								})()}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">None</Select.Item>
+								{#each j.depOptions as d (d.id)}
+									<Select.Item value={d.id}>J-{d.number} {d.summary || ''}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Field.Description
+							>Can't be dispatched or completed until that job is done.</Field.Description
+						>
+					</Field.Field>
+					<Field.Field>
 						<Field.Label>Technician</Field.Label>
 						<Select.Root type="single" bind:value={technicianId}>
 							<Select.Trigger class="w-full"
@@ -784,6 +914,15 @@
 						>
 					</Field.Field>
 					<Field.Field>
+						<Field.Label for="d-window">Arrival window</Field.Label>
+						<Input
+							id="d-window"
+							placeholder="8-10 AM — shown to the customer"
+							bind:value={arrivalWindow}
+							disabled={locked}
+						/>
+					</Field.Field>
+					<Field.Field>
 						<Field.Label for="d-dur">Duration (minutes)</Field.Label>
 						<Input
 							id="d-dur"
@@ -822,6 +961,13 @@
 				</div>
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Priority</span><StatusBadge status={j.job.priority} />
+					{#if j.job.rating}
+						<span class="text-muted-foreground">Rating</span><span
+							>{'★'.repeat(j.job.rating)}{'☆'.repeat(5 - j.job.rating)}{j.job.ratingNote
+								? ` — ${j.job.ratingNote}`
+								: ''}</span
+						>
+					{/if}
 				</div>
 				{#if j.job.status !== 'done' && !j.job.cancelledAt}
 					<div class="flex items-center justify-between">
@@ -834,6 +980,22 @@
 							}}
 						/>
 					</div>
+					<div class="flex items-center justify-between">
+						<span class="text-muted-foreground">Warranty — no charge</span>
+						<Switch
+							checked={j.job.warranty}
+							onCheckedChange={async (v) => {
+								await updateJob({ id, warranty: v }).updates(getJob, getJobs, getDispatchBoard);
+								toast.success(v ? 'Marked warranty — no auto-invoice' : 'Billable again');
+							}}
+						/>
+					</div>
+				{/if}
+				{#if j.job.warranty}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">Warranty</span>
+						<Badge variant="secondary">no charge</Badge>
+					</div>
 				{/if}
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Source</span><span class="capitalize"
@@ -844,6 +1006,20 @@
 					<div class="flex justify-between gap-3">
 						<span class="text-muted-foreground">Customer asked for</span><span class="text-right"
 							>{j.job.preferredTime}</span
+						>
+					</div>
+				{/if}
+				{#if j.job.arrivalWindow}
+					<div class="flex justify-between gap-3">
+						<span class="text-muted-foreground">Arrival window</span><span class="text-right"
+							>{j.job.arrivalWindow}</span
+						>
+					</div>
+				{/if}
+				{#if j.job.completionNotes}
+					<div class="flex justify-between gap-3">
+						<span class="text-muted-foreground">Work performed</span><span class="text-right"
+							>{j.job.completionNotes}</span
 						>
 					</div>
 				{/if}
@@ -996,24 +1172,45 @@
 								</p>
 							</div>
 							{#if time.isAdmin || e.entry.memberId === time.myMemberId}
-								<Button
-									variant="ghost"
-									size="icon"
-									class="size-7 shrink-0 text-muted-foreground"
-									onclick={() => removeTime(e.entry.id)}
-								>
-									<Trash2 class="size-3.5" />
-								</Button>
+								<div class="flex shrink-0">
+									{#if !locked}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="size-7 text-muted-foreground"
+											aria-label="Edit time entry"
+											onclick={() => startEditTime(e)}
+										>
+											<Pencil class="size-3.5" />
+										</Button>
+									{/if}
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-7 text-muted-foreground"
+										aria-label="Delete time entry"
+										onclick={() => removeTime(e.entry.id)}
+									>
+										<Trash2 class="size-3.5" />
+									</Button>
+								</div>
 							{/if}
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">No time logged yet.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><Clock /></Empty.Media>
+									<Empty.Title class="text-sm">No time logged yet</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 				{#if !locked}
 					{#if addingTime}
 						<form class="grid gap-2 border-t pt-3" onsubmit={logTime}>
-							{#if time.isAdmin}
+							{#if time.isAdmin && !editTimeId}
 								<Select.Root type="single" bind:value={teMember}>
 									<Select.Trigger class="w-full"
 										>{technicians.find((t) => t.id === teMember)?.name ?? 'Me'}</Select.Trigger
@@ -1034,7 +1231,7 @@
 							<Input placeholder="Note (optional)" bind:value={teNote} />
 							<div class="flex gap-2">
 								<Button type="submit" size="sm" disabled={!teStart}>Save</Button>
-								<Button type="button" size="sm" variant="ghost" onclick={() => (addingTime = false)}
+								<Button type="button" size="sm" variant="ghost" onclick={resetTimeForm}
 									>Cancel</Button
 								>
 							</div>
@@ -1095,7 +1292,14 @@
 							{/if}
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">No materials used yet.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><Package /></Empty.Media>
+									<Empty.Title class="text-sm">No materials used yet</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 				{#if !locked}
@@ -1214,8 +1418,14 @@
 							{/if}
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">
-							No expenses — permits, subcontractors, dump fees.
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><Receipt /></Empty.Media>
+									<Empty.Title class="text-sm">No expenses yet</Empty.Title>
+									<Empty.Description>Permits, subcontractors, dump fees.</Empty.Description>
+								</Empty.Header>
+							</Empty.Root>
 						</li>
 					{/each}
 				</ul>
@@ -1308,7 +1518,13 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="text-sm text-muted-foreground">No photos yet.</p>
+					<Empty.Root class="border-0 py-4">
+						<Empty.Header>
+							<Empty.Media><Image /></Empty.Media>
+							<Empty.Title class="text-sm">No photos yet</Empty.Title>
+							<Empty.Description>Upload before / during / after shots below.</Empty.Description>
+						</Empty.Header>
+					</Empty.Root>
 				{/if}
 				{#if !locked}
 					<Select.Root type="single" bind:value={photoPhase}>
@@ -1344,9 +1560,12 @@
 					><ListChecks class="size-4" /> Checklist</Card.Title
 				>
 				{#if checklist.length}
-					<span class="text-sm text-muted-foreground tabular-nums"
-						>{checkDone}/{checklist.length} done</span
-					>
+					<div class="flex items-center gap-2">
+						<Progress value={checkDone} max={checklist.length} class="h-1.5 w-16" />
+						<span class="text-sm text-muted-foreground tabular-nums"
+							>{checkDone}/{checklist.length} done</span
+						>
+					</div>
 				{/if}
 			</Card.Header>
 			<Card.Content class="space-y-2 px-4">
@@ -1406,7 +1625,14 @@
 							</div>
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">No activity yet.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><History /></Empty.Media>
+									<Empty.Title class="text-sm">No activity yet</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 				{#if !locked}
@@ -1425,9 +1651,10 @@
 	pending={signPending}
 	onSave={saveSignature}
 	skipLabel="Complete without signature"
+	bind:note={completionNote}
 	onSkip={() => {
 		signOpen = false;
-		if (signThenComplete) event('completed');
+		if (signThenComplete) event('completed', completionNote);
 		signThenComplete = false;
 	}}
 />

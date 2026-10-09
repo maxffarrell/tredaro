@@ -81,7 +81,8 @@
 		payment_receipt: 'Payment received',
 		inbound_sms_staff: 'Text from customer',
 		estimate_changes: 'Change request',
-		quote_request: 'Quote request'
+		quote_request: 'Quote request',
+		auto_charge_failed: 'auto-charge failed'
 	};
 
 	/** Where each kind's entity usually lives. */
@@ -95,10 +96,17 @@
 			kind === 'quote_request'
 		)
 			return `/estimates/${entityId}`;
-		if (kind === 'parts_delay' || kind === 'tech_assigned') return `/jobs/${entityId}`;
+		if (
+			kind === 'parts_delay' ||
+			kind === 'tech_assigned' ||
+			kind === 'job_unblocked' ||
+			kind === 'visit_rated'
+		)
+			return `/jobs/${entityId}`;
 		if (kind === 'agreement_renewal') return '/agreements';
 		if (kind === 'payment_receipt' || kind === 'job_completed') return `/jobs/${entityId}`;
-		if (kind === 'inbound_sms_staff') return `/customers/${entityId.split(':')[0]}`;
+		if (kind === 'inbound_sms_staff' || kind === 'auto_charge_failed')
+			return `/customers/${entityId.split(':')[0]}`;
 		return null;
 	}
 </script>
@@ -129,7 +137,7 @@
 
 <div class="space-y-4 p-4 md:p-6">
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>

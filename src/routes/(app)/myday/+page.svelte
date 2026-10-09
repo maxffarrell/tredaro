@@ -1,4 +1,6 @@
 <script lang="ts">
+	import CalendarX2 from '@lucide/svelte/icons/calendar-x-2';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
@@ -10,15 +12,27 @@
 	import {
 		getMyDay,
 		recordJobEvent,
+		addJobExpense,
 		signJob,
 		startTimer,
 		stopTimer,
-		getCalendarFeed
+		getCalendarFeed,
+		requestTimeOff
 	} from '#lib/remote/jobs.remote.ts';
+	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
+	import { getCustomerOpenBalance, recordPayment } from '#lib/remote/billing.remote.ts';
+	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getTruckStock, addJobMaterial } from '#lib/remote/inventory.remote.ts';
+	import Package from '@lucide/svelte/icons/package';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
-	import { errMsg } from '#lib/format.ts';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import MoneyInput from '#lib/components/app/money-input.svelte';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { errMsg, formatMoney } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
 	import Truck from '@lucide/svelte/icons/truck';
 	import Navigation from '@lucide/svelte/icons/navigation';
@@ -32,7 +46,13 @@
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
 	import Phone from '@lucide/svelte/icons/phone';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
+	import Camera from '@lucide/svelte/icons/camera';
+	import Receipt from '@lucide/svelte/icons/receipt';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import HandCoins from '@lucide/svelte/icons/hand-coins';
 
+	const settings = await getSettings();
+	const currency = settings.currency;
 	const day = $derived(await getMyDay());
 	const tomorrowSchedMin = $derived(
 		(day.tomorrow ?? []).reduce(
@@ -72,8 +92,126 @@
 
 	let pending = $state<string | null>(null);
 	let signJobId = $state<string | null>(null);
+	let signNote = $state('');
+
+	// ------- request time off -------
+	let ptoOpen = $state(false);
+	let ptoStart = $state('');
+	let ptoEnd = $state('');
+	let ptoReason = $state('');
+	let ptoPending = $state(false);
+	async function saveTimeOff() {
+		ptoPending = true;
+		try {
+			await requestTimeOff({
+				startsOn: ptoStart,
+				endsOn: ptoEnd,
+				reason: ptoReason.trim()
+			});
+			ptoOpen = false;
+			ptoReason = '';
+			toast.success('Time off marked');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+		ptoPending = false;
+	}
 	let noteJobId = $state<string | null>(null);
+	let expJobId = $state<string | null>(null);
+	let expDesc = $state('');
+	let expVendor = $state('');
+	let expAmount = $state(0);
+	let textCustomerId = $state<string | null>(null);
+	let textMsg = $state('');
+	let collectCustomerId = $state<string | null>(null);
+	let collectAmount = $state(0);
+	let collectMethod = $state('cash');
+	let collectNotes = $state('');
+	const collectBal = $derived(
+		collectCustomerId ? await getCustomerOpenBalance(collectCustomerId) : null
+	);
 	let noteText = $state('');
+
+	// photo capture — one shared input; the menu sets the job + phase, then clicks it
+	let photoJobId = $state<string | null>(null);
+	let photoPhase = $state<'before' | 'during' | 'after'>('during');
+	let photoInput: HTMLInputElement;
+	let uploadingPhoto = $state<string | null>(null);
+	function pickPhoto(jobId: string, phase: 'before' | 'during' | 'after') {
+		photoJobId = jobId;
+		photoPhase = phase;
+		photoInput?.click();
+	}
+	async function uploadPhoto(e: Event) {
+		const file = (e.currentTarget as HTMLInputElement).files?.[0];
+		const jobId = photoJobId;
+		if (!file || !jobId) return;
+		uploadingPhoto = jobId;
+		try {
+			const form = new FormData();
+			form.set('file', file);
+			form.set('phase', photoPhase);
+			const res = await fetch(`/api/jobs/${jobId}/photos`, { method: 'POST', body: form });
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				throw new Error(body?.message ?? `Upload failed (${res.status})`);
+			}
+			toast.success(`${photoPhase[0].toUpperCase()}${photoPhase.slice(1)} photo added`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload photo'));
+		}
+		(e.currentTarget as HTMLInputElement).value = '';
+		uploadingPhoto = null;
+	}
+
+	async function saveExpense() {
+		if (!expJobId || !expDesc.trim() || expAmount <= 0) return;
+		try {
+			await addJobExpense({
+				jobId: expJobId,
+				description: expDesc.trim(),
+				vendor: expVendor.trim(),
+				amount: expAmount
+			}).updates(getMyDay);
+			toast.success('Expense logged — the office can bill it');
+			expJobId = null;
+			expDesc = '';
+			expVendor = '';
+			expAmount = 0;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not log expense'));
+		}
+	}
+
+	async function sendText() {
+		if (!textCustomerId || !textMsg.trim()) return;
+		try {
+			await textCustomerCmd({ customerId: textCustomerId, message: textMsg.trim() });
+			toast.success('Text sent');
+			textCustomerId = null;
+			textMsg = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send text'));
+		}
+	}
+
+	async function collect() {
+		if (!collectCustomerId || collectAmount <= 0) return;
+		try {
+			await recordPayment({
+				customerId: collectCustomerId,
+				amount: collectAmount,
+				method: collectMethod as 'card' | 'cash' | 'check' | 'bank' | 'stripe' | 'other',
+				notes: collectNotes.trim() || undefined
+			});
+			toast.success('Payment recorded');
+			collectCustomerId = null;
+			collectAmount = 0;
+			collectNotes = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not record payment'));
+		}
+	}
 
 	async function saveNote() {
 		if (!noteJobId || !noteText.trim()) return;
@@ -91,14 +229,51 @@
 		pending = null;
 	}
 
+	// ------- log a part used from my truck -------
+	const myTruck = $derived(
+		day.member
+			? (await getTruckStock()).filter(
+					(t) => t.stock.memberId === day.member!.id && t.stock.qty > 0
+				)
+			: []
+	);
+	let partJobId = $state<string | null>(null);
+	let partItemId = $state('');
+	let partQty = $state(1);
+	function openPart(jobId: string) {
+		partJobId = jobId;
+		partItemId = '';
+		partQty = 1;
+	}
+	async function logPart() {
+		if (!partJobId || !partItemId || !day.member) return;
+		pending = `${partJobId}:part`;
+		try {
+			await addJobMaterial({
+				jobId: partJobId,
+				inventoryItemId: partItemId,
+				qty: partQty,
+				unitPrice: 0,
+				truckMemberId: day.member.id
+			}).updates(getMyDay);
+			partJobId = null;
+			toast.success('Part logged from your truck');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not log part'));
+		}
+		pending = null;
+	}
+
 	async function completeWithSignature(name: string, dataUrl: string) {
 		const jobId = signJobId;
 		if (!jobId) return;
 		pending = `${jobId}:completed`;
+		const note = signNote;
+		signNote = '';
 		try {
 			await signJob({ jobId, name, signature: dataUrl });
 			signJobId = null;
-			await recordJobEvent({ jobId, kind: 'completed' }).updates(getMyDay);
+			await recordJobEvent({ jobId, kind: 'completed', note: note || null }).updates(getMyDay);
 			toast.success('Job done');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -106,10 +281,10 @@
 		pending = null;
 	}
 
-	async function advance(jobId: string, kind: EventKind) {
+	async function advance(jobId: string, kind: EventKind, note?: string) {
 		pending = `${jobId}:${kind}`;
 		try {
-			await recordJobEvent({ jobId, kind }).updates(getMyDay);
+			await recordJobEvent({ jobId, kind, note: note || null }).updates(getMyDay);
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -166,6 +341,9 @@
 							rel="noreferrer"><MapPin class="size-3" /> Directions</a
 						>
 					{/if}
+					{#if j.job.arrivalWindow}
+						<p class="truncate text-xs font-medium">Arrive {j.job.arrivalWindow}</p>
+					{/if}
 					{#if j.job.preferredTime}
 						<p class="truncate text-xs text-muted-foreground">Prefers {j.job.preferredTime}</p>
 					{/if}
@@ -185,6 +363,9 @@
 				<StatusBadge status={j.job.status} />
 				{#if j.job.blocked}
 					<Badge variant="outline" class="text-amber-600 dark:text-amber-400">parts</Badge>
+				{/if}
+				{#if j.job.warranty}
+					<Badge variant="outline">warranty</Badge>
 				{/if}
 			</div>
 			<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -233,6 +414,63 @@
 						size="sm"
 						variant="ghost"
 						disabled={pending !== null}
+						title="Log a job expense (permit, parking, misc)"
+						onclick={() => (expJobId = j.job.id)}><Receipt /> Expense</Button
+					>
+					{#if j.customerPhone}
+						<Button
+							size="sm"
+							variant="ghost"
+							disabled={pending !== null}
+							title="Text the customer"
+							onclick={() => (textCustomerId = j.job.customerId)}><MessageSquare /> Text</Button
+						>
+					{/if}
+					<Button
+						size="sm"
+						variant="ghost"
+						disabled={pending !== null}
+						title="Collect a payment on site"
+						onclick={() => (collectCustomerId = j.job.customerId)}><HandCoins /> Collect</Button
+					>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							{#snippet child({ props })}
+								<Button
+									{...props}
+									size="sm"
+									variant="ghost"
+									disabled={pending !== null || uploadingPhoto === j.job.id}
+								>
+									<Camera />
+									{uploadingPhoto === j.job.id ? 'Uploading…' : 'Photo'}
+								</Button>
+							{/snippet}
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="start">
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'before')}
+								>Before photo</DropdownMenu.Item
+							>
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'during')}
+								>During photo</DropdownMenu.Item
+							>
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'after')}
+								>After photo</DropdownMenu.Item
+							>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+					{#if myTruck.length}
+						<Button
+							size="sm"
+							variant="ghost"
+							disabled={pending !== null}
+							onclick={() => openPart(j.job.id)}><Package /> Part</Button
+						>
+					{/if}
+					<Button
+						size="sm"
+						variant="ghost"
+						disabled={pending !== null}
 						onclick={() => clock(j.job.id)}
 					>
 						{#if day.openEntry?.entry.jobId === j.job.id}
@@ -248,6 +486,14 @@
 {/snippet}
 
 {#snippet calActions()}
+	<Button
+		variant="outline"
+		size="sm"
+		onclick={() => (ptoOpen = true)}
+		title="Mark upcoming time off — shows on dispatch"
+	>
+		<CalendarX2 /> Time off
+	</Button>
 	{#if calFeed}
 		<Button variant="outline" size="sm" onclick={copyCal} title="Subscribe to your schedule">
 			<CalendarPlus /> Calendar
@@ -257,7 +503,7 @@
 
 <PageHeader title="My Day" actions={calActions} />
 
-<div class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 md:p-6">
+<div class="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 md:p-6">
 	<p class="text-sm text-muted-foreground">
 		{new Date(`${day.today}T12:00:00Z`).toLocaleDateString('en-US', {
 			weekday: 'long',
@@ -268,14 +514,18 @@
 	</p>
 
 	{#if day.offToday}
-		<div
-			class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/40 dark:bg-amber-950/30"
+		<Alert.Root
+			class="border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"
 		>
-			<span class="font-medium"
-				>You're off today{day.offToday.reason ? `: ${day.offToday.reason}` : ''}.</span
+			<CalendarX2 />
+			<Alert.Title
+				>You're off today{day.offToday.reason ? `: ${day.offToday.reason}` : ''}.</Alert.Title
 			>
-			Anything below was already on your schedule — coordinate with the office if it needs reassigning.
-		</div>
+			<Alert.Description
+				>Anything below was already on your schedule — coordinate with the office if it needs
+				reassigning.</Alert.Description
+			>
+		</Alert.Root>
 	{/if}
 
 	{#if day.member && (day.jobs.length || day.minutesLogged > 0)}
@@ -412,7 +662,7 @@
 		{#if day.materials.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Today's materials</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each day.materials as m (m.name)}
@@ -460,14 +710,209 @@
 	</Dialog.Content>
 </Dialog.Root>
 
+<Dialog.Root
+	open={partJobId !== null}
+	onOpenChange={(v) => {
+		if (!v) partJobId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Log part used</Dialog.Title>
+			<Dialog.Description
+				>Comes off your truck stock — bill it on the invoice later.</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="grid gap-3">
+			<Select.Root type="single" value={partItemId} onValueChange={(v) => (partItemId = v ?? '')}>
+				<Select.Trigger class="w-full" data-testid="part-item"
+					>{myTruck.find((t) => t.stock.inventoryItemId === partItemId)?.itemName ??
+						'Pick a part'}</Select.Trigger
+				>
+				<Select.Content>
+					{#each myTruck as t (t.stock.id)}
+						<Select.Item value={t.stock.inventoryItemId}
+							>{t.itemName} — {t.stock.qty} {t.itemUnit} on truck</Select.Item
+						>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+			<Label class="grid gap-1 text-xs">
+				Qty
+				<Input type="number" min="1" bind:value={partQty} data-testid="part-qty" />
+			</Label>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (partJobId = null)}>Cancel</Button>
+			<Button onclick={logPart} disabled={pending !== null || !partItemId || partQty < 1}
+				>Log part</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={ptoOpen}>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Request time off</Dialog.Title>
+			<Dialog.Description
+				>Blocked on the dispatch board immediately — the office is emailed a heads-up.</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="grid gap-3">
+			<div class="grid gap-1.5">
+				<Label for="pto-start">From</Label>
+				<Input id="pto-start" type="date" bind:value={ptoStart} />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="pto-end">To</Label>
+				<Input id="pto-end" type="date" bind:value={ptoEnd} />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="pto-reason">Reason (optional)</Label>
+				<Input id="pto-reason" bind:value={ptoReason} placeholder="PTO, appointment…" />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (ptoOpen = false)}>Cancel</Button>
+			<Button onclick={saveTimeOff} disabled={ptoPending || !ptoStart || !ptoEnd}
+				>{ptoPending ? 'Saving…' : 'Mark off'}</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<input
+	bind:this={photoInput}
+	type="file"
+	accept="image/*"
+	capture="environment"
+	class="hidden"
+	onchange={uploadPhoto}
+/>
+
 <SignatureDialog
 	bind:open={() => signJobId !== null, (v) => (signJobId = v ? signJobId : null)}
 	pending={pending !== null}
 	onSave={completeWithSignature}
 	skipLabel="Complete without signature"
+	bind:note={signNote}
 	onSkip={() => {
 		const jobId = signJobId;
 		signJobId = null;
-		if (jobId) advance(jobId, 'completed');
+		const note = signNote;
+		signNote = '';
+		if (jobId) advance(jobId, 'completed', note);
 	}}
 />
+
+<Dialog.Root
+	open={expJobId !== null}
+	onOpenChange={(v) => {
+		if (!v) expJobId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Job expense</Dialog.Title>
+			<Dialog.Description
+				>Permits, parking, subcontractors — billable on the job's invoice.</Dialog.Description
+			>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<div class="space-y-1.5">
+				<Label for="exp-desc">Description</Label>
+				<Input id="exp-desc" bind:value={expDesc} placeholder="Permit fee" />
+			</div>
+			<div class="space-y-1.5">
+				<Label for="exp-vendor">Vendor (optional)</Label>
+				<Input id="exp-vendor" bind:value={expVendor} placeholder="City of Austin" />
+			</div>
+			<div class="space-y-1.5">
+				<Label for="exp-amt">Amount</Label>
+				<MoneyInput id="exp-amt" bind:value={expAmount} />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (expJobId = null)}>Cancel</Button>
+			<Button onclick={saveExpense} disabled={!expDesc.trim() || expAmount <= 0}>Log expense</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root
+	open={textCustomerId !== null}
+	onOpenChange={(v) => {
+		if (!v) textCustomerId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Text the customer</Dialog.Title>
+			<Dialog.Description
+				>Sends from your company's number — replies land in the inbox.</Dialog.Description
+			>
+		</Dialog.Header>
+		<Textarea rows={3} bind:value={textMsg} placeholder="Running about 15 minutes behind…" />
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (textCustomerId = null)}>Cancel</Button>
+			<Button onclick={sendText} disabled={!textMsg.trim()}>Send text</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root
+	open={collectCustomerId !== null}
+	onOpenChange={(v) => {
+		if (!v) collectCustomerId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Collect payment</Dialog.Title>
+			<Dialog.Description>
+				{#if collectBal?.count}
+					{collectBal.count} open charge{collectBal.count === 1 ? '' : 's'} — balance {formatMoney(
+						collectBal.open,
+						currency
+					)}. Applies oldest-first.
+				{:else}
+					Nothing owed — record anyway to log a prepayment credit.
+				{/if}
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<div class="space-y-1.5">
+				<Label for="collect-amt">Amount</Label>
+				<MoneyInput id="collect-amt" bind:value={collectAmount} />
+				{#if collectBal?.open}
+					<Button
+						variant="link"
+						class="h-auto p-0 text-xs"
+						onclick={() => (collectAmount = collectBal!.open)}>Fill full balance</Button
+					>
+				{/if}
+			</div>
+			<div class="space-y-1.5">
+				<Label>Method</Label>
+				<Select.Root type="single" bind:value={collectMethod}>
+					<Select.Trigger class="h-8 w-full">{collectMethod}</Select.Trigger>
+					<Select.Content>
+						{#each ['cash', 'check', 'card', 'bank', 'other'] as m (m)}
+							<Select.Item value={m} class="capitalize">{m}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="space-y-1.5">
+				<Label for="collect-notes">Notes (optional)</Label>
+				<Input id="collect-notes" bind:value={collectNotes} placeholder="Check #1234" />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (collectCustomerId = null)}>Cancel</Button>
+			<Button onclick={collect} disabled={collectAmount <= 0}>Record payment</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

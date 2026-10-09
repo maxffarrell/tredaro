@@ -1,8 +1,13 @@
 import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { bookingInput, estimateDecisionInput } from '#lib/schemas.ts';
-import { getPublicCompany, requestBooking } from '#lib/server/services/public.ts';
 import {
+	getPublicCompany,
+	requestBooking,
+	setVisitPreference
+} from '#lib/server/services/public.ts';
+import {
+	notifyBookingConfirmationSms,
 	notifyBookingReceived,
 	notifyStaffBooking,
 	notifyStaffEstimateChanges,
@@ -39,6 +44,9 @@ export const requestBookingForm = command(
 		void notifyStaffBooking(r.job!.organizationId, r.job!.id).catch((err) =>
 			console.error('staff booking alert failed', err)
 		);
+		void notifyBookingConfirmationSms(r.job!.organizationId, r.job!.id).catch((err) =>
+			console.error('booking sms failed', err)
+		);
 		return r;
 	}
 );
@@ -74,6 +82,15 @@ export const requestEstimateChangesPublic = command(
 		);
 		return r;
 	}
+);
+
+/** Customer names their preferred visit timing after approving an estimate. */
+export const setVisitPreferencePublic = command(
+	v.object({
+		token: v.string(),
+		note: v.pipe(v.string(), v.trim(), v.minLength(1, 'Say when works best'), v.maxLength(500))
+	}),
+	async (input) => setVisitPreference(input.token, input.note)
 );
 
 /** Starts provider checkout for an invoice's balance off the public /i/[token] page. */

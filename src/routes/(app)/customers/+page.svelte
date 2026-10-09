@@ -1,4 +1,6 @@
 <script lang="ts">
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -223,8 +225,8 @@
 </PageHeader>
 
 <div class="space-y-4 p-4 md:p-6">
-	<div class="flex gap-2">
-		<div class="relative max-w-sm flex-1">
+	<div class="flex flex-wrap gap-2">
+		<div class="relative max-w-sm min-w-56 flex-1">
 			<Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input
 				placeholder="Search name, company, contact info, equipment…"
@@ -300,37 +302,64 @@
 		{/if}
 	</div>
 
-	<p class="text-sm text-muted-foreground">
-		{visible.length} customer{visible.length === 1 ? '' : 's'} ·
-		{formatMoney(totalBalance, currency)} open balance{#if newThisMonth}
-			· <span class="text-foreground">{newThisMonth} new this month</span>{/if}{#if withBalance}
-			· {withBalance} with balance (avg {formatMoney(
-				totalBalance / withBalance,
-				currency
-			)}){/if}{#if onHoldCount}
-			· <span class="text-red-600 dark:text-red-400">{onHoldCount} on hold</span
-			>{/if}{#if withPortal}
-			· {withPortal} with portal{/if}{#if missingEmail}
-			· <span class="text-amber-600 dark:text-amber-400">{missingEmail} missing email</span
-			>{/if}{#if missingPhone}
-			· <span class="text-amber-600 dark:text-amber-400">{missingPhone} missing phone</span
-			>{/if}{#if companyCount}
-			· {companyCount} companies{/if}{#if residentialCount}
-			· {residentialCount} residential{/if}{#if noUpcoming}
-			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}
-			· {underAgreement} under agreement{/if}{#if withEquipment}
-			· {withEquipment} with equipment{/if}{#if neverServiced}
-			· {neverServiced} never serviced{/if}{#if withOpenQuote}
-			· {withOpenQuote} with open quote{/if}{#if leadOnly}
-			· {leadOnly} lead-only{/if}{#if inactiveCount}
-			· {inactiveCount} inactive{/if}{#if taggedCount}
-			· {taggedCount} tagged{/if}{#if optedOut}
-			· {optedOut} opted out{/if}{#if withPreferred}
-			· {withPreferred} preferred tech{/if}
-	</p>
+	<div class="flex flex-wrap items-center gap-1.5">
+		<Badge variant="secondary" class="font-normal"
+			>{visible.length} customer{visible.length === 1 ? '' : 's'}</Badge
+		>
+		<Badge variant="secondary" class="font-normal"
+			>{formatMoney(totalBalance, currency)} open balance</Badge
+		>
+		{#if newThisMonth}<Badge variant="outline" class="font-normal"
+				>{newThisMonth} new this month</Badge
+			>{/if}
+		{#if withBalance}<Badge variant="outline" class="font-normal"
+				>{withBalance} with balance (avg {formatMoney(totalBalance / withBalance, currency)})</Badge
+			>{/if}
+		{#if onHoldCount}<Badge variant="outline" class="font-normal text-red-600 dark:text-red-400"
+				>{onHoldCount} on hold</Badge
+			>{/if}
+		{#if withPortal}<Badge variant="outline" class="font-normal">{withPortal} with portal</Badge
+			>{/if}
+		{#if missingEmail}<Badge
+				variant="outline"
+				class="font-normal text-amber-600 dark:text-amber-400">{missingEmail} missing email</Badge
+			>{/if}
+		{#if missingPhone}<Badge
+				variant="outline"
+				class="font-normal text-amber-600 dark:text-amber-400">{missingPhone} missing phone</Badge
+			>{/if}
+		{#if companyCount}<Badge variant="outline" class="font-normal">{companyCount} companies</Badge
+			>{/if}
+		{#if residentialCount}<Badge variant="outline" class="font-normal"
+				>{residentialCount} residential</Badge
+			>{/if}
+		{#if noUpcoming}<Badge variant="outline" class="font-normal"
+				>{noUpcoming} without upcoming visit</Badge
+			>{/if}
+		{#if underAgreement}<Badge variant="outline" class="font-normal"
+				>{underAgreement} under agreement</Badge
+			>{/if}
+		{#if withEquipment}<Badge variant="outline" class="font-normal"
+				>{withEquipment} with equipment</Badge
+			>{/if}
+		{#if neverServiced}<Badge variant="outline" class="font-normal"
+				>{neverServiced} never serviced</Badge
+			>{/if}
+		{#if withOpenQuote}<Badge variant="outline" class="font-normal"
+				>{withOpenQuote} with open quote</Badge
+			>{/if}
+		{#if leadOnly}<Badge variant="outline" class="font-normal">{leadOnly} lead-only</Badge>{/if}
+		{#if inactiveCount}<Badge variant="outline" class="font-normal">{inactiveCount} inactive</Badge
+			>{/if}
+		{#if taggedCount}<Badge variant="outline" class="font-normal">{taggedCount} tagged</Badge>{/if}
+		{#if optedOut}<Badge variant="outline" class="font-normal">{optedOut} opted out</Badge>{/if}
+		{#if withPreferred}<Badge variant="outline" class="font-normal"
+				>{withPreferred} preferred tech</Badge
+			>{/if}
+	</div>
 
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -445,16 +474,17 @@
 				<Input id="c-phone" bind:value={phone} />
 			</Field.Field>
 			{#if dupMatches.length}
-				<div
-					class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:bg-amber-950/30"
-				>
-					<p class="font-medium">Possible duplicate — already on file:</p>
-					<ul class="mt-1 list-inside list-disc text-muted-foreground">
-						{#each dupMatches as d (d.customer.id ?? d.customer.name)}
-							<li>{d.customer.name} ({d.match})</li>
-						{/each}
-					</ul>
-				</div>
+				<Alert.Root class="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+					<TriangleAlert />
+					<Alert.Title>Possible duplicate — already on file:</Alert.Title>
+					<Alert.Description>
+						<ul class="mt-1 list-inside list-disc">
+							{#each dupMatches as d (d.customer.id ?? d.customer.name)}
+								<li>{d.customer.name} ({d.match})</li>
+							{/each}
+						</ul>
+					</Alert.Description>
+				</Alert.Root>
 			{/if}
 			<Dialog.Footer>
 				<Button type="submit" disabled={pending}

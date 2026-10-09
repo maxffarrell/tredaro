@@ -19,13 +19,20 @@
 	import { getEstimates, createEstimate } from '#lib/remote/estimates.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
+	import { getPricebook } from '#lib/remote/billing.remote.ts';
+	import { getAiStatus, aiEstimateSuggestions } from '#lib/remote/ai.remote.ts';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Download from '@lucide/svelte/icons/download';
 
 	const settings = await getSettings();
 	const currency = settings.currency;
+	const ai = await getAiStatus();
 	const customers = await getCustomers();
 
 	const TABS = [
@@ -47,10 +54,49 @@
 	let open = $state(page.url.searchParams.get('new') === '1');
 	let pending = $state(false);
 	let customerId = $state(page.url.searchParams.get('customer') ?? '');
+	let jobTypeId = $state('');
 	let notes = $state('');
-	let items = $state([{ name: '', qty: 1, unitPrice: 0 }]);
+	let items = $state<
+		{ pricebookItemId: string | null; name: string; qty: number; unitPrice: number }[]
+	>([{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }]);
+	const jobTypes = $derived(await getJobTypes());
+	const pricebookItems = $derived(await getPricebook());
+	const suggestions = $derived(
+		jobTypeId
+			? pricebookItems.filter(
+					(pi) =>
+						pi.jobTypeId === jobTypeId &&
+						pi.active &&
+						!items.some((i) => i.pricebookItemId === pi.id)
+				)
+			: []
+	);
 
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+
+	let aiLoading = $state(false);
+	async function suggestItems() {
+		if (!customerId || aiLoading) return;
+		aiLoading = true;
+		try {
+			const { items: suggested } = await aiEstimateSuggestions({
+				customerId,
+				jobTypeId: jobTypeId || null,
+				notes
+			});
+			if (!suggested.length) toast('No suggestions — add notes about the scope');
+			else {
+				items = [
+					...items.filter((i) => i.name.trim()),
+					...suggested.map((i) => ({ pricebookItemId: null, ...i }))
+				];
+				toast.success(`${suggested.length} item${suggested.length === 1 ? '' : 's'} suggested`);
+			}
+		} catch (err) {
+			toast.error(errMsg(err, 'AI suggestion failed'));
+		}
+		aiLoading = false;
+	}
 	const awaitingConversion = $derived(
 		estimates.filter((e) => e.estimate.status === 'approved').length
 	);
@@ -93,10 +139,16 @@
 		try {
 			const est = await createEstimate({
 				customerId,
+				jobTypeId: jobTypeId || null,
 				notes,
 				items: items
 					.filter((i) => i.name.trim())
-					.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
+					.map((i) => ({
+						pricebookItemId: i.pricebookItemId,
+						name: i.name,
+						qty: i.qty,
+						unitPrice: i.unitPrice
+					}))
 			}).updates(getEstimates);
 			toast.success(`Estimate E-${est!.number} created`);
 			open = false;
@@ -110,6 +162,9 @@
 
 <PageHeader title="Estimates">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" href="/api/export/estimates.csv" download>
+			<Download /> Export
+		</Button>
 		<Button size="sm" onclick={() => (open = true)}><Plus /> New estimate</Button>
 	{/snippet}
 </PageHeader>
@@ -200,7 +255,7 @@
 		</p>
 	{/if}
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -295,6 +350,41 @@
 					</Select.Content>
 				</Select.Root>
 			</Field.Field>
+			<Field.Field>
+				<Field.Label>Job type</Field.Label>
+				<Select.Root type="single" bind:value={jobTypeId}>
+					<Select.Trigger class="w-full"
+						>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="">None</Select.Item>
+						{#each jobTypes.filter((t) => t.active) as t (t.id)}
+							<Select.Item value={t.id}>{t.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
+			{#if suggestions.length}
+				<div class="flex flex-wrap items-center gap-2 text-sm">
+					<span class="text-muted-foreground">Suggested:</span>
+					{#each suggestions as sg (sg.id)}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() =>
+								(items = [
+									...items,
+									{
+										pricebookItemId: sg.id,
+										name: sg.name,
+										qty: 1,
+										unitPrice: sg.price
+									}
+								])}>{sg.name}</Button
+						>
+					{/each}
+				</div>
+			{/if}
 			<div class="space-y-2">
 				<p class="text-sm font-medium">Items</p>
 				{#each items as item, i (i)}
@@ -319,13 +409,28 @@
 						>
 					</div>
 				{/each}
-				<div class="flex items-center justify-between">
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => (items = [...items, { name: '', qty: 1, unitPrice: 0 }])}
-						><Plus /> Add item</Button
-					>
+				<div class="flex items-center justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() =>
+								(items = [...items, { pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }])}
+							><Plus /> Add item</Button
+						>
+						{#if ai.available}
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={!customerId || aiLoading}
+								onclick={suggestItems}
+							>
+								{#if aiLoading}<Spinner class="size-3.5" />{:else}<Sparkles />{/if}
+								Draft items
+							</Button>
+						{/if}
+					</div>
 					<span class="text-sm font-medium tabular-nums">{formatMoney(totalCents, currency)}</span>
 				</div>
 			</div>

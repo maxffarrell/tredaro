@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Building2 from '@lucide/svelte/icons/building-2';
+	import CalendarX2 from '@lucide/svelte/icons/calendar-x-2';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { ApiPermissions } from '#lib/api-permissions.ts';
@@ -15,6 +18,7 @@
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
 	import { authClient } from '#lib/auth-client.ts';
@@ -32,6 +36,7 @@
 		updateCommission,
 		updateLaborCost,
 		setStaffAlerts,
+		setMemberSkills,
 		getSmsOutbox,
 		seedDemo,
 		sendTestEmail,
@@ -123,6 +128,7 @@
 	let jtChecklist = $state('');
 	let jtReqChecklist = $state(false);
 	let jtReqPhoto = $state(false);
+	let jtReqSignature = $state(false);
 	let jtActive = $state(true);
 
 	function openJt(t?: (typeof jobTypes)[number]) {
@@ -136,6 +142,7 @@
 		jtChecklist = (t?.checklist ?? []).join('\n');
 		jtReqChecklist = t?.requireChecklist ?? false;
 		jtReqPhoto = t?.requirePhoto ?? false;
+		jtReqSignature = t?.requireSignature ?? false;
 		jtActive = t?.active ?? true;
 		jtOpen = true;
 	}
@@ -155,6 +162,7 @@
 				.filter(Boolean),
 			requireChecklist: jtReqChecklist,
 			requirePhoto: jtReqPhoto,
+			requireSignature: jtReqSignature,
 			active: jtActive
 		};
 		try {
@@ -194,12 +202,14 @@
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
+	let bookingDeposit = $state(settings.bookingDeposit);
 	let bookingEnabled = $state(settings.bookingEnabled);
 	let taxRatePct = $state(settings.taxRateBps / 100);
 	let lateFeeDollars = $state(settings.lateFeeCents / 100);
 	let depositPct = $state(settings.estimateDepositPct);
 	let laborRounding = $state(settings.laborRoundingMin);
 	let serviceZips = $state(settings.serviceZips);
+	let licenseNumber = $state(settings.licenseNumber);
 	let bookingMessage = $state(settings.bookingMessage);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	let testSmsTo = $state('');
@@ -258,12 +268,14 @@
 				autoInvoiceOnComplete,
 				bookingNoticeDays,
 				bookingDailyLimit,
+				bookingDeposit: bookingDeposit ?? 0,
 				bookingEnabled,
 				taxRateBps: Math.round((taxRatePct || 0) * 100),
 				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
 				estimateDepositPct: Math.round(depositPct || 0),
 				laborRoundingMin: Math.round(laborRounding || 0),
 				serviceZips,
+				licenseNumber,
 				bookingMessage
 			});
 			toast.success('Settings saved');
@@ -349,6 +361,22 @@
 		}
 	}
 
+	function skillIds(s: (typeof staff)[number]) {
+		return s.skillTags ? s.skillTags.split(',').filter(Boolean) : [];
+	}
+	async function setSkills(s: (typeof staff)[number], ids: string[]) {
+		try {
+			await setMemberSkills({ memberId: s.id, jobTypeIds: ids }).updates(getStaff);
+			toast.success('Skills saved');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+	}
+	function toggleSkill(s: (typeof staff)[number], typeId: string) {
+		const ids = skillIds(s);
+		setSkills(s, ids.includes(typeId) ? ids.filter((i) => i !== typeId) : [...ids, typeId]);
+	}
+
 	// ------- api keys -------
 	let keyName = $state('');
 	let keyPerms = $state<Record<string, boolean>>({});
@@ -426,14 +454,14 @@
 		</Tabs.List>
 
 		<Tabs.Content value="general">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Workspace</Card.Title>
 					<Card.Description>Timezone, currency and the public booking page.</Card.Description>
 				</Card.Header>
 				<Card.Content>
 					<form class="space-y-4" onsubmit={saveSettings}>
-						<div class="grid gap-4 sm:grid-cols-2">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<Field.Field>
 								<Field.Label>Timezone</Field.Label>
 								<Select.Root type="single" bind:value={timezone}>
@@ -472,7 +500,7 @@
 							<Field.Label for="addr">Address</Field.Label>
 							<Input id="addr" bind:value={address} />
 						</Field.Field>
-						<div class="grid gap-4 sm:grid-cols-2">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<Field.Field>
 								<Field.Label for="phone">Phone</Field.Label>
 								<Input id="phone" bind:value={phone} />
@@ -482,6 +510,13 @@
 								<Input id="site" bind:value={website} />
 							</Field.Field>
 						</div>
+						<Field.Field>
+							<Field.Label for="lic">License / registration #</Field.Label>
+							<Input id="lic" bind:value={licenseNumber} placeholder="CAC-123456" />
+							<p class="text-xs text-muted-foreground">
+								Printed on estimates and work orders. Leave empty to hide.
+							</p>
+						</Field.Field>
 						<Field.Field>
 							<Field.Label for="review">Review link</Field.Label>
 							<Input
@@ -796,6 +831,14 @@
 								</p>
 							</Field.Field>
 							<Field.Field>
+								<Field.Label for="s-deposit">Booking deposit</Field.Label>
+								<MoneyInput id="s-deposit" bind:value={bookingDeposit} />
+								<p class="text-xs text-muted-foreground">
+									Fixed amount charged right after an online booking when a payment provider is set
+									up — 0 = free to book. Applied to the customer's first invoice.
+								</p>
+							</Field.Field>
+							<Field.Field>
 								<Field.Label for="s-zips">Service ZIPs</Field.Label>
 								<Input id="s-zips" bind:value={serviceZips} placeholder="90210, 90211, 90212" />
 								<p class="text-xs text-muted-foreground">
@@ -819,7 +862,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root class="mt-4 max-w-2xl">
+			<Card.Root class="mt-4 max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Preferences</Card.Title>
 					<Card.Description>Saved to this browser, not your profile.</Card.Description>
@@ -857,7 +900,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="offices">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header class="flex-row items-center justify-between">
 					<div>
 						<Card.Title class="text-base">Offices</Card.Title>
@@ -882,7 +925,15 @@
 								>
 							</li>
 						{:else}
-							<li class="py-6 text-sm text-muted-foreground">No offices — add your main branch.</li>
+							<li class="list-none">
+								<Empty.Root class="border-0 py-4">
+									<Empty.Header>
+										<Empty.Media><Building2 /></Empty.Media>
+										<Empty.Title class="text-sm">No offices</Empty.Title>
+										<Empty.Description>Add your main branch.</Empty.Description>
+									</Empty.Header>
+								</Empty.Root>
+							</li>
 						{/each}
 					</ul>
 				</Card.Content>
@@ -890,20 +941,20 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="team">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
-					<Card.Title class="text-base">Team</Card.Title>
+					<Card.Title class="text-base">Team ({staff.length} members)</Card.Title>
 					<Card.Description>Staff become technicians on the dispatch board.</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4 px-6">
 					<ul class="divide-y">
 						{#each staff as s (s.id)}
-							<li class="flex items-center justify-between py-3 text-sm">
+							<li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
 								<div class="min-w-0">
 									<p class="truncate font-medium">{s.name}</p>
 									<p class="truncate text-xs text-muted-foreground">{s.email}</p>
 								</div>
-								<div class="flex items-center gap-2">
+								<div class="flex flex-wrap items-center justify-end gap-2">
 									<label class="flex items-center gap-1 text-xs text-muted-foreground">
 										<Input
 											type="number"
@@ -941,6 +992,30 @@
 										/>
 										alerts
 									</label>
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger
+											class="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-accent"
+											title="Qualified job types — dispatch flags assignments outside them"
+											>skills{skillIds(s).length
+												? ` ${skillIds(s).length}`
+												: ''}</DropdownMenu.Trigger
+										>
+										<DropdownMenu.Content align="end" class="max-h-64 w-52 overflow-y-auto">
+											<DropdownMenu.Label class="text-xs">Qualified job types</DropdownMenu.Label>
+											{#each jobTypes as t (t.id)}
+												<DropdownMenu.CheckboxItem
+													checked={skillIds(s).includes(t.id)}
+													closeOnSelect={false}
+													onCheckedChange={() => toggleSkill(s, t.id)}
+													>{t.name}</DropdownMenu.CheckboxItem
+												>
+											{/each}
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item class="text-xs" onclick={() => setSkills(s, [])}
+												>Clear — qualified for all</DropdownMenu.Item
+											>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
 									<Badge
 										variant={s.role === 'owner' || s.role === 'admin' ? 'default' : 'secondary'}
 										>{s.role}</Badge
@@ -977,7 +1052,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Time off</Card.Title>
 					<Card.Description
@@ -1004,7 +1079,14 @@
 								>
 							</li>
 						{:else}
-							<li class="py-2 text-sm text-muted-foreground">No time off scheduled.</li>
+							<li class="list-none">
+								<Empty.Root class="border-0 py-3">
+									<Empty.Header>
+										<Empty.Media><CalendarX2 /></Empty.Media>
+										<Empty.Title class="text-sm">No time off scheduled</Empty.Title>
+									</Empty.Header>
+								</Empty.Root>
+							</li>
 						{/each}
 					</ul>
 					<form
@@ -1035,7 +1117,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="jobtypes">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header class="flex-row items-center justify-between space-y-0">
 					<div>
 						<Card.Title class="text-base">Job types</Card.Title>
@@ -1046,7 +1128,7 @@
 					</div>
 					<Button size="sm" onclick={() => openJt()}><Plus /> New type</Button>
 				</Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Header>
 							<Table.Row>
@@ -1304,7 +1386,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="demo">
-			<Card.Root class="max-w-2xl">
+			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Demo data</Card.Title>
 					<Card.Description
@@ -1432,6 +1514,19 @@
 					<p class="text-xs text-muted-foreground">At least one photo before completion.</p>
 				</div>
 				<Switch id="jt-req-photo" checked={jtReqPhoto} onCheckedChange={(v) => (jtReqPhoto = v)} />
+			</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-req-signature" class="text-sm font-medium"
+						>Require signature to complete</label
+					>
+					<p class="text-xs text-muted-foreground">Customer sign-off before completion.</p>
+				</div>
+				<Switch
+					id="jt-req-signature"
+					checked={jtReqSignature}
+					onCheckedChange={(v) => (jtReqSignature = v)}
+				/>
 			</div>
 			<div class="flex items-center justify-between">
 				<label for="jt-active" class="text-sm font-medium">Active</label>

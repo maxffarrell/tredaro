@@ -192,6 +192,26 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(estimate.sentAt))
 		.limit(4);
 
+	// Declined estimates worth a chase: answered over a week ago and never revised.
+	const declinedEstimates = await db
+		.select({
+			number: estimate.number,
+			respondedAt: estimate.respondedAt,
+			customerName: customer.name
+		})
+		.from(estimate)
+		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.status, 'declined'),
+				lt(estimate.respondedAt, weekAgo),
+				sql`not exists (select 1 from estimate rev where rev.supersedes_id = ${estimate.id})`
+			)
+		)
+		.orderBy(asc(estimate.respondedAt))
+		.limit(4);
+
 	const expiringWarranties = await db
 		.select({
 			name: equipment.name,
@@ -431,6 +451,13 @@ export async function dashboard(orgId: string) {
 				href: '/estimates',
 				text: `${e.customerName} · estimate E-${e.number}`,
 				sub: `sent ${localDate(e.sentAt!, tz)} — no response yet`,
+				amountCents: null as number | null
+			})),
+			...declinedEstimates.map((e) => ({
+				tone: 'amber' as const,
+				href: '/estimates',
+				text: `${e.customerName} · estimate E-${e.number}`,
+				sub: `declined ${localDate(e.respondedAt!, tz)} — worth a follow-up`,
 				amountCents: null as number | null
 			})),
 			...expiringWarranties.map((w) => ({

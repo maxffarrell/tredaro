@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
@@ -19,11 +20,18 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Inbox from '@lucide/svelte/icons/inbox';
+	import Printer from '@lucide/svelte/icons/printer';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
 	let officeId = $state(page.url.searchParams.get('office') ?? '');
 	let queueFilter = $state('');
+	let dayFilter = $state('');
+	const weekDays = $derived(Array.from({ length: 7 }, (_, i) => addDays(start, i)));
+	const dayJobs = (jobs: (typeof board.scheduled)[number][]) =>
+		dayFilter
+			? jobs.filter((j) => j.job.startsAt && localDate(new Date(j.job.startsAt), tz) === dayFilter)
+			: jobs;
 	const officeName = $derived(offices.find((o) => o.id === officeId)?.name ?? '');
 	const tz = settings.timezone;
 
@@ -61,6 +69,20 @@
 					)
 			: 0
 	);
+	const techsOn = $derived.by(() => {
+		if (!board) return 0;
+		return new Set(
+			board.scheduled
+				.filter(
+					(j) =>
+						j.job.startsAt &&
+						j.job.technicianId &&
+						!['done', 'cancelled'].includes(j.job.status) &&
+						localDate(new Date(j.job.startsAt), tz) === todayStr
+				)
+				.map((j) => j.job.technicianId)
+		).size;
+	});
 	const avgPerTechToday = $derived.by(() => {
 		if (!board || !board.technicians.length) return null;
 		const todayJobs = board.scheduled.filter(
@@ -109,6 +131,9 @@
 				)
 			: board.unscheduled
 	);
+
+	const queueRequests = $derived(filteredQueue.filter((j) => j.job.source === 'booking'));
+	const queueOthers = $derived(filteredQueue.filter((j) => j.job.source !== 'booking'));
 
 	const waitingDays = (created: Date | string) =>
 		Math.max(0, Math.floor((Date.now() - new Date(created).getTime()) / 86_400_000));
@@ -202,6 +227,57 @@
 		}
 	}
 
+	/** One-click queue assign: tech + slot into the filtered day (or today) after their last job. */
+	/** Best-fit tech for a queue job on the target day: qualified (skill tags) with the lightest load. */
+	function suggestTech(j: (typeof filteredQueue)[number], day: string) {
+		const qualified = board.technicians.filter(
+			(t) => !j.job.jobTypeId || !t.skillTags || t.skillTags.split(',').includes(j.job.jobTypeId)
+		);
+		if (!qualified.length) return null;
+		const load = (id: string) =>
+			board.scheduled
+				.filter(
+					(x) =>
+						x.job.technicianId === id &&
+						x.job.startsAt &&
+						x.job.endsAt &&
+						localDate(new Date(x.job.startsAt), tz) === day
+				)
+				.reduce((m, x) => m + (+new Date(x.job.endsAt!) - +new Date(x.job.startsAt!)) / 60000, 0);
+		return qualified.sort((a, b) => load(a.id) - load(b.id))[0].id;
+	}
+
+	async function quickAssign(j: (typeof filteredQueue)[number], techId: string) {
+		if (!techId) return;
+		try {
+			const day = dayFilter || todayStr;
+			if (techId === '__auto__') {
+				const pick = suggestTech(j, day);
+				if (!pick) {
+					toast.error('No qualified tech on this board');
+					return;
+				}
+				techId = pick;
+			}
+			const toInput = (d: Date | string) => `${localDate(new Date(d), tz)}T${localTime(d, tz)}`;
+			const group = byTech.find(([id]) => id === techId)?.[1];
+			const last = (group?.jobs ?? [])
+				.filter(
+					(x) => x.job.startsAt && x.job.endsAt && localDate(new Date(x.job.startsAt), tz) === day
+				)
+				.map((x) => x.job.endsAt as Date)
+				.sort((a, b) => a.getTime() - b.getTime())
+				.at(-1);
+			const when = last ? toInput(last) : `${day}T08:00`;
+			await updateJob({ id: j.job.id, technicianId: techId, startsAt: when }).updates(
+				getDispatchBoard
+			);
+			toast.success('Assigned');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not assign'));
+		}
+	}
+
 	const byTech = $derived.by(() => {
 		const map = new SvelteMap<string, { name: string; jobs: typeof board.scheduled }>();
 		for (const t of board.technicians) map.set(t.id, { name: t.name, jobs: [] });
@@ -238,8 +314,33 @@
 					</Select.Content>
 				</Select.Root>
 			{/if}
+			<Select.Root type="single" value={dayFilter} onValueChange={(v) => (dayFilter = v)}>
+				<Select.Trigger class="h-8 w-32"
+					>{dayFilter
+						? new Date(`${dayFilter}T12:00:00Z`).toLocaleDateString('en-US', {
+								weekday: 'short',
+								month: 'numeric',
+								day: 'numeric',
+								timeZone: 'UTC'
+							})
+						: 'All days'}</Select.Trigger
+				>
+				<Select.Content>
+					<Select.Item value="">All days</Select.Item>
+					{#each weekDays as d (d)}
+						<Select.Item value={d}
+							>{new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', {
+								weekday: 'short',
+								month: 'numeric',
+								day: 'numeric',
+								timeZone: 'UTC'
+							})}{d === todayStr ? ' · today' : ''}</Select.Item
+						>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 			{#if peakDay}
-				<Badge variant="outline"
+				<Badge class="hidden md:inline-flex" variant="outline"
 					>peak {new Date(`${peakDay[0]}T12:00:00Z`).toLocaleDateString('en-US', {
 						weekday: 'short',
 						timeZone: 'UTC'
@@ -247,32 +348,41 @@
 				>
 			{/if}
 			{#if weekCount}
-				<Badge variant="outline">{weekCount} this week</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline">{weekCount} this week</Badge>
 			{/if}
 			{#if bookedOnline}
-				<Badge variant="outline" class="text-muted-foreground">{bookedOnline} booked online</Badge>
+				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex"
+					>{bookedOnline} booked online</Badge
+				>
 			{/if}
 			{#if doneThisWeek}
-				<Badge variant="outline">{doneThisWeek} done</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline">{doneThisWeek} done</Badge>
+			{/if}
+			{#if techsOn}
+				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex"
+					>{techsOn} tech{techsOn === 1 ? '' : 's'} on today</Badge
+				>
 			{/if}
 			{#if schedTodayMin > 0}
-				<Badge variant="outline"
+				<Badge class="hidden md:inline-flex" variant="outline"
 					>{Math.floor(schedTodayMin / 60)}h {Math.round(schedTodayMin % 60)}m sched today</Badge
 				>
 			{/if}
 			{#if avgPerTechToday}
-				<Badge variant="outline">avg {avgPerTechToday.toFixed(1)} jobs/tech today</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline"
+					>avg {avgPerTechToday.toFixed(1)} jobs/tech today</Badge
+				>
 			{/if}
 			{#if unassignedToday}
-				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400"
 					>{unassignedToday} unassigned today</Badge
 				>
 			{/if}
 			{#if offThisWeek}
-				<Badge variant="outline">{offThisWeek} off this week</Badge>
+				<Badge class="hidden md:inline-flex" variant="outline">{offThisWeek} off this week</Badge>
 			{/if}
 			{#if offToday}
-				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400"
 					>{offToday} off today</Badge
 				>
 			{/if}
@@ -287,11 +397,84 @@
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(7)}
 				><ChevronRight /></Button
 			>
+			<Button
+				variant="outline"
+				size="icon"
+				class="size-8"
+				title="Print this week's schedule"
+				href="/dispatch/print?from={start}"
+				target="_blank"><Printer /></Button
+			>
 		</div>
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-4 p-4 md:p-6 lg:grid-cols-[300px_1fr]">
+<div class="grid grid-cols-1 gap-4 p-4 md:p-6 lg:grid-cols-[300px_1fr]">
+	{#snippet queueRow(j: (typeof filteredQueue)[number])}
+		<div class="flex items-start gap-2">
+			<Checkbox
+				class="mt-2"
+				checked={selected.has(j.job.id)}
+				onCheckedChange={() => toggleSelect(j.job.id)}
+			/>
+			<button
+				class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent {selected.has(
+					j.job.id
+				)
+					? 'border-primary bg-primary/5'
+					: ''}"
+				draggable="true"
+				ondragstart={(e) => dragJob(e, j)}
+				ondragover={allowDrop}
+				ondrop={(e) => {
+					e.stopPropagation();
+					dropOn(e, 'queue');
+				}}
+				onclick={() => goto(`/jobs/${j.job.id}`)}
+			>
+				<div class="flex items-center justify-between gap-2">
+					<span class="truncate text-sm font-medium">
+						{j.job.summary || j.jobTypeName} · {j.customerName}
+					</span>
+					<StatusBadge status={j.job.priority} />
+				</div>
+				<p class="mt-1 text-xs text-muted-foreground">
+					J-{j.job.number} · {j.job.source} ·
+					<span
+						class={waitingDays(j.job.createdAt) >= 3
+							? 'font-medium text-amber-600 dark:text-amber-400'
+							: ''}>waiting {waitingDays(j.job.createdAt)}d</span
+					>
+					{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span>{/if}
+					{#if j.depOpen}· <span class="text-amber-600 dark:text-amber-400"
+							>dep J-{j.depNumber}</span
+						>{/if}
+					{#if j.job.source === 'booking' && waitingDays(j.job.createdAt) === 0}· <span
+							class="text-blue-600 dark:text-blue-400">new request</span
+						>{/if}
+					{#if !j.customerPhone}· <span class="text-red-500">no phone</span>{/if}
+					{#if j.city}· {j.city}{/if}
+					{#if j.job.preferredTime}
+						<br /><span class="text-amber-600 dark:text-amber-400"
+							>Asked: {j.job.preferredTime}</span
+						>
+					{/if}
+				</p>
+			</button>
+			<Select.Root type="single" onValueChange={(v) => quickAssign(j, v)}>
+				<Select.Trigger
+					class="mt-1.5 h-7 w-[4.5rem] shrink-0 px-1.5 text-xs"
+					title="Assign to a tech on {dayFilter || todayStr}">Assign</Select.Trigger
+				>
+				<Select.Content>
+					<Select.Item value="__auto__">Auto (best fit)</Select.Item>
+					{#each board.technicians as t (t.id)}
+						<Select.Item value={t.id}>{t.name}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
+	{/snippet}
 	<!-- Unscheduled queue -->
 	<Card.Root
 		class="h-fit {dropZone === 'queue' ? 'ring-2 ring-primary' : ''}"
@@ -303,6 +486,11 @@
 		<Card.Header class="flex-row items-center gap-2">
 			<Inbox class="size-4 text-muted-foreground" />
 			<Card.Title class="text-base">Unscheduled ({board.unscheduled.length})</Card.Title>
+			{#if queueRequests.length}
+				<Badge variant="outline" class="text-blue-600 dark:text-blue-400"
+					>{queueRequests.length} request{queueRequests.length === 1 ? '' : 's'}</Badge
+				>
+			{/if}
 			{@const urgentCount = board.unscheduled.filter(
 				(j) => j.job.priority === 'urgent' || j.job.priority === 'high'
 			).length}
@@ -351,61 +539,38 @@
 			</div>
 		{/if}
 		<Card.Content class="space-y-2 px-4">
-			{#each filteredQueue as j (j.job.id)}
-				<div class="flex items-start gap-2">
-					<Checkbox
-						class="mt-2"
-						checked={selected.has(j.job.id)}
-						onCheckedChange={() => toggleSelect(j.job.id)}
-					/>
-					<button
-						class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent {selected.has(
-							j.job.id
-						)
-							? 'border-primary bg-primary/5'
-							: ''}"
-						draggable="true"
-						ondragstart={(e) => dragJob(e, j)}
-						ondragover={allowDrop}
-						ondrop={(e) => {
-							e.stopPropagation();
-							dropOn(e, 'queue');
-						}}
-						onclick={() => goto(`/jobs/${j.job.id}`)}
-					>
-						<div class="flex items-center justify-between gap-2">
-							<span class="truncate text-sm font-medium">
-								{j.job.summary || j.jobTypeName} · {j.customerName}
-							</span>
-							<StatusBadge status={j.job.priority} />
-						</div>
-						<p class="mt-1 text-xs text-muted-foreground">
-							J-{j.job.number} · {j.job.source} ·
-							<span
-								class={waitingDays(j.job.createdAt) >= 3
-									? 'font-medium text-amber-600 dark:text-amber-400'
-									: ''}>waiting {waitingDays(j.job.createdAt)}d</span
-							>
-							{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span
-								>{/if}
-							{#if j.city}· {j.city}{/if}
-							{#if j.job.preferredTime}
-								<br /><span class="text-amber-600 dark:text-amber-400"
-									>Asked: {j.job.preferredTime}</span
-								>
-							{/if}
-						</p>
-					</button>
-				</div>
-			{:else}
-				<p class="py-4 text-sm text-muted-foreground">Queue is clear.</p>
-			{/each}
+			{#if queueRequests.length}
+				<p class="pt-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+					Requests — waiting on a first schedule
+				</p>
+				{#each queueRequests as j (j.job.id)}
+					{@render queueRow(j)}
+				{/each}
+			{/if}
+			{#if queueOthers.length}
+				{#if queueRequests.length}
+					<p class="pt-2 text-xs font-medium text-muted-foreground">Backlog</p>
+				{/if}
+				{#each queueOthers as j (j.job.id)}
+					{@render queueRow(j)}
+				{/each}
+			{/if}
+			{#if !filteredQueue.length}
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Inbox /></Empty.Media>
+						<Empty.Title class="text-sm">Queue is clear</Empty.Title>
+						<Empty.Description>Nothing waiting to be scheduled.</Empty.Description>
+					</Empty.Header>
+				</Empty.Root>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
 	<!-- Scheduled, grouped by technician -->
 	<div class="space-y-4">
 		{#each byTech as [techId, group] (techId || 'unassigned')}
+			{@const techSkills = board.technicians.find((t) => t.id === techId)?.skillTags ?? ''}
 			<Card.Root
 				class={dropZone === (techId || 'unassigned') ? 'ring-2 ring-primary' : ''}
 				ondragover={allowDrop}
@@ -440,11 +605,13 @@
 					</Card.Title>
 				</Card.Header>
 				<Card.Content class="px-4">
-					{#if group.jobs.length === 0}
-						<p class="py-2 text-sm text-muted-foreground">No jobs this week.</p>
+					{#if dayJobs(group.jobs).length === 0}
+						<p class="py-2 text-sm text-muted-foreground">
+							{dayFilter ? 'No jobs on this day.' : 'No jobs scheduled this week.'}
+						</p>
 					{:else}
-						<ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-							{#each group.jobs as j (j.job.id)}
+						<ul class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+							{#each dayJobs(group.jobs) as j (j.job.id)}
 								<li>
 									<button
 										class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
@@ -465,6 +632,15 @@
 											<span class="truncate text-sm font-medium"
 												>{j.job.summary || j.jobTypeName}</span
 											>
+											{#if techSkills && j.job.jobTypeId && !techSkills
+													.split(',')
+													.includes(j.job.jobTypeId)}
+												<Badge
+													variant="outline"
+													class="shrink-0 text-amber-600 dark:text-amber-400"
+													title="Tech isn't tagged for this job type">unqualified</Badge
+												>
+											{/if}
 											<StatusBadge status={j.job.status} class="ml-auto" />
 										</div>
 										<p class="mt-1 text-xs text-muted-foreground">
@@ -474,6 +650,10 @@
 												: 'unscheduled'}
 											{#if j.job.blocked}
 												· <span class="text-amber-600 dark:text-amber-400">parts</span>
+											{/if}
+											{#if j.depOpen}
+												· <span class="text-amber-600 dark:text-amber-400">dep J-{j.depNumber}</span
+												>
 											{/if}
 										</p>
 									</button>

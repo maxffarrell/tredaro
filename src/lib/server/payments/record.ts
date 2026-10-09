@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { charge, companySettings, customer, payment } from '#lib/server/db/schema.ts';
 import { allocate } from '#lib/server/allocation.ts';
@@ -14,6 +14,8 @@ type OnlinePayment = {
 	/** Provider-unique payment ID; recording the same ID twice is a no-op. */
 	externalId: string;
 	provider: string;
+	/** When set, allocate only to these charges (portal per-charge selection). */
+	chargeIds?: string[];
 };
 
 /**
@@ -37,7 +39,13 @@ export async function recordOnlinePayment(p: OnlinePayment) {
 				)
 			})
 			.from(charge)
-			.where(and(eq(charge.customerId, p.customerId), eq(charge.status, 'open')))
+			.where(
+				and(
+					eq(charge.customerId, p.customerId),
+					eq(charge.status, 'open'),
+					p.chargeIds?.length ? inArray(charge.id, p.chargeIds) : undefined
+				)
+			)
 			.orderBy(asc(charge.dueDate), asc(charge.createdAt));
 		const inserted = [];
 		for (const [i, part] of allocate(p.amount, open).entries()) {

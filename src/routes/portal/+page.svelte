@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
@@ -11,6 +12,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
@@ -20,13 +22,16 @@
 		confirmVisit,
 		requestReschedule,
 		getProviders,
+		saveCardOnFile,
 		startCheckout,
-		updatePortalContact
+		updatePortalContact,
+		rateVisit
 	} from '#lib/remote/portal.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import Wrench from '@lucide/svelte/icons/wrench';
+	import Star from '@lucide/svelte/icons/star';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -43,16 +48,78 @@
 			toast.success('Thanks! Your payment was received.');
 			void goto('/portal', { shallow: true, replace: true });
 		}
+		if (page.url.searchParams.get('card') === '1') {
+			toast.success('Your card is saved — recurring charges will be collected automatically.');
+			void goto('/portal', { shallow: true, replace: true });
+		}
 	});
 	async function pay(provider: string) {
 		paying = true;
 		try {
-			const { url } = await startCheckout({ customerId, provider });
+			const { url } = await startCheckout({
+				customerId,
+				provider,
+				charges: [...(selectedCharges ?? d.openCharges.map((c) => c.charge.id))]
+			});
 			location.assign(url);
 		} catch (err) {
 			paying = false;
 			toast.error(errMsg(err, 'Could not start payment'));
 		}
+	}
+
+	// Per-charge selection: a subset pays only those charges (recorded against them
+	// via the checkout metadata), not the whole balance. null = all selected.
+	let selectedCharges = $state<SvelteSet<string> | null>(null);
+	const selectedTotal = $derived(
+		d.openCharges
+			.filter((c) => !selectedCharges || selectedCharges.has(c.charge.id))
+			.reduce((sum, c) => sum + (c.charge.amount - c.paid), 0)
+	);
+	function chargeChecked(id: string) {
+		return !selectedCharges || selectedCharges.has(id);
+	}
+	function toggleCharge(id: string, on: boolean) {
+		const next = new SvelteSet(selectedCharges ?? d.openCharges.map((c) => c.charge.id));
+		if (on) next.add(id);
+		else next.delete(id);
+		selectedCharges = next;
+	}
+	let savingCard = $state(false);
+	async function saveCard(provider: string) {
+		savingCard = true;
+		try {
+			const { url } = await saveCardOnFile({ customerId, provider });
+			location.assign(url);
+		} catch (err) {
+			savingCard = false;
+			toast.error(errMsg(err, 'Could not open card setup'));
+		}
+	}
+
+	// ------- visit rating -------
+	let rateOpen = $state(false);
+	let rateJobId = $state('');
+	let rateValue = $state(0);
+	let rateNote = $state('');
+	let ratePending = $state(false);
+	function openRate(jobId: string) {
+		rateJobId = jobId;
+		rateValue = 0;
+		rateNote = '';
+		rateOpen = true;
+	}
+	async function submitRating() {
+		if (!rateValue) return;
+		ratePending = true;
+		try {
+			await rateVisit({ customerId, jobId: rateJobId, rating: rateValue, note: rateNote });
+			toast.success('Thanks for the feedback!');
+			rateOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save rating'));
+		}
+		ratePending = false;
 	}
 
 	// ------- reschedule request -------
@@ -132,6 +199,7 @@
 	let reqMemberId = $state('any');
 	let reqEquipmentId = $state<string | null>(null);
 	let reqType = $state<'visit' | 'quote'>('visit');
+	let reqPhoto = $state<File | null>(null);
 
 	function requestFor(u: {
 		equipment: { id: string; name: string; brand: string | null; model: string | null };
@@ -146,7 +214,7 @@
 		e.preventDefault();
 		reqPending = true;
 		try {
-			await requestService({
+			const r = await requestService({
 				customerId,
 				requestType: reqType,
 				equipmentId: reqEquipmentId,
@@ -156,6 +224,17 @@
 				preferredTime: reqPreferred,
 				preferredMemberId: reqMemberId !== 'any' ? reqMemberId : undefined
 			});
+			if (r.job && reqPhoto) {
+				try {
+					const form = new FormData();
+					form.set('file', reqPhoto);
+					form.set('jobId', r.job.id);
+					const res = await fetch('/api/portal/photos', { method: 'POST', body: form });
+					if (!res.ok) throw new Error('upload failed');
+				} catch {
+					toast.info('Request sent — the photo could not be attached');
+				}
+			}
 			toast.success(
 				reqType === 'quote'
 					? 'Quote request sent — we will follow up'
@@ -165,6 +244,7 @@
 			reqDescription = reqPreferred = '';
 			reqMemberId = 'any';
 			reqEquipmentId = null;
+			reqPhoto = null;
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not send request'));
 		}
@@ -204,11 +284,11 @@
 	>
 </div>
 
-<div class="grid gap-6 md:grid-cols-2">
+<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 	<!-- upcoming jobs -->
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Scheduled visits</Card.Title></Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Body>
 					{#each d.upcoming as j (j.job.id)}
@@ -225,6 +305,9 @@
 								{j.job.startsAt
 									? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 									: 'Scheduling'}
+								{#if j.job.arrivalWindow}
+									<p class="text-xs">Arrival {j.job.arrivalWindow}</p>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="pr-6 text-right">
 								{#if j.confirmed}
@@ -261,7 +344,7 @@
 	<!-- visit history -->
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Past visits</Card.Title></Card.Header>
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Body>
 					{#each d.history as j (j.job.id)}
@@ -271,6 +354,9 @@
 								<p class="text-xs text-muted-foreground">
 									{j.job.completedAt ? formatDate(j.job.completedAt) : ''}
 								</p>
+								{#if j.job.completionNotes}
+									<p class="mt-1 text-xs text-muted-foreground">{j.job.completionNotes}</p>
+								{/if}
 								{#if j.photos?.length}
 									<div class="mt-2 flex flex-wrap gap-2">
 										{#each j.photos as pid (pid)}
@@ -286,7 +372,22 @@
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="pr-6 text-right text-sm text-muted-foreground">
-								{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}
+								{#if j.job.rating}
+									<span class="inline-flex items-center gap-0.5" title={j.job.ratingNote ?? ''}>
+										{#each [1, 2, 3, 4, 5] as n (n)}
+											<Star
+												class="size-3.5 {n <= j.job.rating!
+													? 'fill-amber-400 text-amber-400'
+													: 'text-muted-foreground/40'}"
+											/>
+										{/each}
+									</span>
+								{:else}
+									<Button size="sm" variant="outline" onclick={() => openRate(j.job.id)}
+										>Rate visit</Button
+									>
+								{/if}
+								<p>{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}</p>
 							</Table.Cell>
 						</Table.Row>
 					{:else}
@@ -310,14 +411,23 @@
 				{#if d.openCharges.length}
 					<ul class="space-y-2 text-sm">
 						{#each d.openCharges as row (row.charge.id)}
-							<li class="flex items-center justify-between">
-								<span class="truncate">
-									{row.charge.description || 'Charge'}
-									{#if row.invoiceNumber}<span class="text-xs text-muted-foreground"
-											>· INV-{row.invoiceNumber}</span
-										>{/if}
-								</span>
-								<span class="tabular-nums"
+							<li class="flex items-center justify-between gap-2">
+								<label class="flex min-w-0 items-center gap-2">
+									{#if d.openCharges.length > 1}
+										<Checkbox
+											checked={chargeChecked(row.charge.id)}
+											onCheckedChange={(v) => toggleCharge(row.charge.id, v === true)}
+											aria-label="Include this charge in the payment"
+										/>
+									{/if}
+									<span class="truncate">
+										{row.charge.description || 'Charge'}
+										{#if row.invoiceNumber}<span class="text-xs text-muted-foreground"
+												>· INV-{row.invoiceNumber}</span
+											>{/if}
+									</span>
+								</label>
+								<span class="shrink-0 tabular-nums"
 									>{formatMoney(row.charge.amount - row.paid, currency)}</span
 								>
 							</li>
@@ -326,8 +436,13 @@
 					{#if providers.length}
 						<div class="mt-4 flex gap-2">
 							{#each providers as p (p.id)}
-								<Button variant="secondary" disabled={paying} onclick={() => pay(p.id)}>
-									<CreditCard /> Pay with {p.name}
+								<Button
+									variant="secondary"
+									disabled={paying || !selectedTotal}
+									onclick={() => pay(p.id)}
+								>
+									<CreditCard />
+									Pay {formatMoney(selectedTotal, currency)} with {p.name}
 								</Button>
 							{/each}
 						</div>
@@ -335,6 +450,28 @@
 				{:else}
 					<p class="text-sm text-muted-foreground">You're all paid up.</p>
 				{/if}
+				<div class="mt-4 border-t pt-3">
+					{#if d.customer.savedCardLabel}
+						<p class="flex items-center gap-2 text-sm text-muted-foreground">
+							<CreditCard class="size-4" />
+							{d.customer.savedCardLabel} on file — recurring charges are collected automatically.
+						</p>
+					{:else if providers.some((p) => p.canSaveCard)}
+						{#each providers as p (p.id)}
+							{#if p.canSaveCard}
+								<Button
+									variant="ghost"
+									size="sm"
+									class="px-0 text-muted-foreground"
+									disabled={savingCard}
+									onclick={() => saveCard(p.id)}
+								>
+									<CreditCard /> Save a card for automatic payments
+								</Button>
+							{/if}
+						{/each}
+					{/if}
+				</div>
 			</Card.Content>
 		</Card.Root>
 
@@ -365,7 +502,7 @@
 		{#if d.units.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Your equipment</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.units as u (u.equipment.id)}
@@ -432,7 +569,7 @@
 				<Card.Header
 					><Card.Title class="text-base">Estimates waiting on you</Card.Title></Card.Header
 				>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.pendingEstimates as e (e.estimate.id)}
@@ -453,7 +590,7 @@
 		{#if d.recentInvoices?.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent invoices</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.recentInvoices as inv (inv.invoice.id)}
@@ -487,7 +624,7 @@
 		{#if d.recentPayments?.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent payments</Card.Title></Card.Header>
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.recentPayments as p (p.payment.id)}
@@ -495,7 +632,11 @@
 									<Table.Cell class="pl-6 font-medium">
 										{formatMoney(p.payment.amount, currency)}
 										{#if p.payment.amount < 0}
-											<Badge variant="secondary" class="ml-1">refund</Badge>
+											<Badge variant="secondary" class="ml-1"
+												>{p.payment.reference?.startsWith('applied:')
+													? 'credit applied'
+													: 'refund'}</Badge
+											>
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="text-muted-foreground capitalize"
@@ -547,6 +688,36 @@
 		</Card.Root>
 	</div>
 </div>
+
+<!-- visit rating dialog -->
+<Dialog.Root bind:open={rateOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>How was the visit?</Dialog.Title>
+		</Dialog.Header>
+		<div class="space-y-4">
+			<div class="flex gap-1">
+				{#each [1, 2, 3, 4, 5] as n (n)}
+					<button
+						type="button"
+						aria-label="{n} star{n === 1 ? '' : 's'}"
+						onclick={() => (rateValue = n)}
+					>
+						<Star
+							class="size-8 {n <= rateValue
+								? 'fill-amber-400 text-amber-400'
+								: 'text-muted-foreground/40'}"
+						/>
+					</button>
+				{/each}
+			</div>
+			<Textarea rows={3} bind:value={rateNote} placeholder="Anything we should know? (optional)" />
+			<Button class="w-full" disabled={!rateValue || ratePending} onclick={submitRating}
+				>{ratePending ? 'Saving…' : 'Submit rating'}</Button
+			>
+		</div>
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- request service dialog -->
 <Dialog.Root bind:open={reqOpen}>
@@ -613,6 +784,20 @@
 			<Field.Field>
 				<Field.Label for="r-desc">What's going on?</Field.Label>
 				<Textarea id="r-desc" rows={3} bind:value={reqDescription} />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="r-photo"
+					>Photo <span class="text-muted-foreground">(optional)</span></Field.Label
+				>
+				<Input
+					id="r-photo"
+					type="file"
+					accept="image/*"
+					onchange={(e) => (reqPhoto = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)}
+				/>
+				<p class="text-xs text-muted-foreground">
+					A picture of the issue helps the tech arrive prepared.
+				</p>
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={reqPending}

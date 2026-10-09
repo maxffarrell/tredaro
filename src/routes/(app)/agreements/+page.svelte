@@ -1,4 +1,6 @@
 <script lang="ts">
+	import FileText from '@lucide/svelte/icons/file-text';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
@@ -48,6 +50,7 @@
 	let planPrice = $state(0);
 	let planInitial = $state(0);
 	let planVisits = $state(0);
+	let planDiscount = $state(0);
 	let planJobTypeId = $state('');
 
 	function openPlan(p?: (typeof plans)[number]) {
@@ -58,6 +61,7 @@
 		planPrice = p?.amount ?? 0;
 		planInitial = p?.initialFee ?? 0;
 		planVisits = p?.includedVisits ?? 0;
+		planDiscount = p?.discountPct ?? 0;
 		planJobTypeId = p?.jobTypeId ?? '';
 		planOpen = true;
 	}
@@ -73,6 +77,7 @@
 				amount: planPrice,
 				initialFee: planInitial,
 				includedVisits: planVisits || null,
+				discountPct: planDiscount || 0,
 				jobTypeId: planJobTypeId || null
 			};
 			if (planId) {
@@ -172,6 +177,13 @@
 			· <span class="font-medium text-foreground">{dueToday}</span> billing today{/if}
 		{#if dueWeek > dueToday}
 			· {dueWeek} billing ≤7d{/if}
+		{#if agreements.filter((a) => a.agreement.status === 'active' && a.agreement.nextChargeAt && new Date(a.agreement.nextChargeAt) <= new Date(Date.now() + 30 * 86400_000)).length > dueWeek}
+			· {agreements.filter(
+				(a) =>
+					a.agreement.status === 'active' &&
+					a.agreement.nextChargeAt &&
+					new Date(a.agreement.nextChargeAt) <= new Date(Date.now() + 30 * 86400_000)
+			).length} renewing ≤30d{/if}
 		{#if fixedTerm}
 			· {fixedTerm} fixed-term{/if}
 		{#if agreements.filter((a) => a.agreement.status === 'paused').length}
@@ -190,7 +202,7 @@
 
 		<Tabs.Content value="agreements">
 			<Card.Root class="py-0">
-				<Card.Content class="px-0">
+				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Header>
 							<Table.Row>
@@ -288,7 +300,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="plans">
-			<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				{#each plans as p (p.id)}
 					<button class="text-left" onclick={() => openPlan(p)}>
 						<Card.Root class="h-full transition-shadow hover:shadow-sm">
@@ -315,12 +327,19 @@
 									{#if p.includedVisits}· {p.includedVisits} visit{p.includedVisits > 1
 											? 's'
 											: ''}/{p.interval === 'month' ? 'mo' : 'yr'}{/if}
+									{#if p.discountPct}· {p.discountPct}% off work{/if}
 								</p>
 							</Card.Content>
 						</Card.Root>
 					</button>
 				{:else}
-					<p class="text-sm text-muted-foreground">No plans yet — create one to sell agreements.</p>
+					<Empty.Root class="border-0 py-4">
+						<Empty.Header>
+							<Empty.Media><FileText /></Empty.Media>
+							<Empty.Title>No plans yet</Empty.Title>
+							<Empty.Description>Create one to sell agreements.</Empty.Description>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</div>
 		</Tabs.Content>
@@ -371,6 +390,13 @@
 					<Input id="pl-visits" type="number" min={0} max={50} bind:value={planVisits} />
 				</Field.Field>
 			</div>
+			<Field.Field>
+				<Field.Label for="pl-discount">Member discount %</Field.Label>
+				<Input id="pl-discount" type="number" min={0} max={100} bind:value={planDiscount} />
+				<p class="text-xs text-muted-foreground">
+					Taken off invoices for customers under an active agreement on this plan.
+				</p>
+			</Field.Field>
 			<Field.Field>
 				<Field.Label>Visit job type</Field.Label>
 				<Select.Root type="single" bind:value={planJobTypeId}>

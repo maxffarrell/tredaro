@@ -100,6 +100,8 @@ export const member = pgTable(
 		laborCostCents: integer('labor_cost_cents').default(0).notNull(),
 		/** Whether this member gets staff notification emails (bookings, decisions, digest). */
 		staffAlerts: boolean('staff_alerts').default(true).notNull(),
+		/** Comma-joined job_type ids the tech is qualified for; empty = qualified for all. */
+		skillTags: text('skill_tags').notNull().default(''),
 		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => [

@@ -11,6 +11,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { toast } from 'svelte-sonner';
 	import {
 		getPricebook,
@@ -21,6 +22,7 @@
 		adjustPricebookPrices
 	} from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatMoney } from '#lib/format.ts';
+	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Search from '@lucide/svelte/icons/search';
@@ -29,6 +31,7 @@
 	import { parseCsv } from '#lib/csv.ts';
 
 	const currency = await getCurrency();
+	const jobTypes = $derived(await getJobTypes());
 	let q = $state('');
 	let items = $state(await getPricebook());
 	let catFilter = $state('');
@@ -50,7 +53,9 @@
 	let price = $state(0);
 	let durationMin = $state<number | null>(null);
 	let category = $state('');
+	let jobTypeId = $state('');
 	let active = $state(true);
+	let taxable = $state(true);
 
 	function openItem(i?: (typeof items)[number]) {
 		itemId = i?.id ?? null;
@@ -60,7 +65,9 @@
 		price = i?.price ?? 0;
 		durationMin = i?.durationMin ?? null;
 		category = i?.category ?? '';
+		jobTypeId = i?.jobTypeId ?? '';
 		active = i?.active ?? true;
+		taxable = i?.taxable ?? true;
 		open = true;
 	}
 
@@ -68,7 +75,16 @@
 		e.preventDefault();
 		pending = true;
 		try {
-			const input = { name, kind, description, price, durationMin, category };
+			const input = {
+				name,
+				kind,
+				description,
+				price,
+				durationMin,
+				category,
+				jobTypeId: jobTypeId || null,
+				taxable
+			};
 			if (itemId) {
 				await updatePricebookItem({ id: itemId, ...input, active }).updates(getPricebook);
 			} else {
@@ -201,7 +217,7 @@
 	{/if}
 
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -215,7 +231,12 @@
 				<Table.Body>
 					{#each shown as i (i.id)}
 						<Table.Row class="cursor-pointer" onclick={() => openItem(i)}>
-							<Table.Cell class="font-medium">{i.name}</Table.Cell>
+							<Table.Cell class="font-medium"
+								>{i.name}{#if i.jobTypeId}
+									<span class="text-muted-foreground"
+										>· {jobTypes.find((t) => t.id === i.jobTypeId)?.name ?? ''}</span
+									>{/if}</Table.Cell
+							>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">{i.kind}</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{i.category || '—'}</Table.Cell
@@ -283,8 +304,32 @@
 				<Input id="pb-dur" type="number" min={5} bind:value={durationMin} />
 			</Field.Field>
 			<Field.Field>
+				<Field.Label>Job type</Field.Label>
+				<Select.Root type="single" bind:value={jobTypeId}>
+					<Select.Trigger class="w-full"
+						>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="">None</Select.Item>
+						{#each jobTypes.filter((t) => t.active) as t (t.id)}
+							<Select.Item value={t.id}>{t.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<Field.Description>Suggests this item when quoting that kind of work.</Field.Description>
+			</Field.Field>
+			<Field.Field>
 				<Field.Label for="pb-desc">Description</Field.Label>
 				<Textarea id="pb-desc" rows={2} bind:value={description} />
+			</Field.Field>
+			<Field.Field>
+				<label class="flex items-center gap-2 text-sm font-medium">
+					<Switch bind:checked={taxable} /> Taxable
+				</label>
+				<Field.Description
+					>Non-taxable items (e.g. labor in some states) are excluded from the sales-tax line on
+					invoices.</Field.Description
+				>
 			</Field.Field>
 			{#if itemId}
 				<Field.Field>

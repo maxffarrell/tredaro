@@ -355,7 +355,8 @@ async function techPerformance(orgId: string) {
 		db
 			.select({
 				memberId: job.technicianId,
-				jobs: sql<number>`count(*)`.mapWith(Number)
+				jobs: sql<number>`count(*)`.mapWith(Number),
+				avgRating: sql<number>`avg(${job.rating})`.mapWith(Number)
 			})
 			.from(job)
 			.where(
@@ -408,7 +409,7 @@ async function techPerformance(orgId: string) {
 				.where(eq(member.organizationId, orgId))
 		).map((r) => [r.memberId, r])
 	);
-	const doneMap = new Map(done.map((r) => [r.memberId, r.jobs]));
+	const doneMap = new Map(done.map((r) => [r.memberId, r]));
 	const hoursMap = new Map(hours.map((r) => [r.memberId, r.minutes]));
 	const revMap = new Map(revenue.map((r) => [r.memberId, r.total]));
 	return [...ids]
@@ -419,11 +420,13 @@ async function techPerformance(orgId: string) {
 			return {
 				memberId,
 				name: info?.name ?? 'Former staff',
-				jobsDone: doneMap.get(memberId) ?? 0,
+				jobsDone: doneMap.get(memberId)?.jobs ?? 0,
+				avgRating: doneMap.get(memberId)?.avgRating ?? null,
 				minutes: hoursMap.get(memberId) ?? 0,
 				// Logged labor per completed job — a rough "efficiency" read.
 				avgMinPerJob:
-					Math.round(((hoursMap.get(memberId) ?? 0) / (doneMap.get(memberId) || 1)) * 10) / 10,
+					Math.round(((hoursMap.get(memberId) ?? 0) / (doneMap.get(memberId)?.jobs || 1)) * 10) /
+					10,
 				revenue,
 				commissionPct: pct,
 				commission: Math.round((revenue * pct) / 100)
@@ -638,6 +641,51 @@ async function avgTicket(orgId: string) {
 	return row?.n ? row.avg : null;
 }
 
+/** Estimate accuracy: invoiced total vs the quoted total for converted estimates. */
+async function estimateAccuracy(orgId: string) {
+	const conv = await db
+		.select({
+			id: estimate.id,
+			jobId: estimate.jobId,
+			total:
+				sql<number>`coalesce((select sum(i.qty * i.unit_price) from ${estimateItem} i where i.estimate_id = ${outer(estimate.id)} and i.optional = false), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(estimate)
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.status, 'converted'),
+				isNotNull(estimate.jobId)
+			)
+		);
+	if (!conv.length) return { count: 0, avgVariancePct: null };
+	const jobIds = conv.map((e) => e.jobId!).filter(Boolean);
+	const invoiced = await db
+		.select({
+			jobId: charge.jobId,
+			total: sql<number>`coalesce(sum(${charge.amount}), 0)`.mapWith(Number)
+		})
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				inArray(charge.jobId, jobIds),
+				sql`${charge.amount} > 0`,
+				sql`${charge.status} != 'void'`
+			)
+		)
+		.groupBy(charge.jobId);
+	const byJob = new Map(invoiced.map((r) => [r.jobId, r.total]));
+	const variances = conv
+		.filter((e) => e.total > 0)
+		.map((e) => ((byJob.get(e.jobId!) ?? 0) - e.total) / e.total);
+	if (!variances.length) return { count: conv.length, avgVariancePct: null };
+	const avg = variances.reduce((a, b) => a + b, 0) / variances.length;
+	return { count: variances.length, avgVariancePct: Math.round(avg * 100) };
+}
+
 export async function getReports(orgId: string) {
 	const [
 		completedJobs,
@@ -674,7 +722,9 @@ export async function getReports(orgId: string) {
 		cancel,
 		avgItems,
 		expenses90d,
-		matMargin
+		matMargin,
+		ratings,
+		estAccuracy
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -710,7 +760,9 @@ export async function getReports(orgId: string) {
 		cancelRate(orgId),
 		avgItemsPerEstimate(orgId),
 		expenseTotal(orgId),
-		materialsMargin(orgId)
+		materialsMargin(orgId),
+		visitRatings(orgId),
+		estimateAccuracy(orgId)
 	]);
 	return {
 		completedJobs,
@@ -747,8 +799,29 @@ export async function getReports(orgId: string) {
 		cancelRate: cancel,
 		avgItemsPerQuote: avgItems,
 		expenses90d,
-		materialsMargin: matMargin
+		materialsMargin: matMargin,
+		ratings,
+		estAccuracy
 	};
+}
+
+/** Portal visit ratings — average + count over the last 90 days. */
+async function visitRatings(orgId: string) {
+	const [r] = await db
+		.select({
+			avg: sql<number>`avg(${job.rating})`.mapWith(Number),
+			n: sql<number>`count(*)`.mapWith(Number),
+			low: sql<number>`count(*) filter (where ${job.rating} <= 3)`.mapWith(Number)
+		})
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				gte(job.ratedAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return { avg: r?.avg ?? null, n: r?.n ?? 0, low: r?.low ?? 0 };
 }
 
 /** Completed jobs + collected revenue grouped by job type (all time). */
@@ -846,6 +919,10 @@ async function jobProfitability(orgId: string) {
 				),
 			laborMin:
 				sql<number>`(select coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60), 0) from ${jobTimeEntry} te where te.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
+			schedMin:
+				sql<number>`coalesce(round(extract(epoch from (${job.endsAt} - ${job.startsAt}))::numeric / 60), 0)`.mapWith(
 					Number
 				)
 		})

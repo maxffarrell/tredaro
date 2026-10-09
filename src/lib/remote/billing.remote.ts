@@ -150,6 +150,10 @@ export const textInvoice = command(idSchema, async (id) => {
 	return { sent };
 });
 
+export const getCustomerOpenBalance = query(idSchema, async (customerId) =>
+	svc.customerOpenBalance((await requireOrg()).orgId, customerId)
+);
+
 export const getCharges = query(
 	v.optional(v.object({ status: v.optional(v.string()) })),
 	async (opts) => svc.listCharges((await requireOrg()).orgId, opts?.status)

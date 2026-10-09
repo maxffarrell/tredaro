@@ -57,6 +57,8 @@ export const companySettings = pgTable('company_settings', {
 	address: text('address').notNull().default(''),
 	phone: text('phone').notNull().default(''),
 	website: text('website').notNull().default(''),
+	/** Contractor license / registration number, printed on estimates and work orders. */
+	licenseNumber: text('license_number').notNull().default(''),
 	/** Public review link (Google/Yelp/etc.) shown as a button in the job-completed email. Empty disables it. */
 	reviewUrl: text('review_url').notNull().default(''),
 	/** Master switches for automated sends — manual Send buttons always work. */
@@ -75,6 +77,8 @@ export const companySettings = pgTable('company_settings', {
 	taxRateBps: integer('tax_rate_bps').notNull().default(0),
 	/** Max public bookings accepted per requested day (0 = unlimited). */
 	bookingDailyLimit: integer('booking_daily_limit').notNull().default(0),
+	/** Fixed deposit collected via the payment provider right after an online booking (0 = off). */
+	bookingDeposit: integer('booking_deposit').notNull().default(0),
 	/** Flat late fee added once to an invoice that goes 3+ days past due (0 = off). */
 	lateFeeCents: integer('late_fee_cents').notNull().default(0),
 	/** Deposit invoice created on estimate approval, % of the estimate total (0 = none). */
@@ -141,10 +145,21 @@ export const customer = pgTable(
 		onHold: boolean('on_hold').notNull().default(false),
 		/** Tax-exempt account — invoices skip the org's sales-tax line. */
 		taxExempt: boolean('tax_exempt').notNull().default(false),
+		/** Per-customer sales-tax override in basis points; null = org default rate. */
+		taxRateBps: integer('tax_rate_bps'),
+		/** Per-customer invoice terms in days; null = org default. */
+		termsDays: integer('terms_days'),
+		/** Preferred channel for scheduling comms: 'email'|'sms'; null = both. */
+		contactPref: text('contact_pref'),
 		/** Tech the customer prefers — pre-fills new jobs. */
 		preferredMemberId: text('preferred_member_id').references(() => member.id, {
 			onDelete: 'set null'
 		}),
+		/** Card on file: provider id ('stripe'), its customer object id, the saved payment-method ref, and a display label ("Visa ····4242"). */
+		savedCardProvider: text('saved_card_provider'),
+		savedCardCustomer: text('saved_card_customer'),
+		savedCardRef: text('saved_card_ref'),
+		savedCardLabel: text('saved_card_label'),
 		since: date('since', { mode: 'string' }),
 		...timestamps
 	},
@@ -227,6 +242,8 @@ export const agreementPlan = pgTable(
 		initialFee: integer('initial_fee').notNull().default(0),
 		/** Included maintenance visits per interval; null = none tracked. */
 		includedVisits: integer('included_visits'),
+		/** % off invoiced work for members of this plan (membership perk). */
+		discountPct: integer('discount_pct').notNull().default(0),
 		/** Job type generated visits use (defaults duration/assignee/office); null = untyped. */
 		jobTypeId: text('job_type_id'),
 		/** Shown on the public booking page. */
@@ -287,6 +304,10 @@ export const pricebookItem = pgTable(
 		price: integer('price').notNull(),
 		/** Typical duration for scheduling; null for materials. */
 		durationMin: integer('duration_min'),
+		/** Job type this item typically bills to; drives estimate "suggested items". */
+		jobTypeId: text('job_type_id').references(() => jobType.id, { onDelete: 'set null' }),
+		/** Excluded from the sales-tax base when false (e.g. non-taxable labor). */
+		taxable: boolean('taxable').notNull().default(true),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -317,6 +338,8 @@ export const jobType = pgTable(
 		 * item is done / at least one photo is attached. */
 		requireChecklist: boolean('require_checklist').notNull().default(false),
 		requirePhoto: boolean('require_photo').notNull().default(false),
+		/** Customer signature required before completion. */
+		requireSignature: boolean('require_signature').notNull().default(false),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -364,12 +387,20 @@ export const job = pgTable(
 		priority: jobPriority('priority').notNull().default('normal'),
 		/** Flagged when the job can't proceed (waiting on parts/approval) — dispatcher attention. */
 		blocked: boolean('blocked').notNull().default(false),
+		/** Warranty/no-charge work — skips auto-invoice-on-complete and is badged. */
+		warranty: boolean('warranty').notNull().default(false),
 		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
 		preferredTime: text('preferred_time'),
+		/** Communicated arrival window shown to customer/tech ("8-10 AM"); display only. */
+		arrivalWindow: text('arrival_window'),
 		/** Visit window; null while unscheduled. */
 		startsAt: timestamp('starts_at', { withTimezone: true }),
 		endsAt: timestamp('ends_at', { withTimezone: true }),
 		source: jobSource('source').notNull().default('manual'),
+		/** Predecessor job that must finish before this one can be scheduled/started. */
+		dependsOnJobId: text('depends_on_job_id').references((): AnyPgColumn => job.id, {
+			onDelete: 'set null'
+		}),
 		estimateId: text('estimate_id'),
 		/** For agreement-generated visits: the agreement + which visit of the billed period. */
 		serviceAgreementId: text('service_agreement_id'),
@@ -383,10 +414,16 @@ export const job = pgTable(
 		/** Optional note recorded when the job is cancelled. */
 		cancelReason: text('cancel_reason'),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
+		/** Portal rating of the completed visit (1-5 stars + optional note). */
+		rating: integer('rating'),
+		ratingNote: text('rating_note'),
+		ratedAt: timestamp('rated_at', { withTimezone: true }),
 		/** Customer sign-off captured on completion — PNG data URL (~tens of KB). */
 		signature: text('signature'),
 		signedName: text('signed_name'),
 		signedAt: timestamp('signed_at', { withTimezone: true }),
+		/** Tech's "work performed" summary captured at completion — portal/work-order facing. */
+		completionNotes: text('completion_notes').notNull().default(''),
 		...timestamps
 	},
 	(t) => [
@@ -491,6 +528,8 @@ export const estimate = pgTable(
 		decisionNote: text('decision_note'),
 		/** Job created on approval. */
 		jobId: text('job_id'),
+		/** Kind of work quoted; drives suggested pricebook items + job type on approval. */
+		jobTypeId: text('job_type_id').references(() => jobType.id, { onDelete: 'set null' }),
 		/** Revision number — a revised estimate shares the number of the one it supersedes. */
 		version: integer('version').notNull().default(1),
 		/** Earlier revision this one replaces (set null keeps history queryable). */
@@ -572,7 +611,7 @@ export const invoiceItem = pgTable(
 );
 
 export const chargeKind = pgEnum('charge_kind', ['job', 'agreement', 'initial', 'other']);
-export const chargeStatus = pgEnum('charge_status', ['open', 'paid', 'void']);
+export const chargeStatus = pgEnum('charge_status', ['open', 'paid', 'void', 'written_off']);
 
 /** A receivable against a customer: invoice totals, agreement dues, one-off charges. */
 export const charge = pgTable(
@@ -732,6 +771,10 @@ export const inventoryItem = pgTable(
 		sku: text('sku').notNull().default(''),
 		/** Freeform unit label, e.g. "each", "ft", "box". */
 		unit: text('unit').notNull().default('each'),
+		/** Where it lives in the warehouse/van ("Bay 2", "Van A"). */
+		location: text('location').notNull().default(''),
+		/** Supplier's own SKU — makes reordering/POs unambiguous. */
+		supplierSku: text('supplier_sku').notNull().default(''),
 		qtyOnHand: integer('qty_on_hand').notNull().default(0),
 		/** Attention-card alert when on-hand drops to this level; null = never alert. */
 		reorderPoint: integer('reorder_point'),
@@ -869,6 +912,8 @@ export const purchaseOrderItem = pgTable(
 		name: text('name').notNull(),
 		unit: text('unit').notNull().default('each'),
 		qty: integer('qty').notNull().default(1),
+		/** Units already received into stock — a line is fully received at receivedQty = qty. */
+		receivedQty: integer('received_qty').notNull().default(0),
 		unitCost: integer('unit_cost').notNull().default(0),
 		...timestamps
 	},

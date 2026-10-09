@@ -274,6 +274,9 @@ export async function createCustomer(
 			leadSource: input.leadSource ?? null,
 			onHold: input.onHold,
 			taxExempt: input.taxExempt,
+			taxRateBps: input.taxRateBps ?? null,
+			termsDays: input.termsDays ?? null,
+			contactPref: input.contactPref ?? null,
 			preferredMemberId: input.preferredMemberId ?? null
 		})
 		.returning();
@@ -339,6 +342,30 @@ export async function importCustomers(
 }
 
 /** Detaches the customer's portal login — the claim link can re-link a new account later. */
+/** Clears the customer's card-on-file refs — automatic charges stop immediately. */
+export async function removeSavedCard(ctx: OrgContext, customerId: string) {
+	const [row] = await db
+		.update(customer)
+		.set({
+			savedCardProvider: null,
+			savedCardCustomer: null,
+			savedCardRef: null,
+			savedCardLabel: null
+		})
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)))
+		.returning();
+	if (!row) error(404, 'Customer not found');
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'customer',
+		entityId: customerId,
+		action: 'card_removed',
+		summary: 'Removed the card on file'
+	});
+	return row;
+}
+
 export async function revokePortalAccess(ctx: OrgContext, customerId: string) {
 	const [row] = await db
 		.update(customer)
@@ -380,6 +407,9 @@ export async function updateCustomer(
 			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null,
 			onHold: set.onHold,
 			taxExempt: set.taxExempt,
+			taxRateBps: set.taxRateBps,
+			termsDays: set.termsDays,
+			contactPref: set.contactPref,
 			preferredMemberId:
 				set.preferredMemberId === undefined ? undefined : set.preferredMemberId || null
 		})

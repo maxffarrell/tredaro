@@ -156,6 +156,7 @@ export const getStaff = query(async () => {
 			commissionPct: member.commissionPct,
 			laborCostCents: member.laborCostCents,
 			staffAlerts: member.staffAlerts,
+			skillTags: member.skillTags,
 			createdAt: member.createdAt
 		})
 		.from(member)
@@ -192,6 +193,24 @@ export const updateLaborCost = command(laborCostInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ laborCostCents: input.laborCostCents })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const memberSkillsInput = v.object({
+	memberId: idSchema,
+	/** Job-type ids the tech is qualified for; empty list = qualified for all. */
+	jobTypeIds: v.array(idSchema)
+});
+
+/** Sets a technician's qualified job types — dispatch flags assignments outside them. */
+export const setMemberSkills = command(memberSkillsInput, async (input) => {
+	const { orgId } = await requireOrg('admin');
+	const [row] = await db
+		.update(member)
+		.set({ skillTags: input.jobTypeIds.join(',') })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');

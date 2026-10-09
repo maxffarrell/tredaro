@@ -4,6 +4,8 @@ import { requireOrg } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
 	customer,
+	estimate,
+	estimateItem,
 	invoice,
 	invoiceItem,
 	inventoryItem,
@@ -358,6 +360,46 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				])
 			)
 		].join('\n');
+	} else if (kind === 'estimates') {
+		const rows = await db
+			.select({
+				number: estimate.number,
+				version: estimate.version,
+				customerName: customer.name,
+				status: estimate.status,
+				sentAt: estimate.sentAt,
+				validUntil: estimate.validUntil,
+				createdAt: estimate.createdAt,
+				total:
+					sql<number>`coalesce((select sum(i.qty * i.unit_price) from ${estimateItem} i where i.estimate_id = ${outer(estimate.id)} and i.optional = false), 0)`.mapWith(
+						Number
+					)
+			})
+			.from(estimate)
+			.innerJoin(customer, eq(estimate.customerId, customer.id))
+			.where(
+				and(
+					eq(estimate.organizationId, ctx.orgId),
+					from ? gte(estimate.createdAt, new Date(`${from}T00:00:00Z`)) : undefined,
+					toBound ? lt(estimate.createdAt, new Date(toBound)) : undefined
+				)
+			)
+			.orderBy(asc(estimate.number), asc(estimate.version));
+		body = [
+			row(['Estimate', 'Version', 'Customer', 'Status', 'Total', 'Sent', 'Valid until', 'Created']),
+			...rows.map((r) =>
+				row([
+					`E-${r.number}`,
+					r.version,
+					r.customerName,
+					r.status,
+					money(r.total),
+					r.sentAt ? r.sentAt.toISOString().slice(0, 10) : '',
+					r.validUntil ?? '',
+					r.createdAt.toISOString().slice(0, 10)
+				])
+			)
+		].join('\n');
 	} else if (kind === 'customers') {
 		const rows = await db
 			.select()
@@ -424,7 +466,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 	} else {
 		error(
 			404,
-			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers, inventory, pricebook or statement'
+			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers, estimates, inventory, pricebook or statement'
 		);
 	}
 

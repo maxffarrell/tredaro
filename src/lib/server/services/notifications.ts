@@ -288,6 +288,27 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 	});
 }
 
+/** Text receipt of an online booking — complements the confirmation email. */
+export async function notifyBookingConfirmationSms(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut,
+			number: job.number
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, jobId));
+	if (!row?.phone || row.smsOptOut || !flags.sms || !smsProvider()) return;
+	if (!(await logOnce(orgId, 'booking_sms', jobId, row.phone))) return;
+	const name = await orgName(orgId);
+	await sendSmsQuiet(orgId, {
+		to: row.phone,
+		body: `${name}: we received your request J-${row.number} — we'll confirm a time shortly.`
+	});
+}
+
 /** "Your invoice is ready" with the public pay link. Returns whether an email was sent. */
 export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 	const [row] = await db
@@ -478,6 +499,7 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
 			smsOptOut: customer.smsOptOut,
+			contactPref: customer.contactPref,
 			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
@@ -493,10 +515,14 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
 	const what = row.jobTypeName ?? row.summary;
 	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	// Preferred-channel routing: an sms/email preference suppresses the other
+	// channel unless it's the only one that can reach the customer.
+	const smsOk = !!row.phone && !row.smsOptOut && flags.sms && !!smsProvider();
 	if (
 		row.email &&
 		!row.emailOptOut &&
 		flags.email &&
+		(row.contactPref !== 'sms' || !smsOk) &&
 		(await logOnce(orgId, 'job_scheduled', jobId, row.email))
 	)
 		await sendEmail({
@@ -517,11 +543,73 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 		!row.smsOptOut &&
 		flags.sms &&
 		smsProvider() &&
+		row.contactPref !== 'email' &&
 		(await logOnce(orgId, 'job_scheduled_sms', jobId, row.phone))
 	)
 		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: `${name}: ${what} is scheduled for ${when}. Reply to reschedule.`
+		});
+}
+
+/** Customer-facing reschedule notice — emails/texts the new slot (re-armed per start time). */
+export async function notifyJobRescheduledCustomer(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
+			contactPref: customer.contactPref,
+			phone: customer.phone,
+			customerName: customer.name,
+			summary: job.summary,
+			number: job.number,
+			startsAt: job.startsAt,
+			jobTypeName: jobType.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row?.startsAt || (!row.email && !row.phone)) return;
+	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
+	const what = row.jobTypeName ?? row.summary;
+	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	// Per-move dedupe: a different new start time re-arms the notification.
+	const once = `${jobId}:${row.startsAt.getTime()}`;
+	const smsOk = !!row.phone && !row.smsOptOut && flags.sms && !!smsProvider();
+	if (
+		row.email &&
+		!row.emailOptOut &&
+		flags.email &&
+		(row.contactPref !== 'sms' || !smsOk) &&
+		(await logOnce(orgId, 'job_rescheduled', once, row.email))
+	)
+		await sendEmail({
+			to: row.email,
+			subject: `Job J-${row.number} moved — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Your appointment moved, ${row.customerName}`,
+				lines: [
+					`${what} is now scheduled for ${when}.`,
+					'Reply to this email if the new time does not work.'
+				],
+				action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			})
+		});
+	if (
+		row.phone &&
+		!row.smsOptOut &&
+		flags.sms &&
+		smsProvider() &&
+		row.contactPref !== 'email' &&
+		(await logOnce(orgId, 'job_rescheduled_sms', once, row.phone))
+	)
+		await sendSmsQuiet(orgId, {
+			to: row.phone,
+			body: `${name}: ${what} moved to ${when}. Reply if that doesn't work.`
 		});
 }
 
@@ -533,6 +621,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
 			smsOptOut: customer.smsOptOut,
+			contactPref: customer.contactPref,
 			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
@@ -554,10 +643,12 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
 	const what = row.jobTypeName ?? row.summary;
 	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	const smsOk = !!row.phone && !row.smsOptOut && flags.sms && !!smsProvider();
 	if (
 		row.email &&
 		!row.emailOptOut &&
 		flags.email &&
+		(row.contactPref !== 'sms' || !smsOk) &&
 		(await logOnce(orgId, 'appointment_reminder', jobId, row.email))
 	)
 		await sendEmail({
@@ -578,6 +669,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 		!row.smsOptOut &&
 		flags.sms &&
 		smsProvider() &&
+		row.contactPref !== 'email' &&
 		(await logOnce(orgId, 'appointment_reminder_sms', jobId, row.phone))
 	)
 		await sendSmsQuiet(orgId, {
@@ -1261,6 +1353,165 @@ export async function notifyPartsDelay(orgId: string, jobId: string) {
 		});
 }
 
+/** Customer rated a visit — staff inbox for admins; 5★ also nudges the public review. */
+export async function notifyVisitRated(orgId: string, jobId: string, rating: number) {
+	const [row] = await db
+		.select({
+			number: job.number,
+			summary: job.summary,
+			customerName: customer.name,
+			customerEmail: customer.email,
+			emailOptOut: customer.emailOptOut,
+			reviewUrl: companySettings.reviewUrl
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(companySettings, eq(companySettings.organizationId, job.organizationId))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const flags = await notifFlags(orgId);
+	const name = await orgName(orgId);
+	if (flags.digest)
+		for (const email of await adminEmails(orgId))
+			// Inbox row only — the activity feed already shows the rating.
+			await logOnce(orgId, 'visit_rated', jobId, email);
+	if (
+		rating === 5 &&
+		row.reviewUrl &&
+		row.customerEmail &&
+		!row.emailOptOut &&
+		flags.email &&
+		(await logOnce(orgId, 'review_ask', jobId, row.customerEmail))
+	)
+		await sendEmail({
+			to: row.customerEmail,
+			subject: `Thanks for the 5 stars — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Glad we earned it, ${row.customerName}`,
+				lines: [
+					`Thanks for rating J-${row.number} ${row.summary} 5 stars.`,
+					'A public review takes under a minute and means a lot to a local crew like ours.'
+				],
+				action: { label: 'Leave a review', url: row.reviewUrl }
+			})
+		});
+}
+
+/** A saved-card auto-charge failed — alerts staff; the charge stays open for follow-up. */
+export async function notifyAutoChargeFailed(
+	orgId: string,
+	customerId: string,
+	chargeId: string,
+	cardLabel: string | null
+) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [c] = await db
+		.select({ name: customer.name })
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, customerId)));
+	if (!c) return;
+	const name = await orgName(orgId);
+	const stamp = `${customerId}:${chargeId}`;
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'auto_charge_failed', stamp, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Auto-charge failed — ${c.name} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `Auto-charge failed for ${c.name}`,
+				lines: [
+					`The recurring charge could not be collected from ${cardLabel ?? 'the card on file'}.`,
+					'The charge was left open — the customer can still pay it from the portal or by invoice.'
+				],
+				action: { label: 'Open customer', url: `${appOrigin()}/customers/${customerId}` }
+			})
+		});
+	}
+}
+
+/** Customer-facing dunning email when an auto-charge fails — pay online or update the card. */
+export async function emailAutoChargeFailedToCustomer(
+	orgId: string,
+	customerId: string,
+	chargeId: string,
+	amount: number,
+	cardLabel: string | null
+) {
+	const flags = await notifFlags(orgId);
+	if (!flags.email) return;
+	const [c] = await db
+		.select({ name: customer.name, email: customer.email, emailOptOut: customer.emailOptOut })
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, customerId)));
+	if (!c?.email || c.emailOptOut) return;
+	const name = await orgName(orgId);
+	if (!(await logOnce(orgId, 'auto_charge_failed_customer', `${customerId}:${chargeId}`, c.email)))
+		return;
+	const [settings] = await db
+		.select({ currency: companySettings.currency })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	await sendEmail({
+		to: c.email,
+		subject: `We couldn't collect your payment — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Hi ${c.name},`,
+			lines: [
+				`We tried to collect ${formatMoney(amount, settings?.currency ?? 'usd')} from ${cardLabel ?? 'your card on file'}, but the charge didn't go through.`,
+				'You can pay online from your customer portal — or update your saved card there and we will try the recurring charge again next period.'
+			],
+			action: { label: 'Pay online', url: `${appOrigin()}/portal` }
+		})
+	});
+}
+
+/** "The job blocking yours is done" — emails + inboxes the dependent job's tech. */
+export async function notifyJobUnblocked(
+	orgId: string,
+	dependentJobId: string,
+	predNumber: number
+) {
+	const [row] = await db
+		.select({
+			number: job.number,
+			summary: job.summary,
+			technicianId: job.technicianId,
+			customerName: customer.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, dependentJobId));
+	if (!row?.technicianId) return;
+	const [m] = await db
+		.select({ email: user.email })
+		.from(member)
+		.innerJoin(user, eq(user.id, member.userId))
+		.where(
+			and(
+				eq(member.organizationId, orgId),
+				eq(member.id, row.technicianId),
+				eq(member.staffAlerts, true)
+			)
+		);
+	if (!m?.email) return;
+	if (!(await logOnce(orgId, 'job_unblocked', dependentJobId, m.email))) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: m.email,
+		subject: `J-${row.number} is unblocked — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `J-${row.number} ${row.summary} can start`,
+			lines: [`Its dependency J-${predNumber} was completed.`, `Customer: ${row.customerName}`],
+			action: { label: 'Open job', url: `${appOrigin()}/jobs/${dependentJobId}` }
+		})
+	});
+}
+
 /** "You've been assigned a job" — emails the technician. Once per job+tech. */
 export async function notifyTechAssigned(orgId: string, jobId: string, memberId: string) {
 	const m = await db
@@ -1442,6 +1693,97 @@ export async function notifyStaffEstimateViewed(orgId: string, estimateId: strin
 					`${row.customerName} just viewed estimate E-${row.number} — a good moment to follow up.`
 				],
 				action: { label: 'Open estimate', url: `${appOrigin()}/estimates/${estimateId}` }
+			})
+		});
+	}
+}
+
+/** Customer opened their public invoice link — staff alert, once per invoice. */
+export async function notifyStaffInvoiceViewed(orgId: string, invoiceId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ number: invoice.number, customerName: customer.name })
+		.from(invoice)
+		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.where(eq(invoice.id, invoiceId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'invoice_viewed', invoiceId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `INV-${row.number} viewed — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Invoice INV-${row.number} was opened`,
+				lines: [
+					`${row.customerName} just viewed invoice INV-${row.number} — a good moment to follow up on payment.`
+				],
+				action: { label: 'Open billing', url: `${appOrigin()}/billing` }
+			})
+		});
+	}
+}
+
+/** Customer told us when works best after approving an estimate — staff alert per visit. */
+export async function notifyVisitPreference(orgId: string, jobId: string, note: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ number: job.number, customerName: customer.name })
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'visit_preference', jobId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `J-${row.number} — customer picked a time (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} told you when works best for J-${row.number}`,
+				lines: [
+					`"${note.slice(0, 500)}"`,
+					'The preference is on the job — schedule the visit and send a confirmation.'
+				],
+				action: { label: 'Open job', url: `${appOrigin()}/jobs/${jobId}` }
+			})
+		});
+	}
+}
+
+/** A tech self-requested time off from My Day — heads-up to admins. */
+export async function notifyTimeOffRequest(
+	orgId: string,
+	memberId: string,
+	range: string,
+	reason: string
+) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({ name: user.name })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(member.id, memberId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'timeoff_request', memberId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Time off: ${row.name} — ${range} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.name} marked time off for ${range}`,
+				lines: [
+					reason ? `Reason: ${reason.slice(0, 200)}` : 'No reason given.',
+					'It already shows on the dispatch board — remove it in Settings if it was a mistake.'
+				],
+				action: { label: 'Open settings', url: `${appOrigin()}/settings` }
 			})
 		});
 	}

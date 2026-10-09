@@ -153,8 +153,8 @@
 
 <div class="space-y-4 p-4 md:p-6">
 	<div class="flex flex-wrap items-center gap-3">
-		<Tabs.Root bind:value={tab}>
-			<Tabs.List class="flex-wrap">
+		<Tabs.Root bind:value={tab} class="w-full min-w-0">
+			<Tabs.List class="w-full flex-nowrap overflow-x-auto">
 				{#each STATUS_TABS as [value, label] (value)}
 					<Tabs.Trigger {value}
 						>{label}{#if value !== 'all' && counts[value]}&nbsp;({counts[value]}){/if}</Tabs.Trigger
@@ -225,7 +225,7 @@
 	</div>
 
 	<Card.Root class="py-0">
-		<Card.Content class="px-0">
+		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -355,7 +355,7 @@
 					</Select.Root>
 				</Field.Field>
 			{/if}
-			<div class="grid gap-4 sm:grid-cols-2">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Field.Field>
 					<Field.Label>Job type</Field.Label>
 					<Select.Root type="single" bind:value={jobTypeId}>
