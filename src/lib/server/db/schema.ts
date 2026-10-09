@@ -1151,3 +1151,22 @@ export const customerDocument = pgTable(
 	},
 	(t) => [index('customer_document_customer_idx').on(t.customerId)]
 );
+
+/** Arbitrary file attachments on a job (permits, contracts, signed paperwork). */
+export const jobDocument = pgTable(
+	'job_document',
+	{
+		id: id(),
+		organizationId: orgId(),
+		jobId: text('job_id')
+			.notNull()
+			.references(() => job.id, { onDelete: 'cascade' }),
+		uploadedById: text('uploaded_by_id').references(() => member.id, { onDelete: 'set null' }),
+		fileName: text('file_name').notNull(),
+		mime: text('mime').notNull(),
+		size: integer('size').notNull(),
+		path: text('path').notNull(),
+		...timestamps
+	},
+	(t) => [index('job_document_job_idx').on(t.jobId)]
+);

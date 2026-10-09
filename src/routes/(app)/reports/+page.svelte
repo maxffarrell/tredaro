@@ -864,6 +864,21 @@
 		</Card.Root>
 	{/if}
 
+	{#if r.callbacks.done}
+		<Card.Root>
+			<Card.Header
+				><Card.Title class="text-base">Callback rate — last 12 months</Card.Title></Card.Header
+			>
+			<Card.Content>
+				<p class="text-3xl font-semibold tabular-nums">{r.callbacks.pct}%</p>
+				<p class="text-sm text-muted-foreground">
+					{r.callbacks.callbacks} of {r.callbacks.done} done jobs revisited the same location within 30
+					days — a rework proxy (lower is better)
+				</p>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	{#if r.topMaterials.length}
 		<Card.Root>
 			<Card.Header

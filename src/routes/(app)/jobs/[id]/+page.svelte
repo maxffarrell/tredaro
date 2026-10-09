@@ -67,6 +67,8 @@
 		getJobPhotos,
 		deleteJobPhoto,
 		setJobPhotoShared,
+		getJobDocuments,
+		removeJobDoc,
 		getJobExpenses,
 		addJobExpense,
 		removeJobExpense
@@ -82,6 +84,7 @@
 	import Phone from '@lucide/svelte/icons/phone';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileText from '@lucide/svelte/icons/file-text';
+	import Paperclip from '@lucide/svelte/icons/paperclip';
 	import FilePen from '@lucide/svelte/icons/file-pen';
 	import Ban from '@lucide/svelte/icons/ban';
 	import UserX from '@lucide/svelte/icons/user-x';
@@ -490,6 +493,42 @@
 	async function removePhoto(photoId: string) {
 		try {
 			await deleteJobPhoto(photoId).updates(getJobPhotos);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not delete'));
+		}
+	}
+
+	// ------- documents -------
+	const jobDocs = $derived(await getJobDocuments(id));
+	let docUploading = $state(false);
+	const docSize = (bytes: number) =>
+		bytes >= 1_048_576
+			? `${(bytes / 1_048_576).toFixed(1)} MB`
+			: `${Math.max(1, Math.round(bytes / 1024))} KB`;
+	async function uploadDoc(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		docUploading = true;
+		try {
+			const form = new FormData();
+			form.set('file', file);
+			const res = await fetch(`/api/jobs/${id}/documents`, { method: 'POST', body: form });
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				throw new Error(body?.message ?? `Upload failed (${res.status})`);
+			}
+			await getJobDocuments(id).refresh();
+			toast.success('Document added');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload document'));
+		}
+		input.value = '';
+		docUploading = false;
+	}
+	async function removeDoc(docId: string) {
+		try {
+			await removeJobDoc(docId).updates(getJobDocuments);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not delete'));
 		}
@@ -1701,6 +1740,60 @@
 							disabled={uploading}
 							onchange={uploadPhoto}
 						/>
+					</label>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between space-y-0">
+				<Card.Title class="flex items-center gap-2 text-base"
+					><Paperclip class="size-4" /> Documents</Card.Title
+				>
+				{#if jobDocs.length}
+					<span class="text-sm text-muted-foreground tabular-nums">{jobDocs.length}</span>
+				{/if}
+			</Card.Header>
+			<Card.Content class="px-4">
+				{#if jobDocs.length}
+					<ul class="space-y-1.5">
+						{#each jobDocs as doc (doc.id)}
+							<li class="group flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
+								<FileText class="size-4 shrink-0 text-muted-foreground" />
+								<a
+									href="/files/job-document/{doc.id}"
+									target="_blank"
+									class="min-w-0 flex-1 truncate font-medium hover:underline">{doc.fileName}</a
+								>
+								<span class="shrink-0 text-xs text-muted-foreground">{docSize(doc.size)}</span>
+								{#if !locked}
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-6 opacity-0 transition-opacity group-hover:opacity-100"
+										onclick={() => removeDoc(doc.id)}
+										aria-label="Delete document"
+									>
+										<Trash2 class="size-3" />
+									</Button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="py-1 text-xs text-muted-foreground">
+						Permits, contracts and signed paperwork for this job.
+					</p>
+				{/if}
+				{#if !locked}
+					<label
+						class="mt-2 flex items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground transition-colors hover:bg-accent {docUploading
+							? 'pointer-events-none opacity-60'
+							: 'cursor-pointer'}"
+					>
+						<Paperclip class="size-4" />
+						{docUploading ? 'Uploading…' : 'Attach a file'}
+						<input type="file" class="sr-only" disabled={docUploading} onchange={uploadDoc} />
 					</label>
 				{/if}
 			</Card.Content>

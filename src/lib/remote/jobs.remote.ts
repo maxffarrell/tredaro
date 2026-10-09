@@ -400,6 +400,16 @@ export const getJobPhotos = query(idSchema, async (jobId) =>
 	photosSvc.listJobPhotos((await requireOrg()).orgId, jobId)
 );
 
+export const getJobDocuments = query(idSchema, async (jobId) =>
+	photosSvc.listJobDocs((await requireOrg()).orgId, jobId)
+);
+
+export const removeJobDoc = command(idSchema, async (id) => {
+	const row = await photosSvc.deleteJobDoc(await requireOrg(), id);
+	void getJobDocuments(row.jobId).refresh();
+	return row;
+});
+
 export const deleteJobPhoto = command(idSchema, async (id) => {
 	const row = await photosSvc.deleteJobPhoto(await requireOrg(), id);
 	await refreshQuery(getJobPhotos, row.jobId);

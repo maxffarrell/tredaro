@@ -78,6 +78,40 @@ async function revenueByMonth(orgId: string) {
 		.orderBy(asc(sql`to_char(${payment.paidAt}, 'YYYY-MM')`));
 }
 
+/**
+ * Callbacks: done jobs that got another (non-cancelled) job at the same service
+ * location within 30 days — a rework/callback proxy for service quality.
+ */
+async function callbackRate(orgId: string) {
+	const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+	const [row] = await db
+		.select({
+			done: sql<number>`count(*)`.mapWith(Number),
+			callbacks: sql<number>`count(*) filter (where exists (
+					select 1 from job j2
+					where j2.organization_id = job.organization_id
+						and j2.service_location_id = job.service_location_id
+						and j2.id <> job.id
+						and j2.created_at > job.completed_at
+						and j2.created_at <= job.completed_at + interval '30 days'
+						and j2.cancelled_at is null
+				))`.mapWith(Number)
+		})
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt),
+				sql`${job.serviceLocationId} is not null`,
+				gte(job.completedAt, since)
+			)
+		);
+	const done = row?.done ?? 0;
+	const callbacks = row?.callbacks ?? 0;
+	return { done, callbacks, pct: done ? Math.round((callbacks / done) * 100) : 0 };
+}
+
 /** Collected payments grouped by method (all time). */
 async function paymentsByMethod(orgId: string) {
 	return db
@@ -724,7 +758,8 @@ export async function getReports(orgId: string) {
 		expenses90d,
 		matMargin,
 		ratings,
-		estAccuracy
+		estAccuracy,
+		callbacks
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -762,7 +797,8 @@ export async function getReports(orgId: string) {
 		expenseTotal(orgId),
 		materialsMargin(orgId),
 		visitRatings(orgId),
-		estimateAccuracy(orgId)
+		estimateAccuracy(orgId),
+		callbackRate(orgId)
 	]);
 	return {
 		completedJobs,
@@ -801,7 +837,8 @@ export async function getReports(orgId: string) {
 		expenses90d,
 		materialsMargin: matMargin,
 		ratings,
-		estAccuracy
+		estAccuracy,
+		callbacks
 	};
 }
 

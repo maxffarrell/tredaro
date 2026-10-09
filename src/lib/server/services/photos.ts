@@ -9,6 +9,7 @@ import {
 	customerDocument,
 	equipment,
 	job,
+	jobDocument,
 	jobPhoto,
 	member,
 	user
@@ -82,6 +83,106 @@ export async function saveJobPhoto(
 		entityId: jobId,
 		action: 'photo_added',
 		summary: `Photo added to job J-${j.number}`
+	});
+	return row;
+}
+
+export async function listJobDocs(orgId: string, jobId: string) {
+	return db
+		.select({
+			id: jobDocument.id,
+			fileName: jobDocument.fileName,
+			mime: jobDocument.mime,
+			size: jobDocument.size,
+			uploadedBy: user.name,
+			createdAt: jobDocument.createdAt
+		})
+		.from(jobDocument)
+		.leftJoin(member, eq(jobDocument.uploadedById, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(and(eq(jobDocument.organizationId, orgId), eq(jobDocument.jobId, jobId)))
+		.orderBy(desc(jobDocument.createdAt));
+}
+
+/** Saves any office-type file against a job (permits, contracts, signed paperwork). */
+export async function saveJobDoc(
+	ctx: OrgContext,
+	jobId: string,
+	file: { name: string; type: string; size: number; bytes: Uint8Array }
+) {
+	const [j] = await db
+		.select({ id: job.id, number: job.number })
+		.from(job)
+		.where(and(eq(job.id, jobId), eq(job.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!j) error(404, 'Job not found');
+	if (!DOC_ALLOWED.has(file.type))
+		error(400, 'Unsupported file type — upload a PDF, image, Word, Excel, CSV or text file');
+	if (file.size > MAX_BYTES) error(400, 'File is larger than 15 MB');
+
+	const id = crypto.randomUUID();
+	const safe = (file.name || 'document').replace(/[^\w.\-() ]+/g, '_').slice(-80) || 'document';
+	const dir = storageDir(ctx.orgId);
+	await mkdir(dir, { recursive: true });
+	const rel = join(dir, `${id}-${safe}`);
+	await writeFile(rel, file.bytes);
+
+	const [m] = await db
+		.select({ id: member.id })
+		.from(member)
+		.where(and(eq(member.userId, ctx.userId), eq(member.organizationId, ctx.orgId)))
+		.limit(1);
+
+	const [row] = await db
+		.insert(jobDocument)
+		.values({
+			id,
+			organizationId: ctx.orgId,
+			jobId,
+			uploadedById: m?.id ?? null,
+			fileName: safe,
+			mime: file.type,
+			size: file.size,
+			path: rel
+		})
+		.returning();
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'document_added',
+		summary: `Document "${safe}" added to job J-${j.number}`
+	});
+	return row;
+}
+
+/** Streams a job document to an authenticated org member. */
+export async function readJobDoc(orgId: string, id: string) {
+	const [row] = await db
+		.select()
+		.from(jobDocument)
+		.where(and(eq(jobDocument.id, id), eq(jobDocument.organizationId, orgId)))
+		.limit(1);
+	if (!row) error(404, 'Document not found');
+	const bytes = await readFile(row.path);
+	return { row, bytes };
+}
+
+export async function deleteJobDoc(ctx: OrgContext, id: string) {
+	const [row] = await db
+		.delete(jobDocument)
+		.where(and(eq(jobDocument.id, id), eq(jobDocument.organizationId, ctx.orgId)))
+		.returning();
+	if (!row) error(404, 'Document not found');
+	await unlink(row.path).catch(() => {});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: row.jobId,
+		action: 'document_removed',
+		summary: `Document "${row.fileName}" removed`
 	});
 	return row;
 }
