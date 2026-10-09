@@ -197,6 +197,7 @@
 	let emailOptOut = $state(c.customer.emailOptOut);
 	let onHold = $state(c.customer.onHold);
 	let taxExempt = $state(c.customer.taxExempt);
+	let taxRatePct = $state(c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '');
 	let leadSource = $state(c.customer.leadSource);
 	let preferredMemberId = $state(c.customer.preferredMemberId ?? '');
 	const technicians = $derived(await getTechnicians());
@@ -217,6 +218,7 @@
 			emailOptOut = c.customer.emailOptOut;
 			onHold = c.customer.onHold;
 			taxExempt = c.customer.taxExempt;
+			taxRatePct = c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '';
 			leadSource = c.customer.leadSource;
 			preferredMemberId = c.customer.preferredMemberId ?? '';
 		}
@@ -243,6 +245,8 @@
 				emailOptOut,
 				onHold,
 				taxExempt,
+				taxRateBps:
+					taxRatePct === '' || taxRatePct == null ? null : Math.round(Number(taxRatePct) * 100),
 				leadSource,
 				preferredMemberId: preferredMemberId || null
 			});
@@ -741,6 +745,22 @@
 						</label>
 						<label class="flex items-center gap-2 text-sm">
 							<Switch bind:checked={taxExempt} /> Tax exempt — no sales tax on invoices
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							Tax rate
+							<Input
+								type="number"
+								min={0}
+								max={300}
+								step={0.01}
+								class="w-24"
+								disabled={taxExempt}
+								bind:value={taxRatePct}
+								placeholder="org default"
+								aria-label="Sales tax rate %"
+							/>
+							<span class="text-xs text-muted-foreground">% — blank uses the workspace default</span
+							>
 						</label>
 						<p class="text-xs text-muted-foreground">
 							Suppresses appointment reminders, follow-ups, and invoices/estimate emails for this

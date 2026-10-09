@@ -60,7 +60,11 @@ export const customerInput = v.object({
 	/** Credit hold — blocks new jobs until cleared. */
 	onHold: v.optional(v.boolean(), false),
 	/** Skip the org sales-tax line on this customer's invoices. */
-	taxExempt: v.optional(v.boolean(), false)
+	taxExempt: v.optional(v.boolean(), false),
+	/** Per-customer sales-tax rate override in basis points; null = org default. */
+	taxRateBps: v.optional(
+		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000)))
+	)
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),
@@ -446,6 +450,7 @@ export const settingsInput = v.object({
 	bookingNoticeDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(90))),
 	taxRateBps: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000))),
 	bookingDailyLimit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
+	bookingDeposit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10000000))),
 	lateFeeCents: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100000))),
 	estimateDepositPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
 	laborRoundingMin: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(120))),

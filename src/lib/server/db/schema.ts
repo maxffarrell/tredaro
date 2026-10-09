@@ -75,6 +75,8 @@ export const companySettings = pgTable('company_settings', {
 	taxRateBps: integer('tax_rate_bps').notNull().default(0),
 	/** Max public bookings accepted per requested day (0 = unlimited). */
 	bookingDailyLimit: integer('booking_daily_limit').notNull().default(0),
+	/** Fixed deposit collected via the payment provider right after an online booking (0 = off). */
+	bookingDeposit: integer('booking_deposit').notNull().default(0),
 	/** Flat late fee added once to an invoice that goes 3+ days past due (0 = off). */
 	lateFeeCents: integer('late_fee_cents').notNull().default(0),
 	/** Deposit invoice created on estimate approval, % of the estimate total (0 = none). */
@@ -141,6 +143,8 @@ export const customer = pgTable(
 		onHold: boolean('on_hold').notNull().default(false),
 		/** Tax-exempt account — invoices skip the org's sales-tax line. */
 		taxExempt: boolean('tax_exempt').notNull().default(false),
+		/** Per-customer sales-tax override in basis points; null = org default rate. */
+		taxRateBps: integer('tax_rate_bps'),
 		/** Tech the customer prefers — pre-fills new jobs. */
 		preferredMemberId: text('preferred_member_id').references(() => member.id, {
 			onDelete: 'set null'

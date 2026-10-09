@@ -856,12 +856,13 @@ export async function createInvoice(
 				unitPrice: -off
 			});
 	}
-	if (settings.taxRateBps > 0 && !c.taxExempt) {
-		const tax = Math.round((lineTotal(items) * settings.taxRateBps) / 10000);
+	const rateBps = c.taxRateBps ?? settings.taxRateBps;
+	if (rateBps > 0 && !c.taxExempt) {
+		const tax = Math.round((lineTotal(items) * rateBps) / 10000);
 		if (tax > 0)
 			items.push({
 				pricebookItemId: null,
-				name: `Sales tax (${settings.taxRateBps / 100}%)`,
+				name: `Sales tax (${rateBps / 100}%)`,
 				description: '',
 				qty: 1,
 				unitPrice: tax

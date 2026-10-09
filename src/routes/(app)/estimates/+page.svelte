@@ -21,6 +21,9 @@
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
 	import { getPricebook } from '#lib/remote/billing.remote.ts';
+	import { getAiStatus, aiEstimateSuggestions } from '#lib/remote/ai.remote.ts';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import Plus from '@lucide/svelte/icons/plus';
 	import FileText from '@lucide/svelte/icons/file-text';
@@ -28,6 +31,7 @@
 
 	const settings = await getSettings();
 	const currency = settings.currency;
+	const ai = await getAiStatus();
 	const customers = await getCustomers();
 
 	const TABS = [
@@ -68,6 +72,30 @@
 	);
 
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+
+	let aiLoading = $state(false);
+	async function suggestItems() {
+		if (!customerId || aiLoading) return;
+		aiLoading = true;
+		try {
+			const { items: suggested } = await aiEstimateSuggestions({
+				customerId,
+				jobTypeId: jobTypeId || null,
+				notes
+			});
+			if (!suggested.length) toast('No suggestions — add notes about the scope');
+			else {
+				items = [
+					...items.filter((i) => i.name.trim()),
+					...suggested.map((i) => ({ pricebookItemId: null, ...i }))
+				];
+				toast.success(`${suggested.length} item${suggested.length === 1 ? '' : 's'} suggested`);
+			}
+		} catch (err) {
+			toast.error(errMsg(err, 'AI suggestion failed'));
+		}
+		aiLoading = false;
+	}
 	const awaitingConversion = $derived(
 		estimates.filter((e) => e.estimate.status === 'approved').length
 	);
@@ -377,14 +405,28 @@
 						>
 					</div>
 				{/each}
-				<div class="flex items-center justify-between">
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() =>
-							(items = [...items, { pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }])}
-						><Plus /> Add item</Button
-					>
+				<div class="flex items-center justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() =>
+								(items = [...items, { pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }])}
+							><Plus /> Add item</Button
+						>
+						{#if ai.available}
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={!customerId || aiLoading}
+								onclick={suggestItems}
+							>
+								{#if aiLoading}<Spinner class="size-3.5" />{:else}<Sparkles />{/if}
+								Draft items
+							</Button>
+						{/if}
+					</div>
 					<span class="text-sm font-medium tabular-nums">{formatMoney(totalCents, currency)}</span>
 				</div>
 			</div>

@@ -5,6 +5,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { requestBookingForm } from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
@@ -25,6 +26,12 @@
 	// Deep link: /book/<slug>?type=<jobTypeId> preselects the service
 	// (e.g. a per-service "Book now" button on the org's own site).
 	const typeParam = page.url.searchParams.get('type') ?? '';
+	onMount(() => {
+		if (page.url.searchParams.get('paid') === '1') {
+			toast.success('Deposit received — your request is confirmed.');
+			done = true;
+		}
+	});
 	let jobTypeId = $state(data.jobTypes.some((t) => t.id === typeParam) ? typeParam : '');
 	let preferredMemberId = $state('any');
 	let address1 = $state('');
@@ -69,6 +76,10 @@
 				}
 			});
 			reference = r.job?.number ? `J-${r.job.number}` : '';
+			if (r.payUrl) {
+				location.assign(r.payUrl);
+				return;
+			}
 			done = true;
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not submit — try again'));

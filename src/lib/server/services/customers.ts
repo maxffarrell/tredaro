@@ -274,6 +274,7 @@ export async function createCustomer(
 			leadSource: input.leadSource ?? null,
 			onHold: input.onHold,
 			taxExempt: input.taxExempt,
+			taxRateBps: input.taxRateBps ?? null,
 			preferredMemberId: input.preferredMemberId ?? null
 		})
 		.returning();
@@ -404,6 +405,7 @@ export async function updateCustomer(
 			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null,
 			onHold: set.onHold,
 			taxExempt: set.taxExempt,
+			taxRateBps: set.taxRateBps,
 			preferredMemberId:
 				set.preferredMemberId === undefined ? undefined : set.preferredMemberId || null
 		})
