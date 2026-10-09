@@ -567,6 +567,16 @@
 				></a
 			>
 		{/if}
+		{#each j.depJobs as d (d.id)}
+			<a href="/jobs/{d.id}"
+				><Badge variant="outline" class="text-blue-600 dark:text-blue-400"
+					>blocks J-{d.number}</Badge
+				></a
+			>
+		{/each}
+		{#if j.job.rating}
+			<Badge variant="secondary" title={j.job.ratingNote ?? ''}>★ {j.job.rating}/5</Badge>
+		{/if}
 		{#if j.sameDay}
 			<Badge variant="outline" class="hidden text-amber-600 sm:inline-flex dark:text-amber-400"
 				>{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today</Badge
@@ -904,6 +914,13 @@
 				</div>
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Priority</span><StatusBadge status={j.job.priority} />
+					{#if j.job.rating}
+						<span class="text-muted-foreground">Rating</span><span
+							>{'★'.repeat(j.job.rating)}{'☆'.repeat(5 - j.job.rating)}{j.job.ratingNote
+								? ` — ${j.job.ratingNote}`
+								: ''}</span
+						>
+					{/if}
 				</div>
 				{#if j.job.status !== 'done' && !j.job.cancelledAt}
 					<div class="flex items-center justify-between">

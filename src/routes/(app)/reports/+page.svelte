@@ -814,6 +814,25 @@
 		</Card.Content>
 	</Card.Root>
 
+	{#if r.ratings.n}
+		<Card.Root>
+			<Card.Header
+				><Card.Title class="text-base">Visit ratings — last 90 days</Card.Title></Card.Header
+			>
+			<Card.Content>
+				<p class="text-3xl font-semibold tabular-nums">
+					{r.ratings.avg?.toFixed(1)}<span class="text-base text-muted-foreground">/5</span>
+				</p>
+				<p class="text-sm text-muted-foreground">
+					{r.ratings.n} rating{r.ratings.n === 1 ? '' : 's'} from customers{#if r.ratings.low}
+						· <span class="text-amber-600 dark:text-amber-400"
+							>{r.ratings.low} at 3 stars or less</span
+						>{/if}
+				</p>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	{#if r.topMaterials.length}
 		<Card.Root>
 			<Card.Header

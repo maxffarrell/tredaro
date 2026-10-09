@@ -410,6 +410,43 @@ export async function requestReschedule(
 	return { ok: true };
 }
 
+/** Customer rates a completed visit — 1..5 stars + optional note, once per visit. */
+export async function rateVisit(
+	orgId: string,
+	customerId: string,
+	jobId: string,
+	rating: number,
+	note: string
+) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.id, jobId),
+				eq(job.customerId, customerId),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt)
+			)
+		);
+	if (!j) error(404, 'Visit not found');
+	if (j.rating) error(409, 'Already rated');
+	await db
+		.update(job)
+		.set({ rating, ratingNote: note || null, ratedAt: new Date() })
+		.where(eq(job.id, jobId));
+	await emit({
+		orgId,
+		actorId: null,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'rated',
+		summary: `J-${j.number} rated ${rating}/5 by the customer${note ? ` — ${note}` : ''}`
+	});
+	return { ok: true };
+}
+
 /** Customer confirms a scheduled visit from the portal — writes a 'confirmed' job event. */
 export async function confirmVisit(orgId: string, customerId: string, jobId: string) {
 	const [j] = await db

@@ -674,7 +674,8 @@ export async function getReports(orgId: string) {
 		cancel,
 		avgItems,
 		expenses90d,
-		matMargin
+		matMargin,
+		ratings
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -710,7 +711,8 @@ export async function getReports(orgId: string) {
 		cancelRate(orgId),
 		avgItemsPerEstimate(orgId),
 		expenseTotal(orgId),
-		materialsMargin(orgId)
+		materialsMargin(orgId),
+		visitRatings(orgId)
 	]);
 	return {
 		completedJobs,
@@ -747,8 +749,28 @@ export async function getReports(orgId: string) {
 		cancelRate: cancel,
 		avgItemsPerQuote: avgItems,
 		expenses90d,
-		materialsMargin: matMargin
+		materialsMargin: matMargin,
+		ratings
 	};
+}
+
+/** Portal visit ratings — average + count over the last 90 days. */
+async function visitRatings(orgId: string) {
+	const [r] = await db
+		.select({
+			avg: sql<number>`avg(${job.rating})`.mapWith(Number),
+			n: sql<number>`count(*)`.mapWith(Number),
+			low: sql<number>`count(*) filter (where ${job.rating} <= 3)`.mapWith(Number)
+		})
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				gte(job.ratedAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return { avg: r?.avg ?? null, n: r?.n ?? 0, low: r?.low ?? 0 };
 }
 
 /** Completed jobs + collected revenue grouped by job type (all time). */

@@ -389,6 +389,10 @@ export const job = pgTable(
 		/** Optional note recorded when the job is cancelled. */
 		cancelReason: text('cancel_reason'),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
+		/** Portal rating of the completed visit (1-5 stars + optional note). */
+		rating: integer('rating'),
+		ratingNote: text('rating_note'),
+		ratedAt: timestamp('rated_at', { withTimezone: true }),
 		/** Customer sign-off captured on completion — PNG data URL (~tens of KB). */
 		signature: text('signature'),
 		signedName: text('signed_name'),

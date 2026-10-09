@@ -1261,6 +1261,49 @@ export async function notifyPartsDelay(orgId: string, jobId: string) {
 		});
 }
 
+/** "The job blocking yours is done" — emails + inboxes the dependent job's tech. */
+export async function notifyJobUnblocked(
+	orgId: string,
+	dependentJobId: string,
+	predNumber: number
+) {
+	const [row] = await db
+		.select({
+			number: job.number,
+			summary: job.summary,
+			technicianId: job.technicianId,
+			customerName: customer.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, dependentJobId));
+	if (!row?.technicianId) return;
+	const [m] = await db
+		.select({ email: user.email })
+		.from(member)
+		.innerJoin(user, eq(user.id, member.userId))
+		.where(
+			and(
+				eq(member.organizationId, orgId),
+				eq(member.id, row.technicianId),
+				eq(member.staffAlerts, true)
+			)
+		);
+	if (!m?.email) return;
+	if (!(await logOnce(orgId, 'job_unblocked', dependentJobId, m.email))) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: m.email,
+		subject: `J-${row.number} is unblocked — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `J-${row.number} ${row.summary} can start`,
+			lines: [`Its dependency J-${predNumber} was completed.`, `Customer: ${row.customerName}`],
+			action: { label: 'Open job', url: `${appOrigin()}/jobs/${dependentJobId}` }
+		})
+	});
+}
+
 /** "You've been assigned a job" — emails the technician. Once per job+tech. */
 export async function notifyTechAssigned(orgId: string, jobId: string, memberId: string) {
 	const m = await db

@@ -21,12 +21,14 @@
 		requestReschedule,
 		getProviders,
 		startCheckout,
-		updatePortalContact
+		updatePortalContact,
+		rateVisit
 	} from '#lib/remote/portal.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import Wrench from '@lucide/svelte/icons/wrench';
+	import Star from '@lucide/svelte/icons/star';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -53,6 +55,31 @@
 			paying = false;
 			toast.error(errMsg(err, 'Could not start payment'));
 		}
+	}
+
+	// ------- visit rating -------
+	let rateOpen = $state(false);
+	let rateJobId = $state('');
+	let rateValue = $state(0);
+	let rateNote = $state('');
+	let ratePending = $state(false);
+	function openRate(jobId: string) {
+		rateJobId = jobId;
+		rateValue = 0;
+		rateNote = '';
+		rateOpen = true;
+	}
+	async function submitRating() {
+		if (!rateValue) return;
+		ratePending = true;
+		try {
+			await rateVisit({ customerId, jobId: rateJobId, rating: rateValue, note: rateNote });
+			toast.success('Thanks for the feedback!');
+			rateOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save rating'));
+		}
+		ratePending = false;
 	}
 
 	// ------- reschedule request -------
@@ -286,7 +313,22 @@
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="pr-6 text-right text-sm text-muted-foreground">
-								{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}
+								{#if j.job.rating}
+									<span class="inline-flex items-center gap-0.5" title={j.job.ratingNote ?? ''}>
+										{#each [1, 2, 3, 4, 5] as n (n)}
+											<Star
+												class="size-3.5 {n <= j.job.rating!
+													? 'fill-amber-400 text-amber-400'
+													: 'text-muted-foreground/40'}"
+											/>
+										{/each}
+									</span>
+								{:else}
+									<Button size="sm" variant="outline" onclick={() => openRate(j.job.id)}
+										>Rate visit</Button
+									>
+								{/if}
+								<p>{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}</p>
 							</Table.Cell>
 						</Table.Row>
 					{:else}
@@ -547,6 +589,36 @@
 		</Card.Root>
 	</div>
 </div>
+
+<!-- visit rating dialog -->
+<Dialog.Root bind:open={rateOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>How was the visit?</Dialog.Title>
+		</Dialog.Header>
+		<div class="space-y-4">
+			<div class="flex gap-1">
+				{#each [1, 2, 3, 4, 5] as n (n)}
+					<button
+						type="button"
+						aria-label="{n} star{n === 1 ? '' : 's'}"
+						onclick={() => (rateValue = n)}
+					>
+						<Star
+							class="size-8 {n <= rateValue
+								? 'fill-amber-400 text-amber-400'
+								: 'text-muted-foreground/40'}"
+						/>
+					</button>
+				{/each}
+			</div>
+			<Textarea rows={3} bind:value={rateNote} placeholder="Anything we should know? (optional)" />
+			<Button class="w-full" disabled={!rateValue || ratePending} onclick={submitRating}
+				>{ratePending ? 'Saving…' : 'Submit rating'}</Button
+			>
+		</div>
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- request service dialog -->
 <Dialog.Root bind:open={reqOpen}>

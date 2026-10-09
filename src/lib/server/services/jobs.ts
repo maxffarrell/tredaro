@@ -357,7 +357,20 @@ export async function getJob(orgId: string, id: string) {
 		)
 		.orderBy(asc(job.number));
 
-	return { ...row, events, openBalance: open, costing, sameDay, techDay, depOptions };
+	// Open jobs waiting on this one ("blocks" list).
+	const depJobs = await db
+		.select({ id: job.id, number: job.number, summary: job.summary, status: job.status })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.dependsOnJobId, id),
+				sql`${job.status} not in ('done', 'cancelled')`
+			)
+		)
+		.orderBy(asc(job.number));
+
+	return { ...row, events, openBalance: open, costing, sameDay, techDay, depOptions, depJobs };
 }
 
 /** J-number of the unfinished predecessor blocking a job, or null when unblocked. */
@@ -840,6 +853,24 @@ export async function recordJobEvent(
 		await startTimerFor(ctx.orgId, input.jobId, memberRow.id, ctx.userId);
 	if (input.kind === 'completed') {
 		await stopOpenTimers(ctx.orgId, input.jobId);
+		// Release dependents: inbox + email the technician on each job this unblocks.
+		const dependents = await db
+			.select({ id: job.id })
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, ctx.orgId),
+					eq(job.dependsOnJobId, input.jobId),
+					sql`${job.status} not in ('done', 'cancelled')`
+				)
+			);
+		if (dependents.length) {
+			const { notifyJobUnblocked } = await import('./notifications.ts');
+			for (const d of dependents)
+				void notifyJobUnblocked(ctx.orgId, d.id, j.number).catch((err) =>
+					console.error('unblocked alert failed', err)
+				);
+		}
 		const settings = await getSettings(ctx.orgId);
 		if (settings.autoInvoiceOnComplete) {
 			const materials = await listJobMaterials(ctx.orgId, input.jobId);
