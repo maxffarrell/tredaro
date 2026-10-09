@@ -82,6 +82,9 @@
 		const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
 		return top && top[1] > 1 ? top : null;
 	});
+	const bookedOnline = $derived(
+		board ? board.scheduled.filter((j) => j.job.source === 'booking').length : 0
+	);
 	const weekCount = $derived(
 		board ? board.scheduled.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length : 0
 	);
@@ -245,6 +248,9 @@
 			{/if}
 			{#if weekCount}
 				<Badge variant="outline">{weekCount} this week</Badge>
+			{/if}
+			{#if bookedOnline}
+				<Badge variant="outline" class="text-muted-foreground">{bookedOnline} booked online</Badge>
 			{/if}
 			{#if doneThisWeek}
 				<Badge variant="outline">{doneThisWeek} done</Badge>

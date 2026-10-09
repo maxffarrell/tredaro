@@ -672,7 +672,8 @@ export async function getReports(orgId: string) {
 		jobValue,
 		jobMin,
 		cancel,
-		avgItems
+		avgItems,
+		expenses90d
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -706,7 +707,8 @@ export async function getReports(orgId: string) {
 		avgJobValue(orgId),
 		avgJobMinutes(orgId),
 		cancelRate(orgId),
-		avgItemsPerEstimate(orgId)
+		avgItemsPerEstimate(orgId),
+		expenseTotal(orgId)
 	]);
 	return {
 		completedJobs,
@@ -741,7 +743,8 @@ export async function getReports(orgId: string) {
 		avgJobValue: jobValue,
 		avgJobMinutes: jobMin,
 		cancelRate: cancel,
-		avgItemsPerQuote: avgItems
+		avgItemsPerQuote: avgItems,
+		expenses90d
 	};
 }
 
@@ -847,6 +850,20 @@ async function jobProfitability(orgId: string) {
 		.innerJoin(customer, eq(job.customerId, customer.id))
 		.where(and(eq(job.organizationId, orgId), isNull(job.cancelledAt), gte(job.completedAt, since)))
 		.orderBy(desc(job.completedAt));
+}
+
+/** Total job expenses logged in the last 90 days. */
+async function expenseTotal(orgId: string) {
+	const [{ v }] = await db
+		.select({ v: sql<number>`coalesce(sum(${jobExpense.amount}), 0)`.mapWith(Number) })
+		.from(jobExpense)
+		.where(
+			and(
+				eq(jobExpense.organizationId, orgId),
+				gte(jobExpense.createdAt, new Date(Date.now() - 90 * 86400_000))
+			)
+		);
+	return v;
 }
 
 /** Open charge balances bucketed by days past due (or not yet due). */

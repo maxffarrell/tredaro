@@ -99,6 +99,7 @@
 	const visiblePaymentsTotal = $derived(
 		visiblePayments.reduce((sum, p) => sum + p.payment.amount, 0)
 	);
+	const visibleRefunds = $derived(visiblePayments.filter((p) => p.payment.amount < 0).length);
 
 	// ------- invoice dialog -------
 	let invoiceOpen = $state(false);
@@ -661,7 +662,8 @@
 					)}{/if}{#if topMethod}
 					· top: <span class="capitalize">{topMethod[0]}</span>
 					{formatMoney(topMethod[1], currency)}{/if}{#if visiblePaymentsToday}
-					· {visiblePaymentsToday} today{/if}
+					· {visiblePaymentsToday} today{/if}{#if visibleRefunds}
+					· {visibleRefunds} refund{visibleRefunds === 1 ? '' : 's'}{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
