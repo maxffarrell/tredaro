@@ -13,8 +13,10 @@
 		.slice()
 		.sort(
 			(a, b) =>
+				(a.job.routeOrder ?? Number.MAX_SAFE_INTEGER) -
+					(b.job.routeOrder ?? Number.MAX_SAFE_INTEGER) ||
 				(a.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER) -
-				(b.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER)
+					(b.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER)
 		);
 	const todayLabel = new Date(`${day.today}T12:00:00Z`).toLocaleDateString('en-US', {
 		weekday: 'long',

@@ -1366,6 +1366,58 @@ export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
 	await db.delete(jobTimeEntry).where(eq(jobTimeEntry.id, row.id));
 }
 
+/** Move a stop up/down in the tech's My Day order. Rewrites routeOrder for the
+ * day's stops so the manual order stays consistent (null order = start-time order). */
+export async function moveMyDayStop(
+	ctx: OrgContext,
+	tz: string,
+	jobId: string,
+	direction: 'up' | 'down'
+) {
+	const me = await memberFor(ctx);
+	if (!me) error(403, 'Not a member of this organization');
+	const today = localDate(new Date(), tz);
+	const rows = await listJobs(ctx.orgId, {
+		from: zonedToUtc(`${today}T00:00`, tz),
+		to: zonedToUtc(`${addDays(today, 1)}T00:00`, tz),
+		technicianId: me.id
+	});
+	rows.sort(
+		(a, b) =>
+			(a.job.routeOrder ?? Number.MAX_SAFE_INTEGER) -
+				(b.job.routeOrder ?? Number.MAX_SAFE_INTEGER) ||
+			(a.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+				(b.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER)
+	);
+	const i = rows.findIndex((r) => r.job.id === jobId);
+	if (i < 0) error(404, 'Job not found in today list');
+	const j = direction === 'up' ? i - 1 : i + 1;
+	if (j < 0 || j >= rows.length) return { moved: false };
+	const ordered = rows.map((r) => r.job.id);
+	[ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+	for (const [idx, id] of ordered.entries())
+		await db
+			.update(job)
+			.set({ routeOrder: idx })
+			.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)));
+	return { moved: true };
+}
+
+/** Approve/unapprove a time entry for payroll. Admin/owner only. */
+export async function approveTimeEntry(ctx: OrgContext, entryId: string, approved: boolean) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const [row] = await db
+		.update(jobTimeEntry)
+		.set({
+			approvedAt: approved ? new Date() : null,
+			approvedById: approved ? ctx.userId : null
+		})
+		.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)))
+		.returning();
+	if (!row) error(404, 'Entry not found');
+	return row;
+}
+
 // ---------- Dispatch board ----------
 
 /** Jobs in the window plus everything unscheduled — one payload for the dispatch board. */
@@ -1509,6 +1561,14 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 				)
 				.limit(1)
 		]);
+	// Tech's manual stop order (route_order) takes precedence over the start-time sort.
+	jobs.sort(
+		(a, b) =>
+			(a.job.routeOrder ?? Number.MAX_SAFE_INTEGER) -
+				(b.job.routeOrder ?? Number.MAX_SAFE_INTEGER) ||
+			(a.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+				(b.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER)
+	);
 	const docJobIds = [...new Set([...jobs, ...overdue].map((r) => r.job.id))];
 	const docs = docJobIds.length
 		? await db

@@ -233,6 +233,7 @@
 	let contactPhone = $state('');
 	let contactText = $state(true);
 	let contactEmailUpdates = $state(true);
+	let contactAccess = $state('');
 	let contactPending = $state(false);
 	let contactLoaded = '';
 	$effect(() => {
@@ -242,6 +243,7 @@
 			contactPhone = d.customer.phone ?? '';
 			contactText = !d.customer.smsOptOut;
 			contactEmailUpdates = !d.customer.emailOptOut;
+			contactAccess = d.locations.find((l) => l.isPrimary)?.accessNotes ?? '';
 		}
 	});
 	async function saveContact(e: SubmitEvent) {
@@ -253,7 +255,8 @@
 				email: contactEmail.trim(),
 				phone: contactPhone.trim(),
 				smsOptOut: !contactText,
-				emailOptOut: !contactEmailUpdates
+				emailOptOut: !contactEmailUpdates,
+				accessNotes: contactAccess.trim()
 			}).updates(getPortalOverview);
 			toast.success('Details saved');
 		} catch (err) {
@@ -815,6 +818,15 @@
 					<Field.Field>
 						<Field.Label for="p-phone">Phone</Field.Label>
 						<Input id="p-phone" bind:value={contactPhone} />
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="p-access">Access notes for the crew</Field.Label>
+						<Textarea
+							id="p-access"
+							rows={2}
+							bind:value={contactAccess}
+							placeholder="Gate code, parking, pets, etc."
+						/>
 					</Field.Field>
 					<div class="flex items-center justify-between gap-3 text-sm">
 						<label for="p-texts">Text me updates</label>
