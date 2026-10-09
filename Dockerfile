@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
-FROM node:26-alpine AS base
+# AWS ECR Public mirror — same Docker Hub 429 rate-limit workaround as CI's
+# postgres service (anonymous pulls from shared IPs get throttled).
+FROM public.ecr.aws/docker/library/node:26-alpine AS base
 # Node 25+ no longer bundles Corepack.
 RUN npm install -g pnpm@12.4.1 && npm cache clean --force
 WORKDIR /app
