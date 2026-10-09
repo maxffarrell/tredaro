@@ -19,12 +19,16 @@ import type * as v from 'valibot';
 /** Stock list — items with a `low` flag when on-hand is at/below the reorder point. */
 export async function listItems(orgId: string) {
 	const rows = await db
-		.select()
+		.select({
+			item: inventoryItem,
+			used: sql<boolean>`exists(select 1 from ${jobMaterial} jm where jm.inventory_item_id = inventory_item.id)`
+		})
 		.from(inventoryItem)
 		.where(eq(inventoryItem.organizationId, orgId))
 		.orderBy(asc(inventoryItem.name));
-	return rows.map((i) => ({
+	return rows.map(({ item: i, used }) => ({
 		item: i,
+		used,
 		low: i.reorderPoint != null && i.qtyOnHand <= i.reorderPoint
 	}));
 }

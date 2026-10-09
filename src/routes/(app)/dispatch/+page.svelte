@@ -52,6 +52,16 @@
 					)
 			: 0
 	);
+	const avgPerTechToday = $derived.by(() => {
+		if (!board || !board.technicians.length) return null;
+		const todayJobs = board.scheduled.filter(
+			(j) =>
+				j.job.startsAt &&
+				localDate(new Date(j.job.startsAt), tz) === todayStr &&
+				!['done', 'cancelled'].includes(j.job.status)
+		).length;
+		return todayJobs ? todayJobs / board.technicians.length : null;
+	});
 	const weekCount = $derived(
 		board ? board.scheduled.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length : 0
 	);
@@ -215,6 +225,9 @@
 				<Badge variant="outline"
 					>{Math.floor(schedTodayMin / 60)}h {Math.round(schedTodayMin % 60)}m sched today</Badge
 				>
+			{/if}
+			{#if avgPerTechToday}
+				<Badge variant="outline">avg {avgPerTechToday.toFixed(1)} jobs/tech today</Badge>
 			{/if}
 			{#if unassignedToday}
 				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
