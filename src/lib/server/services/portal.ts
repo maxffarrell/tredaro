@@ -24,7 +24,7 @@ import {
 	user,
 	outer
 } from '#lib/server/db/schema.ts';
-import { customerBalance } from './billing.ts';
+import { customerBalance, invoiceUrl } from './billing.ts';
 import { estimateToken } from './estimates.ts';
 import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
@@ -200,6 +200,11 @@ export async function portalOverview(customerId: string) {
 		.orderBy(desc(invoice.createdAt))
 		.limit(5);
 
+	const invoicesWithLinks = recentInvoices.map((row) => ({
+		...row,
+		url: invoiceUrl(row.invoice.id)
+	}));
+
 	const recentPayments = await db
 		.select({
 			payment,
@@ -248,7 +253,7 @@ export async function portalOverview(customerId: string) {
 		locations,
 		units,
 		pendingEstimates,
-		recentInvoices,
+		recentInvoices: invoicesWithLinks,
 		recentPayments,
 		documents
 	};
