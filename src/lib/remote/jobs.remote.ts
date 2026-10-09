@@ -329,6 +329,7 @@ export const updateTimeEntry = command(
 		await svc.updateTimeEntry(await requireOrg(), await tz(), id, input);
 		await refreshQuery(getTimeEntries, input.jobId);
 		await refreshQuery(getJob, input.jobId);
+		await refreshQuery(getPayroll);
 	}
 );
 
@@ -348,6 +349,26 @@ export const approveAllTimeEntries = command(idSchema, async (jobId) => {
 	await refreshQuery(getPayroll);
 	return r;
 });
+
+/** Approve every member's finished entries in the payroll period — the page's 'Approve all'. */
+export const approveAllInRange = command(
+	v.object({
+		from: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/)),
+		to: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/))
+	}),
+	async (input) => {
+		const ctx = await requireOrg();
+		const t = await tz();
+		const r = await svc.approveRangeTimeEntries(
+			ctx,
+			zonedToUtc(`${input.from}T00:00`, t),
+			zonedToUtc(`${addDays(input.to, 1)}T00:00`, t)
+		);
+		await refreshQuery(getPayroll);
+		await refreshQuery(getMyDay);
+		return r;
+	}
+);
 
 export const getPayroll = query(
 	v.object({
@@ -408,6 +429,7 @@ export const deleteTimeEntry = command(
 		await svc.deleteTimeEntry(await requireOrg(), id);
 		await refreshQuery(getTimeEntries, jobId);
 		await refreshQuery(getJob, jobId);
+		await refreshQuery(getPayroll);
 	}
 );
 

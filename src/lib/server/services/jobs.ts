@@ -1352,9 +1352,20 @@ export async function updateTimeEntry(
 	const startedAt = zonedToUtc(input.startedAt, tz);
 	const endedAt = input.endedAt ? zonedToUtc(input.endedAt, tz) : null;
 	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
+	// Changing the recorded times un-approves the entry — an approval granted on
+	// one set of hours shouldn't survive a time edit (also stops a running
+	// entry from staying approved when its end is cleared).
+	const timesChanged =
+		row.startedAt.getTime() !== startedAt.getTime() ||
+		(row.endedAt?.getTime() ?? null) !== (endedAt?.getTime() ?? null);
 	await db
 		.update(jobTimeEntry)
-		.set({ startedAt, endedAt, note: input.note ?? '' })
+		.set({
+			startedAt,
+			endedAt,
+			note: input.note ?? '',
+			...(timesChanged ? { approvedAt: null, approvedById: null } : {})
+		})
 		.where(eq(jobTimeEntry.id, entryId));
 }
 
@@ -1419,6 +1430,12 @@ export async function approveTimeEntry(ctx: OrgContext, entryId: string, approve
 		.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)))
 		.returning();
 	if (!row) error(404, 'Entry not found');
+	if (approved) {
+		const { notifyTimeApproved } = await import('./notifications.ts');
+		void notifyTimeApproved(ctx.orgId, [row.id], ctx.userId).catch((err) =>
+			console.error('time-approved inbox failed', err)
+		);
+	}
 	return row;
 }
 
@@ -1437,6 +1454,14 @@ export async function approveAllTimeEntries(ctx: OrgContext, jobId: string) {
 			)
 		)
 		.returning({ id: jobTimeEntry.id });
+	if (rows.length) {
+		const { notifyTimeApproved } = await import('./notifications.ts');
+		void notifyTimeApproved(
+			ctx.orgId,
+			rows.map((r) => r.id),
+			ctx.userId
+		).catch((err) => console.error('time-approved inbox failed', err));
+	}
 	return { approved: rows.length };
 }
 
@@ -1493,6 +1518,41 @@ export async function approveMemberTimeEntries(
 			)
 		)
 		.returning({ id: jobTimeEntry.id });
+	if (rows.length) {
+		const { notifyTimeApproved } = await import('./notifications.ts');
+		void notifyTimeApproved(
+			ctx.orgId,
+			rows.map((r) => r.id),
+			ctx.userId
+		).catch((err) => console.error('time-approved inbox failed', err));
+	}
+	return { approved: rows.length };
+}
+
+/** Bulk-approve every member's finished entries inside a range — the payroll 'Approve all'. */
+export async function approveRangeTimeEntries(ctx: OrgContext, from: Date, to: Date) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const rows = await db
+		.update(jobTimeEntry)
+		.set({ approvedAt: new Date(), approvedById: ctx.userId })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				isNull(jobTimeEntry.approvedAt),
+				isNotNull(jobTimeEntry.endedAt),
+				gte(jobTimeEntry.startedAt, from),
+				lt(jobTimeEntry.startedAt, to)
+			)
+		)
+		.returning({ id: jobTimeEntry.id });
+	if (rows.length) {
+		const { notifyTimeApproved } = await import('./notifications.ts');
+		void notifyTimeApproved(
+			ctx.orgId,
+			rows.map((r) => r.id),
+			ctx.userId
+		).catch((err) => console.error('time-approved inbox failed', err));
+	}
 	return { approved: rows.length };
 }
 

@@ -18,6 +18,7 @@ import {
 	serviceAgreement,
 	followUp,
 	jobType,
+	jobTimeEntry,
 	notificationLog,
 	organization,
 	inventoryItem,
@@ -153,6 +154,31 @@ async function logOnce(orgId: string, kind: string, entityId: string, recipient:
 		.onConflictDoNothing()
 		.returning();
 	return !!row;
+}
+
+/** Inbox rows for members whose time was approved for payroll (quiet — no email). */
+export async function notifyTimeApproved(
+	orgId: string,
+	entryIds: string[],
+	approverUserId: string
+) {
+	if (!entryIds.length) return;
+	const rows = await db
+		.select({
+			jobId: jobTimeEntry.jobId,
+			memberUserId: member.userId,
+			email: user.email
+		})
+		.from(jobTimeEntry)
+		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(inArray(jobTimeEntry.id, entryIds));
+	for (const r of rows) {
+		// Approving your own time (admin techs) doesn't need a ping.
+		if (!r.email || r.memberUserId === approverUserId) continue;
+		// entityId = the job so the inbox link opens the job the time belongs to.
+		await logOnce(orgId, 'time_approved', r.jobId, r.email);
+	}
 }
 
 /** Emails of owner/admin members — recipients of staff-facing alerts. */

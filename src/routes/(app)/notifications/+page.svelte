@@ -83,12 +83,14 @@
 		estimate_changes: 'Change request',
 		quote_request: 'Quote request',
 		auto_charge_failed: 'auto-charge failed',
-		follow_up_due: 'Follow-up due'
+		follow_up_due: 'Follow-up due',
+		time_approved: 'Time approved'
 	};
 
 	/** Where each kind's entity usually lives. */
 	function href(kind: string, entityId: string) {
 		if (kind === 'booking_staff_alert' || kind === 'daily_digest') return '/dispatch';
+		if (kind === 'time_approved') return '/myday';
 		if (kind === 'low_stock') return '/inventory';
 		if (
 			kind === 'estimate_viewed' ||
