@@ -1369,6 +1369,7 @@ export async function updateTimeEntry(
 	if (!row) error(404, 'Entry not found');
 	const me = await memberFor(ctx);
 	if (row.memberId !== me?.id && ctx.role === 'member') error(403, 'Admins only');
+	if (row.lockedAt) error(409, 'Payroll period is locked — reopen it in Payroll first');
 	const startedAt = zonedToUtc(input.startedAt, tz);
 	const endedAt = input.endedAt ? zonedToUtc(input.endedAt, tz) : null;
 	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
@@ -1398,6 +1399,7 @@ export async function deleteTimeEntry(ctx: OrgContext, entryId: string) {
 	if (!row) error(404, 'Entry not found');
 	const me = await memberFor(ctx);
 	if (row.memberId !== me?.id && ctx.role === 'member') error(403, 'Admins only');
+	if (row.lockedAt) error(409, 'Payroll period is locked — reopen it in Payroll first');
 	await db.delete(jobTimeEntry).where(eq(jobTimeEntry.id, row.id));
 }
 
@@ -1441,6 +1443,13 @@ export async function moveMyDayStop(
 /** Approve/unapprove a time entry for payroll. Admin/owner only. */
 export async function approveTimeEntry(ctx: OrgContext, entryId: string, approved: boolean) {
 	if (ctx.role === 'member') error(403, 'Admins only');
+	if (!approved) {
+		const [existing] = await db
+			.select({ lockedAt: jobTimeEntry.lockedAt })
+			.from(jobTimeEntry)
+			.where(and(eq(jobTimeEntry.organizationId, ctx.orgId), eq(jobTimeEntry.id, entryId)));
+		if (existing?.lockedAt) error(409, 'Payroll period is locked — reopen it in Payroll first');
+	}
 	const [row] = await db
 		.update(jobTimeEntry)
 		.set({
@@ -1533,6 +1542,7 @@ export async function approveMemberTimeEntries(
 				eq(jobTimeEntry.organizationId, ctx.orgId),
 				eq(jobTimeEntry.memberId, memberId),
 				isNull(jobTimeEntry.approvedAt),
+				isNull(jobTimeEntry.lockedAt),
 				isNotNull(jobTimeEntry.endedAt),
 				gte(jobTimeEntry.startedAt, from),
 				lt(jobTimeEntry.startedAt, to)
@@ -1560,6 +1570,7 @@ export async function approveRangeTimeEntries(ctx: OrgContext, from: Date, to: D
 			and(
 				eq(jobTimeEntry.organizationId, ctx.orgId),
 				isNull(jobTimeEntry.approvedAt),
+				isNull(jobTimeEntry.lockedAt),
 				isNotNull(jobTimeEntry.endedAt),
 				gte(jobTimeEntry.startedAt, from),
 				lt(jobTimeEntry.startedAt, to)
@@ -1575,6 +1586,45 @@ export async function approveRangeTimeEntries(ctx: OrgContext, from: Date, to: D
 		).catch((err) => console.error('time-approved inbox failed', err));
 	}
 	return { approved: rows.length };
+}
+
+/** Closes a payroll period: approves every pending finished entry in the range,
+ * then locks all finished entries so hours can't shift after payout. */
+export async function closePayrollPeriod(ctx: OrgContext, from: Date, to: Date) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const { approved } = await approveRangeTimeEntries(ctx, from, to);
+	const locked = await db
+		.update(jobTimeEntry)
+		.set({ lockedAt: new Date() })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				isNotNull(jobTimeEntry.endedAt),
+				isNull(jobTimeEntry.lockedAt),
+				gte(jobTimeEntry.startedAt, from),
+				lt(jobTimeEntry.startedAt, to)
+			)
+		)
+		.returning({ id: jobTimeEntry.id });
+	return { approved, locked: locked.length };
+}
+
+/** Reopens a closed payroll period — clears the lock so entries can move again. */
+export async function reopenPayrollPeriod(ctx: OrgContext, from: Date, to: Date) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const rows = await db
+		.update(jobTimeEntry)
+		.set({ lockedAt: null })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				isNotNull(jobTimeEntry.lockedAt),
+				gte(jobTimeEntry.startedAt, from),
+				lt(jobTimeEntry.startedAt, to)
+			)
+		)
+		.returning({ id: jobTimeEntry.id });
+	return { reopened: rows.length };
 }
 
 /** Reorder a stop inside any technician's day — the dispatch-side twin of moveMyDayStop. */

@@ -102,6 +102,13 @@ export const updatePurchaseOrder = command(purchaseOrderUpdate, async (input) =>
 	return po;
 });
 
+/** Drafts a PO from a job's logged materials — the job page 'Order parts' shortcut. */
+export const createPoFromJob = command(idSchema, async (jobId) => {
+	const po = await svc.createPoFromJob(await requireOrg('admin'), jobId);
+	await refreshQuery(getPurchaseOrders, undefined);
+	return po;
+});
+
 const poTransition = v.object({
 	id: idSchema,
 	to: v.picklist(['ordered', 'received', 'cancelled'])

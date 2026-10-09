@@ -310,6 +310,8 @@ export const purchaseOrderInput = v.object({
 	supplier: requiredText('Supplier'),
 	expectedOn: v.optional(v.union([isoDate, v.literal('')]), ''),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ''),
+	/** Set when the PO was drafted from a job's 'Order parts' shortcut. */
+	jobId: v.optional(v.nullable(idSchema)),
 	items: v.pipe(
 		v.array(
 			v.object({

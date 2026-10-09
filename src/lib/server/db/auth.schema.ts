@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { pgTable, text, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, integer, index, date } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -108,6 +108,10 @@ export const member = pgTable(
 		color: text('color').notNull().default(''),
 		/** Whether this member appears on the dispatch board / tech pickers. */
 		dispatchVisible: boolean('dispatch_visible').default(true).notNull(),
+		/** Trade license/certification number (HVAC, plumbing, electrical…). */
+		licenseNo: text('license_no').notNull().default(''),
+		/** License expiry date — dashboard flags it 30 days out. */
+		licenseExpiry: date('license_expiry', { mode: 'string' }),
 		createdAt: timestamp('created_at').notNull()
 	},
 	(table) => [

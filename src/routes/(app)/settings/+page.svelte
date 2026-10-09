@@ -38,6 +38,7 @@
 		getStaff,
 		updateCommission,
 		updateLaborCost,
+		updateLicense,
 		updateOvertimePct,
 		setDispatchVisible,
 		setMemberColor,
@@ -90,6 +91,8 @@
 	let providerList = $state(await getPaymentProviders());
 	const staff = await getStaff();
 	let pending = $state(false);
+	const todayStr = new Date().toISOString().slice(0, 10);
+	const thirtyDaysOut = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
 
 	// ------- time off -------
 	let timeOff = $state(await getTimeOff());
@@ -391,6 +394,19 @@
 				laborCostCents: Math.round(dollars * 100)
 			}).updates(getStaff);
 			toast.success(`Labor cost set`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+	}
+
+	async function saveLicense(s: (typeof staff)[number]) {
+		try {
+			await updateLicense({
+				memberId: s.id,
+				licenseNo: s.licenseNo ?? '',
+				licenseExpiry: s.licenseExpiry ?? ''
+			}).updates(getStaff);
+			toast.success('License saved');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
 		}
@@ -1229,6 +1245,34 @@
 											>
 										{/if}
 									</span>
+									<label
+										class="flex items-center gap-1 text-xs text-muted-foreground"
+										title="Trade license number + expiry — flagged on the dashboard 30d out"
+									>
+										<Input
+											class="h-7 w-24"
+											placeholder="lic. #"
+											value={s.licenseNo}
+											onchange={(e) => {
+												s.licenseNo = e.currentTarget.value;
+												saveLicense(s);
+											}}
+										/>
+										<Input
+											type="date"
+											class="h-7 w-32"
+											value={s.licenseExpiry ?? ''}
+											onchange={(e) => {
+												s.licenseExpiry = e.currentTarget.value;
+												saveLicense(s);
+											}}
+										/>
+										{#if s.licenseExpiry && s.licenseExpiry <= thirtyDaysOut}
+											<Badge variant={s.licenseExpiry < todayStr ? 'destructive' : 'secondary'}
+												>{s.licenseExpiry < todayStr ? 'expired' : 'expiring'}</Badge
+											>
+										{/if}
+									</label>
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger
 											class="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-accent"

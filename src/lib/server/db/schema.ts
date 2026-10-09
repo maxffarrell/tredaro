@@ -549,6 +549,9 @@ export const jobTimeEntry = pgTable(
 		/** Set when an admin/owner approves the entry for payroll. */
 		approvedAt: timestamp('approved_at', { withTimezone: true }),
 		approvedById: text('approved_by_id'),
+		/** Set when the payroll period covering the entry is closed —
+		 * locked entries can't be edited or deleted until reopened. */
+		lockedAt: timestamp('locked_at', { withTimezone: true }),
 		...timestamps
 	},
 	(t) => [
@@ -984,6 +987,8 @@ export const purchaseOrder = pgTable(
 		notes: text('notes').notNull().default(''),
 		orderedAt: timestamp('ordered_at', { withTimezone: true }),
 		receivedAt: timestamp('received_at', { withTimezone: true }),
+		/** Job the order was placed for (from the job's "Order parts" shortcut). */
+		jobId: text('job_id').references(() => job.id, { onDelete: 'set null' }),
 		...timestamps
 	},
 	(t) => [index('purchase_order_org_idx').on(t.organizationId, t.status)]

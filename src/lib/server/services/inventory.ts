@@ -1,8 +1,9 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	inventoryItem,
+	job,
 	jobMaterial,
 	member,
 	purchaseOrder,
@@ -317,8 +318,9 @@ export async function lowStock(orgId: string) {
 /** All POs with their lines, newest first. */
 export async function listPurchaseOrders(orgId: string) {
 	const pos = await db
-		.select()
+		.select({ po: purchaseOrder, jobNumber: job.number })
 		.from(purchaseOrder)
+		.leftJoin(job, eq(purchaseOrder.jobId, job.id))
 		.where(eq(purchaseOrder.organizationId, orgId))
 		.orderBy(sql`${purchaseOrder.number} desc`)
 		.limit(100);
@@ -327,8 +329,9 @@ export async function listPurchaseOrders(orgId: string) {
 		.select()
 		.from(purchaseOrderItem)
 		.where(eq(purchaseOrderItem.organizationId, orgId));
-	return pos.map((po) => ({
+	return pos.map(({ po, jobNumber }) => ({
 		po,
+		jobNumber,
 		items: items.filter((i) => i.purchaseOrderId === po.id),
 		total: items
 			.filter((i) => i.purchaseOrderId === po.id)
@@ -357,7 +360,8 @@ export async function createPurchaseOrder(
 			number: max.n + 1,
 			supplier: input.supplier,
 			expectedOn: input.expectedOn || null,
-			notes: input.notes
+			notes: input.notes,
+			jobId: input.jobId ?? null
 		})
 		.returning();
 	await db.insert(purchaseOrderItem).values(
@@ -384,6 +388,56 @@ export async function createPurchaseOrder(
 		summary: `PO-${po!.number} to ${po!.supplier} (${input.items.length} items)`
 	});
 	return po;
+}
+
+/** Drafts a PO from a job's logged materials — the job page 'Order parts' shortcut.
+ * Aggregates qty per stock item and guesses the supplier from the last PO that
+ * carried one of them (blank TBD otherwise — the PO stays an editable draft). */
+export async function createPoFromJob(ctx: OrgContext, jobId: string) {
+	const [j] = await db
+		.select({ id: job.id, number: job.number })
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!j) error(404, 'Job not found');
+	const mats = await db
+		.select({
+			inventoryItemId: jobMaterial.inventoryItemId,
+			qty: jobMaterial.qty,
+			unitCost: inventoryItem.unitCost
+		})
+		.from(jobMaterial)
+		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+		.where(eq(jobMaterial.jobId, jobId));
+	if (!mats.length) error(409, 'Log materials on the job first — nothing to order');
+	const byItem = new Map<string, { qty: number; unitCost: number }>();
+	for (const m of mats) {
+		const e = byItem.get(m.inventoryItemId) ?? { qty: 0, unitCost: m.unitCost };
+		e.qty += m.qty;
+		byItem.set(m.inventoryItemId, e);
+	}
+	const [lastSupplier] = await db
+		.select({ supplier: purchaseOrder.supplier })
+		.from(purchaseOrderItem)
+		.innerJoin(purchaseOrder, eq(purchaseOrderItem.purchaseOrderId, purchaseOrder.id))
+		.where(
+			and(
+				eq(purchaseOrder.organizationId, ctx.orgId),
+				inArray(purchaseOrderItem.inventoryItemId, [...byItem.keys()])
+			)
+		)
+		.orderBy(desc(purchaseOrder.createdAt))
+		.limit(1);
+	return createPurchaseOrder(ctx, {
+		supplier: lastSupplier?.supplier || 'TBD',
+		expectedOn: '',
+		notes: `Parts for J-${j.number}`,
+		jobId,
+		items: [...byItem].map(([inventoryItemId, e]) => ({
+			inventoryItemId,
+			qty: e.qty,
+			unitCost: e.unitCost
+		}))
+	});
 }
 
 export async function updatePurchaseOrder(

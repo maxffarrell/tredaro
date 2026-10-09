@@ -59,7 +59,8 @@
 		getJobMaterials,
 		addJobMaterial,
 		removeJobMaterial,
-		getTruckStock
+		getTruckStock,
+		createPoFromJob
 	} from '#lib/remote/inventory.remote.ts';
 	import {
 		getJobChecklist,
@@ -606,6 +607,19 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not remove material'));
 		}
+	}
+	let ordering = $state(false);
+	async function orderParts() {
+		ordering = true;
+		try {
+			const po = await createPoFromJob(id);
+			toast.success(`PO-${po.number} drafted from this job's materials`, {
+				action: { label: 'View', onClick: () => goto('/inventory') }
+			});
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not create PO'));
+		}
+		ordering = false;
 	}
 
 	// ------- expenses -------
@@ -1623,6 +1637,19 @@
 						>
 							<Plus />
 							{stock.length ? 'Log material' : 'Add stock items in Inventory first'}
+						</Button>
+					{/if}
+					{#if materials.length}
+						<Button
+							size="sm"
+							variant="ghost"
+							class="w-full"
+							disabled={ordering}
+							title="Draft a purchase order for this job's logged materials"
+							onclick={orderParts}
+						>
+							<Package class="size-3.5" />
+							{ordering ? 'Drafting…' : 'Order parts'}
 						</Button>
 					{/if}
 				{/if}
