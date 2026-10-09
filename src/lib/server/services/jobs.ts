@@ -871,6 +871,14 @@ export async function updateJob(
 			action: 'cancelled',
 			summary: `Job J-${existing.number} cancelled${set.cancelReason ? ` — ${set.cancelReason}` : ''}`
 		});
+		// Only notify when a slot was actually booked — an unscheduled cancel
+		// never promised the customer a time.
+		if (existing.startsAt) {
+			const { notifyJobCancelled } = await import('./notifications.ts');
+			notifyJobCancelled(ctx.orgId, id).catch((err) =>
+				console.error('customer cancel notify failed', err)
+			);
+		}
 	}
 	return row;
 }

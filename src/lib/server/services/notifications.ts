@@ -726,6 +726,65 @@ export async function notifyJobRescheduledCustomer(orgId: string, jobId: string)
 		});
 }
 
+/** Scheduled job cancelled by staff — tell the customer the visit is off. */
+export async function notifyJobCancelled(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
+			contactPref: customer.contactPref,
+			phone: customer.phone,
+			customerName: customer.name,
+			summary: job.summary,
+			number: job.number,
+			startsAt: job.startsAt,
+			jobTypeName: jobType.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row?.startsAt || (!row.email && !row.phone)) return;
+	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
+	const what = row.jobTypeName ?? row.summary;
+	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	const smsOk = !!row.phone && !row.smsOptOut && flags.sms && !!smsProvider();
+	if (
+		row.email &&
+		!row.emailOptOut &&
+		flags.email &&
+		(row.contactPref !== 'sms' || !smsOk) &&
+		(await logOnce(orgId, 'job_cancelled', jobId, row.email))
+	)
+		await sendEmail({
+			to: row.email,
+			subject: `Job J-${row.number} cancelled — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Your appointment was cancelled, ${row.customerName}`,
+				lines: [
+					`${what} on ${when} has been cancelled.`,
+					'Reply to this email or visit the portal to pick a new time.'
+				],
+				action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			})
+		});
+	if (
+		row.phone &&
+		!row.smsOptOut &&
+		flags.sms &&
+		smsProvider() &&
+		row.contactPref !== 'email' &&
+		(await logOnce(orgId, 'job_cancelled_sms', jobId, row.phone))
+	)
+		await sendSmsQuiet(orgId, {
+			to: row.phone,
+			body: `${name}: ${what} on ${when} was cancelled. Reply to reschedule.`
+		});
+}
+
 /** "Reminder: appointment tomorrow-ish" — one email + text per job, cron-driven. */
 export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 	const flags = await notifFlags(orgId);

@@ -1168,6 +1168,8 @@ export const jobDocument = pgTable(
 		mime: text('mime').notNull(),
 		size: integer('size').notNull(),
 		path: text('path').notNull(),
+		/** Visible to the customer on their portal. */
+		shared: boolean('shared').notNull().default(false),
 		...timestamps
 	},
 	(t) => [index('job_document_job_idx').on(t.jobId)]

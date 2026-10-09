@@ -14,6 +14,7 @@ import {
 	estimateItem,
 	invoice,
 	job,
+	jobDocument,
 	jobEvent,
 	jobPhoto,
 	jobType,
@@ -246,22 +247,45 @@ export async function portalOverview(customerId: string) {
 				.limit(8)
 		: [];
 
-	const documents = await db
-		.select({
-			id: customerDocument.id,
-			fileName: customerDocument.fileName,
-			mime: customerDocument.mime,
-			size: customerDocument.size,
-			createdAt: customerDocument.createdAt
-		})
-		.from(customerDocument)
-		.where(
-			and(
-				eq(customerDocument.customerId, customerId),
-				or(eq(customerDocument.shared, true), eq(customerDocument.viaPortal, true))
+	const [customerDocs, jobDocs] = await Promise.all([
+		db
+			.select({
+				id: customerDocument.id,
+				fileName: customerDocument.fileName,
+				mime: customerDocument.mime,
+				size: customerDocument.size,
+				createdAt: customerDocument.createdAt
+			})
+			.from(customerDocument)
+			.where(
+				and(
+					eq(customerDocument.customerId, customerId),
+					or(eq(customerDocument.shared, true), eq(customerDocument.viaPortal, true))
+				)
 			)
-		)
-		.orderBy(desc(customerDocument.createdAt));
+			.orderBy(desc(customerDocument.createdAt)),
+		db
+			.select({
+				id: jobDocument.id,
+				fileName: jobDocument.fileName,
+				mime: jobDocument.mime,
+				size: jobDocument.size,
+				createdAt: jobDocument.createdAt,
+				jobNumber: job.number
+			})
+			.from(jobDocument)
+			.innerJoin(job, eq(jobDocument.jobId, job.id))
+			.where(and(eq(job.customerId, customerId), eq(jobDocument.shared, true)))
+			.orderBy(desc(jobDocument.createdAt))
+	]);
+	const documents = [
+		...customerDocs.map((d) => ({
+			...d,
+			jobNumber: null as number | null,
+			href: `/files/portal-customer-document/${d.id}`
+		})),
+		...jobDocs.map((d) => ({ ...d, href: `/files/portal-job-document/${d.id}` }))
+	].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
 	return {
 		customer: c,
