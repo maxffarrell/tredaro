@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
@@ -421,7 +422,13 @@
 					</button>
 				</div>
 			{:else}
-				<p class="py-4 text-sm text-muted-foreground">Queue is clear.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><Inbox /></Empty.Media>
+						<Empty.Title class="text-sm">Queue is clear</Empty.Title>
+						<Empty.Description>Nothing waiting to be scheduled.</Empty.Description>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</Card.Content>
 	</Card.Root>
@@ -464,7 +471,7 @@
 				</Card.Header>
 				<Card.Content class="px-4">
 					{#if group.jobs.length === 0}
-						<p class="py-2 text-sm text-muted-foreground">No jobs this week.</p>
+						<p class="py-2 text-sm text-muted-foreground">No jobs scheduled this week.</p>
 					{:else}
 						<ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
 							{#each group.jobs as j (j.job.id)}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Mails from '@lucide/svelte/icons/mails';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -667,7 +669,12 @@
 						</p>
 					</button>
 				{:else}
-					<p class="py-3 text-sm text-muted-foreground">No service locations yet.</p>
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><MapPin /></Empty.Media>
+							<Empty.Title class="text-sm">No service locations</Empty.Title>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</Card.Content>
 		</Card.Root>
@@ -744,7 +751,12 @@
 						{/if}
 					</button>
 				{:else}
-					<p class="py-3 text-sm text-muted-foreground">No equipment on file.</p>
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><AirVent /></Empty.Media>
+							<Empty.Title class="text-sm">No equipment on file</Empty.Title>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</Card.Content>
 		</Card.Root>
@@ -876,7 +888,12 @@
 						>
 					</div>
 				{:else}
-					<p class="py-3 text-sm text-muted-foreground">No automated emails or texts sent yet.</p>
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><Mails /></Empty.Media>
+							<Empty.Title class="text-sm">No automated emails or texts yet</Empty.Title>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</Card.Content>
 		</Card.Root>

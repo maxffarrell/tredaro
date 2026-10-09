@@ -1,4 +1,6 @@
 <script lang="ts">
+	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
@@ -90,10 +92,15 @@
 			</Card.Header>
 			<Card.Content class="px-4">
 				{#if d.todayJobs.length === 0}
-					<p class="py-6 text-center text-sm text-muted-foreground">
-						Nothing scheduled today.
-						<a href="/dispatch" class="underline">Check the dispatch board.</a>
-					</p>
+					<Empty.Root class="border-0 py-4">
+						<Empty.Header>
+							<Empty.Media><CalendarCheck /></Empty.Media>
+							<Empty.Title>Nothing scheduled today</Empty.Title>
+							<Empty.Description
+								><a href="/dispatch" class="underline">Check the dispatch board</a> to fill the day.</Empty.Description
+							>
+						</Empty.Header>
+					</Empty.Root>
 				{:else}
 					<Table.Root>
 						<Table.Body>
@@ -180,7 +187,12 @@
 				<Card.Header><Card.Title class="text-base">Newest customers</Card.Title></Card.Header>
 				<Card.Content class="px-4">
 					{#if d.recentCustomers.length === 0}
-						<p class="py-4 text-sm text-muted-foreground">No customers yet.</p>
+						<Empty.Root class="border-0 py-2">
+							<Empty.Header>
+								<Empty.Media><Users /></Empty.Media>
+								<Empty.Title>No customers yet</Empty.Title>
+							</Empty.Header>
+						</Empty.Root>
 					{:else}
 						<ul class="space-y-2">
 							{#each d.recentCustomers as c (c.id)}

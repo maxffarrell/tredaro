@@ -1,4 +1,6 @@
 <script lang="ts">
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -472,16 +474,17 @@
 				<Input id="c-phone" bind:value={phone} />
 			</Field.Field>
 			{#if dupMatches.length}
-				<div
-					class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:bg-amber-950/30"
-				>
-					<p class="font-medium">Possible duplicate — already on file:</p>
-					<ul class="mt-1 list-inside list-disc text-muted-foreground">
-						{#each dupMatches as d (d.customer.id ?? d.customer.name)}
-							<li>{d.customer.name} ({d.match})</li>
-						{/each}
-					</ul>
-				</div>
+				<Alert.Root class="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+					<TriangleAlert />
+					<Alert.Title>Possible duplicate — already on file:</Alert.Title>
+					<Alert.Description>
+						<ul class="mt-1 list-inside list-disc">
+							{#each dupMatches as d (d.customer.id ?? d.customer.name)}
+								<li>{d.customer.name} ({d.match})</li>
+							{/each}
+						</ul>
+					</Alert.Description>
+				</Alert.Root>
 			{/if}
 			<Dialog.Footer>
 				<Button type="submit" disabled={pending}

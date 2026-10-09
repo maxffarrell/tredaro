@@ -1,4 +1,6 @@
 <script lang="ts">
+	import CalendarX2 from '@lucide/svelte/icons/calendar-x-2';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
@@ -268,14 +270,18 @@
 	</p>
 
 	{#if day.offToday}
-		<div
-			class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/40 dark:bg-amber-950/30"
+		<Alert.Root
+			class="border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"
 		>
-			<span class="font-medium"
-				>You're off today{day.offToday.reason ? `: ${day.offToday.reason}` : ''}.</span
+			<CalendarX2 />
+			<Alert.Title
+				>You're off today{day.offToday.reason ? `: ${day.offToday.reason}` : ''}.</Alert.Title
 			>
-			Anything below was already on your schedule — coordinate with the office if it needs reassigning.
-		</div>
+			<Alert.Description
+				>Anything below was already on your schedule — coordinate with the office if it needs
+				reassigning.</Alert.Description
+			>
+		</Alert.Root>
 	{/if}
 
 	{#if day.member && (day.jobs.length || day.minutesLogged > 0)}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PackagePlus from '@lucide/svelte/icons/package-plus';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
@@ -546,8 +547,14 @@
 						</Table.Row>
 					{:else}
 						<Table.Row>
-							<Table.Cell colspan={6} class="text-center text-muted-foreground">
-								No purchase orders yet — create one for items running low.
+							<Table.Cell colspan={6}>
+								<Empty.Root class="border-0">
+									<Empty.Header>
+										<Empty.Media><PackagePlus /></Empty.Media>
+										<Empty.Title>No purchase orders yet</Empty.Title>
+										<Empty.Description>Create one for items running low.</Empty.Description>
+									</Empty.Header>
+								</Empty.Root>
 							</Table.Cell>
 						</Table.Row>
 					{/each}
@@ -834,7 +841,12 @@
 					>
 				</div>
 			{:else}
-				<p class="py-6 text-center text-sm text-muted-foreground">No movements yet.</p>
+				<Empty.Root class="border-0 py-4">
+					<Empty.Header>
+						<Empty.Media><History /></Empty.Media>
+						<Empty.Title>No movements yet</Empty.Title>
+					</Empty.Header>
+				</Empty.Root>
 			{/each}
 		</div>
 	</Dialog.Content>

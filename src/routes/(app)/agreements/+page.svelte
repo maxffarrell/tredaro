@@ -1,4 +1,6 @@
 <script lang="ts">
+	import FileText from '@lucide/svelte/icons/file-text';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
@@ -327,7 +329,13 @@
 						</Card.Root>
 					</button>
 				{:else}
-					<p class="text-sm text-muted-foreground">No plans yet — create one to sell agreements.</p>
+					<Empty.Root class="border-0 py-4">
+						<Empty.Header>
+							<Empty.Media><FileText /></Empty.Media>
+							<Empty.Title>No plans yet</Empty.Title>
+							<Empty.Description>Create one to sell agreements.</Empty.Description>
+						</Empty.Header>
+					</Empty.Root>
 				{/each}
 			</div>
 		</Tabs.Content>

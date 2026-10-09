@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Progress } from '#lib/components/ui/progress/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -1344,9 +1345,12 @@
 					><ListChecks class="size-4" /> Checklist</Card.Title
 				>
 				{#if checklist.length}
-					<span class="text-sm text-muted-foreground tabular-nums"
-						>{checkDone}/{checklist.length} done</span
-					>
+					<div class="flex items-center gap-2">
+						<Progress value={checkDone} max={checklist.length} class="h-1.5 w-16" />
+						<span class="text-sm text-muted-foreground tabular-nums"
+							>{checkDone}/{checklist.length} done</span
+						>
+					</div>
 				{/if}
 			</Card.Header>
 			<Card.Content class="space-y-2 px-4">
