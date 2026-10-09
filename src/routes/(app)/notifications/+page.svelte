@@ -85,7 +85,8 @@
 		quote_request: 'Quote request',
 		auto_charge_failed: 'auto-charge failed',
 		follow_up_due: 'Follow-up due',
-		time_approved: 'Time approved'
+		time_approved: 'Time approved',
+		time_auto_ended: 'Timer auto-ended'
 	};
 
 	/** Where each kind's entity usually lives. */
@@ -93,6 +94,7 @@
 		if (kind === 'booking_staff_alert' || kind === 'daily_digest') return '/dispatch';
 		if (kind === 'weekly_digest') return '/dashboard';
 		if (kind === 'time_approved') return '/myday';
+		if (kind === 'time_auto_ended') return `/jobs/${entityId.split(':')[0]}`;
 		if (kind === 'low_stock') return '/inventory';
 		if (
 			kind === 'estimate_viewed' ||
