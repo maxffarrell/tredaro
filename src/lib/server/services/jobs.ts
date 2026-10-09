@@ -311,8 +311,29 @@ export async function getJob(orgId: string, id: string) {
 					)
 			)[0].n
 		: 0;
+	const techDay =
+		row.job.startsAt && row.job.technicianId
+			? (
+					await db
+						.select({ n: count() })
+						.from(job)
+						.where(
+							and(
+								eq(job.organizationId, orgId),
+								eq(job.technicianId, row.job.technicianId),
+								ne(job.id, id),
+								sql`${job.status} not in ('done', 'cancelled')`,
+								gte(job.startsAt, zonedToUtc(localDate(row.job.startsAt, tz) + 'T00:00', tz)),
+								lt(
+									job.startsAt,
+									zonedToUtc(addDays(localDate(row.job.startsAt, tz), 1) + 'T00:00', tz)
+								)
+							)
+						)
+				)[0].n
+			: 0;
 
-	return { ...row, events, openBalance: open, costing, sameDay };
+	return { ...row, events, openBalance: open, costing, sameDay, techDay };
 }
 
 /** Creates a job. `startsAt` is a wall-clock time in the workspace timezone; omit for unscheduled. */

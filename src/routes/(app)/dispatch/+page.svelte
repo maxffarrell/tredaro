@@ -311,6 +311,18 @@
 					>{urgentCount} urgent/high</Badge
 				>
 			{/if}
+			{#if board.unscheduled.length}
+				{@const oldestWait = Math.max(
+					...board.unscheduled.map((j) => waitingDays(j.job.createdAt))
+				)}
+				{#if oldestWait > 0}
+					<Badge
+						variant="outline"
+						class={oldestWait >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}
+						>oldest {oldestWait}d</Badge
+					>
+				{/if}
+			{/if}
 			<Input class="ml-auto h-7 w-32 text-xs" placeholder="Filter…" bind:value={queueFilter} />
 		</Card.Header>
 		{#if selected.size}

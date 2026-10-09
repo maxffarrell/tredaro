@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, lt, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -114,11 +114,22 @@ export async function getEstimate(orgId: string, id: string) {
 		)
 		.orderBy(desc(activity.createdAt))
 		.limit(1);
+	const [{ n: viewCount }] = await db
+		.select({ n: count() })
+		.from(activity)
+		.where(
+			and(
+				eq(activity.entityType, 'estimate'),
+				eq(activity.entityId, row.estimate.id),
+				eq(activity.action, 'viewed')
+			)
+		);
 	return {
 		...row,
 		items,
 		linkedJob,
 		viewedAt: viewed?.at ?? null,
+		viewCount,
 		token: estimateToken(row.estimate.id)
 	};
 }

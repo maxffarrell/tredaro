@@ -186,8 +186,10 @@
 <PageHeader title="E-{est.estimate.number}" crumbs={[{ label: 'Estimates', href: '/estimates' }]}>
 	{#snippet actions()}
 		<StatusBadge status={est.estimate.status} />
-		{#if est.viewedAt}<Badge variant="secondary" title="Customer opened this estimate"
-				><Eye /> Viewed</Badge
+		{#if est.viewedAt}<Badge
+				variant="secondary"
+				title="Customer opened this estimate{est.viewCount > 1 ? ` (${est.viewCount} times)` : ''}"
+				><Eye /> Viewed{est.viewCount > 1 ? ` ×${est.viewCount}` : ''}</Badge
 			>{/if}
 		{#if est.estimate.status === 'sent' && est.estimate.validUntil}
 			{@const daysLeft = Math.ceil(

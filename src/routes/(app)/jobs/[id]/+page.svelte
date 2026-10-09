@@ -554,6 +554,11 @@
 				>{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today</Badge
 			>
 		{/if}
+		{#if j.techDay}
+			<Badge variant="outline" class="text-muted-foreground"
+				>{j.techDay + 1} on {matTechName}'s day</Badge
+			>
+		{/if}
 		{#if j.job.status === 'scheduled'}
 			<Button size="sm" variant="outline" onclick={() => event('dispatched')}
 				><Truck /> Dispatch</Button
