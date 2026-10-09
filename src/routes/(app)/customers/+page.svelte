@@ -72,9 +72,10 @@
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
 	const residentialCount = $derived(visible.filter((c) => c.type === 'residential').length);
 	const underAgreement = $derived(visible.filter((c) => c.hasAgreement).length);
-	const onHold = $derived(visible.filter((c) => c.onHold).length);
+
 	const withOpenQuote = $derived(visible.filter((c) => c.hasOpenQuote).length);
 	const leadOnly = $derived(visible.filter((c) => c.leadSource && !c.lastVisit).length);
+	const inactiveCount = $derived(visible.filter((c) => c.status !== 'active').length);
 	const neverServiced = $derived(
 		visible.filter((c) => c.status === 'active' && !c.lastVisit).length
 	);
@@ -314,10 +315,10 @@
 			· {residentialCount} residential{/if}{#if noUpcoming}
 			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}
 			· {underAgreement} under agreement{/if}{#if neverServiced}
-			· {neverServiced} never serviced{/if}{#if onHold}
-			· {onHold} on hold{/if}{#if withOpenQuote}
+			· {neverServiced} never serviced{/if}{#if withOpenQuote}
 			· {withOpenQuote} with open quote{/if}{#if leadOnly}
-			· {leadOnly} lead-only{/if}
+			· {leadOnly} lead-only{/if}{#if inactiveCount}
+			· {inactiveCount} inactive{/if}
 	</p>
 
 	<Card.Root class="py-0">
