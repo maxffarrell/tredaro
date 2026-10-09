@@ -136,6 +136,13 @@
 			</div>
 		{/if}
 
+		{#if j.job.completionNotes}
+			<div class="mt-8">
+				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Work performed</p>
+				<p class="mt-1 text-sm whitespace-pre-wrap">{j.job.completionNotes}</p>
+			</div>
+		{/if}
+
 		<div class="mt-8 grid grid-cols-2 gap-8 text-sm">
 			<div>
 				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Technician notes</p>

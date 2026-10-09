@@ -673,6 +673,7 @@ export async function updateJob(
 			warranty: set.warranty,
 			dependsOnJobId: set.dependsOnJobId,
 			arrivalWindow: set.arrivalWindow,
+			completionNotes: set.completionNotes,
 			startsAt: start,
 			endsAt,
 			status,
@@ -855,7 +856,8 @@ export async function recordJobEvent(
 			.update(job)
 			.set({
 				status,
-				completedAt: status === 'done' ? new Date() : undefined
+				completedAt: status === 'done' ? new Date() : undefined,
+				completionNotes: status === 'done' && input.note ? input.note : undefined
 			})
 			.where(eq(job.id, input.jobId));
 	}
@@ -1168,7 +1170,7 @@ export async function dispatchBoard(orgId: string, from: Date, to: Date, officeI
 /** Technicians = staff members of the org. */
 export async function listTechnicians(orgId: string) {
 	return db
-		.select({ id: member.id, name: user.name })
+		.select({ id: member.id, name: user.name, skillTags: member.skillTags })
 		.from(member)
 		.innerJoin(user, eq(member.userId, user.id))
 		.where(eq(member.organizationId, orgId))

@@ -420,6 +420,8 @@ export const job = pgTable(
 		signature: text('signature'),
 		signedName: text('signed_name'),
 		signedAt: timestamp('signed_at', { withTimezone: true }),
+		/** Tech's "work performed" summary captured at completion — portal/work-order facing. */
+		completionNotes: text('completion_notes').notNull().default(''),
 		...timestamps
 	},
 	(t) => [

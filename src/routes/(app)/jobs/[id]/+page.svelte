@@ -222,9 +222,13 @@
 		cancelling = false;
 	}
 
-	async function event(kind: 'dispatched' | 'en_route' | 'on_site' | 'completed') {
+	async function event(kind: 'dispatched' | 'en_route' | 'on_site' | 'completed', note?: string) {
 		try {
-			await recordJobEvent({ jobId: id, kind }).updates(getJob, getJobs, getDispatchBoard);
+			await recordJobEvent({ jobId: id, kind, note: note || null }).updates(
+				getJob,
+				getJobs,
+				getDispatchBoard
+			);
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -235,13 +239,14 @@
 	let signOpen = $state(false);
 	let signThenComplete = $state(false);
 	let signPending = $state(false);
+	let completionNote = $state('');
 	async function saveSignature(name: string, dataUrl: string) {
 		signPending = true;
 		try {
 			await signJob({ jobId: id, name, signature: dataUrl }).updates(getJob);
 			signOpen = false;
 			toast.success('Signature saved');
-			if (signThenComplete) await event('completed');
+			if (signThenComplete) await event('completed', completionNote);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save signature'));
 		}
@@ -250,6 +255,7 @@
 	}
 	function openSign(complete: boolean) {
 		signThenComplete = complete;
+		if (complete) completionNote = '';
 		signOpen = true;
 	}
 
@@ -1010,6 +1016,13 @@
 						>
 					</div>
 				{/if}
+				{#if j.job.completionNotes}
+					<div class="flex justify-between gap-3">
+						<span class="text-muted-foreground">Work performed</span><span class="text-right"
+							>{j.job.completionNotes}</span
+						>
+					</div>
+				{/if}
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Scheduled</span><span
 						>{j.job.startsAt
@@ -1638,9 +1651,10 @@
 	pending={signPending}
 	onSave={saveSignature}
 	skipLabel="Complete without signature"
+	bind:note={completionNote}
 	onSkip={() => {
 		signOpen = false;
-		if (signThenComplete) event('completed');
+		if (signThenComplete) event('completed', completionNote);
 		signThenComplete = false;
 	}}
 />

@@ -76,6 +76,7 @@
 
 	let pending = $state<string | null>(null);
 	let signJobId = $state<string | null>(null);
+	let signNote = $state('');
 	let noteJobId = $state<string | null>(null);
 	let noteText = $state('');
 
@@ -131,10 +132,12 @@
 		const jobId = signJobId;
 		if (!jobId) return;
 		pending = `${jobId}:completed`;
+		const note = signNote;
+		signNote = '';
 		try {
 			await signJob({ jobId, name, signature: dataUrl });
 			signJobId = null;
-			await recordJobEvent({ jobId, kind: 'completed' }).updates(getMyDay);
+			await recordJobEvent({ jobId, kind: 'completed', note: note || null }).updates(getMyDay);
 			toast.success('Job done');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -142,10 +145,10 @@
 		pending = null;
 	}
 
-	async function advance(jobId: string, kind: EventKind) {
+	async function advance(jobId: string, kind: EventKind, note?: string) {
 		pending = `${jobId}:${kind}`;
 		try {
-			await recordJobEvent({ jobId, kind }).updates(getMyDay);
+			await recordJobEvent({ jobId, kind, note: note || null }).updates(getMyDay);
 			toast.success(kind === 'completed' ? 'Job done' : `Marked ${kind.replace('_', ' ')}`);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
@@ -546,9 +549,12 @@
 	pending={pending !== null}
 	onSave={completeWithSignature}
 	skipLabel="Complete without signature"
+	bind:note={signNote}
 	onSkip={() => {
 		const jobId = signJobId;
 		signJobId = null;
-		if (jobId) advance(jobId, 'completed');
+		const note = signNote;
+		signNote = '';
+		if (jobId) advance(jobId, 'completed', note);
 	}}
 />

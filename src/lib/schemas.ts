@@ -342,7 +342,9 @@ export const jobUpdate = v.object({
 	/** Communicated arrival window shown to customer/tech. */
 	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60)))),
 	/** Warranty/no-charge work. */
-	warranty: v.optional(v.boolean())
+	warranty: v.optional(v.boolean()),
+	/** Tech's "work performed" summary (set at completion, editable after). */
+	completionNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(5000)))
 });
 
 /** Technician or dispatcher status ping on a job. */

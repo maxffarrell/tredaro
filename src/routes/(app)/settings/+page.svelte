@@ -18,6 +18,7 @@
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
 	import { authClient } from '#lib/auth-client.ts';
@@ -35,6 +36,7 @@
 		updateCommission,
 		updateLaborCost,
 		setStaffAlerts,
+		setMemberSkills,
 		getSmsOutbox,
 		seedDemo,
 		sendTestEmail,
@@ -355,6 +357,22 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
 		}
+	}
+
+	function skillIds(s: (typeof staff)[number]) {
+		return s.skillTags ? s.skillTags.split(',').filter(Boolean) : [];
+	}
+	async function setSkills(s: (typeof staff)[number], ids: string[]) {
+		try {
+			await setMemberSkills({ memberId: s.id, jobTypeIds: ids }).updates(getStaff);
+			toast.success('Skills saved');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+	}
+	function toggleSkill(s: (typeof staff)[number], typeId: string) {
+		const ids = skillIds(s);
+		setSkills(s, ids.includes(typeId) ? ids.filter((i) => i !== typeId) : [...ids, typeId]);
 	}
 
 	// ------- api keys -------
@@ -922,12 +940,12 @@
 				<Card.Content class="space-y-4 px-6">
 					<ul class="divide-y">
 						{#each staff as s (s.id)}
-							<li class="flex items-center justify-between py-3 text-sm">
+							<li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
 								<div class="min-w-0">
 									<p class="truncate font-medium">{s.name}</p>
 									<p class="truncate text-xs text-muted-foreground">{s.email}</p>
 								</div>
-								<div class="flex items-center gap-2">
+								<div class="flex flex-wrap items-center justify-end gap-2">
 									<label class="flex items-center gap-1 text-xs text-muted-foreground">
 										<Input
 											type="number"
@@ -965,6 +983,30 @@
 										/>
 										alerts
 									</label>
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger
+											class="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-accent"
+											title="Qualified job types — dispatch flags assignments outside them"
+											>skills{skillIds(s).length
+												? ` ${skillIds(s).length}`
+												: ''}</DropdownMenu.Trigger
+										>
+										<DropdownMenu.Content align="end" class="max-h-64 w-52 overflow-y-auto">
+											<DropdownMenu.Label class="text-xs">Qualified job types</DropdownMenu.Label>
+											{#each jobTypes as t (t.id)}
+												<DropdownMenu.CheckboxItem
+													checked={skillIds(s).includes(t.id)}
+													closeOnSelect={false}
+													onCheckedChange={() => toggleSkill(s, t.id)}
+													>{t.name}</DropdownMenu.CheckboxItem
+												>
+											{/each}
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item class="text-xs" onclick={() => setSkills(s, [])}
+												>Clear — qualified for all</DropdownMenu.Item
+											>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
 									<Badge
 										variant={s.role === 'owner' || s.role === 'admin' ? 'default' : 'secondary'}
 										>{s.role}</Badge

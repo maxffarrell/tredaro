@@ -226,6 +226,30 @@
 		}
 	}
 
+	/** One-click queue assign: tech + slot into the filtered day (or today) after their last job. */
+	async function quickAssign(j: (typeof filteredQueue)[number], techId: string) {
+		if (!techId) return;
+		try {
+			const day = dayFilter || todayStr;
+			const toInput = (d: Date | string) => `${localDate(new Date(d), tz)}T${localTime(d, tz)}`;
+			const group = byTech.find(([id]) => id === techId)?.[1];
+			const last = (group?.jobs ?? [])
+				.filter(
+					(x) => x.job.startsAt && x.job.endsAt && localDate(new Date(x.job.startsAt), tz) === day
+				)
+				.map((x) => x.job.endsAt as Date)
+				.sort((a, b) => a.getTime() - b.getTime())
+				.at(-1);
+			const when = last ? toInput(last) : `${day}T08:00`;
+			await updateJob({ id: j.job.id, technicianId: techId, startsAt: when }).updates(
+				getDispatchBoard
+			);
+			toast.success('Assigned');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not assign'));
+		}
+	}
+
 	const byTech = $derived.by(() => {
 		const map = new SvelteMap<string, { name: string; jobs: typeof board.scheduled }>();
 		for (const t of board.technicians) map.set(t.id, { name: t.name, jobs: [] });
@@ -401,6 +425,17 @@
 					{/if}
 				</p>
 			</button>
+			<Select.Root type="single" onValueChange={(v) => quickAssign(j, v)}>
+				<Select.Trigger
+					class="mt-1.5 h-7 w-[4.5rem] shrink-0 px-1.5 text-xs"
+					title="Assign to a tech on {dayFilter || todayStr}">Assign</Select.Trigger
+				>
+				<Select.Content>
+					{#each board.technicians as t (t.id)}
+						<Select.Item value={t.id}>{t.name}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
 	{/snippet}
 	<!-- Unscheduled queue -->
@@ -498,6 +533,7 @@
 	<!-- Scheduled, grouped by technician -->
 	<div class="space-y-4">
 		{#each byTech as [techId, group] (techId || 'unassigned')}
+			{@const techSkills = board.technicians.find((t) => t.id === techId)?.skillTags ?? ''}
 			<Card.Root
 				class={dropZone === (techId || 'unassigned') ? 'ring-2 ring-primary' : ''}
 				ondragover={allowDrop}
@@ -559,6 +595,15 @@
 											<span class="truncate text-sm font-medium"
 												>{j.job.summary || j.jobTypeName}</span
 											>
+											{#if techSkills && j.job.jobTypeId && !techSkills
+													.split(',')
+													.includes(j.job.jobTypeId)}
+												<Badge
+													variant="outline"
+													class="shrink-0 text-amber-600 dark:text-amber-400"
+													title="Tech isn't tagged for this job type">unqualified</Badge
+												>
+											{/if}
 											<StatusBadge status={j.job.status} class="ml-auto" />
 										</div>
 										<p class="mt-1 text-xs text-muted-foreground">

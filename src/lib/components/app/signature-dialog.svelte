@@ -3,6 +3,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import Eraser from '@lucide/svelte/icons/eraser';
 
 	let {
@@ -10,13 +11,15 @@
 		pending = false,
 		onSave,
 		skipLabel,
-		onSkip
+		onSkip,
+		note = $bindable('')
 	}: {
 		open?: boolean;
 		pending?: boolean;
 		onSave: (name: string, dataUrl: string) => void;
 		skipLabel?: string;
 		onSkip?: () => void;
+		note?: string;
 	} = $props();
 
 	let canvas: HTMLCanvasElement | undefined = $state();
@@ -110,6 +113,15 @@
 				onpointerup={up}
 				onpointerleave={up}
 			></canvas>
+			<div class="grid gap-1.5">
+				<Label for="sig-work">Work performed (optional)</Label>
+				<Textarea
+					id="sig-work"
+					bind:value={note}
+					rows={2}
+					placeholder="Replaced capacitor, tested cooling…"
+				/>
+			</div>
 			<div class="flex items-end justify-between gap-2">
 				<div class="grid flex-1 gap-1.5">
 					<Label for="sig-name">Printed name</Label>

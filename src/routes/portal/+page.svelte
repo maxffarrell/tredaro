@@ -354,6 +354,9 @@
 								<p class="text-xs text-muted-foreground">
 									{j.job.completedAt ? formatDate(j.job.completedAt) : ''}
 								</p>
+								{#if j.job.completionNotes}
+									<p class="mt-1 text-xs text-muted-foreground">{j.job.completionNotes}</p>
+								{/if}
 								{#if j.photos?.length}
 									<div class="mt-2 flex flex-wrap gap-2">
 										{#each j.photos as pid (pid)}
