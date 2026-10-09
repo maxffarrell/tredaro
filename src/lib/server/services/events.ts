@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { activity, user, webhook } from '#lib/server/db/schema.ts';
+import { activity, user, webhook, webhookDelivery } from '#lib/server/db/schema.ts';
 
 export type EventInput = {
 	orgId: string;
@@ -56,6 +56,35 @@ export function signPayload(secret: string, body: string) {
 	return `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
 }
 
+/** Writes one delivery attempt row, updates the hook's last-delivery cache and prunes >30d. */
+async function recordDelivery(
+	h: { id: string; organizationId: string },
+	eventType: string,
+	status: number
+) {
+	const now = new Date();
+	await db.insert(webhookDelivery).values({
+		organizationId: h.organizationId,
+		webhookId: h.id,
+		eventType,
+		status
+	});
+	await Promise.all([
+		db
+			.update(webhook)
+			.set({ lastDeliveryAt: now, lastDeliveryStatus: status })
+			.where(eq(webhook.id, h.id)),
+		db
+			.delete(webhookDelivery)
+			.where(
+				and(
+					eq(webhookDelivery.webhookId, h.id),
+					lt(webhookDelivery.createdAt, new Date(now.getTime() - 30 * 864e5))
+				)
+			)
+	]);
+}
+
 async function deliverWebhooks(event: TredaroEvent) {
 	const hooks = await db
 		.select()
@@ -78,10 +107,7 @@ async function deliverWebhooks(event: TredaroEvent) {
 			});
 			status = res.status;
 		} finally {
-			await db
-				.update(webhook)
-				.set({ lastDeliveryAt: new Date(), lastDeliveryStatus: status })
-				.where(eq(webhook.id, h.id));
+			await recordDelivery(h, event.type, status);
 		}
 		return status;
 	}
@@ -125,12 +151,19 @@ export async function testWebhookDelivery(orgId: string, hookId: string) {
 	} catch {
 		// unreachable endpoint — status 0 is the failure signal, don't 500 the command
 	} finally {
-		await db
-			.update(webhook)
-			.set({ lastDeliveryAt: new Date(), lastDeliveryStatus: status })
-			.where(eq(webhook.id, h.id));
+		await recordDelivery(h, 'webhook.test', status);
 	}
 	return status;
+}
+
+/** Recent delivery attempts for one hook, newest first. */
+export async function listWebhookDeliveries(orgId: string, hookId: string, limit = 20) {
+	return db
+		.select()
+		.from(webhookDelivery)
+		.where(and(eq(webhookDelivery.webhookId, hookId), eq(webhookDelivery.organizationId, orgId)))
+		.orderBy(desc(webhookDelivery.createdAt))
+		.limit(limit);
 }
 
 // ---------- feed ----------

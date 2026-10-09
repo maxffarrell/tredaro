@@ -320,6 +320,12 @@ export const testWebhook = command(idSchema, async (id) => {
 	return status;
 });
 
+/** Recent delivery attempts for one hook — powers the Settings history toggle. */
+export const getWebhookDeliveries = query(idSchema, async (hookId) => {
+	const { orgId } = await requireOrg('admin');
+	return eventsSvc.listWebhookDeliveries(orgId, hookId);
+});
+
 export const seedDemo = command(v.object({}), async () => {
 	const ctx = await requireOrg('admin');
 	const [existing] = await db

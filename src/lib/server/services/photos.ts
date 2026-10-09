@@ -4,7 +4,15 @@ import { join, normalize } from 'node:path';
 import { UPLOADS_DIR } from '$app/env/private';
 import { and, asc, desc, eq, or } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { customer, customerDocument, job, jobPhoto, member, user } from '#lib/server/db/schema.ts';
+import {
+	customer,
+	customerDocument,
+	equipment,
+	job,
+	jobPhoto,
+	member,
+	user
+} from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
 
@@ -88,6 +96,51 @@ export async function readJobPhoto(orgId: string, id: string) {
 	if (!row) error(404, 'Photo not found');
 	const bytes = await readFile(row.path);
 	return { row, bytes };
+}
+
+/** Attaches (or replaces) a photo on an equipment unit. */
+export async function saveEquipmentPhoto(
+	ctx: OrgContext,
+	equipmentId: string,
+	file: { name: string; type: string; size: number; bytes: Uint8Array }
+) {
+	const [e] = await db
+		.select({ id: equipment.id, photoPath: equipment.photoPath, name: equipment.name })
+		.from(equipment)
+		.where(and(eq(equipment.id, equipmentId), eq(equipment.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!e) error(404, 'Equipment not found');
+	if (!ALLOWED.has(file.type))
+		error(400, 'Unsupported file type — upload a JPG, PNG, WebP, GIF or HEIC');
+	if (file.size > MAX_BYTES) error(400, 'File is larger than 15 MB');
+
+	const safe = (file.name || 'photo').replace(/[^\w.\-() ]+/g, '_').slice(-80) || 'photo';
+	const dir = storageDir(ctx.orgId);
+	await mkdir(dir, { recursive: true });
+	const rel = join(dir, `equip-${e.id}-${crypto.randomUUID()}-${safe}`);
+	await writeFile(rel, file.bytes);
+	if (e.photoPath) await unlink(e.photoPath).catch(() => {});
+	await db
+		.update(equipment)
+		.set({ photoPath: rel, photoMime: file.type })
+		.where(eq(equipment.id, e.id));
+}
+
+/** Reads an equipment photo for an authenticated org member. */
+export async function readEquipmentPhoto(orgId: string, equipmentId: string) {
+	const [e] = await db
+		.select({
+			id: equipment.id,
+			name: equipment.name,
+			photoPath: equipment.photoPath,
+			photoMime: equipment.photoMime
+		})
+		.from(equipment)
+		.where(and(eq(equipment.id, equipmentId), eq(equipment.organizationId, orgId)))
+		.limit(1);
+	if (!e?.photoPath) error(404, 'No photo');
+	const bytes = await readFile(e.photoPath);
+	return { row: e, bytes };
 }
 
 /** Toggles whether a photo is visible to the customer in their portal. */

@@ -1801,6 +1801,51 @@ export function serviceReportUrl(id: string) {
 	return `${appOrigin()}/r/${serviceReportToken(id)}`;
 }
 
+function signCancel(payload: string) {
+	return createHmac('sha256', BETTER_AUTH_SECRET).update(`cancel:${payload}`).digest('base64url');
+}
+
+export function bookingCancelToken(jobId: string) {
+	return `${jobId}.${signCancel(jobId)}`;
+}
+
+export function verifyBookingCancelToken(token: string) {
+	const m = /^([^.]+)\.([A-Za-z0-9_-]+)$/.exec(token);
+	if (!m) return null;
+	const [, jobId, sig] = m;
+	const expected = Buffer.from(signCancel(jobId!));
+	const got = Buffer.from(sig!);
+	return expected.length === got.length && timingSafeEqual(expected, got) ? jobId! : null;
+}
+
+export function bookingCancelUrl(jobId: string) {
+	return `${appOrigin()}/book/cancel/${bookingCancelToken(jobId)}`;
+}
+
+/** Public cancel from the emailed link: flips the job to cancelled and notifies staff. */
+export async function cancelBookedJob(jobId: string) {
+	const [j] = await db.select().from(job).where(eq(job.id, jobId)).limit(1);
+	if (!j) error(404, 'Visit not found');
+	if (j.status === 'cancelled' || j.cancelledAt) return { job: j, already: true };
+	if (j.status === 'done' || j.status === 'in_progress')
+		error(409, 'This visit can no longer be cancelled online — please call us.');
+	const [updated] = await db
+		.update(job)
+		.set({ status: 'cancelled', cancelledAt: new Date(), cancelReason: 'Cancelled by customer' })
+		.where(eq(job.id, jobId))
+		.returning();
+	await emit({
+		orgId: j.organizationId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'cancelled',
+		summary: `Visit J-${j.number} cancelled by the customer via the booking link`
+	});
+	const { notifyBookingCancelled } = await import('./notifications.ts');
+	await notifyBookingCancelled(j.organizationId, jobId);
+	return { job: updated!, already: false };
+}
+
 /** What the public /r/[token] page shows — a completed visit's customer-facing summary. */
 export async function publicServiceReport(id: string) {
 	const [row] = await db

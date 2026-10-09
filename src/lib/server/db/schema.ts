@@ -244,6 +244,8 @@ export const equipment = pgTable(
 		warrantyUntil: date('warranty_until', { mode: 'string' }),
 		nextServiceDue: date('next_service_due', { mode: 'string' }),
 		notes: text('notes').notNull().default(''),
+		photoPath: text('photo_path'),
+		photoMime: text('photo_mime'),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -772,6 +774,23 @@ export const webhook = pgTable(
 		...timestamps
 	},
 	(t) => [index('webhook_org_idx').on(t.organizationId)]
+);
+
+/** One row per outbound webhook attempt — powers the Settings delivery history. */
+export const webhookDelivery = pgTable(
+	'webhook_delivery',
+	{
+		id: id(),
+		organizationId: orgId(),
+		webhookId: text('webhook_id').notNull(),
+		eventType: text('event_type').notNull(),
+		status: integer('status').notNull(),
+		...timestamps
+	},
+	(t) => [
+		index('webhook_delivery_hook_idx').on(t.webhookId),
+		index('webhook_delivery_org_idx').on(t.organizationId)
+	]
 );
 
 /** One row per email sent, so each notice goes out once per recipient. */

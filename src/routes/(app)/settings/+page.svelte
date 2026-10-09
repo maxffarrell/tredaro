@@ -33,6 +33,7 @@
 		toggleWebhook,
 		deleteWebhook,
 		testWebhook,
+		getWebhookDeliveries,
 		getStaff,
 		updateCommission,
 		updateLaborCost,
@@ -69,6 +70,7 @@
 	import Copy from '@lucide/svelte/icons/copy';
 	import Trash from '@lucide/svelte/icons/trash-2';
 	import Send from '@lucide/svelte/icons/send';
+	import History from '@lucide/svelte/icons/history';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
@@ -455,6 +457,15 @@
 	let hookUrl = $state('');
 	let hookEvents = $state('job.created,job.completed,payment.recorded');
 	let testingHook = $state('');
+	let hookHistory = $state<Record<string, Awaited<ReturnType<typeof getWebhookDeliveries>>>>({});
+	async function toggleHookHistory(id: string) {
+		if (hookHistory[id]) {
+			const { [id]: _, ...rest } = hookHistory;
+			hookHistory = rest;
+			return;
+		}
+		hookHistory = { ...hookHistory, [id]: await getWebhookDeliveries(id) };
+	}
 	async function addWebhook(e: SubmitEvent) {
 		e.preventDefault();
 		pending = true;
@@ -1483,6 +1494,13 @@
 												variant="ghost"
 												size="icon"
 												class="size-7"
+												title="Delivery history"
+												onclick={() => toggleHookHistory(w.id)}><History class="size-4" /></Button
+											>
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-7"
 												title="Send a test event"
 												disabled={testingHook === w.id}
 												onclick={async () => {
@@ -1523,6 +1541,31 @@
 											>
 										</Table.Cell>
 									</Table.Row>
+									{#if hookHistory[w.id]}
+										<Table.Row class="bg-muted/40 hover:bg-muted/40">
+											<Table.Cell colspan={6} class="p-0">
+												<ul class="divide-y">
+													{#each hookHistory[w.id] as d (d.id)}
+														<li class="flex items-center gap-3 px-4 py-1.5 text-xs">
+															<span class="min-w-0 flex-1 truncate font-mono">{d.eventType}</span>
+															<span
+																class={d.status > 0 && d.status < 400
+																	? 'text-green-600'
+																	: 'text-destructive'}>{d.status || 'failed'}</span
+															>
+															<span class="text-muted-foreground"
+																>{formatRelative(d.createdAt)}</span
+															>
+														</li>
+													{:else}
+														<li class="px-4 py-2 text-xs text-muted-foreground">
+															No deliveries recorded yet.
+														</li>
+													{/each}
+												</ul>
+											</Table.Cell>
+										</Table.Row>
+									{/if}
 								{:else}
 									<Table.Row
 										><Table.Cell class="text-muted-foreground">No webhooks.</Table.Cell></Table.Row

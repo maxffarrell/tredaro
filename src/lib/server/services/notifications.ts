@@ -29,7 +29,7 @@ import { appOrigin, sendEmail } from '#lib/server/email.ts';
 import { sendSms, smsProvider } from '#lib/server/sms.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
 import { estimateUrl, expireEstimates } from './estimates.ts';
-import { serviceReportUrl } from './jobs.ts';
+import { bookingCancelUrl, serviceReportUrl } from './jobs.ts';
 import { invoiceUrl } from './billing.ts';
 import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import { formatDate, formatMoney } from '#lib/format.ts';
@@ -309,9 +309,46 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 				`Thanks for reaching out about ${row.jobTypeName ?? row.summary}.`,
 				'A dispatcher will contact you shortly to confirm a time.'
 			],
-			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` },
+			secondary: { label: 'Need to cancel? Click here', url: bookingCancelUrl(jobId) }
 		})
 	});
+}
+
+/** Customer cancelled a booking via the emailed link — alert staff (digest toggle gates). */
+export async function notifyBookingCancelled(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			customerName: customer.name,
+			phone: customer.phone,
+			jobTypeName: jobType.name,
+			summary: job.summary,
+			number: job.number
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'booking_cancelled', jobId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Booking cancelled — ${row.customerName} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} cancelled J-${row.number}`,
+				lines: [
+					`${row.jobTypeName ?? row.summary} was cancelled via the booking link.`,
+					row.phone ? `Phone: ${row.phone}` : 'No phone on file.'
+				],
+				action: { label: 'Open dispatch', url: `${appOrigin()}/dispatch` }
+			})
+		});
+	}
 }
 
 /** Text receipt of an online booking — complements the confirmation email. */
