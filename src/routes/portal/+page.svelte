@@ -199,6 +199,7 @@
 	let reqMemberId = $state('any');
 	let reqEquipmentId = $state<string | null>(null);
 	let reqType = $state<'visit' | 'quote'>('visit');
+	let reqPhoto = $state<File | null>(null);
 
 	function requestFor(u: {
 		equipment: { id: string; name: string; brand: string | null; model: string | null };
@@ -213,7 +214,7 @@
 		e.preventDefault();
 		reqPending = true;
 		try {
-			await requestService({
+			const r = await requestService({
 				customerId,
 				requestType: reqType,
 				equipmentId: reqEquipmentId,
@@ -223,6 +224,17 @@
 				preferredTime: reqPreferred,
 				preferredMemberId: reqMemberId !== 'any' ? reqMemberId : undefined
 			});
+			if (r.job && reqPhoto) {
+				try {
+					const form = new FormData();
+					form.set('file', reqPhoto);
+					form.set('jobId', r.job.id);
+					const res = await fetch('/api/portal/photos', { method: 'POST', body: form });
+					if (!res.ok) throw new Error('upload failed');
+				} catch {
+					toast.info('Request sent — the photo could not be attached');
+				}
+			}
 			toast.success(
 				reqType === 'quote'
 					? 'Quote request sent — we will follow up'
@@ -232,6 +244,7 @@
 			reqDescription = reqPreferred = '';
 			reqMemberId = 'any';
 			reqEquipmentId = null;
+			reqPhoto = null;
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not send request'));
 		}
@@ -765,6 +778,20 @@
 			<Field.Field>
 				<Field.Label for="r-desc">What's going on?</Field.Label>
 				<Textarea id="r-desc" rows={3} bind:value={reqDescription} />
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="r-photo"
+					>Photo <span class="text-muted-foreground">(optional)</span></Field.Label
+				>
+				<Input
+					id="r-photo"
+					type="file"
+					accept="image/*"
+					onchange={(e) => (reqPhoto = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)}
+				/>
+				<p class="text-xs text-muted-foreground">
+					A picture of the issue helps the tech arrive prepared.
+				</p>
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="submit" disabled={reqPending}

@@ -288,6 +288,27 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 	});
 }
 
+/** Text receipt of an online booking — complements the confirmation email. */
+export async function notifyBookingConfirmationSms(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut,
+			number: job.number
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, jobId));
+	if (!row?.phone || row.smsOptOut || !flags.sms || !smsProvider()) return;
+	if (!(await logOnce(orgId, 'booking_sms', jobId, row.phone))) return;
+	const name = await orgName(orgId);
+	await sendSmsQuiet(orgId, {
+		to: row.phone,
+		body: `${name}: we received your request J-${row.number} — we'll confirm a time shortly.`
+	});
+}
+
 /** "Your invoice is ready" with the public pay link. Returns whether an email was sent. */
 export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 	const [row] = await db
