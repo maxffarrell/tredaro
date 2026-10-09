@@ -67,6 +67,7 @@
 	const onHoldCount = $derived(visible.filter((c) => c.onHold).length);
 	const withBalance = $derived(visible.filter((c) => c.openBalance > 0).length);
 	const missingEmail = $derived(visible.filter((c) => !c.email).length);
+	const missingPhone = $derived(visible.filter((c) => !c.phone).length);
 	const withPortal = $derived(visible.filter((c) => c.portalLinked).length);
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
 	const underAgreement = $derived(visible.filter((c) => c.hasAgreement).length);
@@ -302,6 +303,8 @@
 			>{/if}{#if withPortal}
 			· {withPortal} with portal{/if}{#if missingEmail}
 			· <span class="text-amber-600 dark:text-amber-400">{missingEmail} missing email</span
+			>{/if}{#if missingPhone}
+			· <span class="text-amber-600 dark:text-amber-400">{missingPhone} missing phone</span
 			>{/if}{#if companyCount}
 			· {companyCount} companies{/if}{#if noUpcoming}
 			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}

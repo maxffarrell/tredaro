@@ -20,6 +20,10 @@
 		(e) => e.status === 'approved' || e.status === 'declined' || e.status === 'converted'
 	);
 	const approved = r.estimates.filter((e) => e.status === 'approved' || e.status === 'converted');
+	const avgSent = $derived.by(() => {
+		const row = r.estimates.find((e) => e.status === 'sent');
+		return row && row.count ? row.total / row.count : null;
+	});
 	const approvalRate = decided.length
 		? Math.round(
 				(approved.reduce((s, e) => s + e.count, 0) / decided.reduce((s, e) => s + e.count, 0)) * 100
@@ -154,7 +158,8 @@
 			<Card.Title class="text-base">Estimate funnel</Card.Title>
 			<Card.Description
 				>{approvalRate}% approval on decided estimates{#if r.estimateDecisionDays != null}
-					· avg {r.estimateDecisionDays.toFixed(1)}d to decision{/if}</Card.Description
+					· avg {r.estimateDecisionDays.toFixed(1)}d to decision{/if}{#if avgSent != null}
+					· avg {formatMoney(avgSent, currency, true)} per sent{/if}</Card.Description
 			>
 		</Card.Header>
 		<Card.Content class="px-0">

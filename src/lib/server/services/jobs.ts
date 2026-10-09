@@ -124,6 +124,11 @@ const jobSelect = {
 		sql<number>`(select count(*) from ${jobChecklistItem} ci where ci.job_id = ${outer(job.id)} and ci.done)`.mapWith(
 			Number
 		),
+	/** True once the customer confirms the visit from the portal ('confirmed' event). */
+	confirmed:
+		sql<boolean>`exists (select 1 from ${jobEvent} e where e.job_id = ${outer(job.id)} and e.kind = 'confirmed')`.mapWith(
+			Boolean
+		),
 	/** True when any charge on the job is linked to an invoice. */
 	invoiced:
 		sql<boolean>`exists (select 1 from ${charge} c where c.job_id = ${outer(job.id)} and c.invoice_id is not null)`.mapWith(

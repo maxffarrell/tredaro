@@ -71,6 +71,15 @@
 			(j) => j.job.startsAt && new Date(j.job.startsAt).toISOString().slice(0, 10) === todayIso
 		).length
 	);
+	const unconfirmed = $derived(
+		jobs.filter(
+			(j) =>
+				!j.confirmed &&
+				(j.job.status === 'scheduled' || j.job.status === 'dispatched') &&
+				j.job.startsAt &&
+				new Date(j.job.startsAt) > new Date()
+		).length
+	);
 	const unassignedCount = $derived(
 		jobs.filter((j) => !j.job.technicianId && !['done', 'cancelled'].includes(j.job.status)).length
 	);
@@ -175,6 +184,11 @@
 		{/if}
 		{#if todayCount}
 			<Badge variant="outline">{todayCount} today</Badge>
+		{/if}
+		{#if unconfirmed}
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				>{unconfirmed} unconfirmed</Badge
+			>
 		{/if}
 		{#if uninvoicedCount}
 			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
