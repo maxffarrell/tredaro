@@ -186,6 +186,19 @@
 			</Select.Root>
 		{/if}
 	</div>
+	{#if shown.length}
+		<p class="text-sm text-muted-foreground">
+			{shown.length} item{shown.length === 1 ? '' : 's'}
+			· {shown.filter((i) => i.kind === 'service').length} services · {shown.filter(
+				(i) => i.kind === 'material'
+			).length} materials{#if shown.filter((i) => i.active).length}
+				· avg {formatMoney(
+					shown.filter((i) => i.active).reduce((m, i) => m + i.price, 0) /
+						shown.filter((i) => i.active).length,
+					currency
+				)} (active){/if}
+		</p>
+	{/if}
 
 	<Card.Root class="py-0">
 		<Card.Content class="px-0">

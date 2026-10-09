@@ -233,6 +233,13 @@
 								{#if e.viewed && e.estimate.status === 'sent'}
 									<Badge variant="secondary" title="Customer opened this estimate">Viewed</Badge>
 								{/if}
+								{#if e.estimate.status === 'sent' && e.estimate.sentAt && Date.now() - new Date(e.estimate.sentAt).getTime() > 7 * 86400_000}
+									<Badge
+										variant="outline"
+										class="ml-1 text-amber-600 dark:text-amber-400"
+										title="Sent 7+ days ago, no decision — follow up">stale</Badge
+									>
+								{/if}
 								{#if e.estimate.decisionNote?.includes('Changes requested')}
 									<Badge
 										variant="secondary"

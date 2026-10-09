@@ -84,6 +84,9 @@
 		jobs.filter((j) => !j.job.technicianId && !['done', 'cancelled'].includes(j.job.status)).length
 	);
 	const partsCount = $derived(jobs.filter((j) => j.job.blocked).length);
+	const urgentCount = $derived(
+		tab === 'all' ? jobs.filter((j) => j.job.priority === 'urgent').length : 0
+	);
 	const overdueCount = $derived(
 		jobs.filter(
 			(j) =>
@@ -207,6 +210,11 @@
 		{#if partsCount}
 			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
 				>{partsCount} waiting on parts</Badge
+			>
+		{/if}
+		{#if urgentCount}
+			<Badge class="border-transparent bg-red-500/15 text-red-600 dark:text-red-400"
+				>{urgentCount} urgent</Badge
 			>
 		{/if}
 		{#if overdueCount}
