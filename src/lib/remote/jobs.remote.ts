@@ -146,6 +146,10 @@ export const createJob = command(jobInput, async (input) => {
 		void notifyJobScheduled(ctx.orgId, j.id).catch((err) =>
 			console.error('job scheduled email failed', err)
 		);
+	if (j?.helperId)
+		void notifyTechAssigned(ctx.orgId, j.id, j.helperId).catch((err) =>
+			console.error('helper assignment email failed', err)
+		);
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);
 	await refreshQuery(getDashboard, undefined);
@@ -210,6 +214,10 @@ export const updateJob = command(jobUpdate, async (input) => {
 	if (input.technicianId && j?.technicianId)
 		void notifyTechAssigned(ctx.orgId, j.id, j.technicianId).catch((err) =>
 			console.error('tech assignment email failed', err)
+		);
+	if (input.helperId && j?.helperId)
+		void notifyTechAssigned(ctx.orgId, j.id, j.helperId).catch((err) =>
+			console.error('helper assignment email failed', err)
 		);
 	await refreshQuery(getJobs, undefined);
 	await refreshQuery(getDispatchBoard, undefined);

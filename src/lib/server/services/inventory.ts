@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
+	companySettings,
 	inventoryItem,
 	job,
 	jobMaterial,
@@ -152,6 +153,7 @@ export async function listJobMaterials(orgId: string, jobId: string) {
 			material: jobMaterial,
 			itemName: inventoryItem.name,
 			itemUnit: inventoryItem.unit,
+			itemBillable: inventoryItem.billable,
 			memberName: user.name
 		})
 		.from(jobMaterial)
@@ -410,6 +412,11 @@ export async function applyMaterialKit(ctx: OrgContext, jobId: string) {
 				)
 		: [];
 	if (!kit.length) error(404, 'This job type has no material kit');
+	const [{ materialsMarkupBps = 0 } = {}] = await db
+		.select({ materialsMarkupBps: companySettings.materialsMarkupBps })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, ctx.orgId))
+		.limit(1);
 	let applied = 0;
 	const skipped: string[] = [];
 	for (const line of kit) {
@@ -418,7 +425,7 @@ export async function applyMaterialKit(ctx: OrgContext, jobId: string) {
 				jobId,
 				inventoryItemId: line.inventoryItemId,
 				qty: line.qty,
-				unitPrice: line.unitCost,
+				unitPrice: Math.round(line.unitCost * (1 + materialsMarkupBps / 10_000)),
 				truckMemberId: null
 			});
 			applied++;

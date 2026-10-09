@@ -1189,7 +1189,7 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		})
 		.from(jobMaterial)
 		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
-		.where(eq(jobMaterial.jobId, jobId));
+		.where(and(eq(jobMaterial.jobId, jobId), eq(inventoryItem.billable, true)));
 	// Completed time entries become a Labor line when the job type bills hourly.
 	let labor: {
 		pricebookItemId: null;

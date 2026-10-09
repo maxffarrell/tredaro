@@ -400,6 +400,9 @@
 					{#if idx >= 0}
 						<Badge variant="secondary" class="mr-1 font-normal">Stop {idx + 1}</Badge>
 					{/if}
+					{#if j.job.helperId === day.member?.id}
+						<Badge variant="outline" class="mr-1 font-normal">helping</Badge>
+					{/if}
 					<a
 						href="/jobs/{j.job.id}"
 						class="font-medium hover:underline"
