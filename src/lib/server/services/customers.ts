@@ -23,6 +23,7 @@ import {
 import type { OrgContext } from '#lib/server/context.ts';
 import { emit } from './events.ts';
 import { listFollowUps } from './followups.ts';
+import { listCustomerDocs } from './photos.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
@@ -244,11 +245,13 @@ export async function getCustomer(orgId: string, id: string) {
 		: [];
 
 	const followUps = await listFollowUps(orgId, { customerId: id });
+	const documents = await listCustomerDocs(orgId, id);
 
 	return {
 		...row,
 		contacts,
 		followUps,
+		documents,
 		locations,
 		agreements,
 		jobs,

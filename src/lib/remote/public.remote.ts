@@ -1,8 +1,9 @@
 import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
-import { bookingInput, estimateDecisionInput } from '#lib/schemas.ts';
+import { bookingInput, estimateDecisionInput, isoDate } from '#lib/schemas.ts';
 import {
 	getPublicCompany,
+	publicAvailability,
 	requestBooking,
 	setVisitPreference
 } from '#lib/server/services/public.ts';
@@ -32,6 +33,12 @@ function clientIp() {
 
 /** Public company page data for /book/[slug] — unauthenticated by design. */
 export const getBookingPage = query(v.string(), async (slug) => getPublicCompany(slug));
+
+/** Open booking slots left on a day — public, same data as the booking form. */
+export const getDayAvailability = query(
+	v.object({ slug: v.string(), date: isoDate }),
+	async ({ slug, date }) => publicAvailability(slug, date)
+);
 
 /** Public booking form — rate-limited + honeypot inside. */
 export const requestBookingForm = command(

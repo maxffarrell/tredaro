@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import FileText from '@lucide/svelte/icons/file-text';
+	import Paperclip from '@lucide/svelte/icons/paperclip';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
@@ -41,7 +42,8 @@
 		revokePortalAccess,
 		addContact,
 		updateContact,
-		removeContact
+		removeContact,
+		removeCustomerDoc
 	} from '#lib/remote/customers.remote.ts';
 	import { addFollowUp, completeFollowUp, removeFollowUp } from '#lib/remote/followups.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
@@ -370,6 +372,35 @@
 			toast.error(errMsg(err, 'Could not add follow-up'));
 		}
 		fupPending = false;
+	}
+
+	let docUploading = $state(false);
+	async function uploadDoc(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		docUploading = true;
+		try {
+			const form = new FormData();
+			form.set('file', file);
+			const res = await fetch(`/api/customers/${id}/documents`, { method: 'POST', body: form });
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				throw new Error(body?.message ?? `Upload failed (${res.status})`);
+			}
+			await getCustomer(id).refresh();
+			toast.success('Document added');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload document'));
+		}
+		input.value = '';
+		docUploading = false;
+	}
+
+	function docSize(bytes: number) {
+		return bytes >= 1_048_576
+			? `${(bytes / 1_048_576).toFixed(1)} MB`
+			: `${Math.max(1, Math.round(bytes / 1024))} KB`;
 	}
 
 	async function deleteContact(ct: (typeof c.contacts)[number]) {
@@ -1041,6 +1072,72 @@
 							<Empty.Title class="text-sm">No follow-ups</Empty.Title>
 							<Empty.Description class="text-xs"
 								>Remind yourself or a teammate to check back.</Empty.Description
+							>
+						</Empty.Header>
+					</Empty.Root>
+				{/each}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base"
+					>Documents{#if c.documents.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>({c.documents.length})</span
+						>{/if}</Card.Title
+				>
+				<label
+					class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors hover:bg-accent {docUploading
+						? 'pointer-events-none opacity-60'
+						: ''}"
+				>
+					<Paperclip class="size-4" />
+					{docUploading ? 'Uploading…' : 'Upload'}
+					<input type="file" class="sr-only" disabled={docUploading} onchange={uploadDoc} />
+				</label>
+			</Card.Header>
+			<Card.Content class="space-y-2 px-4">
+				{#each c.documents as d (d.id)}
+					<div class="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+						<div class="flex min-w-0 flex-1 items-center gap-2">
+							<FileText class="size-4 shrink-0 text-muted-foreground" />
+							<div class="min-w-0">
+								<a
+									href="/files/customer-document/{d.id}"
+									target="_blank"
+									class="block truncate font-medium hover:underline">{d.fileName}</a
+								>
+								<span class="text-xs text-muted-foreground"
+									>{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
+										? ` · ${d.uploadedBy}`
+										: ''}</span
+								>
+							</div>
+						</div>
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger
+								class="inline-flex size-7 shrink-0 items-center justify-center rounded-md hover:bg-accent"
+							>
+								<EllipsisVertical class="size-4" />
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="end">
+								<DropdownMenu.Item
+									class="text-destructive"
+									onclick={() =>
+										removeCustomerDoc({ id: d.id, customerId: id }).updates(getCustomer)}
+									>Remove</DropdownMenu.Item
+								>
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					</div>
+				{:else}
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><Paperclip /></Empty.Media>
+							<Empty.Title class="text-sm">No documents</Empty.Title>
+							<Empty.Description class="text-xs"
+								>Contracts, permits and paperwork for this account.</Empty.Description
 							>
 						</Empty.Header>
 					</Empty.Root>

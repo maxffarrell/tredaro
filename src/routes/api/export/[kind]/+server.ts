@@ -20,6 +20,7 @@ import {
 	user
 } from '#lib/server/db/schema.ts';
 import { localDate, localTime } from '#lib/tz.ts';
+import { exportWorkspace } from '#lib/server/services/backup.ts';
 import type { RequestHandler } from './$types';
 
 const cell = (v: unknown) => {
@@ -463,10 +464,22 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				])
 			)
 		].join('\n');
+	} else if (kind === 'workspace') {
+		// Full org JSON backup — admins/owners only, and no shared secret is worth
+		// returning here: provider keys, webhook secrets and API keys stay out.
+		if (ctx.role !== 'owner' && ctx.role !== 'admin')
+			error(403, 'Only owners and admins can export the workspace');
+		const data = await exportWorkspace(ctx.orgId);
+		return new Response(`${JSON.stringify(data, null, 2)}\n`, {
+			headers: {
+				'content-type': 'application/json; charset=utf-8',
+				'content-disposition': `attachment; filename="tredaro-workspace-${filenameDate}.json"`
+			}
+		});
 	} else {
 		error(
 			404,
-			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers, estimates, inventory, pricebook or statement'
+			'Unknown export — try invoices, time-entries, quickbooks, xero, payments, customers, estimates, inventory, pricebook, statement or workspace'
 		);
 	}
 

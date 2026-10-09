@@ -1076,3 +1076,22 @@ export const memberDayNote = pgTable(
 	},
 	(t) => [uniqueIndex('member_day_note_member_on_idx').on(t.memberId, t.on)]
 );
+
+/** A document attached to a customer account — contracts, permits, signed paperwork. */
+export const customerDocument = pgTable(
+	'customer_document',
+	{
+		id: id(),
+		organizationId: orgId(),
+		customerId: text('customer_id')
+			.notNull()
+			.references(() => customer.id, { onDelete: 'cascade' }),
+		uploadedById: text('uploaded_by_id').references(() => member.id, { onDelete: 'set null' }),
+		fileName: text('file_name').notNull(),
+		mime: text('mime').notNull(),
+		size: integer('size').notNull(),
+		path: text('path').notNull(),
+		...timestamps
+	},
+	(t) => [index('customer_document_customer_idx').on(t.customerId)]
+);

@@ -3,7 +3,7 @@ import * as v from 'valibot';
 export const optionalText = v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(5000))));
 const requiredText = (label: string) =>
 	v.pipe(v.string(), v.trim(), v.nonEmpty(`${label} is required`), v.maxLength(200));
-const isoDate = v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD'));
+export const isoDate = v.pipe(v.string(), v.isoDate('Use YYYY-MM-DD'));
 /** Money is sent in cents. */
 const cents = v.pipe(v.number(), v.integer(), v.minValue(0));
 const emailField = v.optional(
@@ -104,6 +104,8 @@ export const contactUpdate = v.object({
 	isPrimary: v.optional(v.boolean())
 });
 export const contactDeleteInput = v.object({ id: idSchema, customerId: idSchema });
+
+export const customerDocDeleteInput = v.object({ id: idSchema, customerId: idSchema });
 
 /** A staff reminder tied to a customer/job, due on an org-local date. */
 export const followUpInput = v.object({

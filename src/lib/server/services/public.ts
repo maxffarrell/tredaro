@@ -72,6 +72,27 @@ export async function getPublicCompany(slug: string) {
 	return { org, settings, plans, jobTypes, offices, techs };
 }
 
+/**
+ * Open public-booking slots left on a requested day. `limited:false` means the
+ * org doesn't cap daily bookings — every day is open.
+ */
+export async function publicAvailability(slug: string, dateIso: string) {
+	const { org, settings } = await getPublicCompany(slug);
+	if (!settings || settings.bookingDailyLimit <= 0) return { limited: false, remaining: 0 };
+	const [{ taken }] = await db
+		.select({ taken: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, org.id),
+				eq(job.source, 'booking'),
+				like(job.preferredTime, `${dateIso}%`),
+				sql`${job.cancelledAt} is null`
+			)
+		);
+	return { limited: true, remaining: Math.max(0, settings.bookingDailyLimit - taken) };
+}
+
 const bookRate = new Map<string, number[]>();
 
 /**

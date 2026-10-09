@@ -7,7 +7,7 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { requestBookingForm } from '#lib/remote/public.remote.ts';
+	import { getDayAvailability, requestBookingForm } from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
 	import { errMsg, formatMoney } from '#lib/format.ts';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -45,6 +45,14 @@
 	const minDate = $derived(
 		new Date(Date.now() + noticeDays * 86400_000).toISOString().slice(0, 10)
 	);
+
+	const dailyLimit = $derived(settings?.bookingDailyLimit ?? 0);
+	const dayAvail = $derived(
+		preferredDate && dailyLimit > 0
+			? await getDayAvailability({ slug: org.slug, date: preferredDate })
+			: null
+	);
+	const dayFull = $derived(dayAvail?.limited === true && dayAvail.remaining === 0);
 	let description = $state('');
 	let leadSource = $state('');
 	let website = $state(''); // honeypot — must stay empty
@@ -269,6 +277,18 @@
 											Earliest available day is {minDate}.
 										</p>
 									{/if}
+									{#if dayAvail?.limited}
+										{#if dayFull}
+											<p class="text-xs font-medium text-red-600 dark:text-red-400">
+												That day is fully booked — pick another.
+											</p>
+										{:else}
+											<p class="text-xs text-muted-foreground">
+												{dayAvail.remaining} booking slot{dayAvail.remaining === 1 ? '' : 's'} left this
+												day.
+											</p>
+										{/if}
+									{/if}
 								</Field.Field>
 								<Field.Field>
 									<Field.Label for="b-when">Preferred time</Field.Label>
@@ -302,7 +322,7 @@
 								class="pointer-events-none absolute -left-[9999px] opacity-0"
 								aria-hidden="true"
 							/>
-							<Button type="submit" disabled={pending}
+							<Button type="submit" disabled={pending || dayFull}
 								>{pending ? 'Sending…' : 'Request service'}</Button
 							>
 						</form>

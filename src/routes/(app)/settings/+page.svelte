@@ -72,6 +72,7 @@
 	import Sun from '@lucide/svelte/icons/sun';
 	import Moon from '@lucide/svelte/icons/moon';
 	import MonitorSmartphone from '@lucide/svelte/icons/monitor-smartphone';
+	import Download from '@lucide/svelte/icons/download';
 	import { userPrefersMode, setMode } from 'mode-watcher';
 
 	let settings = $state(await getSettings());
@@ -937,6 +938,21 @@
 						</div>
 						<Button size="sm" variant="outline" onclick={() => tour.start()}
 							><GraduationCap /> Replay tour</Button
+						>
+					</div>
+					<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
+						<div>
+							<p class="font-medium">Workspace backup</p>
+							<p class="text-xs text-muted-foreground">
+								All customers, jobs, billing, inventory and settings as one JSON file — owners &amp;
+								admins only; secrets are never included.
+							</p>
+						</div>
+						<Button
+							size="sm"
+							variant="outline"
+							onclick={() => (window.location.href = '/api/export/workspace.json')}
+							><Download /> Download</Button
 						>
 					</div>
 				</Card.Content>
