@@ -1552,7 +1552,7 @@ export async function runReminders(orgId: string) {
 				.where(eq(jobTimeEntry.id, e.id));
 			const recipients = [...(e.email ? [e.email] : []), ...admins];
 			for (const r of new Set(recipients)) {
-				await logOnce(orgId, 'time_auto_ended', e.jobId, `${r}:${e.id}`);
+				await logOnce(orgId, 'time_auto_ended', `${e.jobId}:${e.id}`, r);
 			}
 		}
 	}
