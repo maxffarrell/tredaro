@@ -546,7 +546,11 @@
 					· {visibleCharges.filter(
 						(ch) =>
 							ch.charge.dueDate && ch.charge.dueDate >= todayStr && ch.charge.dueDate <= weekStr
-					).length} due this week{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0).length}
+					).length} due this week{/if}{#if visibleCharges.filter((ch) => !ch.charge.dueDate && ch.charge.amount - ch.paid > 0).length}
+					· <span class="text-amber-600 dark:text-amber-400"
+						>{visibleCharges.filter((ch) => !ch.charge.dueDate && ch.charge.amount - ch.paid > 0)
+							.length} no due date</span
+					>{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0).length}
 					· {visibleCharges.filter(
 						(ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0
 					).length} due today{/if}

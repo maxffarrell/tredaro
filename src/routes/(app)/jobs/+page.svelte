@@ -182,6 +182,11 @@
 				>{unassignedCount} unassigned</Badge
 			>
 		{/if}
+		{#if counts.in_progress}
+			<Badge variant="outline" class="text-blue-600 dark:text-blue-400"
+				>{counts.in_progress} in progress</Badge
+			>
+		{/if}
 		{#if todayCount}
 			<Badge variant="outline">{todayCount} today</Badge>
 		{/if}

@@ -267,6 +267,7 @@
 		{@const lowCount = items.filter((i) => i.low).length}
 		{@const outCount = items.filter((i) => i.item.qtyOnHand === 0).length}
 		{@const unusedCount = items.filter((i) => !i.used).length}
+		{@const noCostCount = items.filter((i) => !i.item.unitCost).length}
 		{@const unmonitoredCount = items.filter((i) => i.item.reorderPoint == null).length}
 		{@const openPos = pos.filter((p) => p.po.status === 'draft' || p.po.status === 'ordered')}
 		{@const orderedPos = openPos.filter((p) => p.po.status === 'ordered')}
@@ -296,6 +297,9 @@
 		{/if}
 		{#if outCount}
 			<Badge variant="outline" class="mr-2 text-red-600 dark:text-red-400">{outCount} out</Badge>
+		{/if}
+		{#if noCostCount}
+			<Badge variant="outline" class="mr-2 text-muted-foreground">{noCostCount} no cost</Badge>
 		{/if}
 		{#if unusedCount}
 			<Badge variant="outline" class="mr-2 text-muted-foreground">{unusedCount} unused</Badge>
