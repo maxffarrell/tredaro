@@ -183,13 +183,19 @@
 
 	async function sendText() {
 		if (!textCustomerId || !textMsg.trim()) return;
+		try {
 			await textCustomerCmd({ customerId: textCustomerId, message: textMsg.trim() });
 			toast.success('Text sent');
 			textCustomerId = null;
 			textMsg = '';
+		} catch (err) {
 			toast.error(errMsg(err, 'Could not send text'));
+		}
+	}
+
 	async function collect() {
 		if (!collectCustomerId || collectAmount <= 0) return;
+		try {
 			await recordPayment({
 				customerId: collectCustomerId,
 				amount: collectAmount,
@@ -200,7 +206,11 @@
 			collectCustomerId = null;
 			collectAmount = 0;
 			collectNotes = '';
+		} catch (err) {
 			toast.error(errMsg(err, 'Could not record payment'));
+		}
+	}
+
 	async function saveNote() {
 		if (!noteJobId || !noteText.trim()) return;
 		pending = `${noteJobId}:note`;
@@ -379,8 +389,13 @@
 							onclick={() => (textCustomerId = j.job.customerId)}><MessageSquare /> Text</Button
 						>
 					{/if}
+					<Button
+						size="sm"
+						variant="ghost"
+						disabled={pending !== null}
 						title="Collect a payment on site"
 						onclick={() => (collectCustomerId = j.job.customerId)}><HandCoins /> Collect</Button
+					>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							{#snippet child({ props })}
@@ -739,15 +754,36 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<Dialog.Root
 	open={textCustomerId !== null}
+	onOpenChange={(v) => {
 		if (!v) textCustomerId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
 			<Dialog.Title>Text the customer</Dialog.Title>
+			<Dialog.Description
 				>Sends from your company's number — replies land in the inbox.</Dialog.Description
+			>
+		</Dialog.Header>
 		<Textarea rows={3} bind:value={textMsg} placeholder="Running about 15 minutes behind…" />
+		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (textCustomerId = null)}>Cancel</Button>
 			<Button onclick={sendText} disabled={!textMsg.trim()}>Send text</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root
 	open={collectCustomerId !== null}
+	onOpenChange={(v) => {
 		if (!v) collectCustomerId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
 			<Dialog.Title>Collect payment</Dialog.Title>
 			<Dialog.Description>
 				{#if collectBal?.count}
@@ -759,6 +795,9 @@
 					Nothing owed — record anyway to log a prepayment credit.
 				{/if}
 			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<div class="space-y-1.5">
 				<Label for="collect-amt">Amount</Label>
 				<MoneyInput id="collect-amt" bind:value={collectAmount} />
 				{#if collectBal?.open}
@@ -768,6 +807,8 @@
 						onclick={() => (collectAmount = collectBal!.open)}>Fill full balance</Button
 					>
 				{/if}
+			</div>
+			<div class="space-y-1.5">
 				<Label>Method</Label>
 				<Select.Root type="single" bind:value={collectMethod}>
 					<Select.Trigger class="h-8 w-full">{collectMethod}</Select.Trigger>
@@ -777,7 +818,15 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
+			</div>
+			<div class="space-y-1.5">
 				<Label for="collect-notes">Notes (optional)</Label>
 				<Input id="collect-notes" bind:value={collectNotes} placeholder="Check #1234" />
+			</div>
+		</div>
+		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (collectCustomerId = null)}>Cancel</Button>
 			<Button onclick={collect} disabled={collectAmount <= 0}>Record payment</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
