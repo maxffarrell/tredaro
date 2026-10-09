@@ -874,7 +874,8 @@
 											<StatusBadge status={j.job.status} class="ml-auto" />
 										</div>
 										<p class="mt-1 text-xs text-muted-foreground">
-											J-{j.job.number} · {j.customerName} ·
+											{#if dayFilter && techId}{i + 1}.&nbsp;{/if}J-{j.job.number} ·
+											{j.customerName} ·
 											{j.job.startsAt
 												? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 												: 'unscheduled'}

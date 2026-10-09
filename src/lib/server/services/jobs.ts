@@ -1437,6 +1437,58 @@ export async function approveAllTimeEntries(ctx: OrgContext, jobId: string) {
 	return { approved: rows.length };
 }
 
+/** Org-wide time entries in a range for the payroll review page. Admin/owner only. */
+export async function payrollHours(ctx: OrgContext, from: Date, to: Date) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	return db
+		.select({
+			entry: jobTimeEntry,
+			memberName: user.name,
+			jobId: job.id,
+			jobNumber: job.number,
+			jobSummary: job.summary,
+			customerName: customer.name
+		})
+		.from(jobTimeEntry)
+		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.leftJoin(job, eq(jobTimeEntry.jobId, job.id))
+		.leftJoin(customer, eq(job.customerId, customer.id))
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				gte(jobTimeEntry.startedAt, from),
+				lt(jobTimeEntry.startedAt, to)
+			)
+		)
+		.orderBy(asc(user.name), desc(jobTimeEntry.startedAt));
+}
+
+/** Bulk-approve one member's finished entries inside a range — payroll. Admin/owner only. */
+export async function approveMemberTimeEntries(
+	ctx: OrgContext,
+	memberId: string,
+	from: Date,
+	to: Date
+) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const rows = await db
+		.update(jobTimeEntry)
+		.set({ approvedAt: new Date(), approvedById: ctx.userId })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				eq(jobTimeEntry.memberId, memberId),
+				isNull(jobTimeEntry.approvedAt),
+				isNotNull(jobTimeEntry.endedAt),
+				gte(jobTimeEntry.startedAt, from),
+				lt(jobTimeEntry.startedAt, to)
+			)
+		)
+		.returning({ id: jobTimeEntry.id });
+	return { approved: rows.length };
+}
+
 /** Reorder a stop inside any technician's day — the dispatch-side twin of moveMyDayStop. */
 export async function moveDayStop(
 	ctx: OrgContext,
