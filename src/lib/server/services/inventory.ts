@@ -21,7 +21,7 @@ export async function listItems(orgId: string) {
 	const rows = await db
 		.select({
 			item: inventoryItem,
-			used: sql<boolean>`exists(select 1 from ${jobMaterial} jm where jm.inventory_item_id = ${inventoryItem.id})`
+			used: sql<boolean>`exists(select 1 from ${jobMaterial} jm where jm.inventory_item_id = inventory_item.id)`
 		})
 		.from(inventoryItem)
 		.where(eq(inventoryItem.organizationId, orgId))
