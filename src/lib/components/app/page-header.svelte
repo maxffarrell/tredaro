@@ -32,5 +32,7 @@
 			>
 		</Breadcrumb.List>
 	</Breadcrumb.Root>
-	{#if actions}<div class="ml-auto flex items-center gap-2">{@render actions()}</div>{/if}
+	{#if actions}<div class="ml-auto flex min-w-0 items-center gap-2 overflow-x-auto">
+			{@render actions()}
+		</div>{/if}
 </header>
