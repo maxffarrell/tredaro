@@ -240,21 +240,29 @@ export async function requestBooking(
 	// lands as unapplied credit and auto-applies to their first invoice.
 	let payUrl: string | null = null;
 	if (settings.bookingDeposit > 0) {
-		for (const p of providers) {
-			if (!p.configured()) continue;
-			const row = await providerRow(org.id, p.id);
-			if (!p.ready(row)) continue;
-			payUrl = await p.checkout({
-				orgId: org.id,
-				customerId: c.id,
-				email: input.email,
-				amount: settings.bookingDeposit,
-				currency: settings.currency ?? 'usd',
-				description: `Booking deposit — ${org.name}`,
-				paths: { success: `/book/${slug}?paid=1`, cancel: `/book/${slug}` },
-				row
-			});
-			break;
+		// A provider outage or revoked key must never lose the booking — the job
+		// and customer are already persisted, so fall back to collecting on the
+		// first invoice instead of erroring (which would invite duplicate retries).
+		try {
+			for (const p of providers) {
+				if (!p.configured()) continue;
+				const row = await providerRow(org.id, p.id);
+				if (!p.ready(row)) continue;
+				payUrl = await p.checkout({
+					orgId: org.id,
+					customerId: c.id,
+					email: input.email,
+					amount: settings.bookingDeposit,
+					currency: settings.currency ?? 'usd',
+					description: `Booking deposit — ${org.name}`,
+					paths: { success: `/book/${slug}?paid=1`, cancel: `/book/${slug}` },
+					row
+				});
+				break;
+			}
+		} catch (err) {
+			console.error('booking deposit checkout failed', err);
+			payUrl = null;
 		}
 	}
 
