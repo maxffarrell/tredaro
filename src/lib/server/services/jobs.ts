@@ -990,9 +990,7 @@ export async function recordJobEvent(
 			const [{ n }] = await db
 				.select({ n: sql<number>`count(*)`.mapWith(Number) })
 				.from(jobTimeEntry)
-				.where(
-					and(eq(jobTimeEntry.jobId, input.jobId), eq(jobTimeEntry.memberId, who))
-				);
+				.where(and(eq(jobTimeEntry.jobId, input.jobId), eq(jobTimeEntry.memberId, who)));
 			if (n === 0)
 				error(409, 'Clock in first — this job type requires logged time before arriving on site');
 		}

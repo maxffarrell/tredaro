@@ -1876,11 +1876,7 @@
 						Technician can't mark on-site until they have logged time on the job.
 					</p>
 				</div>
-				<Switch
-					id="jt-req-timer"
-					checked={jtReqTimer}
-					onCheckedChange={(v) => (jtReqTimer = v)}
-				/>
+				<Switch id="jt-req-timer" checked={jtReqTimer} onCheckedChange={(v) => (jtReqTimer = v)} />
 			</div>
 			<div class="flex items-center justify-between">
 				<div>

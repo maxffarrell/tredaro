@@ -332,10 +332,18 @@
 	}
 
 	// Best-effort device position for status pings — never blocks the action.
+	// The browser's own `timeout` option isn't reliable everywhere (headless/locked-down
+	// Chrome can leave getCurrentPosition pending forever), so race it with a hard timer.
 	function getPos(): Promise<Partial<{ lat: number; lng: number }>> {
 		return new Promise((resolve) => {
 			if (!navigator.geolocation) return resolve({});
-			const done = (r: Partial<{ lat: number; lng: number }>) => resolve(r);
+			let settled = false;
+			const done = (r: Partial<{ lat: number; lng: number }>) => {
+				if (settled) return;
+				settled = true;
+				resolve(r);
+			};
+			setTimeout(() => done({}), 4500);
 			navigator.geolocation.getCurrentPosition(
 				(p) => done({ lat: p.coords.latitude, lng: p.coords.longitude }),
 				() => done({}),
