@@ -441,6 +441,7 @@ export async function updateCustomer(
 			emailOptOut: set.emailOptOut,
 			leadSource: set.leadSource === undefined ? undefined : set.leadSource || null,
 			onHold: set.onHold,
+			doNotService: set.doNotService,
 			taxExempt: set.taxExempt,
 			taxRateBps: set.taxRateBps,
 			termsDays: set.termsDays,
