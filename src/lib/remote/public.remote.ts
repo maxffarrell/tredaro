@@ -3,6 +3,7 @@ import { command, getRequestEvent, query } from '$app/server';
 import { bookingInput, estimateDecisionInput } from '#lib/schemas.ts';
 import { getPublicCompany, requestBooking } from '#lib/server/services/public.ts';
 import {
+	notifyBookingConfirmationSms,
 	notifyBookingReceived,
 	notifyStaffBooking,
 	notifyStaffEstimateChanges,
@@ -38,6 +39,9 @@ export const requestBookingForm = command(
 		);
 		void notifyStaffBooking(r.job!.organizationId, r.job!.id).catch((err) =>
 			console.error('staff booking alert failed', err)
+		);
+		void notifyBookingConfirmationSms(r.job!.organizationId, r.job!.id).catch((err) =>
+			console.error('booking sms failed', err)
 		);
 		return r;
 	}
