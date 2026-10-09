@@ -43,7 +43,11 @@
 		board.dayNotes.find((n) => n.memberId && nameFor(n.memberId) === tech)?.note;
 	const nameFor = (memberId: string) =>
 		board.technicians.find((t) => t.id === memberId)?.name ?? '';
-	const offNames = board.timeOff.map((t) => nameFor(t.memberId)).filter(Boolean);
+	// timeOff rows cover the whole board window — keep only ranges spanning `day`.
+	const offNames = board.timeOff
+		.filter((t) => t.startsOn <= day && t.endsOn >= day)
+		.map((t) => nameFor(t.memberId))
+		.filter(Boolean);
 </script>
 
 <svelte:head><title>Route sheets — {day}</title></svelte:head>
