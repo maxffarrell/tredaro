@@ -51,6 +51,17 @@
 	let items = $state([{ name: '', qty: 1, unitPrice: 0 }]);
 
 	const totalCents = $derived(items.reduce((s, i) => s + i.qty * i.unitPrice, 0));
+	const expiringSoon = $derived.by(() => {
+		const in7 = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
+		const today = new Date().toISOString().slice(0, 10);
+		return estimates.filter(
+			(e) =>
+				e.estimate.status === 'sent' &&
+				e.estimate.validUntil &&
+				e.estimate.validUntil >= today &&
+				e.estimate.validUntil <= in7
+		).length;
+	});
 	const winRate = $derived.by(() => {
 		const decided = estimates.filter(
 			(e) =>
@@ -142,7 +153,8 @@
 				)}</span
 			>
 			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'} ·
-			{estimates.filter((e) => e.viewed).length} viewed{#if oldestSentDays !== null}
+			{estimates.filter((e) => e.viewed).length} viewed{#if expiringSoon}
+				· {expiringSoon} expiring ≤7d{/if}{#if oldestSentDays !== null}
 				· oldest sent {oldestSentDays}d ago{/if}
 		</p>
 	{/if}

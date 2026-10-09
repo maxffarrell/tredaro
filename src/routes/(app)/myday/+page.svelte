@@ -282,6 +282,11 @@
 		{@const done = day.jobs.filter((j) => j.job.status === 'done').length}
 		{@const left = day.jobs.length - done}
 		{@const next = day.jobs.find((j) => j.job.status !== 'done' && j.job.startsAt)}
+		{@const lastEnd = day.jobs
+			.filter((j) => j.job.endsAt && j.job.status !== 'cancelled')
+			.map((j) => j.job.endsAt)
+			.sort()
+			.at(-1)}
 		{@const schedMin = day.jobs.reduce(
 			(m, j) =>
 				m +
@@ -302,6 +307,9 @@
 				<span class="text-muted-foreground tabular-nums"
 					>{Math.floor(schedMin / 60)}h {Math.round(schedMin % 60)}m scheduled</span
 				>
+			{/if}
+			{#if lastEnd}
+				<span class="text-muted-foreground tabular-nums">ends ~{localTime(lastEnd, tz)}</span>
 			{/if}
 			<span class="text-muted-foreground tabular-nums"
 				>{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged</span

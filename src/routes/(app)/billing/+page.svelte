@@ -532,7 +532,10 @@
 					· {visibleCharges.filter(
 						(ch) =>
 							ch.charge.dueDate && ch.charge.dueDate >= todayStr && ch.charge.dueDate <= weekStr
-					).length} due this week{/if}
+					).length} due this week{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0).length}
+					· {visibleCharges.filter(
+						(ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0
+					).length} due today{/if}
 			</p>
 			<Card.Root class="py-0">
 				<Card.Content class="px-0">
