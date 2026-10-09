@@ -47,6 +47,8 @@
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
 	import Flag from '@lucide/svelte/icons/flag';
 	import Phone from '@lucide/svelte/icons/phone';
+	import Paperclip from '@lucide/svelte/icons/paperclip';
+	import { SvelteMap } from 'svelte/reactivity';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
 	import Receipt from '@lucide/svelte/icons/receipt';
@@ -67,6 +69,15 @@
 			0
 		)
 	);
+	const docsByJob = $derived.by(() => {
+		const m = new SvelteMap<string, typeof day.docs>();
+		for (const d of day.docs) {
+			const list = m.get(d.jobId) ?? [];
+			list.push(d);
+			m.set(d.jobId, list);
+		}
+		return m;
+	});
 	const tz = $derived(day.tz);
 	const calFeed = $derived(await getCalendarFeed());
 	function copyCal() {
@@ -408,6 +419,15 @@
 							{j.accessNotes}
 						</p>
 					{/if}
+					{#each docsByJob.get(j.job.id) ?? [] as doc (doc.id)}
+						<a
+							href="/files/job-document/{doc.id}"
+							target="_blank"
+							class="inline-flex max-w-full items-center gap-1 text-xs text-primary hover:underline"
+							><Paperclip class="size-3 shrink-0" />
+							<span class="truncate">{doc.fileName}</span></a
+						>
+					{/each}
 				</div>
 				<StatusBadge status={j.job.status} />
 				{#if j.job.blocked}

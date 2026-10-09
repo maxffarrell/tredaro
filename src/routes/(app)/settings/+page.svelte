@@ -147,6 +147,7 @@
 	let jtReqChecklist = $state(false);
 	let jtReqPhoto = $state(false);
 	let jtReqSignature = $state(false);
+	let jtReqDoc = $state(false);
 	let jtBookable = $state(true);
 	let jtActive = $state(true);
 
@@ -162,6 +163,7 @@
 		jtReqChecklist = t?.requireChecklist ?? false;
 		jtReqPhoto = t?.requirePhoto ?? false;
 		jtReqSignature = t?.requireSignature ?? false;
+		jtReqDoc = t?.requireDocument ?? false;
 		jtBookable = t?.bookable ?? true;
 		jtActive = t?.active ?? true;
 		jtOpen = true;
@@ -183,6 +185,7 @@
 			requireChecklist: jtReqChecklist,
 			requirePhoto: jtReqPhoto,
 			requireSignature: jtReqSignature,
+			requireDocument: jtReqDoc,
 			bookable: jtBookable,
 			active: jtActive
 		};
@@ -1827,6 +1830,15 @@
 					checked={jtReqSignature}
 					onCheckedChange={(v) => (jtReqSignature = v)}
 				/>
+			</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-req-doc" class="text-sm font-medium">Require document to complete</label>
+					<p class="text-xs text-muted-foreground">
+						At least one attached document (permit, contract) before completion.
+					</p>
+				</div>
+				<Switch id="jt-req-doc" checked={jtReqDoc} onCheckedChange={(v) => (jtReqDoc = v)} />
 			</div>
 			<div class="flex items-center justify-between">
 				<div>

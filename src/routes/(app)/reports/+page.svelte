@@ -879,6 +879,29 @@
 		</Card.Root>
 	{/if}
 
+	{#if r.revWeekday.some((d) => d.cents > 0)}
+		{@const weekMax = Math.max(...r.revWeekday.map((d) => d.cents), 1)}
+		<Card.Root>
+			<Card.Header><Card.Title class="text-base">Collected by weekday</Card.Title></Card.Header>
+			<Card.Content class="space-y-2">
+				{#each r.revWeekday as d (d.label)}
+					<div class="flex items-center gap-3 text-sm">
+						<span class="w-8 shrink-0 text-muted-foreground">{d.label}</span>
+						<div class="h-2.5 flex-1 rounded-full bg-muted">
+							<div
+								class="h-2.5 rounded-full bg-primary/75"
+								style:width="{(d.cents / weekMax) * 100}%"
+							></div>
+						</div>
+						<span class="w-20 shrink-0 text-right tabular-nums"
+							>{formatMoney(d.cents, currency, true)}</span
+						>
+					</div>
+				{/each}
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	{#if r.topMaterials.length}
 		<Card.Root>
 			<Card.Header

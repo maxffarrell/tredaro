@@ -31,6 +31,7 @@ import {
 	jobExpense,
 	jobMaterial,
 	jobChecklistItem,
+	jobDocument,
 	jobEvent,
 	jobPhoto,
 	jobTimeEntry,
@@ -85,6 +86,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			requireChecklist: input.requireChecklist,
 			requirePhoto: input.requirePhoto,
 			requireSignature: input.requireSignature,
+			requireDocument: input.requireDocument,
 			bookable: input.bookable,
 			active: input.active
 		})
@@ -971,7 +973,8 @@ export async function recordJobEvent(
 			.select({
 				requireChecklist: jobType.requireChecklist,
 				requirePhoto: jobType.requirePhoto,
-				requireSignature: jobType.requireSignature
+				requireSignature: jobType.requireSignature,
+				requireDocument: jobType.requireDocument
 			})
 			.from(jobType)
 			.where(eq(jobType.id, j.jobTypeId));
@@ -991,6 +994,13 @@ export async function recordJobEvent(
 		}
 		if (type?.requireSignature && !j.signature)
 			error(409, 'Capture the customer signature before completing');
+		if (type?.requireDocument) {
+			const [{ n }] = await db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(jobDocument)
+				.where(eq(jobDocument.jobId, input.jobId));
+			if (n === 0) error(409, 'Attach at least one document before completing');
+		}
 	}
 
 	const [memberRow] = await db
@@ -1406,7 +1416,7 @@ export async function techDay(orgId: string, memberId: string, from: Date, to: D
 /** The calling technician's My Day payload: window jobs, their unscheduled queue, open timer. */
 export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 	const me = await memberFor(ctx);
-	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null };
+	if (!me) return { member: null, jobs: [], unscheduled: [], openEntry: null, docs: [] };
 	const tz = (await getSettings(ctx.orgId)).timezone;
 	const [jobs, unscheduled, queue, overdue, openEntries, dayEntries, tomorrow, offToday, dayNote] =
 		await Promise.all([
@@ -1477,6 +1487,17 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 				)
 				.limit(1)
 		]);
+	const docJobIds = [...new Set([...jobs, ...overdue].map((r) => r.job.id))];
+	const docs = docJobIds.length
+		? await db
+				.select({ id: jobDocument.id, jobId: jobDocument.jobId, fileName: jobDocument.fileName })
+				.from(jobDocument)
+				.where(
+					and(eq(jobDocument.organizationId, ctx.orgId), inArray(jobDocument.jobId, docJobIds))
+				)
+				.orderBy(asc(jobDocument.createdAt))
+		: [];
+
 	const materials = jobs.length
 		? await db
 				.select({
@@ -1518,6 +1539,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		tomorrow,
 		offToday: offToday[0] ?? null,
 		dayNote: dayNote[0]?.note ?? '',
+		docs,
 		materials
 	};
 }

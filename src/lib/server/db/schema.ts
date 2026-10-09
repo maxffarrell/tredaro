@@ -385,6 +385,8 @@ export const jobType = pgTable(
 		requirePhoto: boolean('require_photo').notNull().default(false),
 		/** Customer signature required before completion. */
 		requireSignature: boolean('require_signature').notNull().default(false),
+		/** At least one job document (permit/contract) required before completion. */
+		requireDocument: boolean('require_document').notNull().default(false),
 		/** Whether the type is selectable on the public /book page. */
 		bookable: boolean('bookable').notNull().default(true),
 		active: boolean('active').notNull().default(true),
