@@ -613,7 +613,11 @@
 									<Table.Cell class="pl-6 font-medium">
 										{formatMoney(p.payment.amount, currency)}
 										{#if p.payment.amount < 0}
-											<Badge variant="secondary" class="ml-1">refund</Badge>
+											<Badge variant="secondary" class="ml-1"
+												>{p.payment.reference?.startsWith('applied:')
+													? 'credit applied'
+													: 'refund'}</Badge
+											>
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="text-muted-foreground capitalize"
