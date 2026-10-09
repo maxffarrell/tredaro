@@ -305,6 +305,9 @@
 								{j.job.startsAt
 									? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
 									: 'Scheduling'}
+								{#if j.job.arrivalWindow}
+									<p class="text-xs">Arrival {j.job.arrivalWindow}</p>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="pr-6 text-right">
 								{#if j.confirmed}

@@ -499,6 +499,7 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
 			smsOptOut: customer.smsOptOut,
+			contactPref: customer.contactPref,
 			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
@@ -514,10 +515,14 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
 	const what = row.jobTypeName ?? row.summary;
 	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	// Preferred-channel routing: an sms/email preference suppresses the other
+	// channel unless it's the only one that can reach the customer.
+	const smsOk = !!row.phone && !row.smsOptOut && flags.sms && !!smsProvider();
 	if (
 		row.email &&
 		!row.emailOptOut &&
 		flags.email &&
+		(row.contactPref !== 'sms' || !smsOk) &&
 		(await logOnce(orgId, 'job_scheduled', jobId, row.email))
 	)
 		await sendEmail({
@@ -538,6 +543,7 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 		!row.smsOptOut &&
 		flags.sms &&
 		smsProvider() &&
+		row.contactPref !== 'email' &&
 		(await logOnce(orgId, 'job_scheduled_sms', jobId, row.phone))
 	)
 		await sendSmsQuiet(orgId, {
@@ -554,6 +560,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 			email: customer.email,
 			emailOptOut: customer.emailOptOut,
 			smsOptOut: customer.smsOptOut,
+			contactPref: customer.contactPref,
 			phone: customer.phone,
 			customerName: customer.name,
 			summary: job.summary,
@@ -575,10 +582,12 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
 	const what = row.jobTypeName ?? row.summary;
 	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	const smsOk = !!row.phone && !row.smsOptOut && flags.sms && !!smsProvider();
 	if (
 		row.email &&
 		!row.emailOptOut &&
 		flags.email &&
+		(row.contactPref !== 'sms' || !smsOk) &&
 		(await logOnce(orgId, 'appointment_reminder', jobId, row.email))
 	)
 		await sendEmail({
@@ -599,6 +608,7 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 		!row.smsOptOut &&
 		flags.sms &&
 		smsProvider() &&
+		row.contactPref !== 'email' &&
 		(await logOnce(orgId, 'appointment_reminder_sms', jobId, row.phone))
 	)
 		await sendSmsQuiet(orgId, {

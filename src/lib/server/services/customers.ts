@@ -275,6 +275,8 @@ export async function createCustomer(
 			onHold: input.onHold,
 			taxExempt: input.taxExempt,
 			taxRateBps: input.taxRateBps ?? null,
+			termsDays: input.termsDays ?? null,
+			contactPref: input.contactPref ?? null,
 			preferredMemberId: input.preferredMemberId ?? null
 		})
 		.returning();
@@ -406,6 +408,8 @@ export async function updateCustomer(
 			onHold: set.onHold,
 			taxExempt: set.taxExempt,
 			taxRateBps: set.taxRateBps,
+			termsDays: set.termsDays,
+			contactPref: set.contactPref,
 			preferredMemberId:
 				set.preferredMemberId === undefined ? undefined : set.preferredMemberId || null
 		})

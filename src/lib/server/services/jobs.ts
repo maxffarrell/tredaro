@@ -453,6 +453,7 @@ export async function createJob(
 			description: input.description,
 			priority: input.priority,
 			preferredTime: input.preferredTime ?? null,
+			arrivalWindow: input.arrivalWindow ?? null,
 			source: opts.source ?? 'manual',
 			dependsOnJobId: input.dependsOnJobId ?? null,
 			status: start ? 'scheduled' : 'unscheduled',
@@ -503,6 +504,7 @@ export async function duplicateJob(ctx: OrgContext, jobId: string) {
 			description: src.description,
 			priority: src.priority,
 			preferredTime: src.preferredTime,
+			arrivalWindow: src.arrivalWindow,
 			source: 'manual',
 			status: 'unscheduled'
 		})
@@ -666,6 +668,7 @@ export async function updateJob(
 			priority: set.priority,
 			blocked: set.blocked,
 			dependsOnJobId: set.dependsOnJobId,
+			arrivalWindow: set.arrivalWindow,
 			startsAt: start,
 			endsAt,
 			status,
@@ -879,11 +882,19 @@ export async function recordJobEvent(
 				.from(invoice)
 				.where(and(eq(invoice.organizationId, ctx.orgId), eq(invoice.jobId, input.jobId)))
 				.limit(1);
-			if (materials.length && !existingInvoice)
+			if (materials.length && !existingInvoice) {
+				const [cust] = await db
+					.select({ termsDays: customer.termsDays })
+					.from(customer)
+					.where(eq(customer.id, j.customerId))
+					.limit(1);
 				await createInvoice(ctx, {
 					customerId: j.customerId,
 					jobId: j.id,
-					dueDate: addDays(localDate(new Date(), settings.timezone), settings.invoiceTermsDays),
+					dueDate: addDays(
+						localDate(new Date(), settings.timezone),
+						cust?.termsDays ?? settings.invoiceTermsDays
+					),
 					notes: `Auto-created when J-${j.number} was completed — review before sending`,
 					items: materials.map((m) => ({
 						name: m.itemName,
@@ -892,6 +903,7 @@ export async function recordJobEvent(
 						unitPrice: m.material.unitPrice
 					}))
 				});
+			}
 		}
 	}
 	await emit({
@@ -1504,6 +1516,7 @@ export async function repeatJob(
 					description: src.job.description,
 					priority: src.job.priority,
 					preferredTime: null,
+					arrivalWindow: null,
 					startsAt
 				},
 				{ source: src.job.source ?? 'manual' }

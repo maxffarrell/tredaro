@@ -126,6 +126,7 @@
 	let description = $state(j.job.description);
 	let priority = $state(j.job.priority);
 	let dependsOnJobId = $state(j.job.dependsOnJobId ?? '');
+	let arrivalWindow = $state(j.job.arrivalWindow ?? '');
 	let startsAt = $state(
 		j.job.startsAt
 			? `${localDate(j.job.startsAt, settings.timezone)}T${localTime(j.job.startsAt, settings.timezone)}`
@@ -149,6 +150,7 @@
 			description = j.job.description;
 			priority = j.job.priority;
 			dependsOnJobId = j.job.dependsOnJobId ?? '';
+			arrivalWindow = j.job.arrivalWindow ?? '';
 			startsAt = j.job.startsAt
 				? `${localDate(j.job.startsAt, settings.timezone)}T${localTime(j.job.startsAt, settings.timezone)}`
 				: '';
@@ -175,6 +177,7 @@
 				description,
 				priority,
 				dependsOnJobId: dependsOnJobId || null,
+				arrivalWindow: arrivalWindow || null,
 				startsAt: startsAt || null,
 				durationMin
 			}).updates(getJob, getJobs, getDispatchBoard);
@@ -905,6 +908,15 @@
 						>
 					</Field.Field>
 					<Field.Field>
+						<Field.Label for="d-window">Arrival window</Field.Label>
+						<Input
+							id="d-window"
+							placeholder="8-10 AM — shown to the customer"
+							bind:value={arrivalWindow}
+							disabled={locked}
+						/>
+					</Field.Field>
+					<Field.Field>
 						<Field.Label for="d-dur">Duration (minutes)</Field.Label>
 						<Input
 							id="d-dur"
@@ -972,6 +984,13 @@
 					<div class="flex justify-between gap-3">
 						<span class="text-muted-foreground">Customer asked for</span><span class="text-right"
 							>{j.job.preferredTime}</span
+						>
+					</div>
+				{/if}
+				{#if j.job.arrivalWindow}
+					<div class="flex justify-between gap-3">
+						<span class="text-muted-foreground">Arrival window</span><span class="text-right"
+							>{j.job.arrivalWindow}</span
 						>
 					</div>
 				{/if}

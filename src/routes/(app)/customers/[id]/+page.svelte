@@ -200,6 +200,10 @@
 	let taxRatePct = $state(c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '');
 	let leadSource = $state(c.customer.leadSource);
 	let preferredMemberId = $state(c.customer.preferredMemberId ?? '');
+	let termsDays = $state<number | ''>(c.customer.termsDays ?? '');
+	let contactPref = $state<'' | 'email' | 'sms'>(
+		(c.customer.contactPref ?? '') as '' | 'email' | 'sms'
+	);
 	const technicians = $derived(await getTechnicians());
 	let saving = $state(false);
 	let loadedId = '';
@@ -221,6 +225,8 @@
 			taxRatePct = c.customer.taxRateBps != null ? c.customer.taxRateBps / 100 : '';
 			leadSource = c.customer.leadSource;
 			preferredMemberId = c.customer.preferredMemberId ?? '';
+			termsDays = c.customer.termsDays ?? '';
+			contactPref = (c.customer.contactPref ?? '') as '' | 'email' | 'sms';
 		}
 	});
 
@@ -248,7 +254,9 @@
 				taxRateBps:
 					taxRatePct === '' || taxRatePct == null ? null : Math.round(Number(taxRatePct) * 100),
 				leadSource,
-				preferredMemberId: preferredMemberId || null
+				preferredMemberId: preferredMemberId || null,
+				termsDays: termsDays === '' || termsDays == null ? null : Number(termsDays),
+				contactPref: contactPref || null
 			});
 			toast.success('Customer saved');
 		} catch (err) {
@@ -745,6 +753,33 @@
 						</label>
 						<label class="flex items-center gap-2 text-sm">
 							<Switch bind:checked={taxExempt} /> Tax exempt — no sales tax on invoices
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							Invoice terms
+							<Input
+								type="number"
+								min={0}
+								max={3650}
+								class="w-24"
+								bind:value={termsDays}
+								placeholder="org default"
+								aria-label="Invoice terms (days)"
+							/>
+							<span class="text-xs text-muted-foreground">days — blank uses workspace default</span>
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							Preferred contact
+							<Select.Root type="single" bind:value={contactPref}>
+								<Select.Trigger class="w-40"
+									>{contactPref === 'email' ? 'Email' : contactPref === 'sms' ? 'Text message' : 'No preference'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="">No preference</Select.Item>
+									<Select.Item value="email">Email</Select.Item>
+									<Select.Item value="sms">Text message</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<span class="text-xs text-muted-foreground">scheduling notifications only</span>
 						</label>
 						<label class="flex items-center gap-2 text-sm">
 							Tax rate

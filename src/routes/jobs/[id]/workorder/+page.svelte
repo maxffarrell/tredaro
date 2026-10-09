@@ -19,7 +19,7 @@
 		.filter(Boolean)
 		.join(' ');
 	const when = j.job.startsAt
-		? `${localDate(j.job.startsAt, settings.timezone)} ${localTime(j.job.startsAt, settings.timezone)}`
+		? `${localDate(j.job.startsAt, settings.timezone)} ${localTime(j.job.startsAt, settings.timezone)}${j.job.arrivalWindow ? ` (arrival ${j.job.arrivalWindow})` : ''}`
 		: 'Unscheduled';
 </script>
 

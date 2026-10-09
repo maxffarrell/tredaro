@@ -330,11 +330,17 @@ export async function invoiceEstimate(ctx: OrgContext, id: string) {
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
 	if (!items.length) error(409, 'Estimate has no line items');
-	const settings = await getSettings(ctx.orgId);
+	const [settings, [cust]] = await Promise.all([
+		getSettings(ctx.orgId),
+		db.select().from(customer).where(eq(customer.id, e.customerId)).limit(1)
+	]);
 	const inv = await createInvoice(ctx, {
 		customerId: e.customerId,
 		jobId: e.jobId ?? null,
-		dueDate: addDays(localDate(new Date(), settings.timezone), settings.invoiceTermsDays),
+		dueDate: addDays(
+			localDate(new Date(), settings.timezone),
+			cust?.termsDays ?? settings.invoiceTermsDays
+		),
 		notes: `From estimate E-${e.number}${e.version > 1 ? ` v${e.version}` : ''}`,
 		items: items.map((it) => ({
 			pricebookItemId: it.pricebookItemId,

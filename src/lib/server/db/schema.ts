@@ -145,6 +145,10 @@ export const customer = pgTable(
 		taxExempt: boolean('tax_exempt').notNull().default(false),
 		/** Per-customer sales-tax override in basis points; null = org default rate. */
 		taxRateBps: integer('tax_rate_bps'),
+		/** Per-customer invoice terms in days; null = org default. */
+		termsDays: integer('terms_days'),
+		/** Preferred channel for scheduling comms: 'email'|'sms'; null = both. */
+		contactPref: text('contact_pref'),
 		/** Tech the customer prefers — pre-fills new jobs. */
 		preferredMemberId: text('preferred_member_id').references(() => member.id, {
 			onDelete: 'set null'
@@ -379,6 +383,8 @@ export const job = pgTable(
 		blocked: boolean('blocked').notNull().default(false),
 		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
 		preferredTime: text('preferred_time'),
+		/** Communicated arrival window shown to customer/tech ("8-10 AM"); display only. */
+		arrivalWindow: text('arrival_window'),
 		/** Visit window; null while unscheduled. */
 		startsAt: timestamp('starts_at', { withTimezone: true }),
 		endsAt: timestamp('ends_at', { withTimezone: true }),

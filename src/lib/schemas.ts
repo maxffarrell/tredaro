@@ -64,7 +64,13 @@ export const customerInput = v.object({
 	/** Per-customer sales-tax rate override in basis points; null = org default. */
 	taxRateBps: v.optional(
 		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000)))
-	)
+	),
+	/** Per-customer invoice terms in days; null = org default. */
+	termsDays: v.optional(
+		v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(3650)))
+	),
+	/** Preferred channel for scheduling comms; null = both email + text. */
+	contactPref: v.optional(v.nullable(v.picklist(['email', 'sms'])))
 });
 export const customerImportRow = v.object({
 	name: requiredText('Name'),
@@ -304,7 +310,9 @@ export const jobInput = v.object({
 	/** Omit for an unscheduled job. */
 	startsAt: v.optional(v.nullable(localDateTime)),
 	/** Predecessor job that must complete before this one can be scheduled. */
-	dependsOnJobId: v.optional(v.nullable(idSchema))
+	dependsOnJobId: v.optional(v.nullable(idSchema)),
+	/** Communicated arrival window shown to customer/tech. */
+	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60))))
 });
 export const jobUpdate = v.object({
 	id: idSchema,
@@ -323,7 +331,9 @@ export const jobUpdate = v.object({
 	cancelled: v.optional(v.boolean()),
 	cancelReason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	/** Predecessor job that must complete before this one can be scheduled. */
-	dependsOnJobId: v.optional(v.nullable(idSchema))
+	dependsOnJobId: v.optional(v.nullable(idSchema)),
+	/** Communicated arrival window shown to customer/tech. */
+	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60))))
 });
 
 /** Technician or dispatcher status ping on a job. */

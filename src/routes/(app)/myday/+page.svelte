@@ -202,6 +202,9 @@
 							rel="noreferrer"><MapPin class="size-3" /> Directions</a
 						>
 					{/if}
+					{#if j.job.arrivalWindow}
+						<p class="truncate text-xs font-medium">Arrive {j.job.arrivalWindow}</p>
+					{/if}
 					{#if j.job.preferredTime}
 						<p class="truncate text-xs text-muted-foreground">Prefers {j.job.preferredTime}</p>
 					{/if}
