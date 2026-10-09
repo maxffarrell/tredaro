@@ -849,7 +849,7 @@ async function jobProfitability(orgId: string) {
 					Number
 				),
 			schedMin:
-				sql<number>`coalesce(round(extract(epoch from (${job.endsAt} - ${job.startsAt})::numeric / 60)), 0)`.mapWith(
+				sql<number>`coalesce(round(extract(epoch from (${job.endsAt} - ${job.startsAt}))::numeric / 60), 0)`.mapWith(
 					Number
 				)
 		})
