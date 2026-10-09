@@ -17,6 +17,9 @@ export const API_RESOURCES = [
 	'purchase_orders',
 	'truck_stock',
 	'time_entries',
+	'job_events',
+	'time_off',
+	'customer_documents',
 	'refunds'
 ] as const;
 export type ApiResource = (typeof API_RESOURCES)[number];
@@ -45,6 +48,9 @@ export const API_RESOURCE_LABELS: Record<ApiResource, string> = {
 	purchase_orders: 'Purchase orders',
 	truck_stock: 'Truck stock',
 	time_entries: 'Time entries',
+	job_events: 'Job events',
+	time_off: 'Time off',
+	customer_documents: 'Customer documents',
 	refunds: 'Refunds'
 };
 
