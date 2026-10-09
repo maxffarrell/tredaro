@@ -2,9 +2,18 @@
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
-	import { approveMemberEntries, approveTimeEntry, getPayroll } from '#lib/remote/jobs.remote.ts';
+	import {
+		approveAllInRange,
+		approveMemberEntries,
+		approveTimeEntry,
+		getPayroll,
+		updateTimeEntry
+	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { addDays, localDate, localTime } from '#lib/tz.ts';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -16,6 +25,7 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Timer from '@lucide/svelte/icons/timer';
 
 	const settings = await getSettings();
@@ -101,6 +111,8 @@
 		);
 	const totalCost = $derived(costOf(rows));
 
+	const pendingAll = $derived(pendingCount(rows));
+
 	let busy = $state(false);
 	async function approveMember(memberId: string) {
 		busy = true;
@@ -113,9 +125,55 @@
 		busy = false;
 	}
 
+	async function approveAll() {
+		busy = true;
+		try {
+			const r = await approveAllInRange({ from: start, to: end }).updates(getPayroll);
+			toast.success(`${r.approved} entr${r.approved === 1 ? 'y' : 'ies'} approved`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not approve'));
+		}
+		busy = false;
+	}
+
 	async function toggle(entryId: string, approved: boolean) {
 		try {
 			await approveTimeEntry({ id: entryId, approved }).updates(getPayroll);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update entry'));
+		}
+	}
+
+	// Correct a clock-in time / note right here instead of opening the job.
+	let editOpen = $state(false);
+	let editEntryId = $state('');
+	let editJobId = $state('');
+	let teStart = $state('');
+	let teEnd = $state('');
+	let teNote = $state('');
+	function startEdit(r: (typeof rows)[number]) {
+		if (!r.jobId) return;
+		editEntryId = r.entry.id;
+		editJobId = r.jobId;
+		teStart = `${localDate(r.entry.startedAt, tz)}T${localTime(r.entry.startedAt, tz)}`;
+		teEnd = r.entry.endedAt
+			? `${localDate(r.entry.endedAt, tz)}T${localTime(r.entry.endedAt, tz)}`
+			: '';
+		teNote = r.entry.note;
+		editOpen = true;
+	}
+	async function saveEdit(e: SubmitEvent) {
+		e.preventDefault();
+		try {
+			await updateTimeEntry({
+				id: editEntryId,
+				jobId: editJobId,
+				startedAt: teStart,
+				endedAt: teEnd || null,
+				note: teNote
+			}).updates(getPayroll);
+			editOpen = false;
+			toast.success('Entry updated');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update entry'));
 		}
@@ -142,6 +200,15 @@
 				variant="ghost"
 				aria-label={isMonth ? 'Next month' : 'Next period'}
 				onclick={() => nav(1)}><ChevronRight /></Button
+			>
+			<Button
+				size="sm"
+				variant="outline"
+				disabled={busy || !pendingAll}
+				title={pendingAll
+					? `Approve every finished entry in this period`
+					: 'Nothing waiting for approval'}
+				onclick={approveAll}>Approve all{pendingAll ? ` ${pendingAll}` : ''}</Button
 			>
 			<Button size="sm" variant="outline" href="/api/export/payroll.csv?from={start}&to={end}"
 				><Download /> Export</Button
@@ -268,6 +335,18 @@
 									<CircleCheck class="size-3.5" />
 								</Button>
 							{/if}
+							{#if r.jobId}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7 text-muted-foreground"
+									aria-label="Edit entry"
+									title="Edit start/end/note"
+									onclick={() => startEdit(r)}
+								>
+									<Pencil class="size-3.5" />
+								</Button>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -275,3 +354,34 @@
 		</Card.Root>
 	{/each}
 </div>
+
+<Dialog.Root bind:open={editOpen}>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Edit time entry</Dialog.Title>
+			<Dialog.Description
+				>Correct the clock-in time or note — leave the end blank for a running timer.</Dialog.Description
+			>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={saveEdit}>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="pe-start">Start</Field.Label>
+					<Input id="pe-start" type="datetime-local" bind:value={teStart} required />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="pe-end">End (blank = running)</Field.Label>
+					<Input id="pe-end" type="datetime-local" bind:value={teEnd} />
+				</Field.Field>
+			</div>
+			<Field.Field>
+				<Field.Label for="pe-note">Note</Field.Label>
+				<Input id="pe-note" bind:value={teNote} placeholder="What was done" />
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="button" variant="outline" onclick={() => (editOpen = false)}>Cancel</Button>
+				<Button type="submit" disabled={!teStart}>Save</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
