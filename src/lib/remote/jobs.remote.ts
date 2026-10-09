@@ -370,6 +370,37 @@ export const approveAllInRange = command(
 	}
 );
 
+const payrollRange = v.object({
+	from: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/)),
+	to: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/))
+});
+
+/** Closes the payroll period — approves pending entries then locks the range. */
+export const closePayrollPeriod = command(payrollRange, async (input) => {
+	const ctx = await requireOrg('admin');
+	const t = await tz();
+	const r = await svc.closePayrollPeriod(
+		ctx,
+		zonedToUtc(`${input.from}T00:00`, t),
+		zonedToUtc(`${addDays(input.to, 1)}T00:00`, t)
+	);
+	await refreshQuery(getPayroll);
+	return r;
+});
+
+/** Reopens a closed payroll period — entries can be edited and un-approved again. */
+export const reopenPayrollPeriod = command(payrollRange, async (input) => {
+	const ctx = await requireOrg('admin');
+	const t = await tz();
+	const r = await svc.reopenPayrollPeriod(
+		ctx,
+		zonedToUtc(`${input.from}T00:00`, t),
+		zonedToUtc(`${addDays(input.to, 1)}T00:00`, t)
+	);
+	await refreshQuery(getPayroll);
+	return r;
+});
+
 export const getPayroll = query(
 	v.object({
 		from: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/)),

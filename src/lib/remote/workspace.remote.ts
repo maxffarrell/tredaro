@@ -160,6 +160,8 @@ export const getStaff = query(async () => {
 			skillTags: member.skillTags,
 			color: member.color,
 			dispatchVisible: member.dispatchVisible,
+			licenseNo: member.licenseNo,
+			licenseExpiry: member.licenseExpiry,
 			createdAt: member.createdAt
 		})
 		.from(member)
@@ -213,6 +215,27 @@ export const updateOvertimePct = command(overtimeInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ overtimePct: input.overtimePct })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const licenseInput = v.object({
+	memberId: idSchema,
+	licenseNo: v.pipe(v.string(), v.trim(), v.maxLength(60)),
+	licenseExpiry: v.optional(
+		v.union([v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/)), v.literal('')]),
+		''
+	)
+});
+
+/** Sets a technician's trade license number + expiry — the dashboard flags it 30d out. */
+export const updateLicense = command(licenseInput, async (input) => {
+	const { orgId } = await requireOrg('admin');
+	const [row] = await db
+		.update(member)
+		.set({ licenseNo: input.licenseNo, licenseExpiry: input.licenseExpiry || null })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');

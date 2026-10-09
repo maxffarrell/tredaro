@@ -11,6 +11,8 @@
 		approveAllInRange,
 		approveMemberEntries,
 		approveTimeEntry,
+		closePayrollPeriod,
+		reopenPayrollPeriod,
 		getPayroll,
 		updateTimeEntry
 	} from '#lib/remote/jobs.remote.ts';
@@ -133,8 +135,32 @@
 	const totalCost = $derived(costOf(rows));
 
 	const pendingAll = $derived(pendingCount(rows));
+	const lockedAll = $derived(rows.filter((r) => r.entry.lockedAt).length);
+	const closeable = $derived(rows.filter((r) => r.entry.endedAt && !r.entry.lockedAt).length);
 
 	let busy = $state(false);
+	async function closePeriod() {
+		busy = true;
+		try {
+			const r = await closePayrollPeriod({ from: start, to: end }).updates(getPayroll);
+			toast.success(
+				`Period closed — ${r.locked} entr${r.locked === 1 ? 'y' : 'ies'} locked${r.approved ? `, ${r.approved} approved` : ''}`
+			);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not close period'));
+		}
+		busy = false;
+	}
+	async function reopenPeriod() {
+		busy = true;
+		try {
+			const r = await reopenPayrollPeriod({ from: start, to: end }).updates(getPayroll);
+			toast.success(`${r.reopened} entr${r.reopened === 1 ? 'y' : 'ies'} reopened`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not reopen period'));
+		}
+		busy = false;
+	}
 	async function approveMember(memberId: string) {
 		busy = true;
 		try {
@@ -231,6 +257,22 @@
 					: 'Nothing waiting for approval'}
 				onclick={approveAll}>Approve all{pendingAll ? ` ${pendingAll}` : ''}</Button
 			>
+			{#if closeable > 0}
+				<Button
+					size="sm"
+					disabled={busy}
+					title="Approve pending entries, then lock the period — locked hours can't be edited or deleted"
+					onclick={closePeriod}>Close period</Button
+				>
+			{:else if lockedAll > 0}
+				<Button
+					size="sm"
+					variant="outline"
+					disabled={busy}
+					title="Unlock this period so entries can be edited again"
+					onclick={reopenPeriod}>Reopen</Button
+				>
+			{/if}
 			<Button size="sm" variant="outline" href="/api/export/payroll.csv?from={start}&to={end}"
 				><Download /> Export</Button
 			>
@@ -339,11 +381,14 @@
 									{#if r.entry.approvedAt && r.approvedByName}
 										· approved by {r.approvedByName}{/if}
 								</p>
+								{#if r.entry.lockedAt}
+									<Badge variant="secondary" class="mt-1 font-normal">period closed</Badge>
+								{/if}
 							</div>
 							<span class="shrink-0 text-muted-foreground tabular-nums"
 								>{fmtDur(minutesOf(r.entry))}</span
 							>
-							{#if r.entry.endedAt}
+							{#if r.entry.endedAt && !r.entry.lockedAt}
 								<Button
 									variant="ghost"
 									size="icon"
@@ -359,7 +404,7 @@
 									<CircleCheck class="size-3.5" />
 								</Button>
 							{/if}
-							{#if r.jobId}
+							{#if r.jobId && !r.entry.lockedAt}
 								<Button
 									variant="ghost"
 									size="icon"

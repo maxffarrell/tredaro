@@ -581,6 +581,7 @@
 					<Table.Row>
 						<Table.Head>PO</Table.Head>
 						<Table.Head>Supplier</Table.Head>
+						<Table.Head class="hidden md:table-cell">Job</Table.Head>
 						<Table.Head class="hidden md:table-cell">Expected</Table.Head>
 						<Table.Head class="hidden md:table-cell">Lines</Table.Head>
 						<Table.Head class="text-right">Total</Table.Head>
@@ -592,6 +593,15 @@
 						<Table.Row class="cursor-pointer" onclick={() => (poView = p)}>
 							<Table.Cell class="font-medium">PO-{p.po.number}</Table.Cell>
 							<Table.Cell>{p.po.supplier}</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{#if p.po.jobId && p.jobNumber}
+									<a
+										href="/jobs/{p.po.jobId}"
+										class="hover:underline"
+										onclick={(e) => e.stopPropagation()}>J-{p.jobNumber}</a
+									>
+								{:else}—{/if}
+							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{p.po.expectedOn ?? '—'}</Table.Cell
 							>
@@ -605,7 +615,7 @@
 						</Table.Row>
 					{:else}
 						<Table.Row>
-							<Table.Cell colspan={6}>
+							<Table.Cell colspan={7}>
 								<Empty.Root class="border-0">
 									<Empty.Header>
 										<Empty.Media><PackagePlus /></Empty.Media>
@@ -795,6 +805,11 @@
 				{#if poView?.po.expectedOn}Expected {poView.po.expectedOn} ·
 				{/if}
 				Total {formatMoney(poView?.total ?? 0, currency)}
+				{#if poView?.po.jobId && poView.jobNumber}
+					<br /><a href="/jobs/{poView.po.jobId}" class="font-medium hover:underline"
+						>For job J-{poView.jobNumber}</a
+					>
+				{/if}
 				{#if poView?.po.notes}<br />{poView.po.notes}{/if}
 			</Dialog.Description>
 		</Dialog.Header>

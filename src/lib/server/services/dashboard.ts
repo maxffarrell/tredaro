@@ -277,6 +277,21 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(equipment.nextServiceDue))
 		.limit(4);
 
+	// Staff licenses expiring within 30 days (or already lapsed) — compliance.
+	const expiringLicenses = await db
+		.select({ name: user.name, licenseExpiry: member.licenseExpiry })
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(
+				eq(member.organizationId, orgId),
+				isNotNull(member.licenseExpiry),
+				lte(member.licenseExpiry, warrantyHorizon)
+			)
+		)
+		.orderBy(asc(member.licenseExpiry))
+		.limit(4);
+
 	// Customers whose last completed job is >90 days back with nothing open —
 	// prime candidates for a check-in call or a maintenance agreement pitch.
 	const cutoff = new Date();
@@ -616,6 +631,13 @@ export async function dashboard(orgId: string) {
 				href: `/customers/${w.customerId}`,
 				text: `${w.customerName} · ${w.name}`,
 				sub: `service due ${w.nextServiceDue}`,
+				amountCents: null as number | null
+			})),
+			...expiringLicenses.map((l) => ({
+				tone: (l.licenseExpiry! < today ? 'red' : 'amber') as 'red' | 'amber',
+				href: '/settings?tab=team',
+				text: `${l.name} · license ${l.licenseExpiry! < today ? 'expired' : 'expires'} ${l.licenseExpiry}`,
+				sub: 'update in Settings → Team',
 				amountCents: null as number | null
 			})),
 			...(unapprovedTime > 0
