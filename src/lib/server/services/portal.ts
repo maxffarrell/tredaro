@@ -341,13 +341,38 @@ export async function portalCheckout(customerId: string, providerId: string) {
 	});
 }
 
+/** Portal self-service: hosted page where the customer saves a card for auto-charges. */
+export async function portalSaveCard(customerId: string, providerId: string) {
+	const overview = await portalOverview(customerId);
+	const provider = providers.find((p) => p.id === providerId);
+	if (!provider?.configured() || !provider.saveCard) error(404, 'Unknown provider');
+	const row = await providerRow(overview.customer.organizationId, providerId);
+	if (!provider.ready(row)) error(400, `${provider.name} is not available right now`);
+	return provider.saveCard({
+		orgId: overview.customer.organizationId,
+		customerId,
+		email: overview.customer.email,
+		amount: 0,
+		currency: overview.settings?.currency ?? 'usd',
+		description: `Card on file — ${overview.customer.name}`,
+		row
+	});
+}
+
 /** Which providers the customer can actually pay with right now. */
 export async function availableProviders(orgId: string, currency: string) {
 	const out = [];
 	for (const p of providers) {
 		if (!p.configured() || !p.supportsCurrency(currency)) continue;
 		const row = await providerRow(orgId, p.id);
-		if (p.ready(row)) out.push({ id: p.id, name: p.name, payLabel: p.payLabel, newTab: p.newTab });
+		if (p.ready(row))
+			out.push({
+				id: p.id,
+				name: p.name,
+				payLabel: p.payLabel,
+				newTab: p.newTab,
+				canSaveCard: !!p.saveCard
+			});
 	}
 	return out;
 }

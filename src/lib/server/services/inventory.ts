@@ -31,7 +31,7 @@ export async function listItems(orgId: string) {
 					Number
 				),
 			onOrder:
-				sql<number>`coalesce((select sum(poi.qty) from ${purchaseOrderItem} poi join ${purchaseOrder} po on po.id = poi.purchase_order_id where poi.inventory_item_id = inventory_item.id and po.status = 'ordered'), 0)`.mapWith(
+				sql<number>`coalesce((select sum(poi.qty - poi.received_qty) from ${purchaseOrderItem} poi join ${purchaseOrder} po on po.id = poi.purchase_order_id where poi.inventory_item_id = inventory_item.id and po.status = 'ordered'), 0)`.mapWith(
 					Number
 				)
 		})
@@ -441,12 +441,18 @@ export async function transitionPurchaseOrder(
 				.from(purchaseOrderItem)
 				.where(eq(purchaseOrderItem.purchaseOrderId, id));
 			for (const l of lines) {
-				if (!l.inventoryItemId) continue;
+				const remaining = l.qty - l.receivedQty;
+				if (remaining > 0)
+					await tx
+						.update(purchaseOrderItem)
+						.set({ receivedQty: l.qty })
+						.where(eq(purchaseOrderItem.id, l.id));
+				if (!l.inventoryItemId || remaining <= 0) continue;
 				await tx
 					.update(inventoryItem)
-					.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${l.qty}` })
+					.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${remaining}` })
 					.where(eq(inventoryItem.id, l.inventoryItemId));
-				receivedLines.push({ itemId: l.inventoryItemId, qty: l.qty });
+				receivedLines.push({ itemId: l.inventoryItemId, qty: remaining });
 				void rearmLowStock(ctx.orgId, l.inventoryItemId).catch(() => {});
 			}
 		}
@@ -470,6 +476,80 @@ export async function transitionPurchaseOrder(
 		});
 	}
 	return { id, status: to };
+}
+
+/**
+ * Receives some units against an ordered PO: per-line qty increments stock, and
+ * the PO auto-closes once every line is fully received. A PO can be received in
+ * as many deliveries as needed while it stays 'ordered'.
+ */
+export async function receivePurchaseOrderLines(
+	ctx: OrgContext,
+	poId: string,
+	lines: { itemId: string; qty: number }[]
+) {
+	if (!lines.length) error(400, 'Nothing to receive');
+	const [po] = await db
+		.select()
+		.from(purchaseOrder)
+		.where(and(eq(purchaseOrder.id, poId), eq(purchaseOrder.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!po) error(404, 'Purchase order not found');
+	if (po.status !== 'ordered') error(409, `Can't receive on a ${po.status} PO`);
+
+	const receivedLines: { itemId: string; qty: number }[] = [];
+	let closed = false;
+	await db.transaction(async (tx) => {
+		const rows = await tx
+			.select()
+			.from(purchaseOrderItem)
+			.where(eq(purchaseOrderItem.purchaseOrderId, poId));
+		for (const l of lines) {
+			const row = rows.find((r) => r.id === l.itemId);
+			if (!row) error(404, 'PO line not found');
+			const remaining = row.qty - row.receivedQty;
+			if (!Number.isInteger(l.qty) || l.qty <= 0 || l.qty > remaining)
+				error(409, `Can only receive 1–${remaining} on ${row.name}`);
+			row.receivedQty += l.qty;
+			await tx
+				.update(purchaseOrderItem)
+				.set({ receivedQty: row.receivedQty })
+				.where(eq(purchaseOrderItem.id, row.id));
+			if (row.inventoryItemId) {
+				await tx
+					.update(inventoryItem)
+					.set({ qtyOnHand: sql`${inventoryItem.qtyOnHand} + ${l.qty}` })
+					.where(eq(inventoryItem.id, row.inventoryItemId));
+				receivedLines.push({ itemId: row.inventoryItemId, qty: l.qty });
+			}
+		}
+		closed = rows.every((r) => r.receivedQty >= r.qty);
+		if (closed)
+			await tx
+				.update(purchaseOrder)
+				.set({ status: 'received', receivedAt: new Date(), updatedAt: new Date() })
+				.where(eq(purchaseOrder.id, poId));
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'purchase_order',
+		entityId: poId,
+		action: 'received',
+		summary: `PO-${po.number} ${closed ? 'received in full' : 'partially received'}`
+	});
+	for (const l of receivedLines) {
+		void rearmLowStock(ctx.orgId, l.itemId).catch(() => {});
+		void emit({
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'inventory_item',
+			entityId: l.itemId,
+			action: 'received',
+			summary: `Received ${l.qty} on PO-${po.number}`
+		});
+	}
+	return { id: poId, status: closed ? 'received' : 'ordered' };
 }
 
 export async function deletePurchaseOrder(ctx: OrgContext, id: string) {

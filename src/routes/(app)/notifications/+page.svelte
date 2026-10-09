@@ -81,7 +81,8 @@
 		payment_receipt: 'Payment received',
 		inbound_sms_staff: 'Text from customer',
 		estimate_changes: 'Change request',
-		quote_request: 'Quote request'
+		quote_request: 'Quote request',
+		auto_charge_failed: 'auto-charge failed'
 	};
 
 	/** Where each kind's entity usually lives. */
@@ -104,7 +105,8 @@
 			return `/jobs/${entityId}`;
 		if (kind === 'agreement_renewal') return '/agreements';
 		if (kind === 'payment_receipt' || kind === 'job_completed') return `/jobs/${entityId}`;
-		if (kind === 'inbound_sms_staff') return `/customers/${entityId.split(':')[0]}`;
+		if (kind === 'inbound_sms_staff' || kind === 'auto_charge_failed')
+			return `/customers/${entityId.split(':')[0]}`;
 		return null;
 	}
 </script>

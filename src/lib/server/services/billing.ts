@@ -232,7 +232,10 @@ async function completeIfTermDone(
 	return true;
 }
 
-/** Posts the recurring charge for one period. Idempotent via the period unique index. */
+/**
+ * Posts the recurring charge for one period. Idempotent via the period unique index.
+ * Returns the inserted charge, or null when it already existed.
+ */
 async function postAgreementCharge(
 	orgId: string,
 	agreementId: string,
@@ -240,7 +243,7 @@ async function postAgreementCharge(
 	p: { name: string; amount: number },
 	q: typeof db = db
 ) {
-	await q
+	const [row] = await q
 		.insert(charge)
 		.values({
 			organizationId: orgId,
@@ -257,7 +260,73 @@ async function postAgreementCharge(
 			dueDate: periodStart,
 			amount: p.amount
 		})
-		.onConflictDoNothing();
+		.onConflictDoNothing()
+		.returning();
+	return row ?? null;
+}
+
+/**
+ * Attempts to settle a freshly posted recurring charge against the customer's saved
+ * card. On success the payment lands through recordOnlinePayment (which also emails
+ * the receipt); on any failure the charge stays open and staff get an inbox row.
+ */
+async function autoChargeAgreement(
+	orgId: string,
+	posted: { id: string; customerId: string; amount: number; description: string | null }
+) {
+	const [c] = await db
+		.select({
+			savedCardProvider: customer.savedCardProvider,
+			savedCardCustomer: customer.savedCardCustomer,
+			savedCardRef: customer.savedCardRef,
+			savedCardLabel: customer.savedCardLabel,
+			email: customer.email
+		})
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, posted.customerId)));
+	if (!c?.savedCardProvider || !c.savedCardCustomer || !c.savedCardRef) return;
+
+	const provider = providers.find((p) => p.id === c.savedCardProvider);
+	if (!provider?.chargeSaved) return;
+	const row = await providerRow(orgId, provider.id);
+	if (!provider.ready(row)) return;
+
+	const [settings] = await db
+		.select({ currency: companySettings.currency })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	const paymentId = await provider.chargeSaved({
+		orgId,
+		customerId: posted.customerId,
+		email: c.email,
+		amount: posted.amount,
+		currency: settings?.currency ?? 'usd',
+		description: posted.description ?? 'Recurring charge',
+		customerRef: c.savedCardCustomer,
+		paymentRef: c.savedCardRef,
+		row
+	});
+	if (paymentId) {
+		const { recordOnlinePayment } = await import('#lib/server/payments/record.ts');
+		await recordOnlinePayment({
+			orgId,
+			customerId: posted.customerId,
+			amount: posted.amount,
+			method: provider.id === 'stripe' ? 'stripe' : 'other',
+			externalId: paymentId,
+			provider: provider.name
+		});
+		await emit({
+			orgId,
+			entityType: 'customer',
+			entityId: posted.customerId,
+			action: 'auto_charged',
+			summary: `${formatMoney(posted.amount, settings?.currency ?? 'usd')} auto-charged to ${c.savedCardLabel ?? 'card on file'}`
+		});
+		return;
+	}
+	const { notifyAutoChargeFailed } = await import('./notifications.ts');
+	await notifyAutoChargeFailed(orgId, posted.customerId, posted.id, c.savedCardLabel);
 }
 
 export async function updateAgreement(
@@ -310,11 +379,23 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 
 	const period = m.nextChargeAt.toISOString().slice(0, 10);
 	const next = nextPeriod(period, p.interval);
+	let postedCharge: {
+		id: string;
+		customerId: string;
+		amount: number;
+		description: string | null;
+	} | null = null;
 	// Charge + roll-forward + visit generation commit together — a failure
 	// anywhere leaves the agreement untouched so the button stays truthful.
 	await db.transaction(async (tx) => {
 		if (p.amount > 0)
-			await postAgreementCharge(ctx.orgId, m.id, period, p, tx as unknown as typeof db);
+			postedCharge = await postAgreementCharge(
+				ctx.orgId,
+				m.id,
+				period,
+				p,
+				tx as unknown as typeof db
+			);
 		const done = await completeIfTermDone(m, tx as unknown as typeof db);
 		if (!done)
 			await tx
@@ -331,6 +412,9 @@ export async function chargeAgreementNow(ctx: OrgContext, id: string) {
 		action: 'charged_early',
 		summary: `${p.name} charged early for period ${period}`
 	});
+	// Auto-charge after the transaction commits — the provider call must not
+	// hold the tx open, and an already-posted charge skips itself anyway.
+	if (postedCharge) await autoChargeAgreement(ctx.orgId, postedCharge);
 	return { period };
 }
 
@@ -424,7 +508,10 @@ export async function runBilling(orgId: string) {
 		// Catch up on any missed periods (install was offline).
 		let termDone = false;
 		while (new Date(`${period}T00:00:00Z`) < now) {
-			if (p.amount > 0) await postAgreementCharge(orgId, m.id, period, p);
+			if (p.amount > 0) {
+				const postedCharge = await postAgreementCharge(orgId, m.id, period, p);
+				if (postedCharge) await autoChargeAgreement(orgId, postedCharge);
+			}
 			lastPosted = period;
 			posted++;
 			if (await completeIfTermDone(m)) {

@@ -2,6 +2,7 @@
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import Mails from '@lucide/svelte/icons/mails';
 	import * as Empty from '#lib/components/ui/empty/index.js';
@@ -35,6 +36,7 @@
 		textCustomerCmd,
 		emailStatementCmd,
 		getEquipmentJobs,
+		removeSavedCard,
 		revokePortalAccess
 	} from '#lib/remote/customers.remote.ts';
 	import { recordPayment, addCredit } from '#lib/remote/billing.remote.ts';
@@ -399,6 +401,17 @@
 	}
 
 	let revokePending = $state(false);
+	let cardPending = $state(false);
+	async function removeCard() {
+		cardPending = true;
+		try {
+			await removeSavedCard(id).updates(getCustomer);
+			toast.success('Card on file removed');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not remove the card'));
+		}
+		cardPending = false;
+	}
 	async function revokePortal() {
 		revokePending = true;
 		try {
@@ -590,6 +603,23 @@
 						{#each c.customer.tags as t (t)}
 							<Badge variant="secondary">{t}</Badge>
 						{/each}
+					</div>
+				{/if}
+				{#if c.customer.savedCardLabel}
+					<div
+						class="mb-3 flex items-center justify-between gap-2 rounded-md border border-dashed p-2 text-xs"
+					>
+						<span class="flex items-center gap-1.5 text-muted-foreground"
+							><CreditCard class="size-3.5" />
+							{c.customer.savedCardLabel} on file — recurring charges auto-collect</span
+						>
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-6 px-2 text-xs"
+							disabled={cardPending}
+							onclick={removeCard}>Remove</Button
+						>
 					</div>
 				{/if}
 				<form class="space-y-4" onsubmit={saveCustomer}>

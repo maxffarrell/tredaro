@@ -61,6 +61,12 @@ export const updateCustomer = command(customerUpdate, async (input) => {
 	return c;
 });
 
+export const removeSavedCard = command(idSchema, async (customerId) => {
+	await svc.removeSavedCard(await requireOrg(), customerId);
+	await refreshQuery(getCustomer, customerId);
+	return { ok: true };
+});
+
 export const revokePortalAccess = command(idSchema, async (customerId) => {
 	await svc.revokePortalAccess(await requireOrg(), customerId);
 	await refreshQuery(getCustomer, customerId);

@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { error } from '@sveltejs/kit';
 import { TREDARO_CLOUD, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
-import { paymentProvider, user } from '#lib/server/db/schema.ts';
+import { customer, paymentProvider, user } from '#lib/server/db/schema.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import { and, eq } from 'drizzle-orm';
 import { recordOnlinePayment } from './record.ts';
@@ -51,6 +51,45 @@ async function onCheckoutPaid(event: Stripe.Event, session: Stripe.Checkout.Sess
 		method: 'stripe',
 		externalId: intent ?? session.id,
 		provider: 'Stripe'
+	});
+}
+
+async function onCardSaved(event: Stripe.Event, session: Stripe.Checkout.Session) {
+	if (session.mode !== 'setup') return;
+	const orgId = session.metadata?.tredaroOrgId;
+	const customerId = session.metadata?.tredaroCustomerId;
+	const stripeCustomer =
+		typeof session.customer === 'string' ? session.customer : session.customer?.id;
+	const setupIntent =
+		typeof session.setup_intent === 'string' ? session.setup_intent : session.setup_intent?.id;
+	if (!orgId || !customerId || !stripeCustomer || !setupIntent) return;
+	// Only accept events from the account this workspace actually takes payments with.
+	const row = await providerRow(orgId, 'stripe');
+	if ((event.account ?? null) !== (row?.accountId ?? null)) return;
+	const opts = row?.accountId ? { stripeAccount: row.accountId } : undefined;
+	const si = await api().setupIntents.retrieve(setupIntent, undefined, opts);
+	const pmId = typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id;
+	if (!pmId) return;
+	const pm = await api().paymentMethods.retrieve(pmId, undefined, opts);
+	const label = pm.card
+		? `${pm.card.brand?.[0]?.toUpperCase() ?? ''}${pm.card.brand?.slice(1) ?? 'Card'} ····${pm.card.last4}`
+		: 'Saved card';
+	await db
+		.update(customer)
+		.set({
+			savedCardProvider: 'stripe',
+			savedCardCustomer: stripeCustomer,
+			savedCardRef: pmId,
+			savedCardLabel: label
+		})
+		.where(and(eq(customer.id, customerId), eq(customer.organizationId, orgId)));
+	const { emit } = await import('#lib/server/services/events.ts');
+	await emit({
+		orgId,
+		entityType: 'customer',
+		entityId: customerId,
+		action: 'card_saved',
+		summary: `Saved ${label} for automatic payments`
 	});
 }
 
@@ -116,12 +155,63 @@ export const stripeProvider: PaymentProvider = {
 		return session.url;
 	},
 
+	async saveCard(i) {
+		const metadata = {
+			tredaroOrgId: i.orgId,
+			tredaroCustomerId: i.customerId
+		};
+		const session = await api().checkout.sessions.create(
+			{
+				mode: 'setup',
+				customer_email: i.email ?? undefined,
+				client_reference_id: i.customerId,
+				metadata,
+				setup_intent_data: { metadata },
+				success_url: `${appOrigin()}${i.paths?.success ?? '/portal?card=1'}`,
+				cancel_url: `${appOrigin()}${i.paths?.cancel ?? '/portal'}`
+			},
+			i.row?.accountId ? { stripeAccount: i.row.accountId } : undefined
+		);
+		if (!session.url) error(502, 'Stripe did not return a setup link');
+		return session.url;
+	},
+
+	async chargeSaved(i) {
+		try {
+			const pi = await api().paymentIntents.create(
+				{
+					amount: i.amount,
+					currency: i.currency.toLowerCase(),
+					customer: i.customerRef,
+					payment_method: i.paymentRef,
+					confirm: true,
+					off_session: true,
+					description: i.description,
+					metadata: {
+						tredaroOrgId: i.orgId,
+						tredaroCustomerId: i.customerId
+					}
+				},
+				i.row?.accountId ? { stripeAccount: i.row.accountId } : undefined
+			);
+			return pi.status === 'succeeded' || pi.status === 'processing' ? pi.id : null;
+		} catch {
+			// Declined, requires_action, revoked card — caller falls back to an open charge.
+			return null;
+		}
+	},
+
 	async handleWebhook(body, headers) {
 		const signature = headers.get('stripe-signature');
 		const event = signature ? verify(body, signature) : null;
 		if (!event) return false;
 		switch (event.type) {
-			case 'checkout.session.completed':
+			case 'checkout.session.completed': {
+				const session = event.data.object;
+				if (session.mode === 'setup') await onCardSaved(event, session);
+				else await onCheckoutPaid(event, session);
+				break;
+			}
 			case 'checkout.session.async_payment_succeeded':
 				await onCheckoutPaid(event, event.data.object);
 				break;

@@ -145,6 +145,11 @@ export const customer = pgTable(
 		preferredMemberId: text('preferred_member_id').references(() => member.id, {
 			onDelete: 'set null'
 		}),
+		/** Card on file: provider id ('stripe'), its customer object id, the saved payment-method ref, and a display label ("Visa ····4242"). */
+		savedCardProvider: text('saved_card_provider'),
+		savedCardCustomer: text('saved_card_customer'),
+		savedCardRef: text('saved_card_ref'),
+		savedCardLabel: text('saved_card_label'),
 		since: date('since', { mode: 'string' }),
 		...timestamps
 	},
@@ -881,6 +886,8 @@ export const purchaseOrderItem = pgTable(
 		name: text('name').notNull(),
 		unit: text('unit').notNull().default('each'),
 		qty: integer('qty').notNull().default(1),
+		/** Units already received into stock — a line is fully received at receivedQty = qty. */
+		receivedQty: integer('received_qty').notNull().default(0),
 		unitCost: integer('unit_cost').notNull().default(0),
 		...timestamps
 	},

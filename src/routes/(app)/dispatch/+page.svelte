@@ -131,6 +131,9 @@
 			: board.unscheduled
 	);
 
+	const queueRequests = $derived(filteredQueue.filter((j) => j.job.source === 'booking'));
+	const queueOthers = $derived(filteredQueue.filter((j) => j.job.source !== 'booking'));
+
 	const waitingDays = (created: Date | string) =>
 		Math.max(0, Math.floor((Date.now() - new Date(created).getTime()) / 86_400_000));
 
@@ -347,6 +350,59 @@
 </PageHeader>
 
 <div class="grid grid-cols-1 gap-4 p-4 md:p-6 lg:grid-cols-[300px_1fr]">
+	{#snippet queueRow(j: (typeof filteredQueue)[number])}
+		<div class="flex items-start gap-2">
+			<Checkbox
+				class="mt-2"
+				checked={selected.has(j.job.id)}
+				onCheckedChange={() => toggleSelect(j.job.id)}
+			/>
+			<button
+				class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent {selected.has(
+					j.job.id
+				)
+					? 'border-primary bg-primary/5'
+					: ''}"
+				draggable="true"
+				ondragstart={(e) => dragJob(e, j)}
+				ondragover={allowDrop}
+				ondrop={(e) => {
+					e.stopPropagation();
+					dropOn(e, 'queue');
+				}}
+				onclick={() => goto(`/jobs/${j.job.id}`)}
+			>
+				<div class="flex items-center justify-between gap-2">
+					<span class="truncate text-sm font-medium">
+						{j.job.summary || j.jobTypeName} · {j.customerName}
+					</span>
+					<StatusBadge status={j.job.priority} />
+				</div>
+				<p class="mt-1 text-xs text-muted-foreground">
+					J-{j.job.number} · {j.job.source} ·
+					<span
+						class={waitingDays(j.job.createdAt) >= 3
+							? 'font-medium text-amber-600 dark:text-amber-400'
+							: ''}>waiting {waitingDays(j.job.createdAt)}d</span
+					>
+					{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span>{/if}
+					{#if j.depOpen}· <span class="text-amber-600 dark:text-amber-400"
+							>dep J-{j.depNumber}</span
+						>{/if}
+					{#if j.job.source === 'booking' && waitingDays(j.job.createdAt) === 0}· <span
+							class="text-blue-600 dark:text-blue-400">new request</span
+						>{/if}
+					{#if !j.customerPhone}· <span class="text-red-500">no phone</span>{/if}
+					{#if j.city}· {j.city}{/if}
+					{#if j.job.preferredTime}
+						<br /><span class="text-amber-600 dark:text-amber-400"
+							>Asked: {j.job.preferredTime}</span
+						>
+					{/if}
+				</p>
+			</button>
+		</div>
+	{/snippet}
 	<!-- Unscheduled queue -->
 	<Card.Root
 		class="h-fit {dropZone === 'queue' ? 'ring-2 ring-primary' : ''}"
@@ -358,6 +414,11 @@
 		<Card.Header class="flex-row items-center gap-2">
 			<Inbox class="size-4 text-muted-foreground" />
 			<Card.Title class="text-base">Unscheduled ({board.unscheduled.length})</Card.Title>
+			{#if queueRequests.length}
+				<Badge variant="outline" class="text-blue-600 dark:text-blue-400"
+					>{queueRequests.length} request{queueRequests.length === 1 ? '' : 's'}</Badge
+				>
+			{/if}
 			{@const urgentCount = board.unscheduled.filter(
 				(j) => j.job.priority === 'urgent' || j.job.priority === 'high'
 			).length}
@@ -406,60 +467,23 @@
 			</div>
 		{/if}
 		<Card.Content class="space-y-2 px-4">
-			{#each filteredQueue as j (j.job.id)}
-				<div class="flex items-start gap-2">
-					<Checkbox
-						class="mt-2"
-						checked={selected.has(j.job.id)}
-						onCheckedChange={() => toggleSelect(j.job.id)}
-					/>
-					<button
-						class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent {selected.has(
-							j.job.id
-						)
-							? 'border-primary bg-primary/5'
-							: ''}"
-						draggable="true"
-						ondragstart={(e) => dragJob(e, j)}
-						ondragover={allowDrop}
-						ondrop={(e) => {
-							e.stopPropagation();
-							dropOn(e, 'queue');
-						}}
-						onclick={() => goto(`/jobs/${j.job.id}`)}
-					>
-						<div class="flex items-center justify-between gap-2">
-							<span class="truncate text-sm font-medium">
-								{j.job.summary || j.jobTypeName} · {j.customerName}
-							</span>
-							<StatusBadge status={j.job.priority} />
-						</div>
-						<p class="mt-1 text-xs text-muted-foreground">
-							J-{j.job.number} · {j.job.source} ·
-							<span
-								class={waitingDays(j.job.createdAt) >= 3
-									? 'font-medium text-amber-600 dark:text-amber-400'
-									: ''}>waiting {waitingDays(j.job.createdAt)}d</span
-							>
-							{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span
-								>{/if}
-							{#if j.depOpen}· <span class="text-amber-600 dark:text-amber-400"
-									>dep J-{j.depNumber}</span
-								>{/if}
-							{#if j.job.source === 'booking' && waitingDays(j.job.createdAt) === 0}· <span
-									class="text-blue-600 dark:text-blue-400">new request</span
-								>{/if}
-							{#if !j.customerPhone}· <span class="text-red-500">no phone</span>{/if}
-							{#if j.city}· {j.city}{/if}
-							{#if j.job.preferredTime}
-								<br /><span class="text-amber-600 dark:text-amber-400"
-									>Asked: {j.job.preferredTime}</span
-								>
-							{/if}
-						</p>
-					</button>
-				</div>
-			{:else}
+			{#if queueRequests.length}
+				<p class="pt-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+					Requests — waiting on a first schedule
+				</p>
+				{#each queueRequests as j (j.job.id)}
+					{@render queueRow(j)}
+				{/each}
+			{/if}
+			{#if queueOthers.length}
+				{#if queueRequests.length}
+					<p class="pt-2 text-xs font-medium text-muted-foreground">Backlog</p>
+				{/if}
+				{#each queueOthers as j (j.job.id)}
+					{@render queueRow(j)}
+				{/each}
+			{/if}
+			{#if !filteredQueue.length}
 				<Empty.Root class="border-0 py-4">
 					<Empty.Header>
 						<Empty.Media><Inbox /></Empty.Media>
@@ -467,7 +491,7 @@
 						<Empty.Description>Nothing waiting to be scheduled.</Empty.Description>
 					</Empty.Header>
 				</Empty.Root>
-			{/each}
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

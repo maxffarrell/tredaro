@@ -20,6 +20,7 @@
 		confirmVisit,
 		requestReschedule,
 		getProviders,
+		saveCardOnFile,
 		startCheckout,
 		updatePortalContact,
 		rateVisit
@@ -45,6 +46,10 @@
 			toast.success('Thanks! Your payment was received.');
 			void goto('/portal', { shallow: true, replace: true });
 		}
+		if (page.url.searchParams.get('card') === '1') {
+			toast.success('Your card is saved — recurring charges will be collected automatically.');
+			void goto('/portal', { shallow: true, replace: true });
+		}
 	});
 	async function pay(provider: string) {
 		paying = true;
@@ -54,6 +59,17 @@
 		} catch (err) {
 			paying = false;
 			toast.error(errMsg(err, 'Could not start payment'));
+		}
+	}
+	let savingCard = $state(false);
+	async function saveCard(provider: string) {
+		savingCard = true;
+		try {
+			const { url } = await saveCardOnFile({ customerId, provider });
+			location.assign(url);
+		} catch (err) {
+			savingCard = false;
+			toast.error(errMsg(err, 'Could not open card setup'));
 		}
 	}
 
@@ -377,6 +393,28 @@
 				{:else}
 					<p class="text-sm text-muted-foreground">You're all paid up.</p>
 				{/if}
+				<div class="mt-4 border-t pt-3">
+					{#if d.customer.savedCardLabel}
+						<p class="flex items-center gap-2 text-sm text-muted-foreground">
+							<CreditCard class="size-4" />
+							{d.customer.savedCardLabel} on file — recurring charges are collected automatically.
+						</p>
+					{:else if providers.some((p) => p.canSaveCard)}
+						{#each providers as p (p.id)}
+							{#if p.canSaveCard}
+								<Button
+									variant="ghost"
+									size="sm"
+									class="px-0 text-muted-foreground"
+									disabled={savingCard}
+									onclick={() => saveCard(p.id)}
+								>
+									<CreditCard /> Save a card for automatic payments
+								</Button>
+							{/if}
+						{/each}
+					{/if}
+				</div>
 			</Card.Content>
 		</Card.Root>
 

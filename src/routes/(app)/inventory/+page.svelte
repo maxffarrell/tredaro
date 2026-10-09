@@ -23,6 +23,7 @@
 		deleteInventoryItem,
 		getPurchaseOrders,
 		createPurchaseOrder,
+		receivePurchaseOrder,
 		transitionPurchaseOrder,
 		deletePurchaseOrder,
 		getTruckStock,
@@ -233,6 +234,43 @@
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update PO'));
 		}
+	}
+	// ------- partial receive -------
+	let rcOpen = $state(false);
+	let rcPending = $state(false);
+	let rcLines = $state<
+		{ itemId: string; name: string; unit: string; remaining: number; qty: number }[]
+	>([]);
+	function openReceive() {
+		if (!poView) return;
+		rcLines = poView.items
+			.filter((i) => i.qty - i.receivedQty > 0)
+			.map((i) => ({
+				itemId: i.id,
+				name: i.name,
+				unit: i.unit,
+				remaining: i.qty - i.receivedQty,
+				qty: i.qty - i.receivedQty
+			}));
+		rcOpen = true;
+	}
+	async function doReceive() {
+		rcPending = true;
+		try {
+			const lines = rcLines.filter((l) => l.qty > 0).map((l) => ({ itemId: l.itemId, qty: l.qty }));
+			const r = await receivePurchaseOrder({ id: poView!.po.id, lines }).updates(
+				getPurchaseOrders,
+				getInventory
+			);
+			toast.success(r.status === 'received' ? 'PO received in full' : 'Partial receipt recorded');
+			rcOpen = false;
+			poView = null;
+			pos = await getPurchaseOrders();
+			rows = await getInventory();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not record receipt'));
+		}
+		rcPending = false;
 	}
 	async function removePo(id: string) {
 		try {
@@ -736,7 +774,14 @@
 			<Table.Body>
 				{#each poView?.items ?? [] as i (i.id)}
 					<Table.Row>
-						<Table.Cell class="font-medium">{i.name}</Table.Cell>
+						<Table.Cell class="font-medium"
+							>{i.name}
+							{#if i.receivedQty > 0}
+								<span class="ml-1 text-xs text-muted-foreground"
+									>{i.receivedQty}/{i.qty} received</span
+								>
+							{/if}</Table.Cell
+						>
 						<Table.Cell class="text-right tabular-nums">{i.qty} {i.unit}</Table.Cell>
 						<Table.Cell class="text-right tabular-nums"
 							>{i.unitCost ? formatMoney(i.qty * i.unitCost, currency) : '—'}</Table.Cell
@@ -761,14 +806,47 @@
 					<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}
 						>Cancel PO</Button
 					>
-					<Button onclick={() => transitionPo(poView!.po.id, 'received')}
-						><ClipboardList /> Receive stock</Button
-					>
+					<Button onclick={openReceive}><ClipboardList /> Receive stock</Button>
 				{:else}
 					<span></span>
 				{/if}
 			</Dialog.Footer>
 		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- receive stock (partial ok) -->
+<Dialog.Root bind:open={rcOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Receive stock — PO-{poView?.po.number}</Dialog.Title>
+			<Dialog.Description>
+				Enter how much of each line arrived. The PO stays open until every line is fully received.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			{#each rcLines as l (l.itemId)}
+				<div class="flex items-center gap-3">
+					<div class="min-w-0 flex-1">
+						<p class="truncate text-sm font-medium">{l.name}</p>
+						<p class="text-xs text-muted-foreground">{l.remaining} {l.unit} outstanding</p>
+					</div>
+					<Input
+						type="number"
+						class="w-24 text-right"
+						min={0}
+						max={l.remaining}
+						bind:value={l.qty}
+					/>
+				</div>
+			{/each}
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => rcLines.forEach((l) => (l.qty = 0))}>Clear</Button>
+			<Button onclick={doReceive} disabled={rcPending || rcLines.every((l) => l.qty <= 0)}
+				>{rcPending ? 'Receiving…' : 'Receive'}</Button
+			>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
 

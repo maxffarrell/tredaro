@@ -1306,6 +1306,40 @@ export async function notifyVisitRated(orgId: string, jobId: string, rating: num
 		});
 }
 
+/** A saved-card auto-charge failed — alerts staff; the charge stays open for follow-up. */
+export async function notifyAutoChargeFailed(
+	orgId: string,
+	customerId: string,
+	chargeId: string,
+	cardLabel: string | null
+) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [c] = await db
+		.select({ name: customer.name })
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, customerId)));
+	if (!c) return;
+	const name = await orgName(orgId);
+	const stamp = `${customerId}:${chargeId}`;
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'auto_charge_failed', stamp, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Auto-charge failed — ${c.name} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `Auto-charge failed for ${c.name}`,
+				lines: [
+					`The recurring charge could not be collected from ${cardLabel ?? 'the card on file'}.`,
+					'The charge was left open — the customer can still pay it from the portal or by invoice.'
+				],
+				action: { label: 'Open customer', url: `${appOrigin()}/customers/${customerId}` }
+			})
+		});
+	}
+}
+
 /** "The job blocking yours is done" — emails + inboxes the dependent job's tech. */
 export async function notifyJobUnblocked(
 	orgId: string,

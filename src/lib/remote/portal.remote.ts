@@ -115,3 +115,12 @@ export const startCheckout = command(
 		return { url: await svc.portalCheckout(c.id, provider) };
 	}
 );
+
+/** Hosted setup page where the customer saves a card for automatic payments. */
+export const saveCardOnFile = command(
+	v.object({ customerId: idSchema, provider: v.string() }),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		return { url: await svc.portalSaveCard(c.id, input.provider) };
+	}
+);
