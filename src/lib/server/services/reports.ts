@@ -847,6 +847,10 @@ async function jobProfitability(orgId: string) {
 			laborMin:
 				sql<number>`(select coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60), 0) from ${jobTimeEntry} te where te.job_id = ${outer(job.id)})`.mapWith(
 					Number
+				),
+			schedMin:
+				sql<number>`coalesce(round(extract(epoch from (${job.endsAt} - ${job.startsAt})::numeric / 60)), 0)`.mapWith(
+					Number
 				)
 		})
 		.from(job)

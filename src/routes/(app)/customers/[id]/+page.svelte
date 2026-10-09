@@ -882,6 +882,17 @@
 					>Jobs{#if c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length}
 						<span class="ml-1 text-xs font-normal text-muted-foreground"
 							>({c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length} open)</span
+						>{/if}{#if c.jobs
+						.filter((j) => j.job.status === 'done' && j.job.completedAt)
+						.map((j) => new Date(j.job.completedAt!).getTime())
+						.reduce((a, b) => Math.max(a, b), 0)}
+						{@const lastVisit = Math.max(
+							...c.jobs
+								.filter((j) => j.job.status === 'done' && j.job.completedAt)
+								.map((j) => new Date(j.job.completedAt!).getTime())
+						)}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>· last visit {Math.max(1, Math.floor((Date.now() - lastVisit) / 86400000))}d ago</span
 						>{/if}</Card.Title
 				>
 				<div class="flex items-center gap-3">

@@ -387,7 +387,14 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Receivables aging</Card.Title>
-			<Card.Description>Open charge balances by days past due</Card.Description>
+			<Card.Description
+				>Open charge balances by days past due{#if r.profit.filter((j) => j.schedMin > 0 && j.billed > 0).length}
+					· avg {formatMoney(
+						r.profit.reduce((a, j) => a + j.billed, 0) /
+							(r.profit.reduce((a, j) => a + j.schedMin, 0) / 60 || 1),
+						currency
+					)}/sched-hr{/if}</Card.Description
+			>
 		</Card.Header>
 		<Card.Content>
 			<Table.Root>
