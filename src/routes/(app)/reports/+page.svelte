@@ -315,7 +315,8 @@
 		<Card.Header>
 			<Card.Title class="text-base">Job profitability</Card.Title>
 			<Card.Description
-				>Completed jobs, last 90 days — invoiced vs labor, materials, and expense cost</Card.Description
+				>Completed jobs, last 90 days — invoiced vs labor, materials, and expense cost{#if r.expenses90d}
+					· {formatMoney(r.expenses90d, currency)} expenses logged (90d){/if}</Card.Description
 			>
 		</Card.Header>
 		<Card.Content>
