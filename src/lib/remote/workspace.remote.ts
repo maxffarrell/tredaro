@@ -276,11 +276,15 @@ export const getActivity = query(activityFilter, async (filter) =>
 		(await requireOrg()).orgId,
 		filter.entityType || undefined,
 		undefined,
-		filter.limit
+		filter.limit,
+		filter.actorId || undefined
 	)
 );
 export const getActivityTypes = query(async () =>
 	eventsSvc.listActivityTypes((await requireOrg()).orgId)
+);
+export const getActivityActors = query(async () =>
+	eventsSvc.listActivityActors((await requireOrg()).orgId)
 );
 export const getActivityTodayCount = query(async () => {
 	const ctx = await requireOrg();

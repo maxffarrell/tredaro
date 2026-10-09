@@ -669,7 +669,17 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base">Equipment</Card.Title>
+				<Card.Title class="text-base"
+					>Equipment{#if c.equipment.filter((e) => e.equipment.active && e.equipment.warrantyUntil && !eqExpired(e.equipment.warrantyUntil)).length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>({c.equipment.filter(
+								(e) =>
+									e.equipment.active &&
+									e.equipment.warrantyUntil &&
+									!eqExpired(e.equipment.warrantyUntil)
+							).length} in warranty)</span
+						>{/if}</Card.Title
+				>
 				<Button size="sm" variant="outline" onclick={() => openEquipment()}>
 					<AirVent /> Add
 				</Button>

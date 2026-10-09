@@ -96,7 +96,8 @@ export async function listActivity(
 	orgId: string,
 	entityType?: string,
 	entityId?: string,
-	limit = 200
+	limit = 200,
+	actorId?: string
 ) {
 	const rows = await db
 		.select({
@@ -110,11 +111,23 @@ export async function listActivity(
 			and(
 				eq(activity.organizationId, orgId),
 				entityType ? eq(activity.entityType, entityType) : undefined,
-				entityId ? eq(activity.entityId, entityId) : undefined
+				entityId ? eq(activity.entityId, entityId) : undefined,
+				actorId ? eq(activity.actorId, actorId) : undefined
 			)
 		)
 		.orderBy(desc(activity.createdAt))
 		.limit(limit);
+	return rows;
+}
+
+/** Staff members who have authored activity rows (for the "By" filter). */
+export async function listActivityActors(orgId: string) {
+	const rows = await db
+		.selectDistinct({ actorId: activity.actorId, name: user.name })
+		.from(activity)
+		.innerJoin(user, eq(activity.actorId, user.id))
+		.where(eq(activity.organizationId, orgId))
+		.orderBy(user.name);
 	return rows;
 }
 

@@ -375,7 +375,10 @@
 				{#if est.estimate.sentAt}
 					<div class="flex justify-between">
 						<span class="text-muted-foreground">Sent</span><span
-							>{formatDate(est.estimate.sentAt)}</span
+							>{formatDate(est.estimate.sentAt)} · {Math.max(
+								0,
+								Math.round((Date.now() - new Date(est.estimate.sentAt).getTime()) / 86400_000)
+							)}d ago</span
 						>
 					</div>
 				{/if}

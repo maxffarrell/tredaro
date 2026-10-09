@@ -8,6 +8,7 @@
 	import {
 		getActivity,
 		getActivityTodayCount,
+		getActivityActors,
 		getActivityTypes,
 		getActivityWeekCount
 	} from '#lib/remote/workspace.remote.ts';
@@ -16,7 +17,9 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 
 	const types = await getActivityTypes();
+	const actors = await getActivityActors();
 	let entityType = $state('');
+	let actorId = $state('');
 	let limit = $state(200);
 	let rows = $state(await getActivity({ limit }));
 	const todayCount = $derived(await getActivityTodayCount());
@@ -25,7 +28,20 @@
 
 	async function refilter(v: string) {
 		entityType = v;
-		rows = await getActivity({ entityType: v || undefined, limit });
+		rows = await getActivity({
+			entityType: v || undefined,
+			actorId: actorId || undefined,
+			limit
+		});
+	}
+
+	async function refilterActor(v: string) {
+		actorId = v;
+		rows = await getActivity({
+			entityType: entityType || undefined,
+			actorId: v || undefined,
+			limit
+		});
 	}
 
 	/** Link to an entity's page when we know its route. */
@@ -53,6 +69,21 @@
 				<Select.Item value="">Everything</Select.Item>
 				{#each types as t (t)}
 					<Select.Item value={t}>{t.replaceAll('_', ' ')}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	{/if}
+	{#if actors.length}
+		<Select.Root type="single" value={actorId} onValueChange={refilterActor}>
+			<Select.Trigger class="w-48"
+				>{actorId
+					? (actors.find((a) => a.actorId === actorId)?.name ?? 'Anyone')
+					: 'Anyone'}</Select.Trigger
+			>
+			<Select.Content>
+				<Select.Item value="">Anyone</Select.Item>
+				{#each actors as a (a.actorId)}
+					<Select.Item value={a.actorId!}>{a.name}</Select.Item>
 				{/each}
 			</Select.Content>
 		</Select.Root>
@@ -122,7 +153,11 @@
 						size="sm"
 						onclick={async () => {
 							limit += 200;
-							rows = await getActivity({ entityType: entityType || undefined, limit });
+							rows = await getActivity({
+								entityType: entityType || undefined,
+								actorId: actorId || undefined,
+								limit
+							});
 						}}>Load more</Button
 					>
 				</div>

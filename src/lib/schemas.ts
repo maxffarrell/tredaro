@@ -514,6 +514,7 @@ export const checklistToggleInput = v.object({
 });
 export const activityFilter = v.object({
 	entityType: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40))),
+	actorId: v.optional(v.string()),
 	limit: v.optional(v.number())
 });
 
