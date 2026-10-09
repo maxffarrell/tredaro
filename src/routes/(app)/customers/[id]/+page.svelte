@@ -771,7 +771,11 @@
 							Preferred contact
 							<Select.Root type="single" bind:value={contactPref}>
 								<Select.Trigger class="w-40"
-									>{contactPref === 'email' ? 'Email' : contactPref === 'sms' ? 'Text message' : 'No preference'}
+									>{contactPref === 'email'
+										? 'Email'
+										: contactPref === 'sms'
+											? 'Text message'
+											: 'No preference'}
 								</Select.Trigger>
 								<Select.Content>
 									<Select.Item value="">No preference</Select.Item>
