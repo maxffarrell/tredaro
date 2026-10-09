@@ -10,6 +10,7 @@ import {
 	getTableColumns,
 	gte,
 	inArray,
+	isNotNull,
 	isNull,
 	lt,
 	lte,
@@ -1416,6 +1417,61 @@ export async function approveTimeEntry(ctx: OrgContext, entryId: string, approve
 		.returning();
 	if (!row) error(404, 'Entry not found');
 	return row;
+}
+
+/** Approve every finished, unapproved entry on a job — payroll batch. Admin/owner only. */
+export async function approveAllTimeEntries(ctx: OrgContext, jobId: string) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const rows = await db
+		.update(jobTimeEntry)
+		.set({ approvedAt: new Date(), approvedById: ctx.userId })
+		.where(
+			and(
+				eq(jobTimeEntry.organizationId, ctx.orgId),
+				eq(jobTimeEntry.jobId, jobId),
+				isNull(jobTimeEntry.approvedAt),
+				isNotNull(jobTimeEntry.endedAt)
+			)
+		)
+		.returning({ id: jobTimeEntry.id });
+	return { approved: rows.length };
+}
+
+/** Reorder a stop inside any technician's day — the dispatch-side twin of moveMyDayStop. */
+export async function moveDayStop(
+	ctx: OrgContext,
+	tz: string,
+	memberId: string,
+	on: string,
+	jobId: string,
+	direction: 'up' | 'down'
+) {
+	const me = await memberFor(ctx);
+	if (!me) error(403, 'Not a member of this organization');
+	const rows = await listJobs(ctx.orgId, {
+		from: zonedToUtc(`${on}T00:00`, tz),
+		to: zonedToUtc(`${addDays(on, 1)}T00:00`, tz),
+		technicianId: memberId
+	});
+	rows.sort(
+		(a, b) =>
+			(a.job.routeOrder ?? Number.MAX_SAFE_INTEGER) -
+				(b.job.routeOrder ?? Number.MAX_SAFE_INTEGER) ||
+			(a.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+				(b.job.startsAt?.getTime() ?? Number.MAX_SAFE_INTEGER)
+	);
+	const i = rows.findIndex((r) => r.job.id === jobId);
+	if (i < 0) error(404, 'Job not found in that day');
+	const j = direction === 'up' ? i - 1 : i + 1;
+	if (j < 0 || j >= rows.length) return { moved: false };
+	const ordered = rows.map((r) => r.job.id);
+	[ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+	for (const [idx, id] of ordered.entries())
+		await db
+			.update(job)
+			.set({ routeOrder: idx })
+			.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)));
+	return { moved: true };
 }
 
 // ---------- Dispatch board ----------

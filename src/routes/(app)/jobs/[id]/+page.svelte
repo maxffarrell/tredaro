@@ -48,7 +48,8 @@
 		sendJobEta,
 		sendServiceReport,
 		reviewBooking,
-		approveTimeEntry
+		approveTimeEntry,
+		approveAllTimeEntries
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices, getStaff } from '#lib/remote/workspace.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
@@ -375,6 +376,21 @@
 			: `${min}m`;
 	};
 	const totalMin = $derived(time.entries.reduce((s, e) => s + minutes(e.entry), 0));
+	const unapprovedCount = $derived(
+		time.entries.filter((e) => e.entry.endedAt && !e.entry.approvedAt).length
+	);
+
+	let approvingAll = $state(false);
+	async function approveAll() {
+		approvingAll = true;
+		try {
+			const r = await approveAllTimeEntries(id).updates(getTimeEntries);
+			toast.success(`${r.approved} entr${r.approved === 1 ? 'y' : 'ies'} approved`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not approve entries'));
+		}
+		approvingAll = false;
+	}
 
 	async function toggleTimer() {
 		try {
@@ -1339,10 +1355,23 @@
 				<Card.Title class="flex items-center gap-2 text-base"
 					><Timer class="size-4" /> Time</Card.Title
 				>
-				<span class="text-sm text-muted-foreground tabular-nums"
-					>{fmtDur(totalMin)}{#if time.entries.length > 1}
-						· {time.entries.length} entries{/if}</span
-				>
+				<div class="flex items-center gap-2">
+					{#if time.isAdmin && unapprovedCount > 0}
+						<Button
+							size="sm"
+							variant="ghost"
+							class="h-7 text-xs"
+							disabled={approvingAll}
+							onclick={approveAll}
+						>
+							Approve {unapprovedCount}
+						</Button>
+					{/if}
+					<span class="text-sm text-muted-foreground tabular-nums"
+						>{fmtDur(totalMin)}{#if time.entries.length > 1}
+							· {time.entries.length} entries{/if}</span
+					>
+				</div>
 			</Card.Header>
 			<Card.Content class="space-y-3 px-4">
 				{#if !locked && time.myMemberId}
