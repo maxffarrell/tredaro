@@ -433,7 +433,7 @@
 				</Card.Header>
 				<Card.Content>
 					<form class="space-y-4" onsubmit={saveSettings}>
-						<div class="grid gap-4 sm:grid-cols-2">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<Field.Field>
 								<Field.Label>Timezone</Field.Label>
 								<Select.Root type="single" bind:value={timezone}>
@@ -472,7 +472,7 @@
 							<Field.Label for="addr">Address</Field.Label>
 							<Input id="addr" bind:value={address} />
 						</Field.Field>
-						<div class="grid gap-4 sm:grid-cols-2">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<Field.Field>
 								<Field.Label for="phone">Phone</Field.Label>
 								<Input id="phone" bind:value={phone} />

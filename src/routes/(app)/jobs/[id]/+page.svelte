@@ -689,13 +689,13 @@
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-6 p-4 md:p-6 lg:grid-cols-3">
+<div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-3">
 	<!-- details + edit form -->
 	<div class="space-y-6 lg:col-span-2">
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Details</Card.Title></Card.Header>
 			<Card.Content>
-				<form class="grid gap-4 sm:grid-cols-2" onsubmit={save}>
+				<form class="grid grid-cols-1 gap-4 sm:grid-cols-2" onsubmit={save}>
 					<Field.Field>
 						<Field.Label>Customer</Field.Label>
 						<p class="pt-2 text-sm">

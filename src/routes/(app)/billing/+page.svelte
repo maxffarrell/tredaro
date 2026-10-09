@@ -742,7 +742,7 @@
 			<Dialog.Description>Issuing posts one receivable charge for the total.</Dialog.Description>
 		</Dialog.Header>
 		<form class="space-y-4" onsubmit={submitInvoice}>
-			<div class="grid gap-4 sm:grid-cols-2">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Field.Field>
 					<Field.Label>From job (optional)</Field.Label>
 					<Select.Root

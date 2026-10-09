@@ -346,7 +346,7 @@
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-4 p-4 md:p-6 lg:grid-cols-[300px_1fr]">
+<div class="grid grid-cols-1 gap-4 p-4 md:p-6 lg:grid-cols-[300px_1fr]">
 	<!-- Unscheduled queue -->
 	<Card.Root
 		class="h-fit {dropZone === 'queue' ? 'ring-2 ring-primary' : ''}"
@@ -506,7 +506,7 @@
 							{dayFilter ? 'No jobs on this day.' : 'No jobs scheduled this week.'}
 						</p>
 					{:else}
-						<ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+						<ul class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
 							{#each dayJobs(group.jobs) as j (j.job.id)}
 								<li>
 									<button

@@ -230,7 +230,7 @@
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-6 p-4 md:p-6 lg:grid-cols-3">
+<div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-3">
 	<Card.Root class="lg:col-span-2">
 		<Card.Header><Card.Title class="text-base">Items</Card.Title></Card.Header>
 		<Card.Content>

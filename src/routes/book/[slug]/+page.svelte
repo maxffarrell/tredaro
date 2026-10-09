@@ -121,7 +121,7 @@
 		{#if plans.length}
 			<section class="space-y-3">
 				<h2 class="text-lg font-semibold">Service agreements</h2>
-				<div class="grid gap-3 sm:grid-cols-2">
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					{#each plans as p (p.id)}
 						<Card.Root>
 							<Card.Header>
@@ -172,7 +172,7 @@
 				<Card.Root>
 					<Card.Content class="px-6 py-6">
 						<form class="space-y-4" onsubmit={submit}>
-							<div class="grid gap-4 sm:grid-cols-2">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<Field.Field>
 									<Field.Label for="b-name">Name</Field.Label>
 									<Input id="b-name" required bind:value={name} autocomplete="name" />
@@ -188,7 +188,7 @@
 									/>
 								</Field.Field>
 							</div>
-							<div class="grid gap-4 sm:grid-cols-2">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<Field.Field>
 									<Field.Label for="b-phone">Phone</Field.Label>
 									<Input id="b-phone" required bind:value={phone} autocomplete="tel" />
@@ -233,12 +233,12 @@
 								<Field.Label for="b-addr">Service address</Field.Label>
 								<Input id="b-addr" bind:value={address1} placeholder="Street" />
 							</Field.Field>
-							<div class="grid gap-4 sm:grid-cols-3">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 								<Input bind:value={city} placeholder="City" />
 								<Input bind:value={addrState} placeholder="State" />
 								<Input bind:value={zip} placeholder="ZIP" />
 							</div>
-							<div class="grid gap-4 sm:grid-cols-2">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<Field.Field>
 									<Field.Label for="b-date">Preferred date</Field.Label>
 									<Input id="b-date" type="date" min={minDate} bind:value={preferredDate} />

@@ -355,7 +355,7 @@
 					</Select.Root>
 				</Field.Field>
 			{/if}
-			<div class="grid gap-4 sm:grid-cols-2">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Field.Field>
 					<Field.Label>Job type</Field.Label>
 					<Select.Root type="single" bind:value={jobTypeId}>

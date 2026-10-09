@@ -217,7 +217,7 @@
 					>
 				</Card.Header>
 				<Card.Content class="space-y-4 px-6">
-					<div class="grid gap-4 sm:grid-cols-2">
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<Field.Field>
 							<Field.Label for="dec-name">Your name</Field.Label>
 							<Input id="dec-name" bind:value={name} placeholder="Required to approve" />

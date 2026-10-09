@@ -297,7 +297,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="plans">
-			<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				{#each plans as p (p.id)}
 					<button class="text-left" onclick={() => openPlan(p)}>
 						<Card.Root class="h-full transition-shadow hover:shadow-sm">

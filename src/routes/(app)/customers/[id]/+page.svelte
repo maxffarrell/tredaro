@@ -1115,7 +1115,7 @@
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<div class="grid gap-4 sm:grid-cols-2">
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<div class="rounded-lg bg-muted/50 p-3">
 						<p class="text-xs text-muted-foreground">Open balance</p>
 						<p class="text-xl font-semibold tabular-nums">

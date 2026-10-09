@@ -204,7 +204,7 @@
 	>
 </div>
 
-<div class="grid gap-6 md:grid-cols-2">
+<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 	<!-- upcoming jobs -->
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Scheduled visits</Card.Title></Card.Header>
