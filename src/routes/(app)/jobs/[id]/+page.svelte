@@ -344,8 +344,9 @@
 					note: teNote
 				}).updates(getTimeEntries, getJob);
 			}
+			const wasEdit = !!editTimeId;
 			resetTimeForm();
-			toast.success(editTimeId ? 'Entry updated' : 'Time logged');
+			toast.success(wasEdit ? 'Entry updated' : 'Time logged');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save time'));
 		}
@@ -1124,15 +1125,17 @@
 							</div>
 							{#if time.isAdmin || e.entry.memberId === time.myMemberId}
 								<div class="flex shrink-0">
-									<Button
-										variant="ghost"
-										size="icon"
-										class="size-7 text-muted-foreground"
-										aria-label="Edit time entry"
-										onclick={() => startEditTime(e)}
-									>
-										<Pencil class="size-3.5" />
-									</Button>
+									{#if !locked}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="size-7 text-muted-foreground"
+											aria-label="Edit time entry"
+											onclick={() => startEditTime(e)}
+										>
+											<Pencil class="size-3.5" />
+										</Button>
+									{/if}
 									<Button
 										variant="ghost"
 										size="icon"
