@@ -512,7 +512,7 @@
 	{/snippet}
 </PageHeader>
 
-<div class="grid gap-6 p-4 md:p-6 xl:grid-cols-3">
+<div class="grid grid-cols-1 gap-6 p-4 md:p-6 xl:grid-cols-3">
 	<!-- customer record + locations -->
 	<div class="space-y-6">
 		<Card.Root>
@@ -960,7 +960,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		<div class="grid gap-6 lg:grid-cols-2">
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
 					<Card.Title class="text-base"
