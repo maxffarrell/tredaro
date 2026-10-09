@@ -21,7 +21,15 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	const { estimate: est, orgName, customerName, items, currency, location: loc } = $derived(data);
+	const {
+		estimate: est,
+		orgName,
+		orgLogoUrl,
+		customerName,
+		items,
+		currency,
+		location: loc
+	} = $derived(data);
 	/** Optional lines the customer excludes — all are included by default. */
 	let excluded = new SvelteSet<string>();
 	const hasOptional = $derived(items.some((i) => i.optional));
@@ -115,7 +123,11 @@
 <div class="min-h-svh bg-muted/30">
 	<header class="border-b bg-background print:hidden">
 		<div class="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
-			<Logo />
+			{#if orgLogoUrl}
+				<img src={orgLogoUrl} alt={orgName} class="h-8 object-contain" />
+			{:else}
+				<Logo />
+			{/if}
 			<span class="truncate font-semibold">{orgName}</span>
 		</div>
 	</header>

@@ -59,6 +59,8 @@ export const companySettings = pgTable('company_settings', {
 	website: text('website').notNull().default(''),
 	/** Contractor license / registration number, printed on estimates and work orders. */
 	licenseNumber: text('license_number').notNull().default(''),
+	/** Logo shown on print documents and public estimate/invoice pages. */
+	logoUrl: text('logo_url').notNull().default(''),
 	/** Public review link (Google/Yelp/etc.) shown as a button in the job-completed email. Empty disables it. */
 	reviewUrl: text('review_url').notNull().default(''),
 	/** Master switches for automated sends — manual Send buttons always work. */
@@ -528,6 +530,8 @@ export const estimate = pgTable(
 		/** Typed name captured on the public approval page. */
 		decisionName: text('decision_name'),
 		decisionNote: text('decision_note'),
+		/** Staff-only notes — never shown on the public quote. */
+		internalNotes: text('internal_notes').notNull().default(''),
 		/** Job created on approval. */
 		jobId: text('job_id'),
 		/** Kind of work quoted; drives suggested pricebook items + job type on approval. */

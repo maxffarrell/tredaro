@@ -65,6 +65,7 @@
 	const linkedJob = $derived(est.linkedJob ?? null);
 
 	let notes = $state('');
+	let internalNotes = $state('');
 	let validUntil = $state('');
 	let jobTypeId = $state('');
 	let items = $state<
@@ -81,6 +82,7 @@
 		if (est.estimate.id !== loadedId) {
 			loadedId = est.estimate.id;
 			notes = est.estimate.notes;
+			internalNotes = est.estimate.internalNotes;
 			validUntil = est.estimate.validUntil ?? '';
 			jobTypeId = est.estimate.jobTypeId ?? '';
 			items = est.items.map((i) => ({
@@ -113,6 +115,7 @@
 				id,
 				jobTypeId: jobTypeId || null,
 				notes,
+				internalNotes,
 				validUntil: validUntil || null,
 				items: items
 					.filter((i) => i.name.trim())
@@ -430,6 +433,12 @@
 					<Field.Field>
 						<Field.Label for="ed-notes">Notes</Field.Label>
 						<Textarea id="ed-notes" rows={3} bind:value={notes} />
+						<Field.Description>Shown on the public quote.</Field.Description>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="ed-internal">Internal notes</Field.Label>
+						<Textarea id="ed-internal" rows={2} bind:value={internalNotes} />
+						<Field.Description>Staff only — never shown to the customer.</Field.Description>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="ed-valid">Valid until</Field.Label>
@@ -488,6 +497,11 @@
 							currency
 						)} of that total
 					</div>
+				{/if}
+				{#if est.estimate.internalNotes}
+					<p class="mt-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground italic">
+						Staff: {est.estimate.internalNotes}
+					</p>
 				{/if}
 				{#if est.estimate.notes}<p class="mt-3 text-sm text-muted-foreground">
 						{est.estimate.notes}

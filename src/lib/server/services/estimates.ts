@@ -174,7 +174,8 @@ export async function createEstimate(
 			customerId: input.customerId,
 			serviceLocationId: input.serviceLocationId ?? null,
 			jobTypeId: input.jobTypeId ?? null,
-			notes: input.notes
+			notes: input.notes,
+			internalNotes: input.internalNotes
 		})
 		.returning();
 	await writeItems(row!.id, input.items);
@@ -205,6 +206,7 @@ export async function updateEstimate(
 			serviceLocationId: input.serviceLocationId,
 			jobTypeId: input.jobTypeId,
 			notes: input.notes,
+			internalNotes: input.internalNotes,
 			validUntil: input.validUntil
 		})
 		.where(eq(estimate.id, input.id))
@@ -514,11 +516,13 @@ export async function publicEstimate(id: string) {
 			estimate,
 			customerName: customer.name,
 			orgName: organization.name,
+			orgLogoUrl: companySettings.logoUrl,
 			location: serviceLocation
 		})
 		.from(estimate)
 		.innerJoin(customer, eq(estimate.customerId, customer.id))
 		.innerJoin(organization, eq(organization.id, estimate.organizationId))
+		.leftJoin(companySettings, eq(companySettings.organizationId, estimate.organizationId))
 		.leftJoin(serviceLocation, eq(estimate.serviceLocationId, serviceLocation.id))
 		.where(eq(estimate.id, id));
 	if (!row) error(404, 'Estimate not found');

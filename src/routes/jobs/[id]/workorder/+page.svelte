@@ -35,6 +35,9 @@
 		<header class="mt-4 border-b-2 border-neutral-800 pb-4 print:mt-0">
 			<div class="flex items-start justify-between">
 				<div>
+					{#if settings.logoUrl}
+						<img src={settings.logoUrl} alt={settings.orgName} class="mb-2 h-12 object-contain" />
+					{/if}
 					<p class="text-lg font-bold">{settings.orgName}</p>
 					{#if settings.address}<p class="text-sm">{settings.address}</p>{/if}
 					{#if settings.phone}<p class="text-sm">{settings.phone}</p>{/if}

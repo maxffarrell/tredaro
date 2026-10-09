@@ -10,7 +10,8 @@ import {
 	notifyJobScheduled,
 	notifyPartsDelay,
 	notifyTechAssigned,
-	textJobEta
+	textJobEta,
+	textDayEtas
 } from '#lib/server/services/notifications.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import { getCustomer } from './customers.remote.ts';
@@ -89,6 +90,12 @@ export const sendJobEta = command(
 		await textJobEta(ctx, input.jobId, input.minutes);
 	}
 );
+
+/** Texts every customer with a job starting on `day` (YYYY-MM-DD, org timezone) an ETA. */
+export const sendDayEtas = command(v.object({ day: v.string() }), async (input) => {
+	const ctx = await requireOrg();
+	return textDayEtas(ctx, input.day);
+});
 
 /** Dispatch board payload for `[from, to]`: scheduled jobs, unscheduled queue, technicians. */
 export const getDispatchBoard = query(

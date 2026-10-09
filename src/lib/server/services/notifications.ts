@@ -433,6 +433,56 @@ export async function textJobEta(ctx: OrgContext, jobId: string, minutes: number
 		.onConflictDoNothing();
 }
 
+/** Bulk "we'll see you today" texts for scheduled/dispatched jobs starting on `dayStr`. */
+export async function textDayEtas(ctx: OrgContext, dayStr: string) {
+	if (!smsProvider()) error(400, 'No SMS provider configured');
+	const tz = await orgTimezone(ctx.orgId);
+	const from = zonedToUtc(`${dayStr}T00:00:00`, tz);
+	const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+	const rows = await db
+		.select({
+			jobId: job.id,
+			number: job.number,
+			startsAt: job.startsAt,
+			phone: customer.phone,
+			smsOptOut: customer.smsOptOut,
+			techName: user.name
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(member, eq(job.technicianId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(
+			and(
+				eq(job.organizationId, ctx.orgId),
+				inArray(job.status, ['scheduled', 'dispatched']),
+				gte(job.startsAt, from),
+				lt(job.startsAt, to)
+			)
+		);
+	const name = await orgName(ctx.orgId);
+	let sent = 0;
+	let skipped = 0;
+	for (const row of rows) {
+		if (
+			!row.phone ||
+			row.smsOptOut ||
+			!(await logOnce(ctx.orgId, 'day_eta_sms', `${row.jobId}:${dayStr}`, row.phone))
+		) {
+			skipped++;
+			continue;
+		}
+		const when = row.startsAt ? localTime(row.startsAt, tz) : 'sometime today';
+		const who = row.techName ? `${row.techName} will see` : `we'll see`;
+		await sendSmsQuiet(ctx.orgId, {
+			to: row.phone,
+			body: `${name}: ${who} you today${row.startsAt ? ` around ${when}` : ''} for job J-${row.number}.`
+		});
+		sent++;
+	}
+	return { sent, skipped };
+}
+
 /** Emails the customer a statement of open charges with a portal link. */
 export async function emailStatement(ctx: OrgContext, customerId: string) {
 	const [c] = await db

@@ -391,6 +391,7 @@ export const estimateInput = v.object({
 	serviceLocationId: v.optional(v.nullable(idSchema)),
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
+	internalNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ''),
 	items: v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item'))
 });
 export const estimateUpdate = v.object({
@@ -398,6 +399,7 @@ export const estimateUpdate = v.object({
 	serviceLocationId: v.optional(v.nullable(idSchema)),
 	jobTypeId: v.optional(v.nullable(idSchema)),
 	notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	internalNotes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
 	validUntil: v.optional(v.nullable(isoDate)),
 	items: v.optional(v.pipe(v.array(lineItem), v.minLength(1, 'Add at least one line item')))
 });
@@ -464,6 +466,9 @@ export const settingsInput = v.object({
 	phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(50))),
 	website: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	licenseNumber: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100))),
+	logoUrl: v.optional(
+		v.union([v.literal(''), v.pipe(v.string(), v.trim(), v.url(), v.maxLength(500))])
+	),
 	reviewUrl: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	emailNotifications: v.optional(v.boolean()),
 	smsNotifications: v.optional(v.boolean()),

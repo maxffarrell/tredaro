@@ -8,7 +8,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
-	import { getDispatchBoard, updateJob } from '#lib/remote/jobs.remote.ts';
+	import { getDispatchBoard, sendDayEtas, updateJob } from '#lib/remote/jobs.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
@@ -21,6 +21,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Inbox from '@lucide/svelte/icons/inbox';
 	import Printer from '@lucide/svelte/icons/printer';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
@@ -37,6 +38,21 @@
 
 	const todayStr = localDate(new Date(), tz);
 	let start = $state(page.url.searchParams.get('from') ?? todayStr);
+	let etaPending = $state(false);
+
+	async function textEtas() {
+		const day = dayFilter || todayStr;
+		etaPending = true;
+		try {
+			const r = await sendDayEtas({ day });
+			toast.success(
+				`${r.sent} ETA text${r.sent === 1 ? '' : 's'} sent${r.skipped ? ` (${r.skipped} skipped)` : ''}`
+			);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send ETA texts'));
+		}
+		etaPending = false;
+	}
 	const board = $derived(
 		await getDispatchBoard({ from: start, to: addDays(start, 7), officeId: officeId || undefined })
 	);
@@ -396,6 +412,14 @@
 			>
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(7)}
 				><ChevronRight /></Button
+			>
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={textEtas}
+				disabled={etaPending}
+				title="Text every customer with a job that day their ETA"
+				><MessageSquare /> {etaPending ? 'Texting…' : 'Text ETAs'}</Button
 			>
 			<Button
 				variant="outline"

@@ -213,6 +213,7 @@
 	let laborRounding = $state(settings.laborRoundingMin);
 	let serviceZips = $state(settings.serviceZips);
 	let licenseNumber = $state(settings.licenseNumber);
+	let logoUrl = $state(settings.logoUrl);
 	let bookingMessage = $state(settings.bookingMessage);
 	const bookUrl = $derived(`${page.url.origin}/book/${page.data.org.slug}`);
 	let testSmsTo = $state('');
@@ -279,6 +280,7 @@
 				laborRoundingMin: Math.round(laborRounding || 0),
 				serviceZips,
 				licenseNumber,
+				logoUrl,
 				bookingMessage
 			});
 			toast.success('Settings saved');
@@ -518,6 +520,13 @@
 							<Input id="lic" bind:value={licenseNumber} placeholder="CAC-123456" />
 							<p class="text-xs text-muted-foreground">
 								Printed on estimates and work orders. Leave empty to hide.
+							</p>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="logo">Logo URL</Field.Label>
+							<Input id="logo" type="url" bind:value={logoUrl} placeholder="https://…/logo.png" />
+							<p class="text-xs text-muted-foreground">
+								Shown on printed estimates and work orders.
 							</p>
 						</Field.Field>
 						<Field.Field>
