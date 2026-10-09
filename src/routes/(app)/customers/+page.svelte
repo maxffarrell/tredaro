@@ -70,6 +70,7 @@
 	const missingPhone = $derived(visible.filter((c) => !c.phone).length);
 	const withPortal = $derived(visible.filter((c) => c.portalLinked).length);
 	const companyCount = $derived(visible.filter((c) => c.companyName).length);
+	const residentialCount = $derived(visible.filter((c) => c.type === 'residential').length);
 	const underAgreement = $derived(visible.filter((c) => c.hasAgreement).length);
 	const onHold = $derived(visible.filter((c) => c.onHold).length);
 	const withOpenQuote = $derived(visible.filter((c) => c.hasOpenQuote).length);
@@ -309,7 +310,8 @@
 			>{/if}{#if missingPhone}
 			· <span class="text-amber-600 dark:text-amber-400">{missingPhone} missing phone</span
 			>{/if}{#if companyCount}
-			· {companyCount} companies{/if}{#if noUpcoming}
+			· {companyCount} companies{/if}{#if residentialCount}
+			· {residentialCount} residential{/if}{#if noUpcoming}
 			· {noUpcoming} without upcoming visit{/if}{#if underAgreement}
 			· {underAgreement} under agreement{/if}{#if neverServiced}
 			· {neverServiced} never serviced{/if}{#if onHold}

@@ -390,6 +390,13 @@
 						openRows.reduce((sum, i) => sum + i.total - i.paid, 0) / openRows.length,
 						currency
 					)}
+					· avg
+					{Math.round(
+						openRows.reduce(
+							(sum, i) => sum + (Date.now() - new Date(i.invoice.createdAt).getTime()) / 86400_000,
+							0
+						) / openRows.length
+					)}d open
 				</p>
 			{/if}
 			{@const voided = invoices.filter((i) => i.invoice.status === 'void')}

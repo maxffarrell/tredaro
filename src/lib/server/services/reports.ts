@@ -144,6 +144,27 @@ async function estimateFunnel(orgId: string) {
 	return rows;
 }
 
+/** Avg span (min) of completed jobs over the last 30 days. */
+async function avgJobMinutes(orgId: string) {
+	const [{ v }] = await db
+		.select({
+			v: sql<number>`avg(extract(epoch from (${job.endsAt} - ${job.startsAt})) / 60)`.mapWith(
+				Number
+			)
+		})
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.status, 'done'),
+				isNotNull(job.startsAt),
+				isNotNull(job.endsAt),
+				gte(job.completedAt, new Date(Date.now() - 30 * 86400_000))
+			)
+		);
+	return v ?? null;
+}
+
 /** Avg invoiced revenue per job (90d, non-void invoices linked to a job). */
 async function avgJobValue(orgId: string) {
 	const [{ v }] = await db
@@ -612,7 +633,8 @@ export async function getReports(orgId: string) {
 		revByType,
 		decisionDays,
 		repeat,
-		jobValue
+		jobValue,
+		jobMin
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -643,7 +665,8 @@ export async function getReports(orgId: string) {
 		revenueByCustomerType(orgId),
 		avgDaysToEstimateDecision(orgId),
 		repeatRate(orgId),
-		avgJobValue(orgId)
+		avgJobValue(orgId),
+		avgJobMinutes(orgId)
 	]);
 	return {
 		completedJobs,
@@ -675,7 +698,8 @@ export async function getReports(orgId: string) {
 		revByCustomerType: revByType,
 		estimateDecisionDays: decisionDays,
 		repeatRate: repeat,
-		avgJobValue: jobValue
+		avgJobValue: jobValue,
+		avgJobMinutes: jobMin
 	};
 }
 
