@@ -23,7 +23,6 @@
 	import { getCustomerOpenBalance, recordPayment } from '#lib/remote/billing.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { getTruckStock, addJobMaterial } from '#lib/remote/inventory.remote.ts';
-	import * as Select from '#lib/components/ui/select/index.js';
 	import Package from '@lucide/svelte/icons/package';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
