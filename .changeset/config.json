@@ -7,9 +7,7 @@
 	"access": "restricted",
 	"baseBranch": "main",
 	"updateInternalDependencies": "patch",
-	"ignore": [
-		"@tredaro/sdk"
-	],
+	"ignore": ["@tredaro/sdk"],
 	"privatePackages": {
 		"version": true,
 		"tag": false
