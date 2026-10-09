@@ -416,6 +416,15 @@ export const deleteJobPhoto = command(idSchema, async (id) => {
 	return { id };
 });
 
+/** Share/unshare a job document with the customer on their portal. */
+export const setJobDocShared = command(
+	v.object({ id: idSchema, shared: v.boolean() }),
+	async (input) => {
+		const row = await photosSvc.setJobDocShared(await requireOrg(), input.id, input.shared);
+		return { id: row.id };
+	}
+);
+
 /** Share/unshare a photo with the customer on their portal. */
 export const setJobPhotoShared = command(
 	v.object({ id: idSchema, shared: v.boolean() }),

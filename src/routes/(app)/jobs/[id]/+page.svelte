@@ -69,6 +69,7 @@
 		setJobPhotoShared,
 		getJobDocuments,
 		removeJobDoc,
+		setJobDocShared,
 		getJobExpenses,
 		addJobExpense,
 		removeJobExpense
@@ -531,6 +532,15 @@
 			await removeJobDoc(docId).updates(getJobDocuments);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not delete'));
+		}
+	}
+	async function toggleDocShare(doc: { id: string; shared: boolean }) {
+		try {
+			await setJobDocShared({ id: doc.id, shared: !doc.shared });
+			await getJobDocuments(id).refresh();
+			toast.success(doc.shared ? 'Hidden from customer portal' : 'Shared on customer portal');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update document'));
 		}
 	}
 
@@ -1765,8 +1775,25 @@
 									target="_blank"
 									class="min-w-0 flex-1 truncate font-medium hover:underline">{doc.fileName}</a
 								>
+								{#if doc.shared}
+									<Badge class="shrink-0 bg-primary text-[10px] text-primary-foreground"
+										>Portal</Badge
+									>
+								{/if}
 								<span class="shrink-0 text-xs text-muted-foreground">{docSize(doc.size)}</span>
 								{#if !locked}
+									<Button
+										variant="secondary"
+										size="icon"
+										class="size-6 opacity-0 transition-opacity group-hover:opacity-100"
+										title={doc.shared
+											? 'Shared with customer — click to hide'
+											: 'Share on customer portal'}
+										aria-label={doc.shared ? 'Hide from portal' : 'Share on portal'}
+										onclick={() => toggleDocShare(doc)}
+									>
+										<Eye class="size-3" />
+									</Button>
 									<Button
 										variant="ghost"
 										size="icon"

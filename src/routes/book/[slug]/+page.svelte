@@ -14,6 +14,7 @@
 	import Phone from '@lucide/svelte/icons/phone';
 	import Globe from '@lucide/svelte/icons/globe';
 	import Clock from '@lucide/svelte/icons/clock';
+	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 
@@ -68,6 +69,33 @@
 	let pending = $state(false);
 	let done = $state(false);
 	let reference = $state('');
+
+	// All-day .ics placeholder for the requested date — booking is a request,
+	// not a confirmed slot, so the event records the preference, not an ETA.
+	const icsHref = $derived.by(() => {
+		if (!done || !preferredDate) return '';
+		const stamp = (d: string) => d.replaceAll('-', '');
+		const start = new Date(`${preferredDate}T00:00:00`);
+		const end = new Date(start.getTime() + 86400_000)
+			.toISOString()
+			.slice(0, 10)
+			.replaceAll('-', '');
+		const lines = [
+			'BEGIN:VCALENDAR',
+			'VERSION:2.0',
+			'PRODID:-//Tredaro//Booking//EN',
+			'BEGIN:VEVENT',
+			`UID:${reference || start.getTime()}@tredaro`,
+			`DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d{3}/g, '')}`,
+			`DTSTART;VALUE=DATE:${stamp(preferredDate)}`,
+			`DTEND;VALUE=DATE:${end}`,
+			`SUMMARY:${org.name} service visit${reference ? ` (${reference})` : ''}`,
+			`DESCRIPTION:Service requested with ${org.name}.${preferredTime ? ` Preferred time: ${preferredTime}.` : ''} We will confirm a time with you.`,
+			'END:VEVENT',
+			'END:VCALENDAR'
+		];
+		return `data:text/calendar;charset=utf-8,${encodeURIComponent(lines.join('\r\n'))}`;
+	});
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
@@ -188,6 +216,15 @@
 						<p class="mt-1 text-sm text-muted-foreground">
 							{settings?.bookingMessage || `${org.name} will call or email you to confirm a time.`}
 						</p>
+						{#if icsHref}
+							<Button
+								variant="outline"
+								size="sm"
+								class="mt-3"
+								href={icsHref}
+								download="tredaro-booking.ics"><CalendarPlus /> Add to calendar</Button
+							>
+						{/if}
 					</Card.Content>
 				</Card.Root>
 			{:else if settings && !settings.bookingEnabled}

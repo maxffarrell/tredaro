@@ -94,6 +94,7 @@ export async function listJobDocs(orgId: string, jobId: string) {
 			fileName: jobDocument.fileName,
 			mime: jobDocument.mime,
 			size: jobDocument.size,
+			shared: jobDocument.shared,
 			uploadedBy: user.name,
 			createdAt: jobDocument.createdAt
 		})
@@ -253,6 +254,33 @@ export async function setJobPhotoShared(ctx: OrgContext, id: string, shared: boo
 		.returning({ id: jobPhoto.id });
 	if (!row) error(404, 'Photo not found');
 	return row;
+}
+
+/** Share/unshare a job document with the customer on their portal. */
+export async function setJobDocShared(ctx: OrgContext, id: string, shared: boolean) {
+	const [row] = await db
+		.update(jobDocument)
+		.set({ shared })
+		.where(and(eq(jobDocument.id, id), eq(jobDocument.organizationId, ctx.orgId)))
+		.returning({ id: jobDocument.id });
+	if (!row) error(404, 'Document not found');
+	return row;
+}
+
+/** Reads a shared job document for a portal customer — only when it belongs to one of their jobs. */
+export async function readPortalJobDoc(userId: string, id: string) {
+	const [row] = await db
+		.select({ doc: jobDocument })
+		.from(jobDocument)
+		.innerJoin(job, eq(jobDocument.jobId, job.id))
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(
+			and(eq(jobDocument.id, id), eq(jobDocument.shared, true), eq(customer.portalUserId, userId))
+		)
+		.limit(1);
+	if (!row) error(404, 'Document not found');
+	const bytes = await readFile(row.doc.path);
+	return { row: row.doc, bytes };
 }
 
 /** Reads a shared photo for a portal customer — only when it belongs to one of their jobs. */

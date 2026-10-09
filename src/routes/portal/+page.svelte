@@ -782,14 +782,17 @@
 			<Card.Content class="space-y-2">
 				{#each d.documents as doc (doc.id)}
 					<a
-						href="/files/portal-customer-document/{doc.id}"
+						href={doc.href}
 						target="_blank"
 						class="flex items-center gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
 					>
 						<FileText class="size-4 shrink-0 text-muted-foreground" />
 						<div class="min-w-0 flex-1">
 							<p class="truncate font-medium">{doc.fileName}</p>
-							<p class="text-xs text-muted-foreground">{formatDate(doc.createdAt)}</p>
+							<p class="text-xs text-muted-foreground">
+								{#if doc.jobNumber}J-{doc.jobNumber} ·
+								{/if}{formatDate(doc.createdAt)}
+							</p>
 						</div>
 					</a>
 				{:else}
