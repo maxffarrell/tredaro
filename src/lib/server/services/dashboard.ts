@@ -112,7 +112,7 @@ export async function dashboard(orgId: string) {
 				lt(payment.paidAt, dayEnd)
 			)
 		)
-		.groupBy(sql`to_char(timezone(${tz}, ${payment.paidAt}), 'YYYY-MM-DD')`);
+		.groupBy(sql`1`);
 	const byDay = new Map(payments7.map((p) => [p.day, p.total]));
 	const paymentsWeek = Array.from({ length: 7 }, (_, i) => {
 		const d = new Date(Date.parse(today) - (6 - i) * 24 * 60 * 60 * 1000)
