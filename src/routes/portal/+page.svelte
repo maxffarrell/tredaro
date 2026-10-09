@@ -612,7 +612,14 @@
 
 		{#if d.recentInvoices?.length}
 			<Card.Root>
-				<Card.Header><Card.Title class="text-base">Recent invoices</Card.Title></Card.Header>
+				<Card.Header class="flex flex-row items-center justify-between">
+					<Card.Title class="text-base">Recent invoices</Card.Title>
+					<a
+						class="text-xs text-muted-foreground underline underline-offset-2"
+						href="/api/portal/statement?customer={d.customer.id}"
+						download>Download statement</a
+					>
+				</Card.Header>
 				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>

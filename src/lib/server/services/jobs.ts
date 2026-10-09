@@ -1763,3 +1763,15 @@ export async function runJobEscalation(orgId: string) {
 		});
 	}
 }
+
+/** Job timeline events for the REST API (optionally filtered to one job). */
+export async function listJobEvents(orgId: string, jobId?: string | null) {
+	return db
+		.select({ event: jobEvent, memberName: user.name })
+		.from(jobEvent)
+		.leftJoin(member, eq(jobEvent.memberId, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(and(eq(jobEvent.organizationId, orgId), jobId ? eq(jobEvent.jobId, jobId) : undefined))
+		.orderBy(desc(jobEvent.at))
+		.limit(500);
+}

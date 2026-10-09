@@ -1632,3 +1632,62 @@ export async function paymentsBetween(orgId: string, from: Date, to: Date) {
 }
 
 export { addDays };
+
+/**
+ * Payment plan: voids one fully-unpaid open charge and replaces it with N
+ * evenly-split installments (last one takes the remainder). Invoice- and
+ * agreement-linked charges are rejected — edit the source instead.
+ */
+export async function splitCharge(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.splitChargeInput>
+) {
+	const [ch] = await db
+		.select()
+		.from(charge)
+		.where(and(eq(charge.organizationId, ctx.orgId), eq(charge.id, input.id)));
+	if (!ch) error(404, 'Charge not found');
+	if (ch.status !== 'open') error(409, 'Only open charges can be split into a plan');
+	if (ch.invoiceId) error(409, 'Invoice charges cannot be split — edit the invoice instead');
+	if (ch.agreementId)
+		error(409, 'Agreement charges cannot be split — adjust the agreement instead');
+	const [paidRow] = await db
+		.select({ paid: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
+		.from(payment)
+		.where(eq(payment.chargeId, ch.id));
+	if ((paidRow?.paid ?? 0) > 0)
+		error(409, 'Partially paid charges cannot be split — void or settle it first');
+	const per = Math.floor(ch.amount / input.count);
+	const first = new Date(`${input.firstDue}T00:00:00Z`).getTime();
+	const made = await db.transaction(async (tx) => {
+		await tx.update(charge).set({ status: 'void' }).where(eq(charge.id, ch.id));
+		const rows = [];
+		for (let i = 0; i < input.count; i++) {
+			const due = new Date(first + i * input.everyDays * 86400_000).toISOString().slice(0, 10);
+			const amount = i === input.count - 1 ? ch.amount - per * (input.count - 1) : per;
+			const [r] = await tx
+				.insert(charge)
+				.values({
+					organizationId: ctx.orgId,
+					customerId: ch.customerId,
+					jobId: ch.jobId,
+					kind: ch.kind,
+					description: `${ch.description ?? 'Charge'} — installment ${i + 1}/${input.count}`,
+					amount,
+					dueDate: due
+				})
+				.returning();
+			rows.push(r!);
+		}
+		return rows;
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'charge',
+		entityId: ch.id,
+		action: 'split',
+		summary: `Charge of ${(ch.amount / 100).toFixed(2)} split into a ${input.count}-payment plan`
+	});
+	return made;
+}

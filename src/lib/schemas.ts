@@ -503,6 +503,14 @@ export const chargeUpdate = v.object({
 	dueDate: v.optional(isoDate)
 });
 
+/** Split one open charge into a payment plan of N dated installments. */
+export const splitChargeInput = v.object({
+	id: idSchema,
+	count: v.pipe(v.number(), v.integer(), v.minValue(2), v.maxValue(12)),
+	firstDue: isoDate,
+	everyDays: v.pipe(v.number(), v.integer(), v.minValue(7), v.maxValue(90))
+});
+
 export const paymentInput = v.object({
 	customerId: idSchema,
 	chargeId: v.optional(v.nullable(idSchema)),
