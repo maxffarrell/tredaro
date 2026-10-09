@@ -225,6 +225,9 @@
 				{#if j.job.blocked}
 					<Badge variant="outline" class="text-amber-600 dark:text-amber-400">parts</Badge>
 				{/if}
+				{#if j.job.warranty}
+					<Badge variant="outline">warranty</Badge>
+				{/if}
 			</div>
 			<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
 				{#if j.job.startsAt}

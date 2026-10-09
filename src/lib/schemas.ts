@@ -200,6 +200,7 @@ export const inventoryItemInput = v.object({
 	name: requiredText('Name'),
 	sku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	unit: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), 'each'),
+	location: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
 	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
 	reorderPoint: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
 	unitCost: v.optional(cents, 0),
@@ -289,6 +290,7 @@ export const jobTypeInput = v.object({
 	checklist: v.optional(v.array(v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(200))), []),
 	requireChecklist: v.optional(v.boolean(), false),
 	requirePhoto: v.optional(v.boolean(), false),
+	requireSignature: v.optional(v.boolean(), false),
 	active: v.optional(v.boolean(), true)
 });
 export const jobTypeUpdate = v.object({ id: idSchema, ...v.partial(jobTypeInput).entries });
@@ -312,7 +314,9 @@ export const jobInput = v.object({
 	/** Predecessor job that must complete before this one can be scheduled. */
 	dependsOnJobId: v.optional(v.nullable(idSchema)),
 	/** Communicated arrival window shown to customer/tech. */
-	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60))))
+	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60)))),
+	/** Warranty/no-charge work — skips auto-invoice-on-complete. */
+	warranty: v.optional(v.boolean())
 });
 export const jobUpdate = v.object({
 	id: idSchema,
@@ -333,7 +337,9 @@ export const jobUpdate = v.object({
 	/** Predecessor job that must complete before this one can be scheduled. */
 	dependsOnJobId: v.optional(v.nullable(idSchema)),
 	/** Communicated arrival window shown to customer/tech. */
-	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60))))
+	arrivalWindow: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60)))),
+	/** Warranty/no-charge work. */
+	warranty: v.optional(v.boolean())
 });
 
 /** Technician or dispatcher status ping on a job. */

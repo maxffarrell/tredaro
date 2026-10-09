@@ -126,6 +126,7 @@
 	let jtChecklist = $state('');
 	let jtReqChecklist = $state(false);
 	let jtReqPhoto = $state(false);
+	let jtReqSignature = $state(false);
 	let jtActive = $state(true);
 
 	function openJt(t?: (typeof jobTypes)[number]) {
@@ -139,6 +140,7 @@
 		jtChecklist = (t?.checklist ?? []).join('\n');
 		jtReqChecklist = t?.requireChecklist ?? false;
 		jtReqPhoto = t?.requirePhoto ?? false;
+		jtReqSignature = t?.requireSignature ?? false;
 		jtActive = t?.active ?? true;
 		jtOpen = true;
 	}
@@ -158,6 +160,7 @@
 				.filter(Boolean),
 			requireChecklist: jtReqChecklist,
 			requirePhoto: jtReqPhoto,
+			requireSignature: jtReqSignature,
 			active: jtActive
 		};
 		try {
@@ -1460,6 +1463,19 @@
 					<p class="text-xs text-muted-foreground">At least one photo before completion.</p>
 				</div>
 				<Switch id="jt-req-photo" checked={jtReqPhoto} onCheckedChange={(v) => (jtReqPhoto = v)} />
+			</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-req-signature" class="text-sm font-medium"
+						>Require signature to complete</label
+					>
+					<p class="text-xs text-muted-foreground">Customer sign-off before completion.</p>
+				</div>
+				<Switch
+					id="jt-req-signature"
+					checked={jtReqSignature}
+					onCheckedChange={(v) => (jtReqSignature = v)}
+				/>
 			</div>
 			<div class="flex items-center justify-between">
 				<label for="jt-active" class="text-sm font-medium">Active</label>

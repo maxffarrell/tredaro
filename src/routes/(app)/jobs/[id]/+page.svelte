@@ -974,6 +974,22 @@
 							}}
 						/>
 					</div>
+					<div class="flex items-center justify-between">
+						<span class="text-muted-foreground">Warranty — no charge</span>
+						<Switch
+							checked={j.job.warranty}
+							onCheckedChange={async (v) => {
+								await updateJob({ id, warranty: v }).updates(getJob, getJobs, getDispatchBoard);
+								toast.success(v ? 'Marked warranty — no auto-invoice' : 'Billable again');
+							}}
+						/>
+					</div>
+				{/if}
+				{#if j.job.warranty}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">Warranty</span>
+						<Badge variant="secondary">no charge</Badge>
+					</div>
 				{/if}
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Source</span><span class="capitalize"

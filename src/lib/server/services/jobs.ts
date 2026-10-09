@@ -81,6 +81,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			checklist: input.checklist,
 			requireChecklist: input.requireChecklist,
 			requirePhoto: input.requirePhoto,
+			requireSignature: input.requireSignature,
 			active: input.active
 		})
 		.returning();
@@ -453,6 +454,7 @@ export async function createJob(
 			description: input.description,
 			priority: input.priority,
 			preferredTime: input.preferredTime ?? null,
+			warranty: input.warranty ?? false,
 			arrivalWindow: input.arrivalWindow ?? null,
 			source: opts.source ?? 'manual',
 			dependsOnJobId: input.dependsOnJobId ?? null,
@@ -504,6 +506,7 @@ export async function duplicateJob(ctx: OrgContext, jobId: string) {
 			description: src.description,
 			priority: src.priority,
 			preferredTime: src.preferredTime,
+			warranty: src.warranty,
 			arrivalWindow: src.arrivalWindow,
 			source: 'manual',
 			status: 'unscheduled'
@@ -667,6 +670,7 @@ export async function updateJob(
 			description: set.description,
 			priority: set.priority,
 			blocked: set.blocked,
+			warranty: set.warranty,
 			dependsOnJobId: set.dependsOnJobId,
 			arrivalWindow: set.arrivalWindow,
 			startsAt: start,
@@ -791,7 +795,8 @@ export async function recordJobEvent(
 		const [type] = await db
 			.select({
 				requireChecklist: jobType.requireChecklist,
-				requirePhoto: jobType.requirePhoto
+				requirePhoto: jobType.requirePhoto,
+				requireSignature: jobType.requireSignature
 			})
 			.from(jobType)
 			.where(eq(jobType.id, j.jobTypeId));
@@ -809,6 +814,8 @@ export async function recordJobEvent(
 				.where(eq(jobPhoto.jobId, input.jobId));
 			if (n === 0) error(409, 'Attach at least one photo before completing');
 		}
+		if (type?.requireSignature && !j.signature)
+			error(409, 'Capture the customer signature before completing');
 	}
 
 	const [memberRow] = await db
@@ -875,7 +882,7 @@ export async function recordJobEvent(
 				);
 		}
 		const settings = await getSettings(ctx.orgId);
-		if (settings.autoInvoiceOnComplete) {
+		if (settings.autoInvoiceOnComplete && !j.warranty) {
 			const materials = await listJobMaterials(ctx.orgId, input.jobId);
 			const [existingInvoice] = await db
 				.select({ id: invoice.id })
@@ -1516,6 +1523,7 @@ export async function repeatJob(
 					description: src.job.description,
 					priority: src.job.priority,
 					preferredTime: null,
+					warranty: src.job.warranty,
 					arrivalWindow: null,
 					startsAt
 				},

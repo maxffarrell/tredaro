@@ -75,6 +75,7 @@
 	let reorderPoint = $state<number | null>(null);
 	let unitCost = $state<number | null>(0);
 	let notes = $state('');
+	let location = $state('');
 
 	function openItem(i?: (typeof rows)[number]) {
 		itemId = i?.item.id ?? null;
@@ -85,6 +86,7 @@
 		reorderPoint = i?.item.reorderPoint ?? null;
 		unitCost = i?.item.unitCost ?? 0;
 		notes = i?.item.notes ?? '';
+		location = i?.item.location ?? '';
 		open = true;
 	}
 
@@ -92,7 +94,16 @@
 		e.preventDefault();
 		pending = true;
 		try {
-			const input = { name, sku, unit, qtyOnHand, reorderPoint, unitCost: unitCost ?? 0, notes };
+			const input = {
+				name,
+				sku,
+				unit,
+				location,
+				qtyOnHand,
+				reorderPoint,
+				unitCost: unitCost ?? 0,
+				notes
+			};
 			if (itemId) await updateInventoryItem({ id: itemId, ...input }).updates(getInventory);
 			else await createInventoryItem(input).updates(getInventory);
 			toast.success('Item saved');
@@ -393,6 +404,7 @@
 					<Table.Row>
 						<Table.Head>Item</Table.Head>
 						<Table.Head class="hidden md:table-cell">SKU</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Location</Table.Head>
 						<Table.Head class="text-right">On hand</Table.Head>
 						<Table.Head class="hidden text-right md:table-cell">Reorder at</Table.Head>
 						<Table.Head class="hidden text-right md:table-cell">Unit cost</Table.Head>
@@ -421,6 +433,9 @@
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{i.item.sku || '—'}</Table.Cell
+							>
+							<Table.Cell class="hidden text-muted-foreground lg:table-cell"
+								>{i.item.location || '—'}</Table.Cell
 							>
 							<Table.Cell class="text-right tabular-nums"
 								>{i.item.qtyOnHand} {i.item.unit}</Table.Cell
@@ -620,6 +635,10 @@
 				<Field.Field>
 					<Field.Label for="inv-unit">Unit</Field.Label>
 					<Input id="inv-unit" bind:value={unit} placeholder="each" />
+				</Field.Field>
+				<Field.Field class="col-span-2">
+					<Field.Label for="inv-location">Location</Field.Label>
+					<Input id="inv-location" bind:value={location} placeholder="Bay 2 · Van A" />
 				</Field.Field>
 			</div>
 			<div class="grid grid-cols-3 gap-4">

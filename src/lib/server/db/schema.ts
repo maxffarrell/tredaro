@@ -334,6 +334,8 @@ export const jobType = pgTable(
 		 * item is done / at least one photo is attached. */
 		requireChecklist: boolean('require_checklist').notNull().default(false),
 		requirePhoto: boolean('require_photo').notNull().default(false),
+		/** Customer signature required before completion. */
+		requireSignature: boolean('require_signature').notNull().default(false),
 		active: boolean('active').notNull().default(true),
 		...timestamps
 	},
@@ -381,6 +383,8 @@ export const job = pgTable(
 		priority: jobPriority('priority').notNull().default('normal'),
 		/** Flagged when the job can't proceed (waiting on parts/approval) — dispatcher attention. */
 		blocked: boolean('blocked').notNull().default(false),
+		/** Warranty/no-charge work — skips auto-invoice-on-complete and is badged. */
+		warranty: boolean('warranty').notNull().default(false),
 		/** Customer's requested timing from a booking/portal request ("weekday mornings"). */
 		preferredTime: text('preferred_time'),
 		/** Communicated arrival window shown to customer/tech ("8-10 AM"); display only. */
@@ -761,6 +765,8 @@ export const inventoryItem = pgTable(
 		sku: text('sku').notNull().default(''),
 		/** Freeform unit label, e.g. "each", "ft", "box". */
 		unit: text('unit').notNull().default('each'),
+		/** Where it lives in the warehouse/van ("Bay 2", "Van A"). */
+		location: text('location').notNull().default(''),
 		qtyOnHand: integer('qty_on_hand').notNull().default(0),
 		/** Attention-card alert when on-hand drops to this level; null = never alert. */
 		reorderPoint: integer('reorder_point'),
