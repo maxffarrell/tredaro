@@ -100,6 +100,7 @@
 	let agPlanId = $state('');
 	let agStart = $state(new Date().toISOString().slice(0, 10));
 	let agMaxPeriods = $state('');
+	let agAutoRenew = $state(false);
 
 	async function saveAgreement(e: SubmitEvent) {
 		e.preventDefault();
@@ -109,7 +110,8 @@
 				customerId: agCustomerId,
 				planId: agPlanId,
 				startsAt: agStart,
-				maxPeriods: agMaxPeriods ? Number(agMaxPeriods) : null
+				maxPeriods: agMaxPeriods ? Number(agMaxPeriods) : null,
+				autoRenew: agAutoRenew
 			});
 			toast.success('Agreement created — initial charge posted');
 			agOpen = false;
@@ -480,6 +482,15 @@
 					billed.
 				</p>
 			</Field.Field>
+			{#if agMaxPeriods}
+				<label class="flex cursor-pointer items-center gap-2 text-sm select-none">
+					<input type="checkbox" class="size-4 accent-primary" bind:checked={agAutoRenew} />
+					Auto-renew at the end of each term
+				</label>
+				<p class="-mt-2 text-xs text-muted-foreground">
+					Instead of completing, the agreement rolls into a new term and keeps billing.
+				</p>
+			{/if}
 			<Dialog.Footer>
 				<Button type="submit" disabled={agPending || !agCustomerId || !agPlanId}
 					>{agPending ? 'Creating…' : 'Create agreement'}</Button
