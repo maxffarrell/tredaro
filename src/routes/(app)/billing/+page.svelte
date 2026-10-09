@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import { SvelteMap, SvelteURLSearchParams } from 'svelte/reactivity';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
@@ -76,6 +76,13 @@
 	);
 	const payments = $derived(await getPayments());
 	let payMethodFilter = $state('');
+	const topMethod = $derived.by(() => {
+		const sums = new SvelteMap<string, number>();
+		for (const p of visiblePayments)
+			sums.set(p.payment.method, (sums.get(p.payment.method) ?? 0) + p.payment.amount);
+		const top = [...sums.entries()].sort((a, b) => b[1] - a[1])[0];
+		return sums.size > 1 && top ? top : null;
+	});
 	const payMethods = $derived([...new Set(payments.map((p) => p.payment.method))].sort());
 	const visiblePayments = $derived(
 		payments.filter(
@@ -624,7 +631,9 @@
 					· avg {formatMoney(
 						visiblePaymentsTotal / visiblePayments.length,
 						currency
-					)}{/if}{#if visiblePaymentsToday}
+					)}{/if}{#if topMethod}
+					· top: <span class="capitalize">{topMethod[0]}</span>
+					{formatMoney(topMethod[1], currency)}{/if}{#if visiblePaymentsToday}
 					· {visiblePaymentsToday} today{/if}
 			</p>
 			<Card.Root class="py-0">

@@ -52,6 +52,17 @@
 					)
 			: 0
 	);
+	const unassignedToday = $derived(
+		board
+			? board.scheduled.filter(
+					(j) =>
+						!j.job.technicianId &&
+						j.job.startsAt &&
+						localDate(new Date(j.job.startsAt), tz) === todayStr &&
+						!['done', 'cancelled'].includes(j.job.status)
+				).length
+			: 0
+	);
 	const doneThisWeek = $derived(board.scheduled.filter((j) => j.job.status === 'done').length);
 	const filteredQueue = $derived(
 		queueFilter.trim()
@@ -197,6 +208,11 @@
 			{#if schedTodayMin > 0}
 				<Badge variant="outline"
 					>{Math.floor(schedTodayMin / 60)}h {Math.round(schedTodayMin % 60)}m sched today</Badge
+				>
+			{/if}
+			{#if unassignedToday}
+				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+					>{unassignedToday} unassigned today</Badge
 				>
 			{/if}
 			{#if offToday}
