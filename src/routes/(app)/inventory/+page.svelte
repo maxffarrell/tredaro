@@ -260,7 +260,7 @@
 		<Button size="sm" variant="outline" href="/api/export/inventory.csv" download>
 			<Download /> Export CSV
 		</Button>
-		<Badge variant="secondary" class="mr-2"
+		<Badge variant="secondary" class="mr-2 hidden md:inline-flex"
 			>{items.length} item{items.length === 1 ? '' : 's'} ·
 			{formatMoney(totalValue, currency)} on hand</Badge
 		>
@@ -275,7 +275,7 @@
 			(p) => p.po.expectedOn && p.po.expectedOn < new Date().toISOString().slice(0, 10)
 		)}
 		{#if openPos.length}
-			<Badge variant="outline" class="mr-2"
+			<Badge variant="outline" class="mr-2 hidden md:inline-flex"
 				>{openPos.length} open PO{openPos.length === 1 ? '' : 's'} ·
 				{formatMoney(
 					openPos.reduce((m, p) => m + p.total, 0),
@@ -285,7 +285,7 @@
 		{/if}
 		{@const draftPos = openPos.filter((p) => p.po.status === 'draft')}
 		{#if draftPos.length}
-			<Badge variant="outline" class="mr-2 text-muted-foreground"
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
 				>{draftPos.length} PO draft · {formatMoney(
 					draftPos.reduce((m, p) => m + p.total, 0),
 					currency
@@ -293,16 +293,18 @@
 			>
 		{/if}
 		{#if orderedPos.length}
-			<Badge variant="outline" class="mr-2">{orderedPos.length} awaiting delivery</Badge>
+			<Badge variant="outline" class="mr-2 hidden md:inline-flex"
+				>{orderedPos.length} awaiting delivery</Badge
+			>
 		{/if}
 		{#if latePos.length}
-			<Badge variant="outline" class="mr-2 text-red-600 dark:text-red-400"
+			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400"
 				>{latePos.length} PO late</Badge
 			>
 		{/if}
 		{@const truckedTotal = items.reduce((m, r) => m + (r.trucked ?? 0), 0)}
 		{#if truckedTotal}
-			<Badge variant="outline" class="mr-2 text-muted-foreground"
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
 				>{truckedTotal} in trucks{#if items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0)}
 					· {formatMoney(
 						items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0),
@@ -311,20 +313,27 @@
 			>
 		{/if}
 		{#if lowCount}
-			<Badge variant="outline" class="mr-2 text-amber-600 dark:text-amber-400">{lowCount} low</Badge
+			<Badge variant="outline" class="mr-2 hidden text-amber-600 md:inline-flex dark:text-amber-400"
+				>{lowCount} low</Badge
 			>
 		{/if}
 		{#if outCount}
-			<Badge variant="outline" class="mr-2 text-red-600 dark:text-red-400">{outCount} out</Badge>
+			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400"
+				>{outCount} out</Badge
+			>
 		{/if}
 		{#if noCostCount}
-			<Badge variant="outline" class="mr-2 text-muted-foreground">{noCostCount} no cost</Badge>
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
+				>{noCostCount} no cost</Badge
+			>
 		{/if}
 		{#if unusedCount}
-			<Badge variant="outline" class="mr-2 text-muted-foreground">{unusedCount} unused</Badge>
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
+				>{unusedCount} unused</Badge
+			>
 		{/if}
 		{#if unmonitoredCount}
-			<Badge variant="outline" class="mr-2 text-muted-foreground"
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
 				>{unmonitoredCount} no reorder pt</Badge
 			>
 		{/if}
