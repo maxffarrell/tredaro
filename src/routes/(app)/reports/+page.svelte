@@ -26,6 +26,14 @@
 		(e) => e.status === 'approved' || e.status === 'declined' || e.status === 'converted'
 	);
 	const approved = r.estimates.filter((e) => e.status === 'approved' || e.status === 'converted');
+	const reasonLabels: Record<string, string> = {
+		price: 'Price too high',
+		scope: "Scope doesn't fit",
+		timing: "Timing isn't right",
+		competitor: 'Went with another company',
+		other: 'Other',
+		unspecified: 'No reason given'
+	};
 	const avgSent = $derived.by(() => {
 		const row = r.estimates.find((e) => e.status === 'sent');
 		return row && row.count ? row.total / row.count : null;
@@ -198,6 +206,35 @@
 					{:else}
 						<Table.Row
 							><Table.Cell class="pl-6 text-muted-foreground">No estimates yet.</Table.Cell
+							></Table.Row
+						>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Lost deals by reason</Card.Title>
+			<Card.Description
+				>Declined estimates by why the customer passed — picklist on the public quote page</Card.Description
+			>
+		</Card.Header>
+		<Card.Content class="overflow-x-auto px-0">
+			<Table.Root>
+				<Table.Body>
+					{#each r.lostByReason as l (l.reason)}
+						<Table.Row>
+							<Table.Cell class="pl-6 font-medium">{reasonLabels[l.reason] ?? l.reason}</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{l.count}</Table.Cell>
+							<Table.Cell class="pr-6 text-right text-muted-foreground tabular-nums"
+								>{formatMoney(l.total, currency, true)}</Table.Cell
+							>
+						</Table.Row>
+					{:else}
+						<Table.Row
+							><Table.Cell class="pl-6 text-muted-foreground">No declined estimates yet.</Table.Cell
 							></Table.Row
 						>
 					{/each}

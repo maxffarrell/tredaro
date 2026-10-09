@@ -480,7 +480,9 @@ export const estimateDecisionInput = v.object({
 	/** Optional line items the customer chose to include (item ids). */
 	items: v.optional(v.array(idSchema), []),
 	/** Option group picked on a tiered estimate (required when groups exist). */
-	option: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
+	option: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ''),
+	/** Why the customer is declining — picklist key on the public page. */
+	reason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
 });
 
 /** Staff records a decision on a sent estimate — option picks a tier. */

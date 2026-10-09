@@ -620,6 +620,21 @@
 							>{est.estimate.decisionName || '—'}</span
 						>
 					</div>
+					{#if est.estimate.declineReason}
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Reason</span><span
+								>{(
+									{
+										price: 'Price too high',
+										scope: "Scope doesn't fit",
+										timing: "Timing isn't right",
+										competitor: 'Went with another company',
+										other: 'Other'
+									} as Record<string, string>
+								)[est.estimate.declineReason] ?? est.estimate.declineReason}</span
+							>
+						</div>
+					{/if}
 					{#if est.estimate.acceptedOption}
 						<div class="flex justify-between">
 							<span class="text-muted-foreground">Option</span><span

@@ -611,6 +611,9 @@ export async function publicEstimate(id: string) {
  * Approve or decline on the public link. Approval creates an unscheduled job carrying
  * the quoted line items as its description, ready for the dispatcher.
  */
+/** Keys accepted for a decline reason on the public decision page. */
+export const DECLINE_REASONS = ['price', 'scope', 'timing', 'competitor', 'other'] as const;
+
 export async function decideEstimate(
 	token: string,
 	ip: string,
@@ -706,6 +709,7 @@ async function applyDecision(
 		items?: string[];
 		note?: string | null;
 		option?: string | null;
+		reason?: string | null;
 	},
 	via: string
 ) {
@@ -791,6 +795,12 @@ async function applyDecision(
 			status: input.approve ? 'converted' : 'declined',
 			respondedAt: new Date(),
 			decisionName: input.approve ? input.name : null,
+			declineReason:
+				!input.approve &&
+				input.reason &&
+				(DECLINE_REASONS as readonly string[]).includes(input.reason)
+					? input.reason
+					: '',
 			acceptedOption: input.approve ? pickedOption : null,
 			acceptedItems: input.approve ? [...chosen] : [],
 			decisionNote: [

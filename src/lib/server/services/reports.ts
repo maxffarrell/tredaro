@@ -748,6 +748,23 @@ async function estimateAccuracy(orgId: string) {
 	return { count: variances.length, avgVariancePct: Math.round(avg * 100) };
 }
 
+/** Declined estimates grouped by decline reason — count + quoted value lost. */
+async function lostByReason(orgId: string) {
+	return db
+		.select({
+			reason: sql<string>`coalesce(nullif(${estimate.declineReason}, ''), 'unspecified')`,
+			count: sql<number>`count(*)`.mapWith(Number),
+			total:
+				sql<number>`coalesce(sum((select sum(i.qty * i.unit_price) from estimate_item i where i.estimate_id = ${outer(estimate.id)})), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(estimate)
+		.where(and(eq(estimate.organizationId, orgId), eq(estimate.status, 'declined')))
+		.groupBy(sql`coalesce(nullif(${estimate.declineReason}, ''), 'unspecified')`)
+		.orderBy(desc(sql`count(*)`));
+}
+
 export async function getReports(orgId: string) {
 	const [
 		completedJobs,
@@ -788,7 +805,8 @@ export async function getReports(orgId: string) {
 		ratings,
 		estAccuracy,
 		callbacks,
-		revWeekday
+		revWeekday,
+		lost
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -828,7 +846,8 @@ export async function getReports(orgId: string) {
 		visitRatings(orgId),
 		estimateAccuracy(orgId),
 		callbackRate(orgId),
-		revenueByWeekday(orgId)
+		revenueByWeekday(orgId),
+		lostByReason(orgId)
 	]);
 	return {
 		completedJobs,
@@ -869,7 +888,8 @@ export async function getReports(orgId: string) {
 		ratings,
 		estAccuracy,
 		callbacks,
-		revWeekday
+		revWeekday,
+		lostByReason: lost
 	};
 }
 

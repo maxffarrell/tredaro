@@ -1,4 +1,18 @@
-import { and, asc, count, desc, eq, gte, isNotNull, isNull, lt, lte, ne, sql } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	isNull,
+	lt,
+	lte,
+	ne,
+	sql
+} from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -505,6 +519,23 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(purchaseOrder.expectedOn))
 		.limit(4);
 
+	const [unpaidPo] = await db
+		.select({
+			n: count(),
+			total:
+				sql<number>`coalesce(sum((select sum(i.qty * i.unit_cost) from purchase_order_item i where i.purchase_order_id = ${purchaseOrder.id})), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(purchaseOrder)
+		.where(
+			and(
+				eq(purchaseOrder.organizationId, orgId),
+				inArray(purchaseOrder.status, ['ordered', 'received']),
+				isNull(purchaseOrder.paidAt)
+			)
+		);
+
 	const [typeCount, itemCount, memberCount] = await Promise.all([
 		db.select({ n: count() }).from(jobType).where(eq(jobType.organizationId, orgId)),
 		db.select({ n: count() }).from(pricebookItem).where(eq(pricebookItem.organizationId, orgId)),
@@ -711,6 +742,17 @@ export async function dashboard(orgId: string) {
 				sub: `expected ${p.expectedOn} — still not received`,
 				amountCents: null as number | null
 			})),
+			...(unpaidPo?.n
+				? [
+						{
+							tone: 'amber' as const,
+							href: '/inventory',
+							text: `${unpaidPo.n} supplier bill${unpaidPo.n === 1 ? '' : 's'} unpaid`,
+							sub: 'mark paid on the purchase order',
+							amountCents: unpaidPo.total as number | null
+						}
+					]
+				: []),
 			...outOfStock.map((i) => ({
 				tone: 'red' as const,
 				href: '/inventory',
