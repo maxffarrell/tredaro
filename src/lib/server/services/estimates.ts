@@ -553,6 +553,8 @@ export async function publicEstimate(id: string) {
 			customerName: customer.name,
 			orgName: organization.name,
 			orgLogoUrl: companySettings.logoUrl,
+			orgPhone: companySettings.phone,
+			orgWebsite: companySettings.website,
 			estFooter: companySettings.estimateFooter,
 			location: serviceLocation
 		})

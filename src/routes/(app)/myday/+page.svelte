@@ -620,6 +620,11 @@
 					: 0),
 			0
 		)}
+		{@const stops = day.jobs
+			.filter((j) => j.job.status !== 'cancelled' && j.address1)
+			.map((j) =>
+				encodeURIComponent(`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`)
+			)}
 		<div class="flex flex-wrap gap-4 rounded-lg border bg-card px-4 py-2.5 text-sm">
 			<span class="tabular-nums"><span class="font-semibold">{done}</span> done</span>
 			<span class="tabular-nums"><span class="font-semibold">{left}</span> left</span>
@@ -631,6 +636,14 @@
 			{#if day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length}
 				<span class="font-medium text-red-600 tabular-nums dark:text-red-400"
 					>{day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length} urgent/high</span
+				>
+			{/if}
+			{#if stops.length > 1}
+				<a
+					class="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+					href="https://www.google.com/maps/dir/{stops.join('/')}"
+					target="_blank"
+					rel="noreferrer"><Navigation class="size-3.5" /> Route {stops.length} stops</a
 				>
 			{/if}
 			{#if day.materials?.length}

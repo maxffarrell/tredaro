@@ -29,7 +29,9 @@
 		items,
 		currency,
 		location: loc,
-		estFooter
+		estFooter,
+		orgPhone,
+		orgWebsite
 	} = $derived(data);
 	/** Optional lines the customer excludes — all are included by default. */
 	let excluded = new SvelteSet<string>();
@@ -151,6 +153,18 @@
 				<Logo />
 			{/if}
 			<span class="truncate font-semibold">{orgName}</span>
+			{#if orgPhone || orgWebsite}
+				<span class="ml-auto truncate text-xs text-muted-foreground">
+					{#if orgPhone}{orgPhone}{/if}{#if orgPhone && orgWebsite}
+						·
+					{/if}{#if orgWebsite}<a
+							class="hover:underline"
+							href={orgWebsite.startsWith('http') ? orgWebsite : `https://${orgWebsite}`}
+							target="_blank"
+							rel="noreferrer">{orgWebsite.replace(/^https?:\/\//, '')}</a
+						>{/if}
+				</span>
+			{/if}
 		</div>
 	</header>
 

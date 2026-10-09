@@ -18,6 +18,7 @@ import {
 	jobPhoto,
 	jobType,
 	member,
+	notificationLog,
 	payment,
 	serviceAgreement,
 	serviceLocation,
@@ -224,6 +225,27 @@ export async function portalOverview(customerId: string) {
 		.where(eq(member.organizationId, orgId))
 		.orderBy(asc(user.name));
 
+	// Outbound comms addressed to this customer — the portal's "Recent messages" card.
+	const contacts = [c.email, c.phone].filter((v): v is string => !!v);
+	const recentMessages = contacts.length
+		? await db
+				.select({
+					kind: notificationLog.kind,
+					channel: sql<string>`case when ${notificationLog.recipient} = ${c.phone ?? ''} then 'text' else 'email' end`,
+					createdAt: notificationLog.createdAt
+				})
+				.from(notificationLog)
+				.where(
+					and(
+						eq(notificationLog.organizationId, orgId),
+						inArray(notificationLog.recipient, contacts),
+						inArray(notificationLog.kind, PORTAL_MESSAGE_KINDS)
+					)
+				)
+				.orderBy(desc(notificationLog.createdAt))
+				.limit(8)
+		: [];
+
 	const documents = await db
 		.select({
 			id: customerDocument.id,
@@ -255,9 +277,57 @@ export async function portalOverview(customerId: string) {
 		pendingEstimates,
 		recentInvoices: invoicesWithLinks,
 		recentPayments,
-		documents
+		documents,
+		recentMessages
 	};
 }
+
+/** notification_log kinds the customer may see in the portal — staff-only kinds excluded. */
+const PORTAL_MESSAGE_KINDS = [
+	'appointment_reminder',
+	'appointment_reminder_sms',
+	'booking_received',
+	'booking_sms',
+	'booking_cancelled',
+	'estimate_sent',
+	'estimate_sent_sms',
+	'estimate_resent',
+	'estimate_resent_sms',
+	'estimate_followup',
+	'estimate_followup_sms',
+	'estimate_expiring',
+	'invoice_sent',
+	'invoice_texted',
+	'job_scheduled',
+	'job_scheduled_sms',
+	'job_en_route_sms',
+	'job_eta_sms',
+	'job_completed',
+	'job_completed_sms',
+	'job_rescheduled',
+	'job_rescheduled_sms',
+	'payment_receipt',
+	'payment_receipt_sms',
+	'agreement_renewal',
+	'agreement_renewal_sms',
+	'announcement',
+	'announcement_sms',
+	'statement',
+	'report_sent',
+	'report_sent_sms',
+	'rating_sms_ask',
+	'review_ask',
+	'manual_sms',
+	'customer_document',
+	'warranty_expiry',
+	'service_due',
+	'service_due_sms',
+	'invoice_overdue_3',
+	'invoice_overdue_10',
+	'invoice_overdue_sms_3',
+	'invoice_overdue_sms_10',
+	'statement_auto'
+] as const;
 
 /** Customers request work on their own company's org context. */
 const customerCtx = (orgId: string, userId: string) => ({
