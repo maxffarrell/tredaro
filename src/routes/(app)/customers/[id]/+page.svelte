@@ -1,4 +1,6 @@
 <script lang="ts">
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import Mails from '@lucide/svelte/icons/mails';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { page } from '$app/state';
@@ -470,33 +472,90 @@
 				><TriangleAlert /> {dupes.length} possible duplicate{dupes.length > 1 ? 's' : ''}</Button
 			>
 		{:else}
-			<Button size="sm" variant="outline" onclick={() => (mergeOpen = true)}
-				><GitMerge /> Merge</Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				onclick={() => (mergeOpen = true)}><GitMerge /> Merge</Button
 			>
 		{/if}
 		{#if c.customer.phone}
-			<Button size="sm" variant="outline" href="tel:{c.customer.phone}" title="Call"
-				><Phone /></Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				href="tel:{c.customer.phone}"
+				title="Call"><Phone /></Button
 			>
-			<Button size="sm" variant="outline" href="sms:{c.customer.phone}" title="Text"
-				><MessageSquare /></Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				href="sms:{c.customer.phone}"
+				title="Text"><MessageSquare /></Button
 			>
 		{/if}
 		{#if c.customer.email}
-			<Button size="sm" variant="outline" href="mailto:{c.customer.email}" title="Email"
-				><Mail /></Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				href="mailto:{c.customer.email}"
+				title="Email"><Mail /></Button
 			>
 		{/if}
-		<Button size="sm" variant="outline" onclick={copyPortal}><Link2 /> Portal link</Button>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={copyPortal}
+			><Link2 /> Portal link</Button
+		>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="inline-flex size-8 items-center justify-center rounded-md border hover:bg-accent md:hidden"
+			>
+				<EllipsisVertical class="size-4" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Item onclick={() => (mergeOpen = true)}><GitMerge /> Merge</DropdownMenu.Item>
+				{#if c.customer.phone}
+					<DropdownMenu.Item onclick={() => (window.location.href = `tel:${c.customer.phone}`)}
+						><Phone /> Call</DropdownMenu.Item
+					>
+					<DropdownMenu.Item onclick={() => (window.location.href = `sms:${c.customer.phone}`)}
+						><MessageSquare /> Text</DropdownMenu.Item
+					>
+				{/if}
+				{#if c.customer.email}
+					<DropdownMenu.Item onclick={() => (window.location.href = `mailto:${c.customer.email}`)}
+						><Mail /> Email</DropdownMenu.Item
+					>
+				{/if}
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item onclick={copyPortal}><Link2 /> Portal link</DropdownMenu.Item>
+				{#if c.customer.portalUserId}
+					<DropdownMenu.Item disabled={revokePending} onclick={revokePortal}
+						>Revoke portal</DropdownMenu.Item
+					>
+				{/if}
+				<DropdownMenu.Item
+					onclick={() =>
+						(window.location.href = `/api/export/statement.csv?customer=${c.customer.id}`)}
+					><Download /> Statement</DropdownMenu.Item
+				>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 		{#if c.customer.portalUserId}
-			<Button size="sm" variant="outline" onclick={revokePortal} disabled={revokePending}
-				>Revoke portal</Button
+			<Button
+				size="sm"
+				variant="outline"
+				class="hidden md:inline-flex"
+				onclick={revokePortal}
+				disabled={revokePending}>Revoke portal</Button
 			>
 		{/if}
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 		<Button
 			size="sm"
 			variant="outline"
+			class="hidden md:inline-flex"
 			href="/api/export/statement.csv?customer={c.customer.id}"
 			download><Download /> Statement</Button
 		>

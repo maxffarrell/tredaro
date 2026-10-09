@@ -1,4 +1,9 @@
 <script lang="ts">
+	import Clock from '@lucide/svelte/icons/clock';
+	import Receipt from '@lucide/svelte/icons/receipt';
+	import Image from '@lucide/svelte/icons/image';
+	import History from '@lucide/svelte/icons/history';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Progress } from '#lib/components/ui/progress/index.js';
@@ -1054,7 +1059,14 @@
 							{/if}
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">No time logged yet.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><Clock /></Empty.Media>
+									<Empty.Title class="text-sm">No time logged yet</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 				{#if !locked}
@@ -1142,7 +1154,14 @@
 							{/if}
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">No materials used yet.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><Package /></Empty.Media>
+									<Empty.Title class="text-sm">No materials used yet</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 				{#if !locked}
@@ -1261,8 +1280,14 @@
 							{/if}
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">
-							No expenses — permits, subcontractors, dump fees.
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><Receipt /></Empty.Media>
+									<Empty.Title class="text-sm">No expenses yet</Empty.Title>
+									<Empty.Description>Permits, subcontractors, dump fees.</Empty.Description>
+								</Empty.Header>
+							</Empty.Root>
 						</li>
 					{/each}
 				</ul>
@@ -1355,7 +1380,13 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="text-sm text-muted-foreground">No photos yet.</p>
+					<Empty.Root class="border-0 py-4">
+						<Empty.Header>
+							<Empty.Media><Image /></Empty.Media>
+							<Empty.Title class="text-sm">No photos yet</Empty.Title>
+							<Empty.Description>Upload before / during / after shots below.</Empty.Description>
+						</Empty.Header>
+					</Empty.Root>
 				{/if}
 				{#if !locked}
 					<Select.Root type="single" bind:value={photoPhase}>
@@ -1456,7 +1487,14 @@
 							</div>
 						</li>
 					{:else}
-						<li class="text-sm text-muted-foreground">No activity yet.</li>
+						<li class="list-none">
+							<Empty.Root class="border-0 py-4">
+								<Empty.Header>
+									<Empty.Media><History /></Empty.Media>
+									<Empty.Title class="text-sm">No activity yet</Empty.Title>
+								</Empty.Header>
+							</Empty.Root>
+						</li>
 					{/each}
 				</ul>
 				{#if !locked}
