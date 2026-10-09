@@ -830,6 +830,12 @@ export async function updateJob(
 			action: set.blocked ? 'blocked' : 'unblocked',
 			summary: `J-${existing.number} ${set.blocked ? 'flagged waiting on parts' : 'unblocked'}`
 		});
+	if (set.blocked === false && existing.blocked && row.technicianId) {
+		const { notifyPartsArrived } = await import('./notifications.ts');
+		notifyPartsArrived(ctx.orgId, id, row.technicianId).catch((err) =>
+			console.error('parts arrived notify failed', err)
+		);
+	}
 	if (set.cancelled === true) {
 		await stopOpenTimers(ctx.orgId, id);
 		const [memberRow] = await db
@@ -1732,4 +1738,28 @@ export async function repeatJob(
 		);
 	}
 	return made;
+}
+
+const PRIO_RANK: Record<string, number> = { low: 0, normal: 1, high: 2, urgent: 3 };
+
+/** Daily cron: escalate the priority of jobs sitting in the unscheduled queue too long. */
+export async function runJobEscalation(orgId: string) {
+	const rows = await db
+		.select({ id: job.id, number: job.number, priority: job.priority, createdAt: job.createdAt })
+		.from(job)
+		.where(and(eq(job.organizationId, orgId), eq(job.status, 'unscheduled')));
+	const now = Date.now();
+	for (const j of rows) {
+		const days = (now - j.createdAt.getTime()) / 86400_000;
+		const target = days >= 14 ? 'urgent' : days >= 7 ? 'high' : null;
+		if (!target || (PRIO_RANK[target] ?? 0) <= (PRIO_RANK[j.priority] ?? 1)) continue;
+		await db.update(job).set({ priority: target }).where(eq(job.id, j.id));
+		await emit({
+			orgId,
+			entityType: 'job',
+			entityId: j.id,
+			action: 'escalated',
+			summary: `J-${j.number} auto-escalated to ${target} (${Math.floor(days)}d in queue)`
+		});
+	}
 }

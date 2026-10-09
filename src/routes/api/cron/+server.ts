@@ -5,10 +5,12 @@ import { db } from '#lib/server/db/index.ts';
 import { organization } from '#lib/server/db/schema.ts';
 import { runBilling } from '#lib/server/services/billing.ts';
 import {
+	runCreditHolds,
 	runMonthlyStatements,
 	runReminders,
 	runWeeklyDigest
 } from '#lib/server/services/notifications.ts';
+import { runJobEscalation } from '#lib/server/services/jobs.ts';
 import { runSchedules } from '#lib/server/services/maintenance.ts';
 import { runRestock } from '#lib/server/services/inventory.ts';
 import { purgeExpiredDemos } from '#lib/server/demo-mode.ts';
@@ -34,6 +36,8 @@ export const GET: RequestHandler = async ({ request }) => {
 			await runRestock(o.id);
 			await runWeeklyDigest(o.id);
 			await runMonthlyStatements(o.id);
+			await runJobEscalation(o.id);
+			await runCreditHolds(o.id);
 		} catch (err) {
 			failed++;
 			console.error(`daily cron failed for ${o.id}`, err);

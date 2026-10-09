@@ -23,6 +23,7 @@ import {
 	smsOutbox
 } from '#lib/server/db/schema.ts';
 import { member, user } from '#lib/server/db/auth.schema.ts';
+import { emit } from './events.ts';
 import { appOrigin, sendEmail } from '#lib/server/email.ts';
 import { sendSms, smsProvider } from '#lib/server/sms.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
@@ -2130,6 +2131,88 @@ export async function notifyPaymentReceived(orgId: string, paymentIds: string[])
 			await sendSmsQuiet(orgId, {
 				to: row.phone,
 				body: `${name}: we received your ${formatMoney(row.amount, currency)} payment. Thanks!`
+			});
+		}
+	}
+}
+
+/** Parts arrived on a blocked job — emails the assigned tech so they can reschedule. */
+export async function notifyPartsArrived(orgId: string, jobId: string, memberId: string) {
+	const m = await db
+		.select({ email: user.email })
+		.from(member)
+		.innerJoin(user, eq(user.id, member.userId))
+		.where(
+			and(eq(member.organizationId, orgId), eq(member.id, memberId), eq(member.staffAlerts, true))
+		)
+		.limit(1);
+	const j = await db
+		.select({ number: job.number, summary: job.summary, customerName: customer.name })
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, jobId))
+		.limit(1);
+	if (!m.length || !j.length || !m[0].email) return;
+	const day = new Date().toISOString().slice(0, 10);
+	if (!(await logOnce(orgId, 'parts_arrived', `${jobId}:${day}`, m[0].email))) return;
+	const name = await orgName(orgId);
+	await sendEmail({
+		to: m[0].email,
+		subject: `Parts arrived — J-${j[0].number} ready to schedule (${name})`,
+		...renderEmail({
+			orgName: name,
+			heading: `J-${j[0].number} ${j[0].summary} is unblocked`,
+			lines: [
+				'The parts hold was cleared — this job can be scheduled again.',
+				`Customer: ${j[0].customerName}`
+			],
+			action: { label: 'Open job', url: `${appOrigin()}/jobs/${jobId}` }
+		})
+	});
+}
+
+/** Daily cron: place a credit hold on customers with a charge open 30+ days past due. */
+export async function runCreditHolds(orgId: string) {
+	const cutoff = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+	const rows = await db
+		.select({ id: customer.id, name: customer.name })
+		.from(charge)
+		.innerJoin(customer, eq(customer.id, charge.customerId))
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.status, 'open'),
+				lt(charge.dueDate, cutoff),
+				eq(customer.onHold, false)
+			)
+		)
+		.groupBy(customer.id, customer.name);
+	for (const c of rows) {
+		await db.update(customer).set({ onHold: true }).where(eq(customer.id, c.id));
+		await emit({
+			orgId,
+			entityType: 'customer',
+			entityId: c.id,
+			action: 'credit_hold',
+			summary: `Credit hold placed on ${c.name} — open charge 30+ days past due`
+		});
+		const flags = await notifFlags(orgId);
+		if (!flags.digest) continue;
+		const name = await orgName(orgId);
+		for (const email of await adminEmails(orgId)) {
+			if (!(await logOnce(orgId, 'credit_hold_auto', c.id, email))) continue;
+			await sendEmail({
+				to: email,
+				subject: `Credit hold placed — ${c.name} (${name})`,
+				...renderEmail({
+					orgName: name,
+					heading: `${c.name} is now on credit hold`,
+					lines: [
+						'An open charge is more than 30 days past due, so new jobs are blocked until the hold is lifted.',
+						'You can release the hold from the customer page.'
+					],
+					action: { label: 'Open customer', url: `${appOrigin()}/customers/${c.id}` }
+				})
 			});
 		}
 	}
