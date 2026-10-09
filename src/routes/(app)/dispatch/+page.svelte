@@ -25,6 +25,12 @@
 	const offices = await getOffices();
 	let officeId = $state(page.url.searchParams.get('office') ?? '');
 	let queueFilter = $state('');
+	let dayFilter = $state('');
+	const weekDays = $derived(Array.from({ length: 7 }, (_, i) => addDays(start, i)));
+	const dayJobs = (jobs: (typeof board.scheduled)[number][]) =>
+		dayFilter
+			? jobs.filter((j) => j.job.startsAt && localDate(new Date(j.job.startsAt), tz) === dayFilter)
+			: jobs;
 	const officeName = $derived(offices.find((o) => o.id === officeId)?.name ?? '');
 	const tz = settings.timezone;
 
@@ -253,6 +259,31 @@
 					</Select.Content>
 				</Select.Root>
 			{/if}
+			<Select.Root type="single" value={dayFilter} onValueChange={(v) => (dayFilter = v)}>
+				<Select.Trigger class="h-8 w-32"
+					>{dayFilter
+						? new Date(`${dayFilter}T12:00:00Z`).toLocaleDateString('en-US', {
+								weekday: 'short',
+								month: 'numeric',
+								day: 'numeric',
+								timeZone: 'UTC'
+							})
+						: 'All days'}</Select.Trigger
+				>
+				<Select.Content>
+					<Select.Item value="">All days</Select.Item>
+					{#each weekDays as d (d)}
+						<Select.Item value={d}
+							>{new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', {
+								weekday: 'short',
+								month: 'numeric',
+								day: 'numeric',
+								timeZone: 'UTC'
+							})}{d === todayStr ? ' · today' : ''}</Select.Item
+						>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 			{#if peakDay}
 				<Badge class="hidden md:inline-flex" variant="outline"
 					>peak {new Date(`${peakDay[0]}T12:00:00Z`).toLocaleDateString('en-US', {
@@ -470,11 +501,13 @@
 					</Card.Title>
 				</Card.Header>
 				<Card.Content class="px-4">
-					{#if group.jobs.length === 0}
-						<p class="py-2 text-sm text-muted-foreground">No jobs scheduled this week.</p>
+					{#if dayJobs(group.jobs).length === 0}
+						<p class="py-2 text-sm text-muted-foreground">
+							{dayFilter ? 'No jobs on this day.' : 'No jobs scheduled this week.'}
+						</p>
 					{:else}
 						<ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-							{#each group.jobs as j (j.job.id)}
+							{#each dayJobs(group.jobs) as j (j.job.id)}
 								<li>
 									<button
 										class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"

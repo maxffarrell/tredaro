@@ -1,4 +1,6 @@
 <script lang="ts">
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Progress } from '#lib/components/ui/progress/index.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -586,6 +588,7 @@
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
 		{/if}
 		<Button
+			class="hidden md:inline-flex"
 			size="sm"
 			variant="ghost"
 			title="Copy job — same details, new unscheduled job"
@@ -593,6 +596,7 @@
 			onclick={dupe}><Copy /></Button
 		>
 		<Button
+			class="hidden md:inline-flex"
 			size="sm"
 			variant="ghost"
 			href="/jobs/{id}/workorder"
@@ -601,6 +605,7 @@
 		>
 		{#if j.address1}
 			<Button
+				class="hidden md:inline-flex"
 				size="sm"
 				variant="ghost"
 				href="https://www.google.com/maps/search/{encodeURIComponent(
@@ -612,6 +617,7 @@
 		{/if}
 		{#if j.customerPhone}
 			<Button
+				class="hidden md:inline-flex"
 				size="sm"
 				variant="ghost"
 				title="Text the customer an ETA"
@@ -622,7 +628,7 @@
 			<Button
 				size="sm"
 				variant="ghost"
-				class="text-amber-600 dark:text-amber-500"
+				class="hidden text-amber-600 md:inline-flex dark:text-amber-500"
 				title="Customer no-show — cancel and rebook as unscheduled"
 				disabled={noShowing}
 				onclick={noShow}><UserX /></Button
@@ -630,11 +636,51 @@
 			<Button
 				size="sm"
 				variant="ghost"
-				class="text-destructive"
+				class="hidden text-destructive md:inline-flex"
 				title="Cancel job"
 				onclick={() => (cancelOpen = true)}><Ban /></Button
 			>
 		{/if}
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="inline-flex size-8 items-center justify-center rounded-md hover:bg-accent md:hidden"
+			>
+				<EllipsisVertical class="size-4" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Item disabled={duplicating} onclick={dupe}
+					><Copy /> Copy job</DropdownMenu.Item
+				>
+				<DropdownMenu.Item onclick={() => window.open(`/jobs/${id}/workorder`, '_blank')}
+					><Printer /> Print work order</DropdownMenu.Item
+				>
+				{#if j.address1}
+					<DropdownMenu.Item
+						onclick={() =>
+							window.open(
+								`https://www.google.com/maps/search/${encodeURIComponent(
+									`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`
+								)}`,
+								'_blank'
+							)}><Navigation2 /> Directions</DropdownMenu.Item
+					>
+				{/if}
+				{#if j.customerPhone}
+					<DropdownMenu.Item onclick={() => (etaOpen = true)}
+						><MessageSquare /> Text customer ETA</DropdownMenu.Item
+					>
+				{/if}
+				{#if !locked}
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item disabled={noShowing} onclick={noShow}
+						><UserX /> Customer no-show</DropdownMenu.Item
+					>
+					<DropdownMenu.Item variant="destructive" onclick={() => (cancelOpen = true)}
+						><Ban /> Cancel job</DropdownMenu.Item
+					>
+				{/if}
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	{/snippet}
 </PageHeader>
 
