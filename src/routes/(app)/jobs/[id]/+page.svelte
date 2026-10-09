@@ -58,6 +58,8 @@
 		getInventory,
 		getJobMaterials,
 		addJobMaterial,
+		applyMaterialKit,
+		getJobTypeKits,
 		removeJobMaterial,
 		getTruckStock,
 		createPoFromJob
@@ -462,6 +464,8 @@
 
 	// ------- materials -------
 	const materials = $derived(await getJobMaterials({ jobId: id }));
+	const kits = $derived(await getJobTypeKits());
+	const jobKit = $derived(kits.filter((k) => k.jobTypeId === j.job.jobTypeId));
 
 	// ------- photos -------
 	let lightbox = $state<(typeof photos)[number] | null>(null);
@@ -601,6 +605,22 @@
 			toast.error(errMsg(err, 'Could not log material'));
 		}
 	}
+	let applyingKit = $state(false);
+	async function applyKit() {
+		applyingKit = true;
+		try {
+			const res = await applyMaterialKit(id).updates(getJobMaterials, getJob);
+			if (res.skipped.length)
+				toast.warning(
+					`Added ${res.applied} kit item${res.applied === 1 ? '' : 's'} — low stock skipped: ${res.skipped.join(', ')}`
+				);
+			else toast.success(`Added ${res.applied} kit item${res.applied === 1 ? '' : 's'}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not apply kit'));
+		}
+		applyingKit = false;
+	}
+
 	async function removeMat(materialId: string) {
 		try {
 			await removeJobMaterial(materialId).updates(getJobMaterials, getJob);
@@ -1638,6 +1658,19 @@
 							<Plus />
 							{stock.length ? 'Log material' : 'Add stock items in Inventory first'}
 						</Button>
+						{#if jobKit.length}
+							<Button
+								size="sm"
+								variant="ghost"
+								class="w-full"
+								disabled={applyingKit}
+								title="Log this job type's default materials ({jobKit.length} items)"
+								onclick={applyKit}
+							>
+								<Package class="size-3.5" />
+								{applyingKit ? 'Adding…' : `Add kit (${jobKit.length} items)`}
+							</Button>
+						{/if}
 					{/if}
 					{#if materials.length}
 						<Button

@@ -9,6 +9,7 @@ import {
 	inventoryItemInput,
 	inventoryItemUpdate,
 	jobMaterialInput,
+	jobTypeKitInput,
 	truckTransferInput,
 	purchaseOrderInput,
 	purchaseOrderUpdate
@@ -82,6 +83,27 @@ export const removeJobMaterial = command(idSchema, async (materialId) => {
 	await refreshQuery(getItemHistory, m.inventoryItemId);
 	void getDashboard().refresh();
 	return m;
+});
+
+// ---------- Material kits ----------
+
+export const getJobTypeKits = query(async () =>
+	svc.listJobTypeKits((await requireOrg()).orgId)
+);
+
+export const setJobTypeKit = command(jobTypeKitInput, async (input) => {
+	const res = await svc.setJobTypeKit(await requireOrg('admin'), input);
+	await refreshQuery(getJobTypeKits, undefined);
+	return res;
+});
+
+export const applyMaterialKit = command(idSchema, async (jobId) => {
+	const res = await svc.applyMaterialKit(await requireOrg(), jobId);
+	await refreshQuery(getJobMaterials, { jobId });
+	await refreshQuery(getJob, jobId);
+	await refreshQuery(getInventory, undefined);
+	void getDashboard().refresh();
+	return res;
 });
 
 // ---------- Purchase orders ----------

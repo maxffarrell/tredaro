@@ -5,6 +5,8 @@ import {
 	inventoryItem,
 	job,
 	jobMaterial,
+	jobType,
+	jobTypeMaterial,
 	member,
 	purchaseOrder,
 	purchaseOrderItem,
@@ -311,6 +313,120 @@ export async function lowStock(orgId: string) {
 		)
 		.orderBy(asc(inventoryItem.qtyOnHand))
 		.limit(4);
+}
+
+// ---------- Material kits (job-type defaults) ----------
+
+/** All kit lines in the org, joined with item names — the settings editor groups by type. */
+export async function listJobTypeKits(orgId: string) {
+	return db
+		.select({
+			jobTypeId: jobTypeMaterial.jobTypeId,
+			inventoryItemId: jobTypeMaterial.inventoryItemId,
+			qty: jobTypeMaterial.qty,
+			itemName: inventoryItem.name,
+			itemUnit: inventoryItem.unit
+		})
+		.from(jobTypeMaterial)
+		.innerJoin(inventoryItem, eq(jobTypeMaterial.inventoryItemId, inventoryItem.id))
+		.where(eq(jobTypeMaterial.organizationId, orgId))
+		.orderBy(asc(jobTypeMaterial.jobTypeId), asc(inventoryItem.name));
+}
+
+/** Replace a job type's kit (admin). Validates the type and items belong to the org. */
+export async function setJobTypeKit(
+	ctx: OrgContext,
+	input: v.InferOutput<typeof s.jobTypeKitInput>
+) {
+	const [jt] = await db
+		.select({ id: jobType.id })
+		.from(jobType)
+		.where(and(eq(jobType.organizationId, ctx.orgId), eq(jobType.id, input.jobTypeId)));
+	if (!jt) error(404, 'Job type not found');
+	if (input.items.length) {
+		const items = await db
+			.select({ id: inventoryItem.id })
+			.from(inventoryItem)
+			.where(
+				and(
+					eq(inventoryItem.organizationId, ctx.orgId),
+					inArray(
+						inventoryItem.id,
+						input.items.map((i) => i.inventoryItemId)
+					)
+				)
+			);
+		if (items.length !== new Set(input.items.map((i) => i.inventoryItemId)).size)
+			error(404, 'Inventory item not found');
+	}
+	await db.transaction(async (tx) => {
+		await tx
+			.delete(jobTypeMaterial)
+			.where(
+				and(
+					eq(jobTypeMaterial.organizationId, ctx.orgId),
+					eq(jobTypeMaterial.jobTypeId, input.jobTypeId)
+				)
+			);
+		if (input.items.length)
+			await tx.insert(jobTypeMaterial).values(
+				input.items.map((i) => ({
+					organizationId: ctx.orgId,
+					jobTypeId: input.jobTypeId,
+					inventoryItemId: i.inventoryItemId,
+					qty: i.qty
+				}))
+			);
+	});
+	return { jobTypeId: input.jobTypeId, count: input.items.length };
+}
+
+/**
+ * Apply a job's type kit: log each kit line as warehouse materials on the job.
+ * Items with insufficient stock are skipped (each addMaterial is atomic) so a
+ * partial kit still lands; the response reports both counts.
+ */
+export async function applyMaterialKit(ctx: OrgContext, jobId: string) {
+	const [j] = await db
+		.select({ id: job.id, jobTypeId: job.jobTypeId })
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!j) error(404, 'Job not found');
+	const kit = j.jobTypeId
+		? await db
+				.select({
+					inventoryItemId: jobTypeMaterial.inventoryItemId,
+					qty: jobTypeMaterial.qty,
+					name: inventoryItem.name,
+					unitCost: inventoryItem.unitCost
+				})
+				.from(jobTypeMaterial)
+				.innerJoin(inventoryItem, eq(jobTypeMaterial.inventoryItemId, inventoryItem.id))
+				.where(
+					and(
+						eq(jobTypeMaterial.organizationId, ctx.orgId),
+						eq(jobTypeMaterial.jobTypeId, j.jobTypeId)
+					)
+				)
+		: [];
+	if (!kit.length) error(404, 'This job type has no material kit');
+	let applied = 0;
+	const skipped: string[] = [];
+	for (const line of kit) {
+		try {
+			await addMaterial(ctx, {
+				jobId,
+				inventoryItemId: line.inventoryItemId,
+				qty: line.qty,
+				unitPrice: line.unitCost,
+				truckMemberId: null
+			});
+			applied++;
+		} catch {
+			skipped.push(line.name);
+		}
+	}
+	return { applied, skipped };
 }
 
 // ---------- Purchase orders ----------
