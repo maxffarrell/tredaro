@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DemoBanner from '#lib/components/app/demo-banner.svelte';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import AppSidebar from '#lib/components/app/app-sidebar.svelte';
 	import CommandPalette from '#lib/components/app/command-palette.svelte';
@@ -19,6 +20,13 @@
 <Sidebar.Provider>
 	<AppSidebar user={data.user} org={data.org} onsearch={() => (searchOpen = true)} />
 	<Sidebar.Inset>
+		{#if data.demo && data.demoExpiresAt}
+			<DemoBanner
+				expiresAt={data.demoExpiresAt}
+				serverNow={data.demoServerNow}
+				deployUrl="https://github.com/maxffarrell/tredaro#quick-start"
+			/>
+		{/if}
 		<main class="min-w-0 flex-1">
 			{@render children()}
 		</main>
