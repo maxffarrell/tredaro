@@ -592,6 +592,8 @@ export const estimate = pgTable(
 		/** Typed name captured on the public approval page. */
 		decisionName: text('decision_name'),
 		decisionNote: text('decision_note'),
+		/** Why the customer passed (price|scope|timing|competitor|other), picked on the public page. */
+		declineReason: text('decline_reason').notNull().default(''),
 		/** Option group picked at approval (null = untiered or undecided). */
 		acceptedOption: text('accepted_option'),
 		/** Optional line-item ids kept at decision time. */
@@ -987,6 +989,8 @@ export const purchaseOrder = pgTable(
 		notes: text('notes').notNull().default(''),
 		orderedAt: timestamp('ordered_at', { withTimezone: true }),
 		receivedAt: timestamp('received_at', { withTimezone: true }),
+		/** Supplier bill settled. */
+		paidAt: timestamp('paid_at', { withTimezone: true }),
 		/** Job the order was placed for (from the job's "Order parts" shortcut). */
 		jobId: text('job_id').references(() => job.id, { onDelete: 'set null' }),
 		...timestamps

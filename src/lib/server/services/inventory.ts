@@ -623,6 +623,32 @@ export async function deletePurchaseOrder(ctx: OrgContext, id: string) {
 // ---------- Truck stock ----------
 
 /** Every tech's truck load, grouped client-side — rows {stock, itemName, unit, memberName}. */
+/** Marks an ordered/received PO's supplier bill paid (or clears it). */
+export async function setPurchaseOrderPaid(ctx: OrgContext, id: string, paid: boolean) {
+	if (ctx.role === 'member') error(403, 'Admins only');
+	const [po] = await db
+		.select()
+		.from(purchaseOrder)
+		.where(and(eq(purchaseOrder.id, id), eq(purchaseOrder.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!po) error(404, 'Purchase order not found');
+	if (po.status !== 'ordered' && po.status !== 'received')
+		error(409, 'Only placed or received POs can be marked paid');
+	await db
+		.update(purchaseOrder)
+		.set({ paidAt: paid ? new Date() : null, updatedAt: new Date() })
+		.where(eq(purchaseOrder.id, id));
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'purchase_order',
+		entityId: id,
+		action: paid ? 'paid' : 'unpaid',
+		summary: `PO-${po.number} marked ${paid ? 'paid' : 'unpaid'}`
+	});
+	return { id, paid };
+}
+
 export async function listTruckStock(orgId: string) {
 	return db
 		.select({

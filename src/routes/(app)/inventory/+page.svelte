@@ -25,6 +25,7 @@
 		createPurchaseOrder,
 		receivePurchaseOrder,
 		transitionPurchaseOrder,
+		setPurchaseOrderPaid,
 		deletePurchaseOrder,
 		getTruckStock,
 		transferTruckStock,
@@ -245,6 +246,16 @@
 			poView = null;
 			pos = await getPurchaseOrders();
 			rows = await getInventory();
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update PO'));
+		}
+	}
+
+	async function togglePoPaid(id: string, paid: boolean) {
+		try {
+			await setPurchaseOrderPaid({ id, paid }).updates(getPurchaseOrders);
+			toast.success(paid ? 'Marked paid' : 'Marked unpaid');
+			if (poView && poView.po.id === id) poView.po.paidAt = paid ? new Date() : null;
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update PO'));
 		}
@@ -611,7 +622,14 @@
 							<Table.Cell class="text-right tabular-nums"
 								>{formatMoney(p.total, currency)}</Table.Cell
 							>
-							<Table.Cell><StatusBadge status={p.po.status} /></Table.Cell>
+							<Table.Cell>
+								<StatusBadge status={p.po.status} />
+								{#if (p.po.status === 'ordered' || p.po.status === 'received') && !p.po.paidAt}
+									<Badge variant="outline" class="ml-1 text-amber-600 dark:text-amber-400"
+										>unpaid</Badge
+									>
+								{/if}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
 						<Table.Row>
@@ -849,9 +867,32 @@
 					<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}
 						>Cancel PO</Button
 					>
-					<Button onclick={openReceive}><ClipboardList /> Receive stock</Button>
+					<div class="flex gap-2">
+						{#if poView.po.paidAt}
+							<Button variant="ghost" onclick={() => togglePoPaid(poView!.po.id, false)}
+								>Mark unpaid</Button
+							>
+						{:else}
+							<Button variant="outline" onclick={() => togglePoPaid(poView!.po.id, true)}
+								>Mark paid</Button
+							>
+						{/if}
+						<Button onclick={openReceive}><ClipboardList /> Receive stock</Button>
+					</div>
 				{:else}
-					<span></span>
+					{#if poView.po.status === 'received'}
+						{#if poView.po.paidAt}
+							<Button variant="ghost" onclick={() => togglePoPaid(poView!.po.id, false)}
+								>Mark unpaid</Button
+							>
+						{:else}
+							<Button variant="outline" onclick={() => togglePoPaid(poView!.po.id, true)}
+								>Mark paid</Button
+							>
+						{/if}
+					{:else}
+						<span></span>
+					{/if}
 				{/if}
 			</Dialog.Footer>
 		{/if}

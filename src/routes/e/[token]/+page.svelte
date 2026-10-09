@@ -7,6 +7,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import Printer from '@lucide/svelte/icons/printer';
 	import { toast } from 'svelte-sonner';
@@ -39,6 +40,15 @@
 	const groups = $derived([...new Set(items.map((i) => i.optionGroup).filter((g) => g))]);
 	const baseItems = $derived(items.filter((i) => i.optionGroup === ''));
 	let pickedOption = $state(est.acceptedOption ?? '');
+	let declineReason = $state('unsure');
+	const declineReasons = {
+		unsure: 'Prefer not to say',
+		price: 'Price too high',
+		scope: "Scope doesn't fit",
+		timing: "Timing isn't right",
+		competitor: 'Went with another company',
+		other: 'Other'
+	};
 	const scoped = $derived(
 		groups.length
 			? items.filter((i) => i.optionGroup === '' || i.optionGroup === pickedOption)
@@ -129,7 +139,8 @@
 							)
 							.map((i) => i.id)
 					: [],
-				option: approve ? pickedOption : ''
+				option: approve ? pickedOption : '',
+				reason: approve ? '' : declineReason
 			});
 			approvedJobId = row?.jobId ?? null;
 			decided = approve ? 'approved' : 'declined';
@@ -393,6 +404,19 @@
 						<Field.Field>
 							<Field.Label for="dec-note">Note (optional)</Field.Label>
 							<Input id="dec-note" bind:value={note} placeholder="Anything to add?" />
+						</Field.Field>
+						<Field.Field>
+							<Field.Label>If declining — mind sharing why?</Field.Label>
+							<Select.Root type="single" bind:value={declineReason}>
+								<Select.Trigger class="w-full"
+									>{declineReasons[declineReason as keyof typeof declineReasons]}</Select.Trigger
+								>
+								<Select.Content>
+									{#each Object.entries(declineReasons) as [key, label] (key)}
+										<Select.Item value={key}>{label}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
 						</Field.Field>
 					</div>
 					<div class="flex flex-wrap gap-2">

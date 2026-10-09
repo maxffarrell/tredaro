@@ -1117,6 +1117,49 @@ export async function runWeeklyDigest(orgId: string) {
 	}
 }
 
+/** Emails the customer a "payment due soon" nudge for a standalone charge
+ * (installments, manual charges) whose due date is within the reminder window.
+ * Invoice-linked charges are covered by the invoice reminders instead. */
+export async function notifyChargeDueSoon(orgId: string, chargeId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.email) return;
+	const [row] = await db
+		.select({
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			customerName: customer.name,
+			description: charge.description,
+			dueDate: charge.dueDate,
+			status: charge.status,
+			invoiceId: charge.invoiceId,
+			balance:
+				sql<number>`${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${charge.id}), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(charge)
+		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.where(eq(charge.id, chargeId));
+	if (!row || row.status !== 'open' || row.balance <= 0 || row.invoiceId) return;
+	if (!row.email || row.emailOptOut) return;
+	if (!(await logOnce(orgId, 'charge_due_soon', chargeId, row.email))) return;
+	const name = await orgName(orgId);
+	const currency = await orgCurrencyOf(orgId);
+	await sendEmail({
+		to: row.email,
+		subject: `Payment of ${formatMoney(row.balance, currency)} due ${row.dueDate} — ${name}`,
+		...renderEmail({
+			orgName: name,
+			heading: `Heads up, ${row.customerName}`,
+			lines: [
+				`${row.description ?? 'A charge'} — ${formatMoney(row.balance, currency)} — is due on ${row.dueDate}.`,
+				'You can pay it online any time from your customer portal.'
+			],
+			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+		})
+	});
+}
+
 /**
  * 1st-of-month statements: customers with an open balance get their statement
  * email (deduped per customer+month). Runs inside the daily cron.
@@ -1215,6 +1258,22 @@ export async function runReminders(orgId: string) {
 			)
 		);
 	for (const e of expiringEstimates) await notifyEstimateExpiring(orgId, e.id);
+
+	// Due-soon nudges — standalone open charges (payment-plan installments,
+	// manual charges) due within 3 days. Invoice charges use invoice reminders.
+	const dueSoon = await db
+		.select({ id: charge.id })
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.status, 'open'),
+				isNull(charge.invoiceId),
+				gte(charge.dueDate, todayIso),
+				lte(charge.dueDate, horizonIso)
+			)
+		);
+	for (const ch of dueSoon) await notifyChargeDueSoon(orgId, ch.id);
 
 	const overdue = await db
 		.select({ id: invoice.id, dueDate: invoice.dueDate })

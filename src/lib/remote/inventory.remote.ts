@@ -137,6 +137,14 @@ export const transitionPurchaseOrder = command(poTransition, async (input) => {
 	return r;
 });
 
+const poPaidInput = v.object({ id: idSchema, paid: v.boolean() });
+export const setPurchaseOrderPaid = command(poPaidInput, async (input) => {
+	const r = await svc.setPurchaseOrderPaid(await requireOrg('admin'), input.id, input.paid);
+	await refreshQuery(getPurchaseOrders, undefined);
+	await refreshQuery(getDashboard, undefined);
+	return r;
+});
+
 export const deletePurchaseOrder = command(idSchema, async (id) => {
 	await svc.deletePurchaseOrder(await requireOrg('admin'), id);
 	await refreshQuery(getPurchaseOrders, undefined);
