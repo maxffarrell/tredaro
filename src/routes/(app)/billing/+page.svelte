@@ -303,7 +303,12 @@
 		e.preventDefault();
 		planPending = true;
 		try {
-			await splitCharge({ id: planId, count: planCount, firstDue: planFirst, everyDays: planDays });
+			await splitCharge({
+				id: planId,
+				count: planCount,
+				firstDue: planFirst,
+				everyDays: planDays
+			}).updates(getCharges, getDashboard);
 			toast.success(`Split into ${planCount} installments`);
 			planOpen = false;
 		} catch (err) {
