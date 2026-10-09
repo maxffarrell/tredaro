@@ -23,6 +23,7 @@ import {
 	user,
 	outer
 } from '#lib/server/db/schema.ts';
+import { getSettings } from './settings.ts';
 
 /** Completed jobs per day for the last 30 days (includes zero days). */
 async function jobsByDay(orgId: string) {
@@ -110,6 +111,25 @@ async function callbackRate(orgId: string) {
 	const done = row?.done ?? 0;
 	const callbacks = row?.callbacks ?? 0;
 	return { done, callbacks, pct: done ? Math.round((callbacks / done) * 100) : 0 };
+}
+
+/** Collected revenue by day of week (org timezone), Mon..Sun. */
+async function revenueByWeekday(orgId: string) {
+	const tz = (await getSettings(orgId)).timezone;
+	const rows = await db
+		.select({
+			dow: sql<number>`extract(isodow from timezone(${tz}, ${payment.paidAt}))`.mapWith(Number),
+			cents: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.where(eq(payment.organizationId, orgId))
+		.groupBy(sql`1`);
+	const byDay = new Array(7).fill(0);
+	for (const r of rows) byDay[(r.dow - 1 + 7) % 7] = r.cents;
+	return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label, i) => ({
+		label,
+		cents: byDay[i]
+	}));
 }
 
 /** Collected payments grouped by method (all time). */
@@ -759,7 +779,8 @@ export async function getReports(orgId: string) {
 		matMargin,
 		ratings,
 		estAccuracy,
-		callbacks
+		callbacks,
+		revWeekday
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -798,7 +819,8 @@ export async function getReports(orgId: string) {
 		materialsMargin(orgId),
 		visitRatings(orgId),
 		estimateAccuracy(orgId),
-		callbackRate(orgId)
+		callbackRate(orgId),
+		revenueByWeekday(orgId)
 	]);
 	return {
 		completedJobs,
@@ -838,7 +860,8 @@ export async function getReports(orgId: string) {
 		materialsMargin: matMargin,
 		ratings,
 		estAccuracy,
-		callbacks
+		callbacks,
+		revWeekday
 	};
 }
 
