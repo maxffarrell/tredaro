@@ -219,6 +219,8 @@
 	let smsNotifications = $state(settings.smsNotifications);
 	let staffDigest = $state(settings.staffDigest);
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
+	let estimateFooter = $state(settings.estimateFooter);
+	let invoiceFooter = $state(settings.invoiceFooter);
 	let estimateValidDays = $state(settings.estimateValidDays);
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let autoSendReport = $state(settings.autoSendReport);
@@ -291,6 +293,8 @@
 				smsNotifications,
 				staffDigest,
 				invoiceTermsDays,
+				estimateFooter,
+				invoiceFooter,
 				estimateValidDays,
 				autoInvoiceOnComplete,
 				autoSendReport,
@@ -763,6 +767,18 @@
 								</p>
 							</Field.Field>
 							<Field.Field>
+								<Field.Label for="inv-footer">Invoice footer</Field.Label>
+								<Textarea
+									id="inv-footer"
+									rows={2}
+									bind:value={invoiceFooter}
+									placeholder="e.g. Payment due on receipt · late fee 1.5%/mo"
+								/>
+								<p class="text-xs text-muted-foreground">
+									Shown at the bottom of the customer invoice page.
+								</p>
+							</Field.Field>
+							<Field.Field>
 								<Field.Label for="est-valid">Estimate validity (days)</Field.Label>
 								<Input
 									id="est-valid"
@@ -774,6 +790,18 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									Sent estimates expire this many days later unless you set a different date.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="est-footer">Estimate footer</Field.Label>
+								<Textarea
+									id="est-footer"
+									rows={2}
+									bind:value={estimateFooter}
+									placeholder="e.g. Warranty: 1 year on parts & labor · permits not included"
+								/>
+								<p class="text-xs text-muted-foreground">
+									Fine print on the customer estimate page and printed quote.
 								</p>
 							</Field.Field>
 							<Field.Field>

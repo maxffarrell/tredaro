@@ -28,7 +28,8 @@
 		customerName,
 		items,
 		currency,
-		location: loc
+		location: loc,
+		estFooter
 	} = $derived(data);
 	/** Optional lines the customer excludes — all are included by default. */
 	let excluded = new SvelteSet<string>();
@@ -391,6 +392,9 @@
 					</div>
 				</Card.Content>
 			</Card.Root>
+		{/if}
+		{#if estFooter}
+			<p class="px-1 text-xs whitespace-pre-wrap text-muted-foreground">{estFooter}</p>
 		{/if}
 	</main>
 </div>

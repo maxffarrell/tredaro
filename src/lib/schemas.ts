@@ -569,7 +569,9 @@ export const settingsInput = v.object({
 	bookingMessage: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	bookingReview: v.optional(v.boolean()),
 	bookingBlackouts: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
-	reminderHours: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(168)))
+	reminderHours: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(168))),
+	estimateFooter: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
+	invoiceFooter: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)))
 });
 
 /** Segment + message for a one-off customer announcement blast. */

@@ -672,6 +672,63 @@ export async function findPotentialDuplicates(
  * survivor, blank fields on the survivor fill from the duplicate, and the duplicate is
  * deleted. Runs in one transaction so a failure leaves both customers intact.
  */
+/**
+ * Counts of the records a merge would move — shown in the dialog so staff see the
+ * blast radius before confirming.
+ */
+export async function getMergePreview(ctx: OrgContext, sourceId: string) {
+	const [[jobs], [estimates], [invoices], [charges], [units], [locations], [agreements]] =
+		await Promise.all([
+			db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(job)
+				.where(and(eq(job.customerId, sourceId), eq(job.organizationId, ctx.orgId))),
+			db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(estimate)
+				.where(and(eq(estimate.customerId, sourceId), eq(estimate.organizationId, ctx.orgId))),
+			db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(invoice)
+				.where(and(eq(invoice.customerId, sourceId), eq(invoice.organizationId, ctx.orgId))),
+			db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(charge)
+				.where(and(eq(charge.customerId, sourceId), eq(charge.organizationId, ctx.orgId))),
+			db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(equipment)
+				.where(and(eq(equipment.customerId, sourceId), eq(equipment.organizationId, ctx.orgId))),
+			db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(serviceLocation)
+				.where(
+					and(
+						eq(serviceLocation.customerId, sourceId),
+						eq(serviceLocation.organizationId, ctx.orgId)
+					)
+				),
+			db
+				.select({ n: sql<number>`count(*)`.mapWith(Number) })
+				.from(serviceAgreement)
+				.where(
+					and(
+						eq(serviceAgreement.customerId, sourceId),
+						eq(serviceAgreement.organizationId, ctx.orgId)
+					)
+				)
+		]);
+	return {
+		jobs: jobs?.n ?? 0,
+		estimates: estimates?.n ?? 0,
+		invoices: invoices?.n ?? 0,
+		charges: charges?.n ?? 0,
+		equipment: units?.n ?? 0,
+		locations: locations?.n ?? 0,
+		agreements: agreements?.n ?? 0
+	};
+}
+
 export async function mergeCustomers(ctx: OrgContext, sourceId: string, targetId: string) {
 	if (sourceId === targetId) error(400, 'Pick two different customers');
 	const [target] = await db

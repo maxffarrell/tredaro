@@ -32,6 +32,8 @@
 		{ done: d.setup.booking, label: 'Turn on the public booking page', href: '/settings' }
 	];
 	const setupDone = setupSteps.every((s) => s.done);
+	const weekMax = Math.max(1, ...d.paymentsWeek.map((p) => p.total));
+	const weekTotal = d.paymentsWeek.reduce((sum, p) => sum + p.total, 0);
 	const kpis = [
 		{
 			label: 'Active customers',
@@ -225,6 +227,28 @@
 					</Card.Content>
 				</Card.Root>
 			{/if}
+
+			<Card.Root>
+				<Card.Header class="flex flex-row items-center justify-between gap-2">
+					<Card.Title class="text-base">Collected — 7 days</Card.Title>
+					<Card.Description>{formatMoney(weekTotal, d.currency, true)}</Card.Description>
+				</Card.Header>
+				<Card.Content class="px-4">
+					<div class="flex h-16 items-end gap-1.5" aria-label="Payments collected per day">
+						{#each d.paymentsWeek as p (p.day)}
+							<div
+								class="w-full flex-1 rounded-sm bg-primary/75"
+								style:height="{Math.max(3, Math.round((p.total / weekMax) * 64))}px"
+								title="{p.day}: {formatMoney(p.total, d.currency)}"
+							></div>
+						{/each}
+					</div>
+					<div class="mt-1 flex justify-between text-[10px] text-muted-foreground">
+						<span>{d.paymentsWeek[0].day.slice(5)}</span>
+						<span>{d.paymentsWeek[d.paymentsWeek.length - 1].day.slice(5)}</span>
+					</div>
+				</Card.Content>
+			</Card.Root>
 
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Recent activity</Card.Title></Card.Header>

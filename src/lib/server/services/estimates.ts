@@ -553,6 +553,7 @@ export async function publicEstimate(id: string) {
 			customerName: customer.name,
 			orgName: organization.name,
 			orgLogoUrl: companySettings.logoUrl,
+			estFooter: companySettings.estimateFooter,
 			location: serviceLocation
 		})
 		.from(estimate)

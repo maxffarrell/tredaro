@@ -98,6 +98,29 @@ export async function dashboard(orgId: string) {
 			)
 		);
 
+	// Daily collections for the last 7 local days — the KPI card's mini bar chart.
+	const payments7 = await db
+		.select({
+			day: sql<string>`to_char(timezone(${tz}, ${payment.paidAt}), 'YYYY-MM-DD')`,
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				gte(payment.paidAt, new Date(dayStart.getTime() - 6 * 24 * 60 * 60 * 1000)),
+				lt(payment.paidAt, dayEnd)
+			)
+		)
+		.groupBy(sql`1`);
+	const byDay = new Map(payments7.map((p) => [p.day, p.total]));
+	const paymentsWeek = Array.from({ length: 7 }, (_, i) => {
+		const d = new Date(Date.parse(today) - (6 - i) * 24 * 60 * 60 * 1000)
+			.toISOString()
+			.slice(0, 10);
+		return { day: d, total: byDay.get(d) ?? 0 };
+	});
+
 	const mrr = await monthlyRecurring(orgId);
 
 	const todayJobs = await db
@@ -497,6 +520,7 @@ export async function dashboard(orgId: string) {
 		doneToday: jobStats?.doneToday ?? 0,
 		newBookings7d,
 		collectedToday: todayPayments?.total ?? 0,
+		paymentsWeek,
 		activeAgreements: agreementStats?.active ?? 0,
 		openTotal: openStats?.openTotal ?? 0,
 		overdueTotal: openStats?.overdueTotal ?? 0,
