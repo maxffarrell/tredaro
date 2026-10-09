@@ -294,6 +294,8 @@ export const jobTypeInput = v.object({
 	requireChecklist: v.optional(v.boolean(), false),
 	requirePhoto: v.optional(v.boolean(), false),
 	requireSignature: v.optional(v.boolean(), false),
+	/** Whether the type appears on the public booking page. */
+	bookable: v.optional(v.boolean(), true),
 	active: v.optional(v.boolean(), true)
 });
 export const jobTypeUpdate = v.object({ id: idSchema, ...v.partial(jobTypeInput).entries });

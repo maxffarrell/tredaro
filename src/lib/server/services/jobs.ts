@@ -82,6 +82,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			requireChecklist: input.requireChecklist,
 			requirePhoto: input.requirePhoto,
 			requireSignature: input.requireSignature,
+			bookable: input.bookable,
 			active: input.active
 		})
 		.returning();

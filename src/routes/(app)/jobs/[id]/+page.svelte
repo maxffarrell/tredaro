@@ -76,6 +76,7 @@
 	import Phone from '@lucide/svelte/icons/phone';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import FileText from '@lucide/svelte/icons/file-text';
+	import FilePen from '@lucide/svelte/icons/file-pen';
 	import Ban from '@lucide/svelte/icons/ban';
 	import UserX from '@lucide/svelte/icons/user-x';
 	import Timer from '@lucide/svelte/icons/timer';
@@ -649,6 +650,11 @@
 		{/if}
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
+		{/if}
+		{#if j.job.status !== 'cancelled'}
+			<Button size="sm" variant="outline" class="hidden md:inline-flex" href="/estimates?job={id}"
+				><FilePen /> Quote</Button
+			>
 		{/if}
 		<Button
 			class="hidden md:inline-flex"

@@ -17,6 +17,7 @@
 	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import { toast } from 'svelte-sonner';
 	import { getEstimates, createEstimate } from '#lib/remote/estimates.remote.ts';
+	import { getJob } from '#lib/remote/jobs.remote.ts';
 	import { getCustomers } from '#lib/remote/customers.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { getJobTypes } from '#lib/remote/jobs.remote.ts';
@@ -51,11 +52,27 @@
 	);
 
 	// ------- new estimate -------
-	let open = $state(page.url.searchParams.get('new') === '1');
+	let open = $state(page.url.searchParams.get('new') === '1' || !!page.url.searchParams.get('job'));
 	let pending = $state(false);
 	let customerId = $state(page.url.searchParams.get('customer') ?? '');
 	let jobTypeId = $state('');
 	let notes = $state('');
+
+	// ?job=<id> — opened from a job page: prefill customer/type/notes from the job.
+	const prefillJob = $derived(
+		page.url.searchParams.get('job') ? await getJob(page.url.searchParams.get('job')!) : null
+	);
+	let jobPrefilled = $state(false);
+	$effect(() => {
+		if (prefillJob && !jobPrefilled) {
+			customerId = prefillJob.job.customerId;
+			jobTypeId = prefillJob.job.jobTypeId ?? '';
+			notes =
+				`For J-${prefillJob.job.number}: ${prefillJob.job.summary}` +
+				(prefillJob.job.description ? `\n\n${prefillJob.job.description}` : '');
+			jobPrefilled = true;
+		}
+	});
 	let items = $state<
 		{ pricebookItemId: string | null; name: string; qty: number; unitPrice: number }[]
 	>([{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0 }]);

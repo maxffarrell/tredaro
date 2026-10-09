@@ -51,7 +51,9 @@ export async function getPublicCompany(slug: string) {
 			defaultAmount: jobType.defaultAmount
 		})
 		.from(jobType)
-		.where(and(eq(jobType.organizationId, org.id), eq(jobType.active, true)))
+		.where(
+			and(eq(jobType.organizationId, org.id), eq(jobType.active, true), eq(jobType.bookable, true))
+		)
 		.orderBy(asc(jobType.name));
 
 	const offices = await db

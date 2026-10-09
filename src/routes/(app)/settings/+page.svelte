@@ -129,6 +129,7 @@
 	let jtReqChecklist = $state(false);
 	let jtReqPhoto = $state(false);
 	let jtReqSignature = $state(false);
+	let jtBookable = $state(true);
 	let jtActive = $state(true);
 
 	function openJt(t?: (typeof jobTypes)[number]) {
@@ -143,6 +144,7 @@
 		jtReqChecklist = t?.requireChecklist ?? false;
 		jtReqPhoto = t?.requirePhoto ?? false;
 		jtReqSignature = t?.requireSignature ?? false;
+		jtBookable = t?.bookable ?? true;
 		jtActive = t?.active ?? true;
 		jtOpen = true;
 	}
@@ -163,6 +165,7 @@
 			requireChecklist: jtReqChecklist,
 			requirePhoto: jtReqPhoto,
 			requireSignature: jtReqSignature,
+			bookable: jtBookable,
 			active: jtActive
 		};
 		try {
@@ -1527,6 +1530,15 @@
 					checked={jtReqSignature}
 					onCheckedChange={(v) => (jtReqSignature = v)}
 				/>
+			</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<label for="jt-bookable" class="text-sm font-medium">Bookable online</label>
+					<p class="text-xs text-muted-foreground">
+						Customers can pick it on the public booking page.
+					</p>
+				</div>
+				<Switch id="jt-bookable" checked={jtBookable} onCheckedChange={(v) => (jtBookable = v)} />
 			</div>
 			<div class="flex items-center justify-between">
 				<label for="jt-active" class="text-sm font-medium">Active</label>

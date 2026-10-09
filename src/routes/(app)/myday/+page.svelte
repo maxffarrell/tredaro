@@ -44,6 +44,7 @@
 	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
+	import Flag from '@lucide/svelte/icons/flag';
 	import Phone from '@lucide/svelte/icons/phone';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import Camera from '@lucide/svelte/icons/camera';
@@ -262,6 +263,23 @@
 			toast.error(errMsg(err, 'Could not log part'));
 		}
 		pending = null;
+	}
+
+	// ------- wrap up: stop any running timer, then show the day summary -------
+	let wrapOpen = $state(false);
+	let wrapPending = $state(false);
+	async function wrapUp() {
+		wrapPending = true;
+		try {
+			if (day.openEntry) {
+				await stopTimer(day.openEntry.entry.jobId).updates(getMyDay);
+				toast.success('Timer stopped');
+			}
+			wrapOpen = true;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not stop timer'));
+		}
+		wrapPending = false;
 	}
 
 	async function completeWithSignature(name: string, dataUrl: string) {
@@ -497,6 +515,18 @@
 	{#if calFeed}
 		<Button variant="outline" size="sm" onclick={copyCal} title="Subscribe to your schedule">
 			<CalendarPlus /> Calendar
+		</Button>
+	{/if}
+	{#if day.member && (day.jobs.length || day.openEntry)}
+		<Button
+			variant="outline"
+			size="sm"
+			onclick={wrapUp}
+			disabled={wrapPending}
+			title="Stop the timer and review your day"
+		>
+			<Flag />
+			{wrapPending ? 'Wrapping…' : 'Wrap up'}
 		</Button>
 	{/if}
 {/snippet}
@@ -913,6 +943,53 @@
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (collectCustomerId = null)}>Cancel</Button>
 			<Button onclick={collect} disabled={collectAmount <= 0}>Record payment</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={wrapOpen}>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Day wrap-up</Dialog.Title>
+			<Dialog.Description>{day.today} — your numbers for the office.</Dialog.Description>
+		</Dialog.Header>
+		{@const doneJobs = day.jobs.filter((j) => j.job.status === 'done')}
+		<div class="space-y-2 text-sm">
+			<div class="flex justify-between">
+				<span class="text-muted-foreground">Jobs completed</span>
+				<span class="font-medium">{doneJobs.length} / {day.jobs.length}</span>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-muted-foreground">Time logged</span>
+				<span class="font-medium tabular-nums"
+					>{Math.floor((day.minutesLogged ?? 0) / 60)}h {(day.minutesLogged ?? 0) % 60}m</span
+				>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-muted-foreground">Timer still running</span>
+				<span class="font-medium"
+					>{day.openEntry ? 'Yes — J-' + day.openEntry.jobNumber : 'No'}</span
+				>
+			</div>
+			{#if day.materials?.length}
+				<div class="border-t pt-2">
+					<p class="mb-1 text-xs font-medium text-muted-foreground">Parts used</p>
+					{#each day.materials as m (m.sku + m.name)}
+						<div class="flex justify-between text-sm">
+							<span class="truncate">{m.name}</span>
+							<span class="tabular-nums">{m.qty} {m.unit}</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+			{#if day.tomorrow?.length}
+				<p class="border-t pt-2 text-xs text-muted-foreground">
+					Tomorrow: {day.tomorrow.length} job{day.tomorrow.length === 1 ? '' : 's'} on the board.
+				</p>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button onclick={() => (wrapOpen = false)}>Done</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
