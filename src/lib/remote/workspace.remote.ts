@@ -288,3 +288,14 @@ export const getActivityTodayCount = query(async () => {
 		zonedToUtc(`${addDays(today, 1)}T00:00`, tz)
 	);
 });
+
+export const getActivityWeekCount = query(async () => {
+	const ctx = await requireOrg();
+	const tz = (await settingsSvc.getSettings(ctx.orgId)).timezone;
+	const today = localDate(new Date(), tz);
+	return eventsSvc.countActivity(
+		ctx.orgId,
+		zonedToUtc(`${addDays(today, -6)}T00:00`, tz),
+		zonedToUtc(`${addDays(today, 1)}T00:00`, tz)
+	);
+});

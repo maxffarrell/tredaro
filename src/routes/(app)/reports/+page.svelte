@@ -642,7 +642,10 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Payments by method</Card.Title>
-			<Card.Description>Collected revenue per payment method — all time</Card.Description>
+			<Card.Description
+				>Collected revenue per payment method — all time{#if r.refunds}
+					· {formatMoney(r.refunds, currency)} refunded in 90d{/if}</Card.Description
+			>
 		</Card.Header>
 		<Card.Content class="px-0">
 			<Table.Root>

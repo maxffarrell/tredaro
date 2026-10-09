@@ -283,6 +283,15 @@
 				)} on order</Badge
 			>
 		{/if}
+		{@const draftPos = openPos.filter((p) => p.po.status === 'draft')}
+		{#if draftPos.length}
+			<Badge variant="outline" class="mr-2 text-muted-foreground"
+				>{draftPos.length} PO draft · {formatMoney(
+					draftPos.reduce((m, p) => m + p.total, 0),
+					currency
+				)}</Badge
+			>
+		{/if}
 		{#if orderedPos.length}
 			<Badge variant="outline" class="mr-2">{orderedPos.length} awaiting delivery</Badge>
 		{/if}

@@ -8,7 +8,8 @@
 	import {
 		getActivity,
 		getActivityTodayCount,
-		getActivityTypes
+		getActivityTypes,
+		getActivityWeekCount
 	} from '#lib/remote/workspace.remote.ts';
 	import { formatRelative } from '#lib/format.ts';
 	import History from '@lucide/svelte/icons/history';
@@ -19,6 +20,7 @@
 	let limit = $state(200);
 	let rows = $state(await getActivity({ limit }));
 	const todayCount = $derived(await getActivityTodayCount());
+	const weekCount = $derived(await getActivityWeekCount());
 	const hasMore = $derived(rows.length >= limit);
 
 	async function refilter(v: string) {
@@ -57,7 +59,8 @@
 	{/if}
 	{#if todayCount}
 		<p class="text-sm text-muted-foreground">
-			{todayCount} event{todayCount === 1 ? '' : 's'} today
+			{todayCount} event{todayCount === 1 ? '' : 's'} today{#if weekCount > todayCount}
+				· {weekCount} this week{/if}
 		</p>
 	{/if}
 
