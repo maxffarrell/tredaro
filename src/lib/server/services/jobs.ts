@@ -15,6 +15,7 @@ import {
 	lt,
 	lte,
 	ne,
+	or,
 	sql
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -164,6 +165,8 @@ export async function listJobs(
 		to?: Date;
 		status?: string[];
 		technicianId?: string;
+		/** Match jobs where the member is tech OR helper (My Day). */
+		orHelper?: boolean;
 		/** Only jobs with no technician assigned. */
 		unassigned?: boolean;
 		unscheduled?: boolean;
@@ -195,7 +198,11 @@ export async function listJobs(
 							sql`, `
 						)})`
 					: undefined,
-				opts.technicianId ? eq(job.technicianId, opts.technicianId) : undefined,
+				opts.technicianId
+					? opts.orHelper
+						? or(eq(job.technicianId, opts.technicianId), eq(job.helperId, opts.technicianId))
+						: eq(job.technicianId, opts.technicianId)
+					: undefined,
 				opts.unassigned ? isNull(job.technicianId) : undefined,
 				opts.equipmentId ? eq(job.equipmentId, opts.equipmentId) : undefined,
 				opts.blocked ? eq(job.blocked, true) : undefined,
@@ -500,6 +507,7 @@ export async function createJob(
 			serviceLocationId: input.serviceLocationId ?? null,
 			officeId: input.officeId ?? jt?.officeId ?? null,
 			technicianId,
+			helperId: input.helperId ?? null,
 			equipmentId: input.equipmentId ?? null,
 			summary: input.summary || jt?.name || '',
 			description: input.description,
@@ -768,6 +776,21 @@ export async function updateJob(
 			effectiveEnd ?? new Date(effectiveStart.getTime() + durationMin * 60_000),
 			id
 		);
+	// The helper gets the same time-off guard when they're newly added or the slot moves.
+	const effectiveHelper = set.helperId === undefined ? existing.helperId : set.helperId;
+	if (
+		effectiveHelper &&
+		effectiveStart &&
+		(effectiveHelper !== existing.helperId || start !== undefined)
+	)
+		await assertTechAvailable(
+			ctx.orgId,
+			effectiveHelper,
+			effectiveStart,
+			tz,
+			effectiveEnd ?? new Date(effectiveStart.getTime() + durationMin * 60_000),
+			id
+		);
 
 	const status =
 		set.cancelled === true
@@ -790,6 +813,7 @@ export async function updateJob(
 			equipmentId: set.equipmentId,
 			officeId: set.officeId,
 			technicianId: set.technicianId,
+			helperId: set.helperId,
 			summary: set.summary,
 			description: set.description,
 			priority: set.priority,
@@ -1800,12 +1824,13 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		truckLow,
 		flaggedTime
 	] = await Promise.all([
-		listJobs(ctx.orgId, { from, to, technicianId: me.id }),
-		listJobs(ctx.orgId, { technicianId: me.id, status: ['unscheduled'] }),
+		listJobs(ctx.orgId, { from, to, technicianId: me.id, orHelper: true }),
+		listJobs(ctx.orgId, { technicianId: me.id, orHelper: true, status: ['unscheduled'] }),
 		listJobs(ctx.orgId, { status: ['unscheduled'], unassigned: true }),
 		listJobs(ctx.orgId, {
 			to: from,
 			technicianId: me.id,
+			orHelper: true,
 			status: ['scheduled', 'dispatched', 'in_progress']
 		}),
 		db

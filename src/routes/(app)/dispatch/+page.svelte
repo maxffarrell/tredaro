@@ -916,6 +916,12 @@
 												· <span class="text-amber-600 dark:text-amber-400">dep J-{j.depNumber}</span
 												>
 											{/if}
+											{#if j.job.helperId}
+												· <span title="Second tech on the job"
+													>+{board.technicians.find((t) => t.id === j.job.helperId)?.name ??
+														'helper'}</span
+												>
+											{/if}
 										</p>
 									</button>
 									{#if dayFilter && techId && dayJobs(group.jobs).length > 1}

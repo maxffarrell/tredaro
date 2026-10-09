@@ -91,6 +91,8 @@ export const companySettings = pgTable('company_settings', {
 	estimateDepositPct: integer('estimate_deposit_pct').notNull().default(0),
 	/** Round billed labor up to this many minutes on invoices (0 = exact). */
 	laborRoundingMin: integer('labor_rounding_min').notNull().default(0),
+	/** Sell-price markup % (basis points) applied to materials logged on jobs (0 = bill at cost). */
+	materialsMarkupBps: integer('materials_markup_bps').notNull().default(0),
 	/** Comma-separated ZIPs the public booking page accepts (blank = anywhere). */
 	serviceZips: text('service_zips').notNull().default(''),
 	/** Master switch for the public /book/[slug] form. */
@@ -432,6 +434,8 @@ export const job = pgTable(
 		equipmentId: text('equipment_id').references(() => equipment.id, { onDelete: 'set null' }),
 		officeId: text('office_id').references(() => office.id, { onDelete: 'set null' }),
 		technicianId: text('technician_id').references(() => member.id, { onDelete: 'set null' }),
+		/** Optional second tech on the job — sees it on My Day and gets assignment pings. */
+		helperId: text('helper_id').references(() => member.id, { onDelete: 'set null' }),
 		summary: text('summary').notNull().default(''),
 		description: text('description').notNull().default(''),
 		/** Freeform labels for filtering ("callback", "permit", "VIP"). */
@@ -884,6 +888,8 @@ export const inventoryItem = pgTable(
 		category: text('category').notNull().default(''),
 		/** Cost per unit in minor units (cents). */
 		unitCost: integer('unit_cost').notNull().default(0),
+		/** False for shop supplies — excluded from invoice prefill material lines. */
+		billable: boolean('billable').notNull().default(true),
 		notes: text('notes').notNull().default(''),
 		...timestamps
 	},

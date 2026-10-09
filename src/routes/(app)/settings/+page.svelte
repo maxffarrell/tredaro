@@ -287,6 +287,7 @@
 	let lateFeeDollars = $state(settings.lateFeeCents / 100);
 	let depositPct = $state(settings.estimateDepositPct);
 	let laborRounding = $state(settings.laborRoundingMin);
+	let materialsMarkup = $state(settings.materialsMarkupBps / 100);
 	let serviceZips = $state(settings.serviceZips);
 	let licenseNumber = $state(settings.licenseNumber);
 	let logoUrl = $state(settings.logoUrl);
@@ -361,6 +362,7 @@
 				lateFeeCents: Math.round((lateFeeDollars || 0) * 100),
 				estimateDepositPct: Math.round(depositPct || 0),
 				laborRoundingMin: Math.round(laborRounding || 0),
+				materialsMarkupBps: Math.round((materialsMarkup || 0) * 100),
 				serviceZips,
 				licenseNumber,
 				logoUrl,
@@ -942,6 +944,22 @@
 								<p class="text-xs text-muted-foreground">
 									Round billed time up to this increment on hourly invoices (e.g. 15 rounds
 									47&#8202;min up to 60). 0 = bill exact minutes.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="mat-markup">Materials markup %</Field.Label>
+								<Input
+									id="mat-markup"
+									type="number"
+									min="0"
+									max="100"
+									step="1"
+									class="w-24"
+									bind:value={materialsMarkup}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Sell price prefilled when logging materials on a job (cost × 1+markup). 0 = bill
+									at cost.
 								</p>
 							</Field.Field>
 							<div class="flex items-center justify-between">

@@ -14,6 +14,7 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
 	import * as Select from '#lib/components/ui/select/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { toast } from 'svelte-sonner';
 	import {
 		getInventory,
@@ -85,6 +86,7 @@
 	let location = $state('');
 	let supplierSku = $state('');
 	let category = $state('');
+	let billable = $state(true);
 
 	function openItem(i?: (typeof rows)[number]) {
 		itemId = i?.item.id ?? null;
@@ -99,6 +101,7 @@
 		location = i?.item.location ?? '';
 		supplierSku = i?.item.supplierSku ?? '';
 		category = i?.item.category ?? '';
+		billable = i?.item.billable ?? true;
 		open = true;
 	}
 
@@ -111,6 +114,7 @@
 				sku,
 				supplierSku,
 				category,
+				billable,
 				unit,
 				location,
 				qtyOnHand,
@@ -746,6 +750,15 @@
 				<Field.Label for="inv-notes">Notes</Field.Label>
 				<Textarea id="inv-notes" rows={2} bind:value={notes} />
 			</Field.Field>
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-sm">Billable to customer</p>
+					<p class="text-xs text-muted-foreground">
+						Off for shop supplies — excluded from invoice prefill.
+					</p>
+				</div>
+				<Switch bind:checked={billable} />
+			</div>
 			<Dialog.Footer>
 				<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
 			</Dialog.Footer>

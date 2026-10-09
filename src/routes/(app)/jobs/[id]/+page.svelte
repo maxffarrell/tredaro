@@ -130,6 +130,7 @@
 	// ------- edit fields -------
 	let jobTypeId = $state(j.job.jobTypeId ?? '');
 	let technicianId = $state(j.job.technicianId ?? '');
+	let helperId = $state(j.job.helperId ?? '');
 	let officeId = $state(j.job.officeId ?? '');
 	let serviceLocationId = $state(j.job.serviceLocationId ?? '');
 	let equipmentId = $state(j.job.equipmentId ?? '');
@@ -167,6 +168,7 @@
 			loadedId = j.job.id;
 			jobTypeId = j.job.jobTypeId ?? '';
 			technicianId = j.job.technicianId ?? '';
+			helperId = j.job.helperId ?? '';
 			officeId = j.job.officeId ?? '';
 			serviceLocationId = j.job.serviceLocationId ?? '';
 			equipmentId = j.job.equipmentId ?? '';
@@ -198,6 +200,7 @@
 				id,
 				jobTypeId: jobTypeId || null,
 				technicianId: technicianId || null,
+				helperId: helperId || null,
 				officeId: officeId || null,
 				serviceLocationId: serviceLocationId || null,
 				equipmentId: equipmentId || null,
@@ -582,7 +585,8 @@
 	);
 	function pickMat(v: string) {
 		matItem = v;
-		matPrice = stock.find((s) => s.item.id === v)?.item.unitCost ?? 0;
+		const cost = stock.find((s) => s.item.id === v)?.item.unitCost ?? 0;
+		matPrice = Math.round(cost * (1 + settings.materialsMarkupBps / 10_000));
 		matSource = 'warehouse';
 	}
 	async function logMaterial(e: SubmitEvent) {
@@ -1119,6 +1123,21 @@
 						</Select.Root>
 					</Field.Field>
 					<Field.Field>
+						<Field.Label>Helper</Field.Label>
+						<Select.Root type="single" bind:value={helperId}>
+							<Select.Trigger class="w-full"
+								>{technicians.find((t) => t.id === helperId)?.name ?? 'None'}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">None</Select.Item>
+								{#each technicians.filter((t) => t.id !== technicianId) as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<Field.Description>Second tech — sees it on My Day.</Field.Description>
+					</Field.Field>
+					<Field.Field>
 						<Field.Label>Office</Field.Label>
 						<Select.Root type="single" bind:value={officeId}>
 							<Select.Trigger class="w-full"
@@ -1566,6 +1585,9 @@
 									{/if}{localDate(m.material.createdAt, tz)}
 									{#if m.material.sourceMemberId}
 										<Badge variant="outline" class="ml-1">from truck</Badge>
+									{/if}
+									{#if !m.itemBillable}
+										<Badge variant="outline" class="ml-1">non-billable</Badge>
 									{/if}
 								</p>
 							</div>
