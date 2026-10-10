@@ -382,6 +382,17 @@
 			: `${min}m`;
 	};
 	const totalMin = $derived(time.entries.reduce((s, e) => s + minutes(e.entry), 0));
+	// First timestamp per status ping, for the proof-of-arrival block in Details.
+	const pings = $derived.by(() => {
+		const at = (k: string) => j.events.find((e) => e.event.kind === k)?.event.at ?? null;
+		const enRoute = at('en_route');
+		const onSite = at('on_site');
+		const done = at('completed') ?? j.job.completedAt;
+		const onSiteMin = onSite
+			? Math.max(0, Math.round(((done?.getTime() ?? Date.now()) - onSite.getTime()) / 60000))
+			: null;
+		return { enRoute, onSite, onSiteMin };
+	});
 	const unapprovedCount = $derived(
 		time.entries.filter((e) => e.entry.endedAt && !e.entry.approvedAt).length
 	);
@@ -1328,6 +1339,31 @@
 					<div class="flex justify-between">
 						<span class="text-muted-foreground">Completed</span><span
 							>{formatDate(j.job.completedAt)}</span
+						>
+					</div>
+				{/if}
+				{#if pings.enRoute}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">En route</span><span
+							>{localDate(pings.enRoute, tz)} {localTime(pings.enRoute, tz)}</span
+						>
+					</div>
+				{/if}
+				{#if pings.onSite}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">On site</span><span
+							>{localDate(pings.onSite, tz)} {localTime(pings.onSite, tz)}</span
+						>
+					</div>
+				{/if}
+				{#if pings.onSiteMin != null}
+					<div class="flex justify-between">
+						<span class="text-muted-foreground">Time on site</span><span
+							>{fmtDur(pings.onSiteMin)}{pings.onSite &&
+							!j.job.completedAt &&
+							j.job.status === 'in_progress'
+								? ' so far'
+								: ''}</span
 						>
 					</div>
 				{/if}

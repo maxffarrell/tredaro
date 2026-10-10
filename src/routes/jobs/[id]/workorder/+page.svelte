@@ -4,6 +4,7 @@
 	import Printer from '@lucide/svelte/icons/printer';
 	import { getJob, getJobChecklist, getJobPhotos } from '#lib/remote/jobs.remote.ts';
 	import { getJobMaterials } from '#lib/remote/inventory.remote.ts';
+	import { getCustomer } from '#lib/remote/customers.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
 	import { formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
@@ -14,6 +15,8 @@
 	const materials = await getJobMaterials({ jobId: id });
 	const photos = await getJobPhotos(id);
 	const settings = await getSettings();
+	const cust = await getCustomer(j.job.customerId);
+	const contact = cust.contacts.find((c) => c.isPrimary) ?? cust.contacts[0] ?? null;
 
 	const addr = [j.locationLabel ? `${j.locationLabel}:` : '', j.address1, j.city, j.state]
 		.filter(Boolean)
@@ -59,6 +62,13 @@
 				{#if addr}<p>{addr}</p>{/if}
 				{#if j.accessNotes}
 					<p class="mt-1 font-medium">Access: {j.accessNotes}</p>
+				{/if}
+				{#if contact}
+					<p>
+						Contact: {contact.name}{contact.role ? ` (${contact.role})` : ''}{contact.phone
+							? ` — ${contact.phone}`
+							: ''}
+					</p>
 				{/if}
 			</div>
 			<div>

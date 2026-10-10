@@ -212,6 +212,7 @@
 			: 0
 	);
 	const doneThisWeek = $derived(board.scheduled.filter((j) => j.job.status === 'done').length);
+	const onSiteNow = $derived(board.scheduled.filter((j) => j.job.status === 'in_progress').length);
 	let queueSort = $state<'priority' | 'oldest'>('priority');
 	const filteredQueue = $derived.by(() => {
 		const q = queueFilter.trim()
@@ -523,6 +524,11 @@
 			{/if}
 			{#if doneThisWeek}
 				<Badge class="hidden md:inline-flex" variant="outline">{doneThisWeek} done</Badge>
+			{/if}
+			{#if onSiteNow}
+				<Badge variant="outline" class="text-green-600 dark:text-green-400"
+					>{onSiteNow} on site now</Badge
+				>
 			{/if}
 			{#if techsOn}
 				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex"
