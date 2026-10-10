@@ -1235,6 +1235,28 @@ export const customerDocument = pgTable(
 	(t) => [index('customer_document_customer_idx').on(t.customerId)]
 );
 
+/** Staff-side files on a team member — certifications, licenses, insurance. */
+export const memberDocument = pgTable(
+	'member_document',
+	{
+		id: id(),
+		organizationId: orgId(),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => member.id, { onDelete: 'cascade' }),
+		uploadedById: text('uploaded_by_id').references(() => member.id, { onDelete: 'set null' }),
+		label: text('label').notNull().default(''),
+		fileName: text('file_name').notNull(),
+		mime: text('mime').notNull(),
+		size: integer('size').notNull(),
+		path: text('path').notNull(),
+		/** Optional expiry (license/cert renewals) — feeds the dashboard attention card. */
+		expiresOn: date('expires_on', { mode: 'string' }),
+		...timestamps
+	},
+	(t) => [index('member_document_member_idx').on(t.memberId)]
+);
+
 /** Arbitrary file attachments on a job (permits, contracts, signed paperwork). */
 export const jobDocument = pgTable(
 	'job_document',

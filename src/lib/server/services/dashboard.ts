@@ -31,6 +31,7 @@ import {
 	jobType,
 	jobTimeEntry,
 	member,
+	memberDocument,
 	memberTimeOff,
 	payment,
 	pricebookItem,
@@ -327,6 +328,28 @@ export async function dashboard(orgId: string) {
 			)
 		)
 		.orderBy(asc(customerDocument.expiresOn))
+		.limit(4);
+
+	// Member documents (licenses, certs, insurance) expiring within 30 days.
+	const expiringMemberDocs = await db
+		.select({
+			fileName: memberDocument.fileName,
+			label: memberDocument.label,
+			expiresOn: memberDocument.expiresOn,
+			memberId: member.id,
+			memberName: user.name
+		})
+		.from(memberDocument)
+		.innerJoin(member, eq(memberDocument.memberId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(
+				eq(memberDocument.organizationId, orgId),
+				isNotNull(memberDocument.expiresOn),
+				lte(memberDocument.expiresOn, warrantyHorizon)
+			)
+		)
+		.orderBy(asc(memberDocument.expiresOn))
 		.limit(4);
 
 	// Customers whose last completed job is >90 days back with nothing open —
@@ -713,6 +736,13 @@ export async function dashboard(orgId: string) {
 				tone: (d.expiresOn! < today ? 'red' : 'amber') as 'red' | 'amber',
 				href: `/customers/${d.customerId}`,
 				text: `${d.customerName} · ${d.fileName}`,
+				sub: `${d.expiresOn! < today ? 'expired' : 'expires'} ${d.expiresOn}`,
+				amountCents: null as number | null
+			})),
+			...expiringMemberDocs.map((d) => ({
+				tone: (d.expiresOn! < today ? 'red' : 'amber') as 'red' | 'amber',
+				href: `/team/${d.memberId}`,
+				text: `${d.memberName} · ${d.label || d.fileName}`,
 				sub: `${d.expiresOn! < today ? 'expired' : 'expires'} ${d.expiresOn}`,
 				amountCents: null as number | null
 			})),

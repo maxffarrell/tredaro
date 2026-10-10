@@ -12,6 +12,7 @@ import {
 	jobDocument,
 	jobPhoto,
 	member,
+	memberDocument,
 	user
 } from '#lib/server/db/schema.ts';
 import type { OrgContext } from '#lib/server/context.ts';
@@ -514,6 +515,111 @@ export async function deleteCustomerDoc(ctx: OrgContext, id: string) {
 	const [row] = await db
 		.delete(customerDocument)
 		.where(and(eq(customerDocument.id, id), eq(customerDocument.organizationId, ctx.orgId)))
+		.returning();
+	if (!row) error(404, 'Document not found');
+	await unlink(row.path).catch(() => {});
+	return row;
+}
+
+export async function listMemberDocs(orgId: string, memberId: string) {
+	return db
+		.select({
+			id: memberDocument.id,
+			label: memberDocument.label,
+			fileName: memberDocument.fileName,
+			mime: memberDocument.mime,
+			size: memberDocument.size,
+			expiresOn: memberDocument.expiresOn,
+			uploadedBy: user.name,
+			createdAt: memberDocument.createdAt
+		})
+		.from(memberDocument)
+		.leftJoin(member, eq(memberDocument.uploadedById, member.id))
+		.leftJoin(user, eq(member.userId, user.id))
+		.where(and(eq(memberDocument.organizationId, orgId), eq(memberDocument.memberId, memberId)))
+		.orderBy(desc(memberDocument.createdAt));
+}
+
+export async function saveMemberDoc(
+	ctx: OrgContext,
+	memberId: string,
+	label: string,
+	file: { name: string; type: string; size: number; bytes: Uint8Array }
+) {
+	const [target] = await db
+		.select({ id: member.id })
+		.from(member)
+		.where(and(eq(member.id, memberId), eq(member.organizationId, ctx.orgId)))
+		.limit(1);
+	if (!target) error(404, 'Member not found');
+	if (!DOC_ALLOWED.has(file.type))
+		error(400, 'Unsupported file type — upload a PDF, image, Word, Excel, CSV or text file');
+	if (file.size > MAX_BYTES) error(400, 'File is larger than 15 MB');
+
+	const id = crypto.randomUUID();
+	const safe = (file.name || 'document').replace(/[^\w.\-() ]+/g, '_').slice(-80) || 'document';
+	const dir = storageDir(ctx.orgId);
+	await mkdir(dir, { recursive: true });
+	const rel = join(dir, `mdoc-${id}-${safe}`);
+	await writeFile(rel, file.bytes);
+
+	const [me] = await db
+		.select({ id: member.id })
+		.from(member)
+		.where(and(eq(member.userId, ctx.userId), eq(member.organizationId, ctx.orgId)))
+		.limit(1);
+
+	const [row] = await db
+		.insert(memberDocument)
+		.values({
+			id,
+			organizationId: ctx.orgId,
+			memberId,
+			uploadedById: me?.id ?? null,
+			label: label.slice(0, 120),
+			fileName: safe,
+			mime: file.type,
+			size: file.size,
+			path: rel
+		})
+		.returning();
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'member',
+		entityId: memberId,
+		action: 'document_added',
+		summary: `Document "${safe}" added to a team member`
+	});
+	return row;
+}
+
+export async function readMemberDoc(orgId: string, id: string) {
+	const [row] = await db
+		.select()
+		.from(memberDocument)
+		.where(and(eq(memberDocument.id, id), eq(memberDocument.organizationId, orgId)))
+		.limit(1);
+	if (!row) error(404, 'Document not found');
+	const bytes = await readFile(row.path);
+	return { row, bytes };
+}
+
+/** Sets (or clears) a member document's expiry — license/cert renewals. */
+export async function setMemberDocExpiry(ctx: OrgContext, id: string, expiresOn: string | null) {
+	const [row] = await db
+		.update(memberDocument)
+		.set({ expiresOn })
+		.where(and(eq(memberDocument.id, id), eq(memberDocument.organizationId, ctx.orgId)))
+		.returning({ id: memberDocument.id });
+	if (!row) error(404, 'Document not found');
+	return row;
+}
+
+export async function deleteMemberDoc(ctx: OrgContext, id: string) {
+	const [row] = await db
+		.delete(memberDocument)
+		.where(and(eq(memberDocument.id, id), eq(memberDocument.organizationId, ctx.orgId)))
 		.returning();
 	if (!row) error(404, 'Document not found');
 	await unlink(row.path).catch(() => {});

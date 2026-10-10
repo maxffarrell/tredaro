@@ -744,3 +744,11 @@ export const scheduleUpdate = v.object({
 	nextDueOn: v.optional(isoDate),
 	active: v.optional(v.boolean())
 });
+
+export const memberDocDeleteInput = v.object({ id: idSchema, memberId: idSchema });
+
+export const memberDocExpiryInput = v.object({
+	id: idSchema,
+	memberId: idSchema,
+	expiresOn: v.optional(v.nullable(isoDate))
+});

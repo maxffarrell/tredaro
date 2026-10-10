@@ -26,6 +26,7 @@ import { appOrigin } from '#lib/server/email.ts';
 import { createInvoice } from './billing.ts';
 import { listJobMaterials } from './inventory.ts';
 import { listFollowUps } from './followups.ts';
+import { listMemberDocs } from './photos.ts';
 import {
 	bookingWaitlist,
 	charge,
@@ -2971,6 +2972,7 @@ export async function memberProfile(orgId: string, memberId: string) {
 		avgRating: rating[0]?.avg ?? null,
 		ratingCount: rating[0]?.n ?? 0,
 		tips30: { n: tips30[0]?.n ?? 0, total: tips30[0]?.total ?? 0 },
+		documents: await listMemberDocs(orgId, memberId),
 		upcoming,
 		recentDone,
 		entries,

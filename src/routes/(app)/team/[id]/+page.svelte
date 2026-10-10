@@ -3,11 +3,25 @@
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import { getMemberProfile, getJobTypes } from '#lib/remote/jobs.remote.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import Paperclip from '@lucide/svelte/icons/paperclip';
+	import { toast } from 'svelte-sonner';
+	import {
+		getMemberProfile,
+		getJobTypes,
+		removeMemberDoc,
+		setMemberDocExpiry
+	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
-	import { formatDate, formatMoney, formatRelative } from '#lib/format.ts';
+	import { errMsg, formatDate, formatMoney, formatRelative } from '#lib/format.ts';
 	import { localTime } from '#lib/tz.ts';
 
 	const id = $derived(page.params.id!);
@@ -41,6 +55,66 @@
 			)
 		);
 	const todayStr = $derived(new Date().toISOString().slice(0, 10));
+
+	let docUploading = $state(false);
+	let docLabel = $state('');
+	async function uploadDoc(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		docUploading = true;
+		try {
+			const form = new FormData();
+			form.set('file', file);
+			if (docLabel.trim()) form.set('label', docLabel.trim());
+			const res = await fetch(`/api/team/${id}/documents`, { method: 'POST', body: form });
+			if (!res.ok) {
+				const body = await res.json().catch(() => null);
+				throw new Error(body?.message ?? `Upload failed (${res.status})`);
+			}
+			await getMemberProfile(id).refresh();
+			docLabel = '';
+			toast.success('Document added');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not upload document'));
+		}
+		input.value = '';
+		docUploading = false;
+	}
+
+	let expDocId = $state('');
+	let expDate = $state('');
+	let expOpen = $state(false);
+	function openDocExpiry(d: { id: string; expiresOn: string | null }) {
+		expDocId = d.id;
+		expDate = d.expiresOn ?? '';
+		expOpen = true;
+	}
+	async function saveDocExpiry() {
+		try {
+			await setMemberDocExpiry({ id: expDocId, memberId: id, expiresOn: expDate || null });
+			expOpen = false;
+			toast.success('Expiry updated');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not set expiry'));
+		}
+	}
+	function docExpiryTone(expiresOn: string | null) {
+		if (!expiresOn) return '';
+		const days = Math.floor(
+			(new Date(`${expiresOn}T12:00:00Z`).getTime() - Date.now()) / 86_400_000
+		);
+		return days < 0
+			? 'text-red-600 dark:text-red-400'
+			: days <= 30
+				? 'text-amber-600 dark:text-amber-400'
+				: '';
+	}
+	function docSize(bytes: number) {
+		return bytes >= 1_048_576
+			? `${(bytes / 1_048_576).toFixed(1)} MB`
+			: `${Math.max(1, Math.round(bytes / 1024))} KB`;
+	}
 </script>
 
 <PageHeader title={p.member.name} crumbs={[{ label: 'Team', href: '/settings' }]}>
@@ -176,6 +250,90 @@
 				</Card.Content>
 			</Card.Root>
 		{/if}
+
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between gap-2">
+				<Card.Title class="text-base"
+					>Documents{#if p.documents.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground"
+							>({p.documents.length})</span
+						>{/if}</Card.Title
+				>
+				<div class="flex items-center gap-2">
+					<Input class="h-8 w-28 text-xs" placeholder="Label" bind:value={docLabel} />
+					<label
+						class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors hover:bg-accent {docUploading
+							? 'pointer-events-none opacity-60'
+							: ''}"
+					>
+						<Paperclip class="size-4" />
+						{docUploading ? 'Uploading…' : 'Upload'}
+						<input type="file" class="sr-only" disabled={docUploading} onchange={uploadDoc} />
+					</label>
+				</div>
+			</Card.Header>
+			<Card.Content class="space-y-2 px-4">
+				{#each p.documents as d (d.id)}
+					<div class="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+						<div class="flex min-w-0 flex-1 items-center gap-2">
+							<FileText class="size-4 shrink-0 text-muted-foreground" />
+							<div class="min-w-0">
+								<a
+									href="/files/member-document/{d.id}"
+									target="_blank"
+									class="block truncate font-medium hover:underline"
+									>{#if d.label}{d.label} ·
+									{/if}{d.fileName}</a
+								>
+								<span class="flex items-center gap-1 text-xs text-muted-foreground"
+									>{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
+										? ` · ${d.uploadedBy}`
+										: ''}{#if d.expiresOn}
+										<span class={docExpiryTone(d.expiresOn)}>· expires {d.expiresOn}</span
+										>{/if}</span
+								>
+							</div>
+						</div>
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger
+								class="inline-flex size-7 shrink-0 items-center justify-center rounded-md hover:bg-accent"
+							>
+								<EllipsisVertical class="size-4" />
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="end">
+								<DropdownMenu.Item onclick={() => openDocExpiry(d)}>Set expiry…</DropdownMenu.Item>
+								{#if d.expiresOn}
+									<DropdownMenu.Item
+										onclick={() =>
+											setMemberDocExpiry({
+												id: d.id,
+												memberId: id,
+												expiresOn: null
+											}).updates(getMemberProfile)}>Clear expiry</DropdownMenu.Item
+									>
+								{/if}
+								<DropdownMenu.Item
+									class="text-destructive"
+									onclick={() =>
+										removeMemberDoc({ id: d.id, memberId: id }).updates(getMemberProfile)}
+									>Remove</DropdownMenu.Item
+								>
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					</div>
+				{:else}
+					<Empty.Root class="border-0 py-2">
+						<Empty.Header>
+							<Empty.Media><Paperclip /></Empty.Media>
+							<Empty.Title class="text-sm">No documents</Empty.Title>
+							<Empty.Description class="text-xs"
+								>Licenses, certifications and insurance for this tech.</Empty.Description
+							>
+						</Empty.Header>
+					</Empty.Root>
+				{/each}
+			</Card.Content>
+		</Card.Root>
 	</div>
 
 	<div class="space-y-6 xl:col-span-2">
@@ -310,3 +468,27 @@
 		</Card.Root>
 	</div>
 </div>
+
+<Dialog.Root bind:open={expOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Document expiry</Dialog.Title>
+			<Dialog.Description>
+				License, cert or insurance expiry — surfaces on the dashboard when it's within 30 days.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			class="space-y-4"
+			onsubmit={(e) => {
+				e.preventDefault();
+				saveDocExpiry();
+			}}
+		>
+			<Input type="date" bind:value={expDate} />
+			<Dialog.Footer>
+				<Button type="button" variant="outline" onclick={() => (expOpen = false)}>Cancel</Button>
+				<Button type="submit">Save</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>

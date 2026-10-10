@@ -24,6 +24,8 @@ import {
 	jobEventInput,
 	jobInput,
 	jobTypeInput,
+	memberDocDeleteInput,
+	memberDocExpiryInput,
 	jobTypeUpdate,
 	jobUpdate,
 	scheduleVisitsInput,
@@ -130,6 +132,23 @@ export const getTechnicians = query(async () => svc.listTechnicians((await requi
 export const getMemberProfile = query(idSchema, async (id) =>
 	svc.memberProfile((await requireOrg()).orgId, id)
 );
+
+export const removeMemberDoc = command(memberDocDeleteInput, async (input) => {
+	await photosSvc.deleteMemberDoc(await requireOrg(), input.id);
+	await refreshQuery(getMemberProfile, input.memberId);
+	return { ok: true };
+});
+
+export const setMemberDocExpiry = command(memberDocExpiryInput, async (input) => {
+	await photosSvc.setMemberDocExpiry(await requireOrg(), input.id, input.expiresOn ?? null);
+	await refreshQuery(getMemberProfile, input.memberId);
+	return { ok: true };
+});
+
+export const refreshMemberProfile = command(idSchema, async (memberId) => {
+	await refreshQuery(getMemberProfile, memberId);
+	return { ok: true };
+});
 
 /** Triage a booking waitlist signup on the dispatch board. */
 export const updateWaitlistStatus = command(
