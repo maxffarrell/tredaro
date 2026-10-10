@@ -130,7 +130,7 @@
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Last 30 days</Card.Title></Card.Header>
 			<Card.Content>
-				<div class="grid grid-cols-3 gap-3 text-center">
+				<div class="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
 					<div>
 						<p class="text-2xl font-semibold tabular-nums">{fmtHours(p.minutes30)}</p>
 						<p class="text-xs text-muted-foreground">logged</p>
@@ -144,6 +144,12 @@
 							{p.avgRating != null ? p.avgRating.toFixed(1) : '—'}
 						</p>
 						<p class="text-xs text-muted-foreground">avg rating ({p.ratingCount})</p>
+					</div>
+					<div>
+						<p class="text-2xl font-semibold tabular-nums">
+							{formatMoney(p.tips30.total, currency)}
+						</p>
+						<p class="text-xs text-muted-foreground">tips ({p.tips30.n})</p>
 					</div>
 				</div>
 			</Card.Content>

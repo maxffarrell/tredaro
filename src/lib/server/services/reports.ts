@@ -802,7 +802,29 @@ async function tipsCollected(orgId: string) {
 				gte(payment.paidAt, new Date(Date.now() - 30 * 86400_000))
 			)
 		);
-	return row ?? { n: 0, total: 0 };
+	const byTech = await db
+		.select({
+			name: user.name,
+			n: sql<number>`count(*)`.mapWith(Number),
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(job, eq(charge.jobId, job.id))
+		.innerJoin(member, eq(job.technicianId, member.id))
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				eq(charge.kind, 'other'),
+				sql`${charge.description} like 'Tip —%'`,
+				isNotNull(charge.jobId),
+				gte(payment.paidAt, new Date(Date.now() - 30 * 86400_000))
+			)
+		)
+		.groupBy(user.name)
+		.orderBy(desc(sql`sum(${payment.amount})`));
+	return { ...(row ?? { n: 0, total: 0 }), byTech };
 }
 
 /** Spend committed on open purchase orders (draft + ordered). */

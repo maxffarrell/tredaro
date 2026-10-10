@@ -569,6 +569,17 @@
 					>
 					across {r.tips.n} tip{r.tips.n === 1 ? '' : 's'}
 				</p>
+				{#if r.tips.byTech?.length}
+					<ul class="pt-1 text-sm text-muted-foreground">
+						{#each r.tips.byTech as t (t.name)}
+							<li>
+								{t.name} —
+								<span class="font-medium text-foreground">{formatMoney(t.total, currency)}</span>
+								({t.n})
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			{/if}
 		</Card.Content>
 	</Card.Root>

@@ -2801,7 +2801,7 @@ export async function memberProfile(orgId: string, memberId: string) {
 	const tz = (await getSettings(orgId)).timezone;
 	const today = localDate(new Date(), tz);
 	const cut30 = new Date(Date.now() - 30 * 86400_000);
-	const [entries, stats, rating, upcoming, recentDone, timeOff] = await Promise.all([
+	const [entries, stats, rating, upcoming, recentDone, timeOff, tips30] = await Promise.all([
 		db
 			.select({
 				id: jobTimeEntry.id,
@@ -2873,7 +2873,24 @@ export async function memberProfile(orgId: string, memberId: string) {
 					gte(memberTimeOff.endsOn, today)
 				)
 			)
-			.orderBy(asc(memberTimeOff.startsOn))
+			.orderBy(asc(memberTimeOff.startsOn)),
+		db
+			.select({
+				n: sql<number>`count(*)`.mapWith(Number),
+				total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+			})
+			.from(payment)
+			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(job, eq(charge.jobId, job.id))
+			.where(
+				and(
+					eq(payment.organizationId, orgId),
+					eq(charge.kind, 'other'),
+					sql`${charge.description} like 'Tip —%'`,
+					eq(job.technicianId, memberId),
+					gte(payment.paidAt, cut30)
+				)
+			)
 	]);
 	return {
 		member: m,
@@ -2881,6 +2898,7 @@ export async function memberProfile(orgId: string, memberId: string) {
 		minutes30: Math.max(0, Math.round(stats[0]?.minutes30 ?? 0)),
 		avgRating: rating[0]?.avg ?? null,
 		ratingCount: rating[0]?.n ?? 0,
+		tips30: { n: tips30[0]?.n ?? 0, total: tips30[0]?.total ?? 0 },
 		upcoming,
 		recentDone,
 		entries,

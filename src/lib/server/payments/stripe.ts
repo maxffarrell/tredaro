@@ -2,7 +2,14 @@ import Stripe from 'stripe';
 import { error } from '@sveltejs/kit';
 import { TREDARO_CLOUD, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
-import { charge, customer, payment, paymentProvider, user } from '#lib/server/db/schema.ts';
+import {
+	charge,
+	customer,
+	invoice,
+	payment,
+	paymentProvider,
+	user
+} from '#lib/server/db/schema.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import { and, eq } from 'drizzle-orm';
 import { recordOnlinePayment } from './record.ts';
@@ -69,11 +76,21 @@ async function onCheckoutPaid(event: Stripe.Event, session: Stripe.Checkout.Sess
 			.where(eq(payment.externalId, tipExtId))
 			.limit(1);
 		if (!existing) {
+			const [inv] = await db
+				.select({ jobId: invoice.jobId })
+				.from(invoice)
+				.where(
+					and(
+						eq(invoice.organizationId, orgId),
+						eq(invoice.id, session.metadata.tredaroTipInvoiceId)
+					)
+				);
 			const [tipCharge] = await db
 				.insert(charge)
 				.values({
 					organizationId: orgId,
 					customerId,
+					jobId: inv?.jobId ?? null,
 					kind: 'other',
 					description: `Tip — ${session.metadata.tredaroTipInvoiceNumber ?? 'invoice payment'}`,
 					dueDate: new Date().toISOString().slice(0, 10),
