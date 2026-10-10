@@ -893,6 +893,8 @@ export const inventoryItem = pgTable(
 		supplierSku: text('supplier_sku').notNull().default(''),
 		/** Supplier to order from — wins over last-order lookup on Order parts. */
 		preferredSupplier: text('preferred_supplier').notNull().default(''),
+		/** UPC/EAN — searchable for scan-pick workflows. */
+		barcode: text('barcode').notNull().default(''),
 		qtyOnHand: integer('qty_on_hand').notNull().default(0),
 		/** Attention-card alert when on-hand drops to this level; null = never alert. */
 		reorderPoint: integer('reorder_point'),

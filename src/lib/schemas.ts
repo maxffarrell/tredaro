@@ -263,6 +263,7 @@ export const inventoryItemInput = v.object({
 	location: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
 	supplierSku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
 	preferredSupplier: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ''),
+	barcode: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(64)), ''),
 	category: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
 	billable: v.optional(v.boolean(), true),
 	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
