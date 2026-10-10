@@ -102,6 +102,8 @@ export const member = pgTable(
 		overtimePct: integer('overtime_pct').default(150).notNull(),
 		/** Whether this member gets staff notification emails (bookings, decisions, digest). */
 		staffAlerts: boolean('staff_alerts').default(true).notNull(),
+		/** Mobile number for staff SMS hot alerts (bookings, cancel requests, disputes). */
+		phone: text('phone').notNull().default(''),
 		/** Comma-joined job_type ids the tech is qualified for; empty = qualified for all. */
 		skillTags: text('skill_tags').notNull().default(''),
 		/** Accent color on the dispatch board column (hex, empty = none). */

@@ -333,7 +333,21 @@
 											We're closed that day — pick another.
 										</p>
 									{/if}
-									{#if noticeDays > 0}
+									{#if data.earliestDay}
+										<p class="text-xs text-muted-foreground">
+											First opening:
+											<button
+												type="button"
+												class="text-primary hover:underline"
+												onclick={() => (preferredDate = data.earliestDay!)}
+												>{new Date(`${data.earliestDay}T00:00:00`).toLocaleDateString('en-US', {
+													weekday: 'short',
+													month: 'short',
+													day: 'numeric'
+												})}</button
+											>
+										</p>
+									{:else if noticeDays > 0}
 										<p class="text-xs text-muted-foreground">
 											Earliest available day is {minDate}.
 										</p>

@@ -69,7 +69,55 @@ export async function getPublicCompany(slug: string) {
 		.where(eq(member.organizationId, org.id))
 		.orderBy(asc(user.name));
 
-	return { org, settings, plans, jobTypes, offices, techs };
+	// First bookable day — hint under "Preferred date". Respects the notice
+	// window, horizon, blackout dates, and the daily booking cap.
+	let earliestDay: string | null = null;
+	{
+		const start = new Date();
+		start.setDate(
+			start.getDate() + (settings.bookingNoticeDays > 0 ? settings.bookingNoticeDays : 0)
+		);
+		const horizonDays = settings.bookingMaxDaysAhead > 0 ? settings.bookingMaxDaysAhead : 60;
+		const closed = settings.bookingBlackouts
+			.split(',')
+			.map((d) => d.trim())
+			.filter(Boolean);
+		const from = start.toISOString().slice(0, 10);
+		const end = new Date(start);
+		end.setDate(end.getDate() + horizonDays);
+		const to = end.toISOString().slice(0, 10);
+		const counts = new Map<string, number>();
+		if (settings.bookingDailyLimit > 0) {
+			const rows = await db
+				.select({
+					day: sql<string>`substr(${job.preferredTime}, 1, 10)`,
+					n: sql<number>`count(*)`.mapWith(Number)
+				})
+				.from(job)
+				.where(
+					and(
+						eq(job.organizationId, org.id),
+						eq(job.source, 'booking'),
+						sql`substr(${job.preferredTime}, 1, 10) between ${from} and ${to}`,
+						sql`${job.cancelledAt} is null`
+					)
+				)
+				.groupBy(sql`substr(${job.preferredTime}, 1, 10)`);
+			for (const r of rows) counts.set(r.day, r.n);
+		}
+		for (let i = 0; i <= horizonDays; i++) {
+			const d = new Date(start);
+			d.setDate(d.getDate() + i);
+			const iso = d.toISOString().slice(0, 10);
+			if (closed.includes(iso)) continue;
+			if (settings.bookingDailyLimit > 0 && (counts.get(iso) ?? 0) >= settings.bookingDailyLimit)
+				continue;
+			earliestDay = iso;
+			break;
+		}
+	}
+
+	return { org, settings, plans, jobTypes, offices, techs, earliestDay };
 }
 
 /**

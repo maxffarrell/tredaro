@@ -39,6 +39,7 @@
 		updateCommission,
 		updateLaborCost,
 		updateLicense,
+		updateMemberPhone,
 		updateOvertimePct,
 		setDispatchVisible,
 		setMemberColor,
@@ -474,6 +475,18 @@
 		try {
 			await updateOvertimePct({ memberId: s.id, overtimePct: pct }).updates(getStaff);
 			toast.success(`Overtime set to ${pct}%`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not save'));
+		}
+	}
+
+	async function saveMemberPhone(s: (typeof staff)[number], el: Event) {
+		try {
+			await updateMemberPhone({
+				memberId: s.id,
+				phone: (el.target as HTMLInputElement).value
+			}).updates(getStaff);
+			toast.success('SMS number saved');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not save'));
 		}
@@ -1311,6 +1324,18 @@
 											onCheckedChange={(v) => saveStaffAlerts(s, v)}
 										/>
 										alerts
+									</label>
+									<label
+										class="flex items-center gap-1 text-xs text-muted-foreground"
+										title="Mobile for hot-alert texts — new bookings, cancel requests, charge disputes, portal messages"
+									>
+										<Input
+											class="h-7 w-28"
+											placeholder="SMS #"
+											value={s.phone ?? ''}
+											onchange={(e) => saveMemberPhone(s, e)}
+										/>
+										sms
 									</label>
 									<label
 										class="flex items-center gap-1 text-xs text-muted-foreground"

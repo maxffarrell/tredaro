@@ -48,6 +48,7 @@
 		sendJobEta,
 		sendServiceReport,
 		reviewBooking,
+		resolveVisitCancel,
 		approveTimeEntry,
 		approveAllTimeEntries
 	} from '#lib/remote/jobs.remote.ts';
@@ -792,6 +793,20 @@
 		reviewing = false;
 	}
 
+	let cancelReviewing = $state(false);
+	async function answerCancel(approve: boolean) {
+		cancelReviewing = true;
+		try {
+			await resolveVisitCancel({ jobId: id, approve }).updates(getJob, getJobs, getDispatchBoard);
+			toast[approve ? 'success' : 'info'](
+				approve ? 'Visit cancelled — customer notified' : 'Request declined — visit stays scheduled'
+			);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not answer the request'));
+		}
+		cancelReviewing = false;
+	}
+
 	let note = $state('');
 	async function addNote(e: SubmitEvent) {
 		e.preventDefault();
@@ -1014,6 +1029,31 @@
 						class="text-destructive"
 						disabled={reviewing}
 						onclick={() => review(false)}>Decline</Button
+					>
+				</span>
+			</Alert.Description>
+		</Alert.Root>
+	</div>
+{/if}
+
+{#if j.cancelRequested && j.job.status !== 'cancelled'}
+	<div class="px-4 pt-4 md:px-6 md:pt-6">
+		<Alert.Root
+			class="border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"
+		>
+			<UserX />
+			<Alert.Title>Customer asked to cancel this visit</Alert.Title>
+			<Alert.Description class="flex flex-wrap items-center gap-x-4 gap-y-2">
+				<span>Approve the request to cancel the job, or decline it and keep the visit.</span>
+				<span class="flex gap-2">
+					<Button size="sm" disabled={cancelReviewing} onclick={() => answerCancel(true)}
+						>Approve &amp; cancel</Button
+					>
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={cancelReviewing}
+						onclick={() => answerCancel(false)}>Keep scheduled</Button
 					>
 				</span>
 			</Alert.Description>
