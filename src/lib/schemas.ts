@@ -291,7 +291,10 @@ export const jobTypeKitInput = v.object({
 
 export const jobMaterialInput = v.object({
 	jobId: idSchema,
-	inventoryItemId: idSchema,
+	/** Null for ad-hoc lines — customName is then required. */
+	inventoryItemId: v.optional(v.nullable(idSchema)),
+	/** Free-text name for ad-hoc lines (no inventory item). */
+	customName: optionalText,
 	qty: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1_000_000)),
 	unitPrice: v.optional(cents, 0),
 	/** Set to take the units from this tech's truck stock instead of the warehouse. */
@@ -584,6 +587,7 @@ export const settingsInput = v.object({
 	reviewUrl: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300))),
 	emailNotifications: v.optional(v.boolean()),
 	smsNotifications: v.optional(v.boolean()),
+	smsSignature: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60))),
 	staffDigest: v.optional(v.boolean()),
 	invoiceTermsDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(365))),
 	estimateValidDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(365))),

@@ -331,7 +331,10 @@ export const updateTimeEntry = command(
 		jobId: idSchema,
 		startedAt: localDateTime,
 		endedAt: v.optional(v.nullable(localDateTime)),
-		note: optionalText
+		note: optionalText,
+		breakMin: v.optional(
+			v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(720)))
+		)
 	}),
 	async ({ id, ...input }) => {
 		await svc.updateTimeEntry(await requireOrg(), await tz(), id, input);

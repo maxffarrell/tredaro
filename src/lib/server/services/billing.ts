@@ -1,7 +1,19 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
-import { and, asc, desc, eq, getTableColumns, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	getTableColumns,
+	gte,
+	inArray,
+	isNull,
+	lt,
+	or,
+	sql
+} from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -1181,15 +1193,21 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		? await db.select().from(jobType).where(eq(jobType.id, j.jobTypeId))
 		: [];
 	// Materials logged on the job become billable lines at their recorded sell price.
+	// Billable inventory lines + ad-hoc lines (custom names are billable by definition).
 	const mats = await db
 		.select({
-			name: inventoryItem.name,
+			name: sql<string>`coalesce(${inventoryItem.name}, ${jobMaterial.customName})`,
 			qty: jobMaterial.qty,
 			unitPrice: jobMaterial.unitPrice
 		})
 		.from(jobMaterial)
-		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
-		.where(and(eq(jobMaterial.jobId, jobId), eq(inventoryItem.billable, true)));
+		.leftJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+		.where(
+			and(
+				eq(jobMaterial.jobId, jobId),
+				or(eq(inventoryItem.billable, true), isNull(jobMaterial.inventoryItemId))
+			)
+		);
 	// Completed time entries become a Labor line when the job type bills hourly.
 	let labor: {
 		pricebookItemId: null;

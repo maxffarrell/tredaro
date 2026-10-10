@@ -70,7 +70,7 @@ export const addJobMaterial = command(jobMaterialInput, async (input) => {
 	await refreshQuery(getJobMaterials, { jobId: input.jobId });
 	await refreshQuery(getJob, input.jobId);
 	await refreshQuery(getInventory, undefined);
-	await refreshQuery(getItemHistory, input.inventoryItemId);
+	if (input.inventoryItemId) await refreshQuery(getItemHistory, input.inventoryItemId);
 	void getDashboard().refresh();
 	return m;
 });
@@ -80,7 +80,7 @@ export const removeJobMaterial = command(idSchema, async (materialId) => {
 	await refreshQuery(getJobMaterials, { jobId: m.jobId });
 	await refreshQuery(getJob, m.jobId);
 	await refreshQuery(getInventory, undefined);
-	await refreshQuery(getItemHistory, m.inventoryItemId);
+	if (m.inventoryItemId) await refreshQuery(getItemHistory, m.inventoryItemId);
 	void getDashboard().refresh();
 	return m;
 });
