@@ -395,7 +395,7 @@
 	}
 </script>
 
-<div class="flex items-center justify-between gap-3">
+<div class="flex flex-wrap items-center justify-between gap-3">
 	<div>
 		<h1 class="text-2xl font-semibold tracking-tight">Hi, {d.customer.name}</h1>
 		<p class="text-sm text-muted-foreground">
@@ -419,7 +419,7 @@
 			{/if}
 		</p>
 	</div>
-	<div class="flex gap-2">
+	<div class="flex flex-wrap gap-2">
 		<Button
 			onclick={() => {
 				reqType = 'visit';
