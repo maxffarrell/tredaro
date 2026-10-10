@@ -292,6 +292,18 @@ export const textRunningLate = command(
 	}
 );
 
+/** Staff answers a portal cancellation request — approve cancels, decline keeps the visit. */
+export const resolveVisitCancel = command(
+	v.object({ jobId: idSchema, approve: v.boolean() }),
+	async (input) => {
+		const r = await svc.resolveVisitCancel(await requireOrg(), input.jobId, input.approve);
+		await refreshQuery(getJob, input.jobId);
+		await refreshQuery(getMyDay, undefined);
+		await refreshQuery(getDispatchBoard, undefined);
+		return r;
+	}
+);
+
 export const signJob = command(jobSignatureInput, async (input) => {
 	const j = await svc.signJob(await requireOrg(), input);
 	await refreshQuery(getJob, input.jobId);

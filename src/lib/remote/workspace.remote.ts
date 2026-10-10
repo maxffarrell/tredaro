@@ -157,6 +157,7 @@ export const getStaff = query(async () => {
 			laborCostCents: member.laborCostCents,
 			overtimePct: member.overtimePct,
 			staffAlerts: member.staffAlerts,
+			phone: member.phone,
 			skillTags: member.skillTags,
 			color: member.color,
 			dispatchVisible: member.dispatchVisible,
@@ -215,6 +216,23 @@ export const updateOvertimePct = command(overtimeInput, async (input) => {
 	const [row] = await db
 		.update(member)
 		.set({ overtimePct: input.overtimePct })
+		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
+		.returning();
+	if (!row) error(404, 'Member not found');
+	return row;
+});
+
+const memberPhoneInput = v.object({
+	memberId: idSchema,
+	phone: v.pipe(v.string(), v.trim(), v.maxLength(30))
+});
+
+/** Sets a staff member's mobile for hot-alert texts (bookings, cancel requests, disputes). */
+export const updateMemberPhone = command(memberPhoneInput, async (input) => {
+	const { orgId } = await requireOrg();
+	const [row] = await db
+		.update(member)
+		.set({ phone: input.phone })
 		.where(and(eq(member.organizationId, orgId), eq(member.id, input.memberId)))
 		.returning();
 	if (!row) error(404, 'Member not found');

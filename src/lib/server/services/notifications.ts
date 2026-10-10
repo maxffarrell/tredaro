@@ -224,6 +224,34 @@ export async function notifyTimeFlagged(
 }
 
 /** Emails of owner/admin members — recipients of staff-facing alerts. */
+async function staffPhones(orgId: string) {
+	const rows = await db
+		.select({ phone: member.phone })
+		.from(member)
+		.where(
+			and(
+				eq(member.organizationId, orgId),
+				inArray(member.role, ['owner', 'admin']),
+				eq(member.staffAlerts, true)
+			)
+		);
+	return rows.map((r) => r.phone?.trim()).filter((p): p is string => !!p);
+}
+
+/**
+ * Texts admins about hot events (new booking, cancel request, charge dispute,
+ * portal message). Dedupes per kind+entity+phone so the daily re-run or a
+ * double-call can't spam; quiet-hours still apply via sendSmsQuiet.
+ */
+async function textStaffHot(orgId: string, kind: string, entityId: string, body: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.sms) return;
+	for (const to of await staffPhones(orgId)) {
+		if (!(await logOnce(orgId, kind, entityId, to))) continue;
+		await sendSmsQuiet(orgId, { to, body });
+	}
+}
+
 async function adminEmails(orgId: string) {
 	const rows = await db
 		.select({ email: user.email })
@@ -850,6 +878,65 @@ export async function notifyJobCancelled(orgId: string, jobId: string) {
 		await sendSmsQuiet(orgId, {
 			to: row.phone,
 			body: `${name}: ${what} on ${when} was cancelled. Reply to reschedule.`
+		});
+}
+
+/** "Your visit is still on" — customer answer when staff decline a portal cancel request. */
+export async function notifyVisitCancelDeclined(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			email: customer.email,
+			emailOptOut: customer.emailOptOut,
+			smsOptOut: customer.smsOptOut,
+			contactPref: customer.contactPref,
+			phone: customer.phone,
+			customerName: customer.name,
+			number: job.number,
+			startsAt: job.startsAt,
+			jobTypeName: jobType.name,
+			summary: job.summary
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row?.startsAt || (!row.email && !row.phone)) return;
+	const [name, tz] = await Promise.all([orgName(orgId), orgTimezone(orgId)]);
+	const what = row.jobTypeName ?? row.summary;
+	const when = `${localDate(row.startsAt, tz)} at ${localTime(row.startsAt, tz)}`;
+	const smsOk = !!row.phone && !row.smsOptOut && flags.sms && !!smsProvider();
+	if (
+		row.email &&
+		!row.emailOptOut &&
+		flags.email &&
+		(row.contactPref !== 'sms' || !smsOk) &&
+		(await logOnce(orgId, 'cancel_declined', jobId, row.email))
+	)
+		await sendEmail({
+			to: row.email,
+			subject: `Your appointment is still on — ${name}`,
+			...renderEmail({
+				orgName: name,
+				heading: `Good news, ${row.customerName} — your visit stays scheduled`,
+				lines: [
+					`We can't cancel ${what} on ${when}, so the appointment stands.`,
+					'Need a different time instead? Reply to this email or visit the portal.'
+				],
+				action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` }
+			})
+		});
+	if (
+		row.phone &&
+		!row.smsOptOut &&
+		flags.sms &&
+		smsProvider() &&
+		row.contactPref !== 'email' &&
+		(await logOnce(orgId, 'cancel_declined_sms', jobId, row.phone))
+	)
+		await sendSmsQuiet(orgId, {
+			to: row.phone,
+			body: `${name}: we can't cancel ${what} on ${when} — your visit stays scheduled. Reply to reschedule.`
 		});
 }
 
@@ -1873,6 +1960,12 @@ export async function notifyStaffBooking(orgId: string, jobId: string) {
 			})
 		});
 	}
+	await textStaffHot(
+		orgId,
+		'booking_staff_alert',
+		jobId,
+		`New booking: ${row.customerName} — ${row.jobTypeName ?? row.summary}`
+	);
 }
 
 /** Emails admins when a customer asks to cancel an upcoming visit from the portal. */
@@ -1908,6 +2001,12 @@ export async function notifyStaffVisitCancel(orgId: string, jobId: string) {
 			})
 		});
 	}
+	await textStaffHot(
+		orgId,
+		'visit_cancel_request',
+		jobId,
+		`Cancel request: J-${row.number} — ${row.customerName}`
+	);
 }
 
 /** Emails/inbox-pings admins when a portal customer flags an open charge as wrong. */
@@ -1944,6 +2043,12 @@ export async function notifyChargeDispute(orgId: string, chargeId: string) {
 			})
 		});
 	}
+	await textStaffHot(
+		orgId,
+		'charge_dispute',
+		`${row.customerId}:${chargeId}`,
+		`Charge dispute — ${row.customerName}: ${row.description || 'charge'} ${formatMoney(row.amount)}`
+	);
 }
 
 /** Emails/inbox-pings admins when a portal customer sends a free-text message. */
@@ -1970,6 +2075,12 @@ export async function notifyPortalMessage(orgId: string, customerId: string, bod
 			})
 		});
 	}
+	await textStaffHot(
+		orgId,
+		'portal_message',
+		entity,
+		`Portal message — ${c.name}: “${body.slice(0, 80)}”`
+	);
 }
 
 /** Emails admins when an item's on-hand drops to/below its reorder point. Re-arms on restock. */

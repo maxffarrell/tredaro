@@ -13,6 +13,7 @@ import {
 	inArray,
 	isNotNull,
 	isNull,
+	like,
 	lt,
 	lte,
 	ne,
@@ -158,6 +159,11 @@ const jobSelect = {
 	/** True while the predecessor job exists and isn't done or cancelled. */
 	depOpen:
 		sql<boolean>`(select dep.status not in ('done','cancelled') from job dep where dep.id = ${outer(job.dependsOnJobId)})`.mapWith(
+			Boolean
+		),
+	/** Customer asked to cancel and staff haven't approved/declined yet. */
+	cancelRequested:
+		sql<boolean>`(select exists (select 1 from job_event req where req.job_id = ${outer(job.id)} and req.kind = 'note' and req.note like 'Customer requested cancellation%' and not exists (select 1 from job_event res where res.job_id = req.job_id and res.kind = 'note' and res.note like 'Cancellation request %')))`.mapWith(
 			Boolean
 		)
 };
@@ -2626,4 +2632,80 @@ export async function publicServiceReport(id: string) {
 		materials,
 		photos
 	};
+}
+
+/**
+ * Staff answers a customer's portal cancellation request. Approve cancels the
+ * visit through the normal cancel path (timers stopped, customer notified);
+ * decline keeps it and tells the customer it's still on.
+ */
+export async function resolveVisitCancel(ctx: OrgContext, jobId: string, approve: boolean) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId), isNull(job.cancelledAt)));
+	if (!j) error(404, 'Job not found');
+	const [req] = await db
+		.select({ id: jobEvent.id })
+		.from(jobEvent)
+		.where(
+			and(
+				eq(jobEvent.jobId, jobId),
+				eq(jobEvent.kind, 'note'),
+				like(jobEvent.note, 'Customer requested cancellation%')
+			)
+		)
+		.orderBy(desc(jobEvent.at))
+		.limit(1);
+	if (!req) error(409, 'No pending cancellation request');
+	const [handled] = await db
+		.select({ id: jobEvent.id })
+		.from(jobEvent)
+		.where(
+			and(
+				eq(jobEvent.jobId, jobId),
+				eq(jobEvent.kind, 'note'),
+				like(jobEvent.note, 'Cancellation request %')
+			)
+		)
+		.limit(1);
+	if (handled) error(409, 'Cancellation request already handled');
+
+	const me = await memberFor(ctx);
+	if (approve) {
+		const tz = (await getSettings(ctx.orgId)).timezone;
+		await updateJob(ctx, tz, {
+			id: jobId,
+			cancelled: true,
+			cancelReason: 'Customer request'
+		});
+		await db.insert(jobEvent).values({
+			organizationId: ctx.orgId,
+			jobId,
+			kind: 'note',
+			memberId: me?.id ?? null,
+			note: 'Cancellation request approved — visit cancelled'
+		});
+		return { approved: true };
+	}
+	await db.insert(jobEvent).values({
+		organizationId: ctx.orgId,
+		jobId,
+		kind: 'note',
+		memberId: me?.id ?? null,
+		note: 'Cancellation request declined — visit stays scheduled'
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'cancel_declined',
+		summary: `J-${j.number} cancellation request declined`
+	});
+	const { notifyVisitCancelDeclined } = await import('./notifications.ts');
+	notifyVisitCancelDeclined(ctx.orgId, jobId).catch((err) =>
+		console.error('cancel-declined notify failed', err)
+	);
+	return { approved: false };
 }
