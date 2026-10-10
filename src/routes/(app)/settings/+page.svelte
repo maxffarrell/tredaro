@@ -287,6 +287,7 @@
 	let autoInvoiceOnComplete = $state(settings.autoInvoiceOnComplete);
 	let autoSendReport = $state(settings.autoSendReport);
 	let bookingNoticeDays = $state(settings.bookingNoticeDays);
+	let bookingMaxDaysAhead = $state(settings.bookingMaxDaysAhead);
 	let bookingDailyLimit = $state(settings.bookingDailyLimit);
 	let bookingDeposit = $state(settings.bookingDeposit);
 	let bookingEnabled = $state(settings.bookingEnabled);
@@ -363,6 +364,7 @@
 				autoInvoiceOnComplete,
 				autoSendReport,
 				bookingNoticeDays,
+				bookingMaxDaysAhead,
 				bookingDailyLimit,
 				bookingDeposit: bookingDeposit ?? 0,
 				bookingEnabled,
@@ -1069,6 +1071,19 @@
 								/>
 								<p class="text-xs text-muted-foreground">
 									How far ahead customers must book — 0 allows same-day requests.
+								</p>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="s-max-ahead">Book at most (days out)</Field.Label>
+								<Input
+									id="s-max-ahead"
+									type="number"
+									min={0}
+									max={365}
+									bind:value={bookingMaxDaysAhead}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Farthest date customers can request — 0 = no limit.
 								</p>
 							</Field.Field>
 							<Field.Field>

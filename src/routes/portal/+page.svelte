@@ -21,6 +21,7 @@
 		requestService,
 		confirmVisit,
 		requestReschedule,
+		requestVisitCancel,
 		getProviders,
 		saveCardOnFile,
 		startCheckout,
@@ -216,6 +217,28 @@
 		reschedPending = false;
 	}
 
+	// ------- cancel request -------
+	let cancelJobId = $state('');
+	let cancelReason = $state('');
+	let cancelPending = $state(false);
+	async function submitCancel(e: SubmitEvent) {
+		e.preventDefault();
+		cancelPending = true;
+		try {
+			await requestVisitCancel({
+				customerId,
+				jobId: cancelJobId,
+				reason: cancelReason.trim()
+			}).updates(getPortalOverview);
+			toast.success('Cancellation requested — we will be in touch');
+			cancelJobId = '';
+			cancelReason = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send request'));
+		}
+		cancelPending = false;
+	}
+
 	let confirmingId = $state('');
 	async function confirm(jobId: string) {
 		confirmingId = jobId;
@@ -394,7 +417,9 @@
 											title="Add to calendar"><CalendarPlus class="size-4" /></Button
 										>
 									{/if}
-									{#if j.confirmed}
+									{#if j.cancelRequested}
+										<StatusBadge status="expired" label="Cancellation requested" />
+									{:else if j.confirmed}
 										<StatusBadge status="approved" label="Confirmed" />
 									{:else if j.job.status === 'scheduled' && j.job.startsAt}
 										<Button
@@ -406,6 +431,12 @@
 										>
 										<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}
 											>Different time</Button
+										>
+										<Button
+											size="sm"
+											variant="ghost"
+											class="text-destructive"
+											onclick={() => (cancelJobId = j.job.id)}>Cancel</Button
 										>
 									{:else}
 										<StatusBadge status={j.job.status} />
@@ -998,6 +1029,39 @@
 			<Dialog.Footer>
 				<Button type="submit" disabled={reschedPending || !reschedWhen.trim()}
 					>{reschedPending ? 'Sending…' : 'Send request'}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- cancel request dialog -->
+<Dialog.Root
+	open={!!cancelJobId}
+	onOpenChange={(o: boolean) => {
+		if (!o) cancelJobId = '';
+	}}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Request cancellation</Dialog.Title>
+			<Dialog.Description>
+				This sends a request to the office — the visit stays on the calendar until we confirm with
+				you.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={submitCancel}>
+			<Field.Field>
+				<Field.Label for="cancel-reason">Reason (optional)</Field.Label>
+				<Input
+					id="cancel-reason"
+					bind:value={cancelReason}
+					placeholder="e.g. plans changed, found someone else"
+				/>
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" variant="destructive" disabled={cancelPending}
+					>{cancelPending ? 'Sending…' : 'Request cancellation'}</Button
 				>
 			</Dialog.Footer>
 		</form>

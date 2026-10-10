@@ -601,6 +601,7 @@ export const settingsInput = v.object({
 	autoInvoiceOnComplete: v.optional(v.boolean()),
 	autoSendReport: v.optional(v.boolean()),
 	bookingNoticeDays: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(90))),
+	bookingMaxDaysAhead: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(365))),
 	taxRateBps: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(30000))),
 	bookingDailyLimit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
 	bookingDeposit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10000000))),

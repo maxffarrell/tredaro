@@ -126,6 +126,18 @@ export async function requestBooking(
 		}
 	}
 
+	// Horizon rule: when set, the requested day can't be farther than
+	// bookingMaxDaysAhead out.
+	if (settings.bookingMaxDaysAhead > 0 && input.preferredTime) {
+		const m = /^(\d{4}-\d{2}-\d{2})/.exec(input.preferredTime);
+		if (m) {
+			const max = new Date();
+			max.setDate(max.getDate() + settings.bookingMaxDaysAhead);
+			const maxDay = max.toISOString().slice(0, 10);
+			if (m[1] > maxDay) error(400, `Latest available day is ${maxDay} — pick an earlier date`);
+		}
+	}
+
 	// Service-area check: when the org lists ZIPs, the site ZIP must be one of them.
 	const allowedZips = settings.serviceZips
 		.split(',')

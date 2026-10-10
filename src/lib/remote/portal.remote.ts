@@ -93,6 +93,21 @@ export const requestReschedule = command(
 	}
 );
 
+/** Customer asks to cancel an upcoming visit — timeline note + staff alert. */
+export const requestVisitCancel = command(
+	v.object({
+		customerId: idSchema,
+		jobId: idSchema,
+		reason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), '')
+	}),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		const r = await svc.requestVisitCancel(c.organizationId, c.id, input.jobId, input.reason);
+		void getPortalOverview(c.id).refresh();
+		return r;
+	}
+);
+
 /** Portal self-service: customer updates their own email/phone. */
 export const updatePortalContact = command(portalContactInput, async (input) => {
 	const c = await myCustomer(input.customerId);
