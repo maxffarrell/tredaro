@@ -19,7 +19,7 @@
 
 <Sidebar.Provider>
 	<AppSidebar user={data.user} org={data.org} onsearch={() => (searchOpen = true)} />
-	<Sidebar.Inset>
+	<Sidebar.Inset class="min-w-0">
 		{#if data.demo && data.demoExpiresAt}
 			<DemoBanner
 				expiresAt={data.demoExpiresAt}
