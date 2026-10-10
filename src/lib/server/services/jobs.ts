@@ -93,6 +93,7 @@ export async function createJobType(ctx: OrgContext, input: v.InferOutput<typeof
 			requireDocument: input.requireDocument,
 			requireTimer: input.requireTimer,
 			requiresHelper: input.requiresHelper,
+			laborWarrantyDays: input.laborWarrantyDays,
 			bookable: input.bookable,
 			active: input.active
 		})
@@ -1111,11 +1112,24 @@ export async function recordJobEvent(
 
 	const status = STATUS_FOR_EVENT[input.kind as keyof typeof STATUS_FOR_EVENT];
 	if (status) {
+		const doneAt = new Date();
+		// Labor warranty: on completion the job type's window starts (0 = none).
+		let warrantyUntil: Date | undefined;
+		if (status === 'done') {
+			const [j0] = await db
+				.select({ days: jobType.laborWarrantyDays })
+				.from(job)
+				.innerJoin(jobType, eq(job.jobTypeId, jobType.id))
+				.where(eq(job.id, input.jobId))
+				.limit(1);
+			if (j0?.days) warrantyUntil = new Date(doneAt.getTime() + j0.days * 86_400_000);
+		}
 		await db
 			.update(job)
 			.set({
 				status,
-				completedAt: status === 'done' ? new Date() : undefined,
+				completedAt: status === 'done' ? doneAt : undefined,
+				warrantyUntil,
 				completionNotes: status === 'done' && input.note ? input.note : undefined
 			})
 			.where(eq(job.id, input.jobId));
@@ -1392,7 +1406,8 @@ export async function addTimeEntry(
 			memberId,
 			startedAt,
 			endedAt,
-			note: input.note ?? ''
+			note: input.note ?? '',
+			breakMin: input.breakMin ?? 0
 		})
 		.returning();
 	return row;

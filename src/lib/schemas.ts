@@ -262,6 +262,7 @@ export const inventoryItemInput = v.object({
 	unit: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(20)), 'each'),
 	location: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
 	supplierSku: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ''),
+	preferredSupplier: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ''),
 	category: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ''),
 	billable: v.optional(v.boolean(), true),
 	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
@@ -374,6 +375,10 @@ export const jobTypeInput = v.object({
 	requireDocument: v.optional(v.boolean(), false),
 	requireTimer: v.optional(v.boolean(), false),
 	requiresHelper: v.optional(v.boolean(), false),
+	laborWarrantyDays: v.optional(
+		v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(3650)),
+		0
+	),
 	/** Whether the type appears on the public booking page. */
 	bookable: v.optional(v.boolean(), true),
 	active: v.optional(v.boolean(), true)
@@ -465,7 +470,8 @@ export const timeEntryInput = v.object({
 	memberId: v.optional(v.nullable(idSchema)),
 	startedAt: localDateTime,
 	endedAt: v.optional(v.nullable(localDateTime)),
-	note: optionalText
+	note: optionalText,
+	breakMin: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(720))))
 });
 
 const lineItem = v.object({

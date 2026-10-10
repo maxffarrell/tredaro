@@ -85,6 +85,7 @@
 	let notes = $state('');
 	let location = $state('');
 	let supplierSku = $state('');
+	let preferredSupplier = $state('');
 	let category = $state('');
 	let billable = $state(true);
 
@@ -100,6 +101,7 @@
 		notes = i?.item.notes ?? '';
 		location = i?.item.location ?? '';
 		supplierSku = i?.item.supplierSku ?? '';
+		preferredSupplier = i?.item.preferredSupplier ?? '';
 		category = i?.item.category ?? '';
 		billable = i?.item.billable ?? true;
 		open = true;
@@ -113,6 +115,7 @@
 				name,
 				sku,
 				supplierSku,
+				preferredSupplier,
 				category,
 				billable,
 				unit,
@@ -708,6 +711,10 @@
 				<Field.Field>
 					<Field.Label for="inv-supplier-sku">Supplier SKU</Field.Label>
 					<Input id="inv-supplier-sku" bind:value={supplierSku} placeholder="vendor part #" />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="i-prefsup">Preferred supplier</Field.Label>
+					<Input id="i-prefsup" bind:value={preferredSupplier} placeholder="e.g. Ferguson" />
 				</Field.Field>
 				<Field.Field>
 					<Field.Label for="inv-cat">Category</Field.Label>

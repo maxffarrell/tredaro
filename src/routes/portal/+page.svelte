@@ -437,6 +437,11 @@
 								<p class="text-xs text-muted-foreground">
 									{j.job.completedAt ? formatDate(j.job.completedAt) : ''}
 								</p>
+								{#if j.job.warrantyUntil && new Date(j.job.warrantyUntil) > new Date()}
+									<p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+										Labor warranty through {formatDate(j.job.warrantyUntil)}
+									</p>
+								{/if}
 								{#if j.job.completionNotes}
 									<p class="mt-1 text-xs text-muted-foreground">{j.job.completionNotes}</p>
 								{/if}

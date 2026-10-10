@@ -397,6 +397,8 @@ export const jobType = pgTable(
 		requireTimer: boolean('require_time').notNull().default(false),
 		/** Two-person job — scheduling is blocked until a helper (second tech) is assigned. */
 		requiresHelper: boolean('requires_helper').notNull().default(false),
+		/** Days of labor warranty starting at completion; 0 = none. */
+		laborWarrantyDays: integer('labor_warranty_days').notNull().default(0),
 		/** Whether the type is selectable on the public /book page. */
 		bookable: boolean('bookable').notNull().default(true),
 		active: boolean('active').notNull().default(true),
@@ -481,6 +483,8 @@ export const job = pgTable(
 		/** Optional note recorded when the job is cancelled. */
 		cancelReason: text('cancel_reason'),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
+		/** Labor warranty end — set at completion from the job type's window. */
+		warrantyUntil: timestamp('warranty_until', { withTimezone: true }),
 		/** Portal rating of the completed visit (1-5 stars + optional note). */
 		rating: integer('rating'),
 		ratingNote: text('rating_note'),
@@ -887,6 +891,8 @@ export const inventoryItem = pgTable(
 		location: text('location').notNull().default(''),
 		/** Supplier's own SKU — makes reordering/POs unambiguous. */
 		supplierSku: text('supplier_sku').notNull().default(''),
+		/** Supplier to order from — wins over last-order lookup on Order parts. */
+		preferredSupplier: text('preferred_supplier').notNull().default(''),
 		qtyOnHand: integer('qty_on_hand').notNull().default(0),
 		/** Attention-card alert when on-hand drops to this level; null = never alert. */
 		reorderPoint: integer('reorder_point'),

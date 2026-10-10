@@ -413,8 +413,15 @@
 	let teStart = $state('');
 	let teEnd = $state('');
 	let teNote = $state('');
+	let teBreak = $state(0);
 	function startEditTime(e: {
-		entry: { id: string; startedAt: Date; endedAt: Date | null; note: string };
+		entry: {
+			id: string;
+			startedAt: Date;
+			endedAt: Date | null;
+			note: string;
+			breakMin: number;
+		};
 	}) {
 		editTimeId = e.entry.id;
 		teStart = `${localDate(e.entry.startedAt, tz)}T${localTime(e.entry.startedAt, tz)}`;
@@ -422,12 +429,14 @@
 			? `${localDate(e.entry.endedAt, tz)}T${localTime(e.entry.endedAt, tz)}`
 			: '';
 		teNote = e.entry.note;
+		teBreak = e.entry.breakMin;
 		addingTime = true;
 	}
 	function resetTimeForm() {
 		addingTime = false;
 		editTimeId = null;
 		teStart = teEnd = teNote = '';
+		teBreak = 0;
 		teMember = '';
 	}
 	async function logTime(e: SubmitEvent) {
@@ -439,7 +448,8 @@
 					jobId: id,
 					startedAt: teStart,
 					endedAt: teEnd || null,
-					note: teNote
+					note: teNote,
+					breakMin: teBreak
 				}).updates(getTimeEntries, getJob);
 			} else {
 				await addTimeEntry({
@@ -447,7 +457,8 @@
 					memberId: teMember || null,
 					startedAt: teStart,
 					endedAt: teEnd || null,
-					note: teNote
+					note: teNote,
+					breakMin: teBreak
 				}).updates(getTimeEntries, getJob);
 			}
 			const wasEdit = !!editTimeId;
@@ -789,6 +800,11 @@
 >
 	{#snippet actions()}
 		<StatusBadge status={j.job.status} />
+		{#if j.job.warrantyUntil && new Date(j.job.warrantyUntil) > new Date()}
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
+				>labor warranty through {formatDate(j.job.warrantyUntil)}</Badge
+			>
+		{/if}
 		{#if j.job.source && j.job.source !== 'manual'}
 			<Badge variant="secondary" class="capitalize">via {j.job.source}</Badge>
 		{/if}
@@ -1544,6 +1560,18 @@
 								aria-label="End (blank = still running)"
 							/>
 							<Input placeholder="Note (optional)" bind:value={teNote} />
+							<label class="flex items-center gap-2 text-xs text-muted-foreground">
+								Unpaid break
+								<Input
+									type="number"
+									min={0}
+									max={720}
+									bind:value={teBreak}
+									class="w-20"
+									aria-label="Break minutes"
+								/>
+								min
+							</label>
 							<div class="flex gap-2">
 								<Button type="submit" size="sm" disabled={!teStart}>Save</Button>
 								<Button type="button" size="sm" variant="ghost" onclick={resetTimeForm}
