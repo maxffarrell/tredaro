@@ -1115,7 +1115,10 @@ export async function publicInvoice(id: string) {
 				.from(payment)
 				.innerJoin(charge, eq(charge.id, payment.chargeId))
 				.where(
-					or(eq(charge.invoiceId, id), eq(charge.description, `Tip — INV-${row.invoice.number}`))
+					and(
+						eq(charge.organizationId, row.invoice.organizationId),
+						or(eq(charge.invoiceId, id), eq(charge.description, `Tip — INV-${row.invoice.number}`))
+					)
 				)
 				.orderBy(desc(payment.paidAt)),
 			row.invoice.jobId
