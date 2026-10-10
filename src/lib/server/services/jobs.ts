@@ -2887,3 +2887,55 @@ export async function memberProfile(orgId: string, memberId: string) {
 		timeOff
 	};
 }
+
+/** Waitlist → job: match or create the customer by phone/email, create an unscheduled booking job, mark the entry booked. */
+export async function convertWaitlist(ctx: OrgContext, tz: string, id: string) {
+	const [w] = await db
+		.select()
+		.from(bookingWaitlist)
+		.where(and(eq(bookingWaitlist.id, id), eq(bookingWaitlist.organizationId, ctx.orgId)));
+	if (!w) error(404, 'Waitlist entry not found');
+	if (w.status === 'booked') error(409, 'Already booked');
+	const [existing] = await db
+		.select({ id: customer.id })
+		.from(customer)
+		.where(
+			and(
+				eq(customer.organizationId, ctx.orgId),
+				or(
+					w.phone ? eq(customer.phone, w.phone) : undefined,
+					w.email ? eq(customer.email, w.email) : undefined
+				)
+			)
+		)
+		.limit(1);
+	let customerId = existing?.id;
+	if (!customerId) {
+		const [c] = await db
+			.insert(customer)
+			.values({
+				organizationId: ctx.orgId,
+				name: w.name,
+				email: w.email || null,
+				phone: w.phone || null,
+				leadSource: 'waitlist'
+			})
+			.returning();
+		customerId = c!.id;
+	}
+	const j = await createJob(
+		ctx,
+		tz,
+		{
+			customerId,
+			jobTypeId: w.jobTypeId,
+			preferredTime: w.note || null,
+			summary: `Waitlist booking — ${w.name}`,
+			description: w.note ? `Requested on the booking waitlist: ${w.note}` : '',
+			priority: 'normal'
+		},
+		{ source: 'booking' }
+	);
+	await db.update(bookingWaitlist).set({ status: 'booked' }).where(eq(bookingWaitlist.id, w.id));
+	return j;
+}

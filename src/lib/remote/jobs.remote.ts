@@ -676,3 +676,11 @@ export const sendServiceReport = command(idSchema, async (id) => {
 	await notifyServiceReport(ctx.orgId, id);
 	return { url: svc.serviceReportUrl(id) };
 });
+
+/** Converts a waitlist entry into a customer + unscheduled job and marks it booked. */
+export const convertWaitlistEntry = command(v.object({ id: v.string() }), async ({ id }) => {
+	const ctx = await requireOrg();
+	const j = await svc.convertWaitlist(ctx, await tz(), id);
+	await refreshQuery(getDispatchBoard, undefined);
+	return j;
+});

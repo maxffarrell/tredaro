@@ -9,6 +9,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import {
+		convertWaitlistEntry,
 		copyWeek,
 		getDispatchBoard,
 		moveDayStop,
@@ -243,6 +244,19 @@
 			await updateWaitlistStatus({ id, status }).updates(getDispatchBoard);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update'));
+		}
+		waitlistBusy = '';
+	}
+	async function bookWaitlist(id: string) {
+		waitlistBusy = id;
+		try {
+			const j = await convertWaitlistEntry({ id }).updates(getDispatchBoard);
+			if (j) {
+				toast.success(`Job J-${j.number} created`);
+				goto(`/jobs/${j.id}`);
+			}
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not book'));
 		}
 		waitlistBusy = '';
 	}
@@ -725,9 +739,11 @@
 		ondragleave={() => (dropZone = null)}
 		ondrop={(e) => dropOn(e, 'queue')}
 	>
-		<Card.Header class="flex-row items-center gap-2">
+		<Card.Header class="flex-row flex-wrap items-center gap-2">
 			<Inbox class="size-4 text-muted-foreground" />
-			<Card.Title class="text-base">Unscheduled ({board.unscheduled.length})</Card.Title>
+			<Card.Title class="min-w-0 truncate text-base"
+				>Unscheduled ({board.unscheduled.length})</Card.Title
+			>
 			{#if queueRequests.length}
 				<Badge variant="outline" class="text-blue-600 dark:text-blue-400"
 					>{queueRequests.length} request{queueRequests.length === 1 ? '' : 's'}</Badge
@@ -877,6 +893,12 @@
 													onclick={() => setWaitlist(w.id, 'contacted')}>Contacted</Button
 												>
 											{/if}
+											<Button
+												size="sm"
+												disabled={waitlistBusy === w.id}
+												title="Create a customer + unscheduled job for them"
+												onclick={() => bookWaitlist(w.id)}>Book</Button
+											>
 											<Button
 												size="sm"
 												variant="ghost"

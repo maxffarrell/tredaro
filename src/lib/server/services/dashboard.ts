@@ -17,6 +17,7 @@ import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
 	agreementPlan,
+	bookingWaitlist,
 	charge,
 	companySettings,
 	customer,
@@ -423,6 +424,16 @@ export async function dashboard(orgId: string) {
 		.orderBy(asc(job.number))
 		.limit(4);
 
+	const [openWaitlist] = await db
+		.select({ n: count() })
+		.from(bookingWaitlist)
+		.where(
+			and(
+				eq(bookingWaitlist.organizationId, orgId),
+				inArray(bookingWaitlist.status, ['new', 'contacted'])
+			)
+		);
+
 	const uninvoicedJobs = await db
 		.select({ id: job.id, number: job.number, summary: job.summary, customerName: customer.name })
 		.from(job)
@@ -717,6 +728,17 @@ export async function dashboard(orgId: string) {
 				sub: 'waiting on parts',
 				amountCents: null as number | null
 			})),
+			...(openWaitlist.n > 0
+				? [
+						{
+							tone: 'blue' as const,
+							href: '/dispatch',
+							text: `${openWaitlist.n} customer${openWaitlist.n === 1 ? '' : 's'} on the booking waitlist`,
+							sub: 'convert or close on the dispatch board',
+							amountCents: null as number | null
+						}
+					]
+				: []),
 			...uninvoicedJobs.map((j) => ({
 				tone: 'amber' as const,
 				href: `/jobs/${j.id}`,
