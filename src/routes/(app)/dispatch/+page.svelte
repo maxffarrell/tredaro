@@ -1059,6 +1059,15 @@
 														'helper'}</span
 												>
 											{/if}
+											{#if j.job.preferredTime?.startsWith('Reschedule requested:')}
+												· <span
+													class="font-medium text-orange-600 dark:text-orange-400"
+													title="Customer asked to reschedule — move the visit to clear"
+													>reschedule: {j.job.preferredTime
+														.slice('Reschedule requested:'.length)
+														.trim()}</span
+												>
+											{/if}
 										</p>
 									</button>
 									{#if dayFilter && techId && dayJobs(group.jobs).length > 1}
