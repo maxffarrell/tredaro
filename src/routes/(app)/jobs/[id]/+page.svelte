@@ -411,8 +411,8 @@
 
 	async function toggleTimer() {
 		try {
-			if (time.mine) await stopTimer(id).updates(getTimeEntries, getJob);
-			else await startTimer(id).updates(getTimeEntries, getJob);
+			if (time.mine) await stopTimer({ jobId: id }).updates(getTimeEntries, getJob);
+			else await startTimer({ jobId: id }).updates(getTimeEntries, getJob);
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not update timer'));
 		}
@@ -1513,6 +1513,27 @@
 									{#if e.entry.note}
 										· {e.entry.note}{/if}
 								</p>
+								{#if e.entry.startLat != null || e.entry.endLat != null}
+									<p class="text-xs">
+										{#if e.entry.startLat != null && e.entry.startLng != null}
+											<a
+												class="text-primary hover:underline"
+												href="https://www.google.com/maps/search/{e.entry.startLat},{e.entry
+													.startLng}"
+												target="_blank"
+												rel="noreferrer">Clock-in map</a
+											>
+										{/if}
+										{#if e.entry.endLat != null && e.entry.endLng != null}
+											<a
+												class="text-primary hover:underline"
+												href="https://www.google.com/maps/search/{e.entry.endLat},{e.entry.endLng}"
+												target="_blank"
+												rel="noreferrer">· Clock-out map</a
+											>
+										{/if}
+									</p>
+								{/if}
 								{#if e.entry.approvedAt}
 									<p class="text-xs font-medium text-emerald-600 dark:text-emerald-400">
 										Approved{e.approvedByName ? ` · ${e.approvedByName}` : ''}

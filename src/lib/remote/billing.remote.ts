@@ -197,6 +197,14 @@ export const updateCharge = command(chargeUpdate, async (input) => {
 	return c;
 });
 
+/** Staff resolved a portal-reported charge problem — clears the dispute flag. */
+export const resolveChargeDispute = command(idSchema, async (chargeId) => {
+	const c = await svc.resolveChargeDispute(await requireOrg(), chargeId);
+	await refreshQuery(getCharges, undefined);
+	void getCustomer(c.customerId).refresh();
+	return c;
+});
+
 const creditInput = v.object({
 	customerId: idSchema,
 	amount: v.pipe(v.number(), v.integer(), v.minValue(1)),

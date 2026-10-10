@@ -9,6 +9,7 @@ import {
 	getTableColumns,
 	gte,
 	inArray,
+	isNotNull,
 	isNull,
 	lt,
 	or,
@@ -1810,4 +1811,29 @@ export async function splitCharge(
 		summary: `Charge of ${(ch.amount / 100).toFixed(2)} split into a ${input.count}-payment plan`
 	});
 	return made;
+}
+
+/** Staff resolved a customer-reported charge problem — clears the portal flag. */
+export async function resolveChargeDispute(ctx: OrgContext, chargeId: string) {
+	const [row] = await db
+		.update(charge)
+		.set({ disputedAt: null, disputeNote: null })
+		.where(
+			and(
+				eq(charge.organizationId, ctx.orgId),
+				eq(charge.id, chargeId),
+				isNotNull(charge.disputedAt)
+			)
+		)
+		.returning();
+	if (!row) error(404, 'No disputed charge found');
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'charge',
+		entityId: chargeId,
+		action: 'dispute_resolved',
+		summary: `Charge dispute resolved — ${row.description || 'charge'}`
+	});
+	return row;
 }

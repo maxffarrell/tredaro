@@ -32,7 +32,11 @@ import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import { createJob } from './jobs.ts';
 import { emit } from './events.ts';
-import { notifyChargeDispute, notifyStaffVisitCancel } from './notifications.ts';
+import {
+	notifyChargeDispute,
+	notifyPortalMessage,
+	notifyStaffVisitCancel
+} from './notifications.ts';
 import { nextNumber } from './settings.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
@@ -750,5 +754,34 @@ export async function reportChargeProblem(
 		summary: `Charge “${row.description || 'charge'}” disputed by customer`
 	});
 	await notifyChargeDispute(orgId, chargeId);
+	return { ok: true };
+}
+
+/** Customer sends a free-text message from the portal — lands in comms + staff inbox. */
+export async function sendPortalMessage(orgId: string, customerId: string, body: string) {
+	const text = body.trim();
+	if (!text) error(400, 'Message is empty');
+	const [c] = await db
+		.select()
+		.from(customer)
+		.where(and(eq(customer.organizationId, orgId), eq(customer.id, customerId)));
+	if (!c) error(404, 'Customer not found');
+	const address = c.email || c.phone || 'portal';
+	// Comms-history row — same "address:body" recipient shape as inbound SMS.
+	await db.insert(notificationLog).values({
+		organizationId: orgId,
+		kind: 'portal_message_in',
+		entityId: `${customerId}:${Date.now()}`,
+		recipient: `${address}:${text.slice(0, 140)}`
+	});
+	await emit({
+		orgId,
+		actorId: null,
+		entityType: 'customer',
+		entityId: customerId,
+		action: 'portal_message',
+		summary: `Portal message from ${c.name}`
+	});
+	await notifyPortalMessage(orgId, customerId, text);
 	return { ok: true };
 }

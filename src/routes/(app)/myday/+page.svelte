@@ -320,7 +320,8 @@
 		wrapPending = true;
 		try {
 			if (day.openEntry) {
-				await stopTimer(day.openEntry.entry.jobId).updates(getMyDay);
+				const geo = await getPos();
+				await stopTimer({ jobId: day.openEntry.entry.jobId, ...geo }).updates(getMyDay);
 				toast.success('Timer stopped');
 			}
 			wrapOpen = true;
@@ -397,11 +398,12 @@
 	async function clock(jobId: string) {
 		pending = `${jobId}:clock`;
 		try {
+			const geo = await getPos();
 			if (day.openEntry?.entry.jobId === jobId) {
-				await stopTimer(jobId).updates(getMyDay);
+				await stopTimer({ jobId, ...geo }).updates(getMyDay);
 				toast.success('Clocked out');
 			} else {
-				await startTimer(jobId).updates(getMyDay);
+				await startTimer({ jobId, ...geo }).updates(getMyDay);
 				toast.success('Clocked in');
 			}
 		} catch (err) {

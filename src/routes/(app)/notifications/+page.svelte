@@ -90,7 +90,8 @@
 		time_auto_ended: 'Timer auto-ended',
 		time_flagged: 'Time entry flagged',
 		charge_dispute: 'Charge dispute',
-		visit_cancel_request: 'Cancel request'
+		visit_cancel_request: 'Cancel request',
+		portal_message: 'Portal message'
 	};
 
 	/** Where each kind's entity usually lives. */
@@ -118,7 +119,12 @@
 			return `/jobs/${entityId}`;
 		if (kind === 'agreement_renewal') return '/agreements';
 		if (kind === 'payment_receipt' || kind === 'job_completed') return `/jobs/${entityId}`;
-		if (kind === 'inbound_sms_staff' || kind === 'auto_charge_failed' || kind === 'charge_dispute')
+		if (
+			kind === 'inbound_sms_staff' ||
+			kind === 'auto_charge_failed' ||
+			kind === 'charge_dispute' ||
+			kind === 'portal_message'
+		)
 			return `/customers/${entityId.split(':')[0]}`;
 		if (kind === 'visit_cancel_request') return `/jobs/${entityId}`;
 		if (kind === 'follow_up_due') return entityId.split(':')[1] || '/dashboard';

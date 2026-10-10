@@ -1367,7 +1367,8 @@ async function startTimerFor(
 	orgId: string,
 	jobId: string,
 	memberId: string,
-	actorId?: string | null
+	actorId?: string | null,
+	geo?: { lat?: number; lng?: number }
 ) {
 	const [open] = await db
 		.select()
@@ -1384,7 +1385,14 @@ async function startTimerFor(
 		await db.update(jobTimeEntry).set({ endedAt: new Date() }).where(eq(jobTimeEntry.id, open.id));
 	const [row] = await db
 		.insert(jobTimeEntry)
-		.values({ organizationId: orgId, jobId, memberId, startedAt: new Date() })
+		.values({
+			organizationId: orgId,
+			jobId,
+			memberId,
+			startedAt: new Date(),
+			startLat: geo?.lat ?? null,
+			startLng: geo?.lng ?? null
+		})
 		.returning();
 	const [j] = await db.select({ number: job.number }).from(job).where(eq(job.id, jobId));
 	await emit({
@@ -1399,22 +1407,30 @@ async function startTimerFor(
 }
 
 /** Clocks in the calling staff member on a job. */
-export async function startTimer(ctx: OrgContext, jobId: string) {
+export async function startTimer(
+	ctx: OrgContext,
+	jobId: string,
+	geo?: { lat?: number; lng?: number }
+) {
 	const j = await requireJob(ctx.orgId, jobId);
 	if (j.status === 'done' || j.status === 'cancelled') error(409, `Job is ${j.status}`);
 	const me = await memberFor(ctx);
 	if (!me) error(403, 'Only staff members can track time');
-	return startTimerFor(ctx.orgId, jobId, me.id, ctx.userId);
+	return startTimerFor(ctx.orgId, jobId, me.id, ctx.userId, geo);
 }
 
 /** Closes the caller's open entry on the job; returns the closed entry, or null if none. */
-export async function stopTimer(ctx: OrgContext, jobId: string) {
+export async function stopTimer(
+	ctx: OrgContext,
+	jobId: string,
+	geo?: { lat?: number; lng?: number }
+) {
 	await requireJob(ctx.orgId, jobId);
 	const me = await memberFor(ctx);
 	if (!me) error(403, 'Only staff members can track time');
 	const [row] = await db
 		.update(jobTimeEntry)
-		.set({ endedAt: new Date() })
+		.set({ endedAt: new Date(), endLat: geo?.lat ?? null, endLng: geo?.lng ?? null })
 		.where(
 			and(
 				eq(jobTimeEntry.organizationId, ctx.orgId),

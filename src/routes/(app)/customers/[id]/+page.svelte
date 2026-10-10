@@ -60,7 +60,8 @@
 		recordPayment,
 		addCredit,
 		invoiceUninvoicedJobs,
-		getInvoices
+		getInvoices,
+		resolveChargeDispute
 	} from '#lib/remote/billing.remote.ts';
 	import {
 		getSchedules,
@@ -90,6 +91,15 @@
 
 	const id = $derived(page.params.id!);
 	const c = $derived(await getCustomer(id));
+
+	async function resolveDispute(chargeId: string) {
+		try {
+			await resolveChargeDispute(chargeId).updates(getCustomer);
+			toast.success('Dispute resolved');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not resolve dispute'));
+		}
+	}
 	const settings = await getSettings();
 	const currency = settings.currency;
 	const tz = settings.timezone;
@@ -125,6 +135,7 @@
 		manual_sms: 'Texted customer',
 		parts_delay: 'Waiting on a part update',
 		inbound_sms: 'Text from customer',
+		portal_message_in: 'Portal message',
 		statement: 'Statement emailed'
 	};
 	const kindLabel = (kind: string) =>
@@ -1595,9 +1606,11 @@
 						<div class="min-w-0">
 							<p class="truncate font-medium">{kindLabel(n.kind)}</p>
 							<p class="truncate text-xs text-muted-foreground">
-								{n.kind === 'inbound_sms' ? 'from' : 'to'}
+								{n.kind === 'inbound_sms' || n.kind === 'portal_message_in' ? 'from' : 'to'}
 								{n.recipient.split(':')[0]}
-								{n.kind === 'inbound_sms' ? `— ${n.recipient.split(':').slice(1).join(':')}` : ''}
+								{n.kind === 'inbound_sms' || n.kind === 'portal_message_in'
+									? `— ${n.recipient.split(':').slice(1).join(':')}`
+									: ''}
 							</p>
 						</div>
 						<span class="shrink-0 text-xs text-muted-foreground">{formatRelative(n.createdAt)}</span
@@ -1825,15 +1838,17 @@
 				<ul class="space-y-2 text-sm">
 					{#each [...c.charges
 							.filter((ch) => ch.charge.status === 'open')
-							.map( (ch) => ({ key: `ch-${ch.charge.id}`, d: new Date(`${ch.charge.dueDate}T00:00:00Z`), label: ch.charge.description || 'Charge', status: ch.charge.status, cents: ch.charge.amount - ch.paid, disputed: !!ch.charge.disputedAt }) ), ...c.payments.map( (p) => ({ key: `p-${p.id}`, d: p.paidAt, label: `Payment — ${p.method}`, status: 'paid', cents: -p.amount, disputed: false }) )]
+							.map( (ch) => ({ key: `ch-${ch.charge.id}`, chargeId: ch.charge.id, d: new Date(`${ch.charge.dueDate}T00:00:00Z`), label: ch.charge.description || 'Charge', status: ch.charge.status, cents: ch.charge.amount - ch.paid, disputed: !!ch.charge.disputedAt }) ), ...c.payments.map( (p) => ({ key: `p-${p.id}`, chargeId: '', d: p.paidAt, label: `Payment — ${p.method}`, status: 'paid', cents: -p.amount, disputed: false }) )]
 						.sort((a, b) => b.d.getTime() - a.d.getTime())
 						.slice(0, 10) as row (row.key)}
 						<li class="flex items-center justify-between">
 							<span class="truncate"
 								>{row.label}
-								{#if row.disputed}<span
-										class="ml-1 text-xs font-medium text-amber-600 dark:text-amber-400"
-										>disputed</span
+								{#if row.disputed}<button
+										type="button"
+										class="ml-1 cursor-pointer text-xs font-medium text-amber-600 hover:underline dark:text-amber-400"
+										title="Clear the dispute flag after following up with the customer"
+										onclick={() => resolveDispute(row.chargeId)}>disputed · resolve</button
 									>{/if}
 								<span class="text-xs text-muted-foreground">{formatDate(row.d)}</span></span
 							>
