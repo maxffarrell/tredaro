@@ -26,7 +26,8 @@
 		saveCardOnFile,
 		startCheckout,
 		updatePortalContact,
-		rateVisit
+		rateVisit,
+		reportChargeProblem
 	} from '#lib/remote/portal.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
@@ -66,6 +67,7 @@
 		job_scheduled_sms: 'Visit scheduled',
 		job_en_route_sms: 'Technician on the way',
 		job_eta_sms: 'Technician ETA',
+		job_running_late: 'Running late — new ETA',
 		job_completed: 'Visit completed',
 		job_completed_sms: 'Visit completed',
 		job_rescheduled: 'Visit rescheduled',
@@ -132,7 +134,10 @@
 			const { url } = await startCheckout({
 				customerId,
 				provider,
-				charges: [...(selectedCharges ?? d.openCharges.map((c) => c.charge.id))]
+				charges: [
+					...(selectedCharges ??
+						d.openCharges.filter((c) => !c.charge.disputedAt).map((c) => c.charge.id))
+				]
 			});
 			location.assign(url);
 		} catch (err) {
@@ -142,18 +147,20 @@
 	}
 
 	// Per-charge selection: a subset pays only those charges (recorded against them
-	// via the checkout metadata), not the whole balance. null = all selected.
+	// via the checkout metadata), not the whole balance. null = all non-disputed selected.
 	let selectedCharges = $state<SvelteSet<string> | null>(null);
+	const payableCharges = $derived(d.openCharges.filter((c) => !c.charge.disputedAt));
 	const selectedTotal = $derived(
 		d.openCharges
-			.filter((c) => !selectedCharges || selectedCharges.has(c.charge.id))
+			.filter((c) => (selectedCharges ? selectedCharges.has(c.charge.id) : !c.charge.disputedAt))
 			.reduce((sum, c) => sum + (c.charge.amount - c.paid), 0)
 	);
 	function chargeChecked(id: string) {
-		return !selectedCharges || selectedCharges.has(id);
+		const row = d.openCharges.find((c) => c.charge.id === id);
+		return selectedCharges ? selectedCharges.has(id) : !row?.charge.disputedAt;
 	}
 	function toggleCharge(id: string, on: boolean) {
-		const next = new SvelteSet(selectedCharges ?? d.openCharges.map((c) => c.charge.id));
+		const next = new SvelteSet(selectedCharges ?? payableCharges.map((c) => c.charge.id));
 		if (on) next.add(id);
 		else next.delete(id);
 		selectedCharges = next;
@@ -237,6 +244,27 @@
 			toast.error(errMsg(err, 'Could not send request'));
 		}
 		cancelPending = false;
+	}
+
+	let reportChargeId = $state('');
+	let reportNote = $state('');
+	let reportPending = $state(false);
+	async function submitReport(e: SubmitEvent) {
+		e.preventDefault();
+		reportPending = true;
+		try {
+			await reportChargeProblem({
+				customerId,
+				chargeId: reportChargeId,
+				note: reportNote.trim()
+			}).updates(getPortalOverview);
+			toast.success('Problem reported — we will follow up');
+			reportChargeId = '';
+			reportNote = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send report'));
+		}
+		reportPending = false;
 	}
 
 	let confirmingId = $state('');
@@ -546,6 +574,19 @@
 											>{/if}
 									</span>
 								</label>
+								{#if row.charge.disputedAt}
+									<span
+										class="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-400"
+										title={row.charge.disputeNote ?? ''}>Issue reported</span
+									>
+								{:else}
+									<Button
+										variant="ghost"
+										size="sm"
+										class="h-auto shrink-0 px-1.5 py-0.5 text-xs text-muted-foreground"
+										onclick={() => (reportChargeId = row.charge.id)}>Problem?</Button
+									>
+								{/if}
 								<span class="shrink-0 tabular-nums"
 									>{formatMoney(row.charge.amount - row.paid, currency)}</span
 								>
@@ -789,7 +830,7 @@
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Messages from us</Card.Title></Card.Header>
 				<Card.Content class="space-y-2">
-					{#each d.recentMessages as m (m.createdAt + m.kind)}
+					{#each d.recentMessages as m (m.id)}
 						<div class="flex items-center gap-3 text-sm">
 							{#if m.channel === 'text'}
 								<MessageSquare class="size-4 shrink-0 text-muted-foreground" />
@@ -1062,6 +1103,38 @@
 			<Dialog.Footer>
 				<Button type="submit" variant="destructive" disabled={cancelPending}
 					>{cancelPending ? 'Sending…' : 'Request cancellation'}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- charge problem dialog -->
+<Dialog.Root
+	open={!!reportChargeId}
+	onOpenChange={(o: boolean) => {
+		if (!o) reportChargeId = '';
+	}}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Report a problem</Dialog.Title>
+			<Dialog.Description>
+				Tell us what's wrong with this charge — we'll hold off and follow up with you.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={submitReport}>
+			<Field.Field>
+				<Field.Label for="report-note">What looks wrong?</Field.Label>
+				<Input
+					id="report-note"
+					bind:value={reportNote}
+					placeholder="e.g. wrong amount, already paid, didn't authorize"
+				/>
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={reportPending || !reportNote.trim()}
+					>{reportPending ? 'Sending…' : 'Report problem'}</Button
 				>
 			</Dialog.Footer>
 		</form>

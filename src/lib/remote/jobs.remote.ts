@@ -278,6 +278,20 @@ export const recordJobEvent = command(jobEventInput, async (input) => {
 	return e;
 });
 
+/** Tech tells the customer they're running behind — sends an SMS with a new ETA. */
+export const textRunningLate = command(
+	v.object({
+		jobId: idSchema,
+		minutes: v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(240))
+	}),
+	async (input) => {
+		const r = await svc.runningLate(await requireOrg(), input.jobId, input.minutes);
+		await refreshQuery(getJob, input.jobId);
+		await refreshQuery(getMyDay, undefined);
+		return r;
+	}
+);
+
 export const signJob = command(jobSignatureInput, async (input) => {
 	const j = await svc.signJob(await requireOrg(), input);
 	await refreshQuery(getJob, input.jobId);
