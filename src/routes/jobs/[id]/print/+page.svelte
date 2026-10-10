@@ -71,6 +71,7 @@
 				{:else}
 					<p>Unscheduled</p>
 				{/if}
+				{#if j.job.arrivalWindow}<p>Arrival window: {j.job.arrivalWindow}</p>{/if}
 				{#if j.typeDurationMin}<p>{j.typeDurationMin} min estimated</p>{/if}
 				<p>{j.jobTypeName ?? 'Service'}{j.job.summary ? ` — ${j.job.summary}` : ''}</p>
 				<p>

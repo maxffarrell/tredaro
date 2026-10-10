@@ -46,6 +46,7 @@
 	import Truck from '@lucide/svelte/icons/truck';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import History from '@lucide/svelte/icons/history';
+	import Printer from '@lucide/svelte/icons/printer';
 
 	const currency = await getCurrency();
 	let rows = $state(await getInventory());
@@ -896,6 +897,13 @@
 			<Dialog.Title class="flex items-center gap-2">
 				PO-{poView?.po.number} · {poView?.po.supplier}
 				<StatusBadge status={poView?.po.status ?? 'draft'} />
+				<Button
+					size="icon"
+					variant="ghost"
+					title="Print PO"
+					onclick={() => window.open(`/purchase-orders/${poView?.po.id}/print`, '_blank')}
+					><Printer /></Button
+				>
 			</Dialog.Title>
 			<Dialog.Description>
 				{#if poView?.po.expectedOn}Expected {poView.po.expectedOn} ·
