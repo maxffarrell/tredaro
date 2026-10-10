@@ -1,5 +1,17 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	getTableColumns,
+	gte,
+	ilike,
+	inArray,
+	isNull,
+	or,
+	sql
+} from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -106,7 +118,11 @@ export async function getCustomer(orgId: string, id: string) {
 	if (!row) error(404, 'Customer not found');
 
 	const locations = await db
-		.select()
+		.select({
+			...getTableColumns(serviceLocation),
+			/** Latest active labor-warranty window covering this location (from completed jobs). */
+			laborWarrantyUntil: sql<Date | null>`(select max(j.warranty_until) from ${job} j where j.service_location_id = ${serviceLocation.id} and j.warranty_until > now())`
+		})
 		.from(serviceLocation)
 		.where(and(eq(serviceLocation.organizationId, orgId), eq(serviceLocation.customerId, id)))
 		.orderBy(desc(serviceLocation.isPrimary), asc(serviceLocation.label));

@@ -1369,6 +1369,11 @@
 							{l.city}{#if l.state}, {l.state}{/if}
 							{l.zip}
 						</p>
+						{#if l.laborWarrantyUntil}
+							<p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+								labor warranty through {formatDate(l.laborWarrantyUntil)}
+							</p>
+						{/if}
 					</button>
 				{:else}
 					<Empty.Root class="border-0 py-2">

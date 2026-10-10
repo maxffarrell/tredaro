@@ -134,8 +134,10 @@
 	let jobTypeId = $state('');
 	let technicianId = $state('');
 	let techPrefilled = '';
+	let locationId = $state<string | null>(null);
 	function pickCustomer(v: string | undefined) {
 		customerId = v ?? '';
+		locationId = null;
 		const pref = customers.find((c) => c.id === customerId)?.preferredMemberId ?? '';
 		if (!technicianId || technicianId === techPrefilled) technicianId = pref;
 		techPrefilled = pref;
@@ -147,6 +149,12 @@
 	let equipmentId = $state(page.url.searchParams.get('equipment') ?? 'none');
 	const customerEquipment = $derived(
 		customerId ? await getCustomer(customerId).then((c) => c.equipment) : []
+	);
+	const customerLocations = $derived(
+		customerId ? await getCustomer(customerId).then((c) => c.locations) : []
+	);
+	const effectiveLocation = $derived(
+		locationId ?? customerLocations.find((l) => l.isPrimary)?.id ?? customerLocations[0]?.id ?? ''
 	);
 
 	async function submit(e: SubmitEvent) {
@@ -161,6 +169,7 @@
 				description,
 				priority,
 				equipmentId: equipmentId === 'none' ? null : equipmentId || null,
+				serviceLocationId: effectiveLocation || null,
 				startsAt: startsAt || null
 			}).updates(getJobs);
 			toast.success(`Job J-${j!.number} created`);
@@ -423,6 +432,34 @@
 							{#each customerEquipment.filter((e) => e.equipment.active) as e (e.equipment.id)}
 								<Select.Item value={e.equipment.id}
 									>{e.equipment.name}{e.locationLabel ? ` · ${e.locationLabel}` : ''}</Select.Item
+								>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+			{/if}
+			{#if customerLocations.length}
+				<Field.Field>
+					<Field.Label>Service location</Field.Label>
+					<Select.Root
+						type="single"
+						value={effectiveLocation}
+						onValueChange={(v) => (locationId = v)}
+					>
+						<Select.Trigger class="w-full"
+							>{(() => {
+								const l = customerLocations.find((x) => x.id === effectiveLocation);
+								return l
+									? `${l.label ? `${l.label} — ` : ''}${l.address1 || 'No address'}`
+									: 'Choose location';
+							})()}</Select.Trigger
+						>
+						<Select.Content>
+							{#each customerLocations as l (l.id)}
+								<Select.Item value={l.id}
+									>{l.label ? `${l.label} — ` : ''}{l.address1 || 'No address'}{l.isPrimary
+										? ' · primary'
+										: ''}</Select.Item
 								>
 							{/each}
 						</Select.Content>

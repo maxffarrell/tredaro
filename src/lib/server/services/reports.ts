@@ -695,6 +695,39 @@ async function revenueByCustomerType(orgId: string) {
 		.orderBy(desc(sql`sum(${payment.amount})`));
 }
 
+/** Warranty visits completed in the last 90d plus the labor logged on warranty jobs. */
+async function warrantyWork(orgId: string) {
+	const since = new Date(Date.now() - 90 * 86400_000);
+	const [jobs] = await db
+		.select({ n: sql<number>`count(*)`.mapWith(Number) })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.warranty, true),
+				eq(job.status, 'done'),
+				gte(job.completedAt, since)
+			)
+		);
+	const [mins] = await db
+		.select({
+			m: sql<number>`coalesce(sum(extract(epoch from (${jobTimeEntry.endedAt} - ${jobTimeEntry.startedAt})) / 60 - coalesce(${jobTimeEntry.breakMin}, 0)), 0)`.mapWith(
+				Number
+			)
+		})
+		.from(jobTimeEntry)
+		.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.warranty, true),
+				isNotNull(jobTimeEntry.endedAt),
+				gte(jobTimeEntry.startedAt, since)
+			)
+		);
+	return { count: jobs?.n ?? 0, minutes: Math.max(0, Math.round(mins?.m ?? 0)) };
+}
+
 /** Collected payments per service ZIP (last 90 days) — territory view for scheduling/marketing. */
 async function revenueByZip(orgId: string) {
 	return db
@@ -898,7 +931,8 @@ export async function getReports(orgId: string) {
 		callbacks,
 		revWeekday,
 		lost,
-		zipRows
+		zipRows,
+		warranty
 	] = await Promise.all([
 		jobsByDay(orgId),
 		newCustomersByMonth(orgId),
@@ -941,7 +975,8 @@ export async function getReports(orgId: string) {
 		callbackRate(orgId),
 		revenueByWeekday(orgId),
 		lostByReason(orgId),
-		revenueByZip(orgId)
+		revenueByZip(orgId),
+		warrantyWork(orgId)
 	]);
 	return {
 		completedJobs,
@@ -985,7 +1020,8 @@ export async function getReports(orgId: string) {
 		callbacks,
 		revWeekday,
 		lostByReason: lost,
-		revByZip: zipRows
+		revByZip: zipRows,
+		warranty
 	};
 }
 
