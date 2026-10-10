@@ -131,6 +131,15 @@ export const getMemberProfile = query(idSchema, async (id) =>
 	svc.memberProfile((await requireOrg()).orgId, id)
 );
 
+/** Triage a booking waitlist signup on the dispatch board. */
+export const updateWaitlistStatus = command(
+	v.object({
+		id: v.string(),
+		status: v.picklist(['new', 'contacted', 'booked', 'closed'])
+	}),
+	async ({ id, status }) => svc.setWaitlistStatus((await requireOrg()).orgId, id, status)
+);
+
 /** The calling technician's My Day payload: today's jobs, unscheduled queue, open timer. */
 export const getMyDay = query(async () => {
 	const ctx = await requireOrg();

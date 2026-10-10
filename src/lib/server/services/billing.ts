@@ -1087,7 +1087,8 @@ export async function publicInvoice(id: string) {
 				currency: companySettings.currency,
 				footer: companySettings.invoiceFooter,
 				phone: companySettings.phone,
-				website: companySettings.website
+				website: companySettings.website,
+				reviewUrl: companySettings.reviewUrl
 			})
 			.from(companySettings)
 			.where(eq(companySettings.organizationId, row.invoice.organizationId))
@@ -1110,6 +1111,7 @@ export async function publicInvoice(id: string) {
 		footer: settings?.footer ?? '',
 		orgPhone: settings?.phone ?? '',
 		orgWebsite: settings?.website ?? '',
+		reviewUrl: settings?.reviewUrl ?? '',
 		providers: providers_
 	};
 }

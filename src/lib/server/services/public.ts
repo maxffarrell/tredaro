@@ -3,6 +3,7 @@ import { and, asc, eq, like, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	agreementPlan,
+	bookingWaitlist,
 	companySettings,
 	customer,
 	estimate,
@@ -388,5 +389,50 @@ export async function setVisitPreference(token: string, note: string) {
 	void notifyVisitPreference(est.organizationId, est.jobId, note).catch((err) =>
 		console.error('visit preference alert failed', err)
 	);
+	return { ok: true };
+}
+
+/**
+ * Public waitlist signup from /book/[slug]: "couldn't find a time" capture —
+ * shows on the dispatch board for staff triage.
+ */
+export async function joinWaitlist(
+	slug: string,
+	input: { name: string; email?: string; phone?: string; jobTypeId?: string; note?: string }
+) {
+	const [org] = await db.select().from(organization).where(eq(organization.slug, slug));
+	if (!org) error(404, 'Not found');
+	const [settings] = await db
+		.select({ publicPage: companySettings.publicPage })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, org.id));
+	if (!settings?.publicPage) error(404, 'Not found');
+	if (!input.name.trim() || (!input.email?.trim() && !input.phone?.trim()))
+		error(400, 'Leave a name and a way to reach you');
+	if (input.jobTypeId) {
+		const [jt] = await db
+			.select({ id: jobType.id })
+			.from(jobType)
+			.where(and(eq(jobType.id, input.jobTypeId), eq(jobType.organizationId, org.id)));
+		if (!jt) error(400, 'Unknown service');
+	}
+	const [row] = await db
+		.insert(bookingWaitlist)
+		.values({
+			organizationId: org.id,
+			name: input.name.trim().slice(0, 200),
+			email: (input.email ?? '').trim().slice(0, 320),
+			phone: (input.phone ?? '').trim().slice(0, 40),
+			jobTypeId: input.jobTypeId || null,
+			note: (input.note ?? '').trim().slice(0, 2000)
+		})
+		.returning();
+	await emit({
+		orgId: org.id,
+		entityType: 'booking_waitlist',
+		entityId: row.id,
+		action: 'waitlist_signup',
+		summary: `${row.name} joined the booking waitlist${row.phone ? ` — ${row.phone}` : ''}`
+	});
 	return { ok: true };
 }

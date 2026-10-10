@@ -562,6 +562,14 @@
 					>
 				</p>
 			{/if}
+			{#if r.tips.n > 0}
+				<p class="pt-1 text-sm text-muted-foreground">
+					Tips collected (30d): <span class="font-medium text-foreground"
+						>{formatMoney(r.tips.total, currency)}</span
+					>
+					across {r.tips.n} tip{r.tips.n === 1 ? '' : 's'}
+				</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

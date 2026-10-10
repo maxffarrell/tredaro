@@ -785,6 +785,26 @@ async function refundsTotal(orgId: string) {
 	return row?.n ? row.total : 0;
 }
 
+/** Customer tips collected online in the last 30 days ('Tip —' other-charges from checkout). */
+async function tipsCollected(orgId: string) {
+	const [row] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				eq(charge.kind, 'other'),
+				sql`${charge.description} like 'Tip —%'`,
+				gte(payment.paidAt, new Date(Date.now() - 30 * 86400_000))
+			)
+		);
+	return row ?? { n: 0, total: 0 };
+}
+
 /** Spend committed on open purchase orders (draft + ordered). */
 async function openPOValue(orgId: string) {
 	const [row] = await db
@@ -916,6 +936,7 @@ export async function getReports(orgId: string) {
 		daysToInvoice,
 		openPOs,
 		refunds,
+		tips,
 		churned,
 		revByType,
 		decisionDays,
@@ -960,6 +981,7 @@ export async function getReports(orgId: string) {
 		avgDaysToInvoice(orgId),
 		openPOValue(orgId),
 		refundsTotal(orgId),
+		tipsCollected(orgId),
 		churnedAgreements(orgId),
 		revenueByCustomerType(orgId),
 		avgDaysToEstimateDecision(orgId),
@@ -1005,6 +1027,7 @@ export async function getReports(orgId: string) {
 		avgDaysToInvoice: daysToInvoice,
 		openPOs,
 		refunds,
+		tips,
 		churnedAgreements: churned,
 		revByCustomerType: revByType,
 		estimateDecisionDays: decisionDays,

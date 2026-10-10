@@ -27,6 +27,7 @@ import { createInvoice } from './billing.ts';
 import { listJobMaterials } from './inventory.ts';
 import { listFollowUps } from './followups.ts';
 import {
+	bookingWaitlist,
 	charge,
 	customer,
 	equipment,
@@ -1860,55 +1861,89 @@ export async function dispatchBoard(orgId: string, from: Date, to: Date, officeI
 	const fromIso = from.toISOString().slice(0, 10);
 	const toIso = to.toISOString().slice(0, 10);
 	const pingCutoff = new Date(Date.now() - 7 * 86400_000);
-	const [scheduled, unscheduled, technicians, timeOff, dayNotes, pingRows] = await Promise.all([
-		listJobs(orgId, { from, to, officeId }),
-		listJobs(orgId, { unscheduled: true, officeId }),
-		listTechnicians(orgId),
-		db
-			.select()
-			.from(memberTimeOff)
-			.where(
-				and(
-					eq(memberTimeOff.organizationId, orgId),
-					eq(memberTimeOff.status, 'approved'),
-					lte(memberTimeOff.startsOn, toIso),
-					gte(memberTimeOff.endsOn, fromIso)
+	const [scheduled, unscheduled, technicians, timeOff, dayNotes, pingRows, waitlist] =
+		await Promise.all([
+			listJobs(orgId, { from, to, officeId }),
+			listJobs(orgId, { unscheduled: true, officeId }),
+			listTechnicians(orgId),
+			db
+				.select()
+				.from(memberTimeOff)
+				.where(
+					and(
+						eq(memberTimeOff.organizationId, orgId),
+						eq(memberTimeOff.status, 'approved'),
+						lte(memberTimeOff.startsOn, toIso),
+						gte(memberTimeOff.endsOn, fromIso)
+					)
+				),
+			db
+				.select()
+				.from(memberDayNote)
+				.where(
+					and(
+						eq(memberDayNote.organizationId, orgId),
+						gte(memberDayNote.on, fromIso),
+						lte(memberDayNote.on, toIso)
+					)
+				),
+			db
+				.select({
+					memberId: jobEvent.memberId,
+					lat: jobEvent.lat,
+					lng: jobEvent.lng,
+					at: jobEvent.at
+				})
+				.from(jobEvent)
+				.where(
+					and(
+						eq(jobEvent.organizationId, orgId),
+						isNotNull(jobEvent.lat),
+						isNotNull(jobEvent.memberId),
+						gte(jobEvent.at, pingCutoff)
+					)
 				)
-			),
-		db
-			.select()
-			.from(memberDayNote)
-			.where(
-				and(
-					eq(memberDayNote.organizationId, orgId),
-					gte(memberDayNote.on, fromIso),
-					lte(memberDayNote.on, toIso)
+				.orderBy(desc(jobEvent.at))
+				.limit(500),
+			db
+				.select({
+					id: bookingWaitlist.id,
+					name: bookingWaitlist.name,
+					email: bookingWaitlist.email,
+					phone: bookingWaitlist.phone,
+					note: bookingWaitlist.note,
+					status: bookingWaitlist.status,
+					createdAt: bookingWaitlist.createdAt,
+					jobTypeName: jobType.name
+				})
+				.from(bookingWaitlist)
+				.leftJoin(jobType, eq(jobType.id, bookingWaitlist.jobTypeId))
+				.where(
+					and(
+						eq(bookingWaitlist.organizationId, orgId),
+						inArray(bookingWaitlist.status, ['new', 'contacted'])
+					)
 				)
-			),
-		db
-			.select({
-				memberId: jobEvent.memberId,
-				lat: jobEvent.lat,
-				lng: jobEvent.lng,
-				at: jobEvent.at
-			})
-			.from(jobEvent)
-			.where(
-				and(
-					eq(jobEvent.organizationId, orgId),
-					isNotNull(jobEvent.lat),
-					isNotNull(jobEvent.memberId),
-					gte(jobEvent.at, pingCutoff)
-				)
-			)
-			.orderBy(desc(jobEvent.at))
-			.limit(500)
-	]);
+				.orderBy(desc(bookingWaitlist.createdAt))
+				.limit(100)
+		]);
 	const lastPing: Record<string, { lat: number; lng: number; at: Date }> = {};
 	for (const r of pingRows)
 		if (r.memberId && !lastPing[r.memberId])
 			lastPing[r.memberId] = { lat: r.lat!, lng: r.lng!, at: r.at };
-	return { scheduled, unscheduled, technicians, timeOff, dayNotes, lastPing };
+	return { scheduled, unscheduled, technicians, timeOff, dayNotes, lastPing, waitlist };
+}
+
+/** Staff triage for a waitlist signup: new → contacted → booked | closed. */
+export async function setWaitlistStatus(orgId: string, id: string, status: string) {
+	if (!['new', 'contacted', 'booked', 'closed'].includes(status)) error(400, 'Bad status');
+	const [row] = await db
+		.update(bookingWaitlist)
+		.set({ status })
+		.where(and(eq(bookingWaitlist.id, id), eq(bookingWaitlist.organizationId, orgId)))
+		.returning();
+	if (!row) error(404, 'Waitlist entry not found');
+	return row;
 }
 
 /** Technicians = staff members of the org. */

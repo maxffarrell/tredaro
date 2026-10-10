@@ -3,6 +3,7 @@ import { command, getRequestEvent, query } from '$app/server';
 import { bookingInput, estimateDecisionInput, isoDate } from '#lib/schemas.ts';
 import {
 	getPublicCompany,
+	joinWaitlist,
 	publicAvailability,
 	requestBooking,
 	setVisitPreference
@@ -56,6 +57,19 @@ export const requestBookingForm = command(
 		);
 		return r;
 	}
+);
+
+/** Public "couldn't find a time" signup on /book/[slug] — lands on the dispatch waitlist. */
+export const joinBookingWaitlist = command(
+	v.object({
+		slug: v.string(),
+		name: v.pipe(v.string(), v.minLength(1)),
+		email: v.optional(v.string(), ''),
+		phone: v.optional(v.string(), ''),
+		jobTypeId: v.optional(v.string(), ''),
+		note: v.optional(v.string(), '')
+	}),
+	async (input) => joinWaitlist(input.slug, input)
 );
 
 /** Public estimate page data for /e/[token]. */

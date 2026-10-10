@@ -1255,3 +1255,21 @@ export const jobDocument = pgTable(
 	},
 	(t) => [index('job_document_job_idx').on(t.jobId)]
 );
+
+/** Public-booking waitlist signup — customers who couldn't find a slot. */
+export const bookingWaitlist = pgTable(
+	'booking_waitlist',
+	{
+		id: id(),
+		organizationId: orgId(),
+		name: text('name').notNull(),
+		email: text('email').notNull().default(''),
+		phone: text('phone').notNull().default(''),
+		jobTypeId: text('job_type_id').references(() => jobType.id, { onDelete: 'set null' }),
+		note: text('note').notNull().default(''),
+		/** 'new' | 'contacted' | 'booked' | 'closed' — staff triage on the dispatch board. */
+		status: text('status').notNull().default('new'),
+		...timestamps
+	},
+	(t) => [index('booking_waitlist_org_idx').on(t.organizationId, t.status)]
+);

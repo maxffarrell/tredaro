@@ -14,11 +14,13 @@
 		moveDayStop,
 		reviewBooking,
 		sendDayEtas,
-		updateJob
+		updateJob,
+		updateWaitlistStatus
 	} from '#lib/remote/jobs.remote.ts';
 	import { setDayNote } from '#lib/remote/followups.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { addDays } from '#lib/tz.ts';
@@ -234,6 +236,16 @@
 	const queueOthers = $derived(filteredQueue.filter((j) => j.job.source !== 'booking'));
 
 	let reviewBusy = $state('');
+	let waitlistBusy = $state('');
+	async function setWaitlist(id: string, status: 'contacted' | 'closed') {
+		waitlistBusy = id;
+		try {
+			await updateWaitlistStatus({ id, status }).updates(getDispatchBoard);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not update'));
+		}
+		waitlistBusy = '';
+	}
 	async function review(jobId: string, approve: boolean) {
 		reviewBusy = jobId;
 		try {
@@ -811,6 +823,73 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
+
+	<!-- Booking waitlist -->
+	{#if board.waitlist?.length}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-base">Waitlist ({board.waitlist.length})</Card.Title>
+				<Card.Description
+					>Asked for a call back from the booking page — reach out and book them in.</Card.Description
+				>
+			</Card.Header>
+			<Card.Content class="overflow-x-auto px-0">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head class="pl-6">Name</Table.Head>
+							<Table.Head>Contact</Table.Head>
+							<Table.Head>Service</Table.Head>
+							<Table.Head>Note</Table.Head>
+							<Table.Head>Asked</Table.Head>
+							<Table.Head class="pr-6 text-right">Status</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each board.waitlist as w (w.id)}
+							<Table.Row>
+								<Table.Cell class="pl-6 font-medium">{w.name}</Table.Cell>
+								<Table.Cell class="text-sm">
+									{#if w.phone}
+										<a class="hover:underline" href="tel:{w.phone}">{w.phone}</a>
+									{/if}
+									{#if w.phone && w.email}·{/if}
+									{#if w.email}
+										<a class="hover:underline" href="mailto:{w.email}">{w.email}</a>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="text-sm">{w.jobTypeName ?? '—'}</Table.Cell>
+								<Table.Cell class="max-w-48 truncate text-sm text-muted-foreground"
+									>{w.note || '—'}</Table.Cell
+								>
+								<Table.Cell class="text-sm whitespace-nowrap text-muted-foreground"
+									>{formatRelative(w.createdAt)}</Table.Cell
+								>
+								<Table.Cell class="pr-6">
+									<div class="flex justify-end gap-1.5">
+										{#if w.status === 'new'}
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={waitlistBusy === w.id}
+												onclick={() => setWaitlist(w.id, 'contacted')}>Contacted</Button
+											>
+										{/if}
+										<Button
+											size="sm"
+											variant="ghost"
+											disabled={waitlistBusy === w.id}
+											onclick={() => setWaitlist(w.id, 'closed')}>Close</Button
+										>
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
 	<!-- Scheduled, grouped by technician -->
 	<div class="space-y-4">

@@ -23,7 +23,8 @@
 		providers,
 		footer,
 		orgPhone,
-		orgWebsite
+		orgWebsite,
+		reviewUrl
 	} = $derived(data);
 	const balance = $derived(total - paid);
 	const paidOff = $derived(
@@ -152,6 +153,11 @@
 				<Card.Content class="py-6 text-center">
 					<p class="font-semibold">Paid in full</p>
 					<p class="mt-1 text-sm text-muted-foreground">Thanks, {customerName}.</p>
+					{#if reviewUrl}
+						<Button class="mt-3" size="sm" variant="outline" href={reviewUrl} target="_blank"
+							>Loved the work? Leave a review</Button
+						>
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		{:else if providers.length}

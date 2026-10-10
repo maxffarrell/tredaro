@@ -7,7 +7,11 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { getDayAvailability, requestBookingForm } from '#lib/remote/public.remote.ts';
+	import {
+		getDayAvailability,
+		joinBookingWaitlist,
+		requestBookingForm
+	} from '#lib/remote/public.remote.ts';
 	import Logo from '#lib/components/app/logo.svelte';
 	import { errMsg, formatMoney } from '#lib/format.ts';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -135,6 +139,35 @@
 			toast.error(errMsg(err, 'Could not submit — try again'));
 		}
 		pending = false;
+	}
+
+	// ------- waitlist -------
+	let wlName = $state('');
+	let wlContact = $state('');
+	let wlJobTypeId = $state('');
+	let wlNote = $state('');
+	let wlPending = $state(false);
+	let waitlistDone = $state(false);
+
+	async function joinList(e: SubmitEvent) {
+		e.preventDefault();
+		wlPending = true;
+		try {
+			const contact = wlContact.trim();
+			await joinBookingWaitlist({
+				slug: org.slug,
+				name: wlName,
+				email: contact.includes('@') ? contact : '',
+				phone: contact.includes('@') ? '' : contact,
+				jobTypeId: wlJobTypeId || '',
+				note: wlNote
+			});
+			waitlistDone = true;
+			toast.success("You're on the waitlist");
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not join — try again'));
+		}
+		wlPending = false;
 	}
 </script>
 
@@ -401,6 +434,50 @@
 								>{pending ? 'Sending…' : 'Request service'}</Button
 							>
 						</form>
+					</Card.Content>
+				</Card.Root>
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="text-base">Can't find a time that works?</Card.Title>
+						<Card.Description
+							>Join the waitlist — we'll call or email you as soon as something opens up.</Card.Description
+						>
+					</Card.Header>
+					<Card.Content class="px-6 pb-6">
+						{#if waitlistDone}
+							<p class="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+								You're on the list — we'll be in touch.
+							</p>
+						{:else}
+							<form class="space-y-3" onsubmit={joinList}>
+								<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+									<Input placeholder="Name" required bind:value={wlName} autocomplete="name" />
+									<Input
+										placeholder="Phone or email"
+										required
+										bind:value={wlContact}
+										autocomplete="tel"
+									/>
+									{#if jobTypes.length}
+										<Select.Root type="single" bind:value={wlJobTypeId}>
+											<Select.Trigger class="w-full">
+												{jobTypes.find((t) => t.id === wlJobTypeId)?.name ?? 'Any service'}
+											</Select.Trigger>
+											<Select.Content>
+												<Select.Item value="">Any service</Select.Item>
+												{#each jobTypes as t (t.id)}
+													<Select.Item value={t.id}>{t.name}</Select.Item>
+												{/each}
+											</Select.Content>
+										</Select.Root>
+									{/if}
+								</div>
+								<Input placeholder="Anything we should know? (optional)" bind:value={wlNote} />
+								<Button type="submit" variant="outline" disabled={wlPending}
+									>{wlPending ? 'Joining…' : 'Join the waitlist'}</Button
+								>
+							</form>
+						{/if}
 					</Card.Content>
 				</Card.Root>
 			{/if}
