@@ -137,7 +137,11 @@ export const updateWaitlistStatus = command(
 		id: v.string(),
 		status: v.picklist(['new', 'contacted', 'booked', 'closed'])
 	}),
-	async ({ id, status }) => svc.setWaitlistStatus((await requireOrg()).orgId, id, status)
+	async ({ id, status }) => {
+		const row = await svc.setWaitlistStatus((await requireOrg()).orgId, id, status);
+		await refreshQuery(getDispatchBoard, undefined);
+		return row;
+	}
 );
 
 /** The calling technician's My Day payload: today's jobs, unscheduled queue, open timer. */
