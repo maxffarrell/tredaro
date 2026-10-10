@@ -32,7 +32,7 @@ import { appOrigin, sendEmail } from '#lib/server/email.ts';
 import { sendSms, smsProvider } from '#lib/server/sms.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
 import { estimateUrl, expireEstimates } from './estimates.ts';
-import { bookingCancelUrl, serviceReportUrl } from './jobs.ts';
+import { bookingCancelUrl, bookingRescheduleUrl, serviceReportUrl } from './jobs.ts';
 import { invoiceUrl } from './billing.ts';
 import { addDays, localDate, localTime, zonedToUtc } from '#lib/tz.ts';
 import { formatDate, formatMoney } from '#lib/format.ts';
@@ -404,7 +404,8 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 			heading: `We got your request, ${row.customerName}`,
 			lines: [
 				`Thanks for reaching out about ${row.jobTypeName ?? row.summary}.`,
-				'A dispatcher will contact you shortly to confirm a time.'
+				'A dispatcher will contact you shortly to confirm a time.',
+				`Need a different time? Reschedule here: ${bookingRescheduleUrl(jobId)}`
 			],
 			action: { label: 'Open the customer portal', url: `${appOrigin()}/portal` },
 			secondary: { label: 'Need to cancel? Click here', url: bookingCancelUrl(jobId) }
@@ -446,6 +447,49 @@ export async function notifyBookingCancelled(orgId: string, jobId: string) {
 			})
 		});
 	}
+}
+
+/** Customer asked for a different time via the booking link — alert staff (digest toggle gates). */
+export async function notifyRescheduleRequested(orgId: string, jobId: string, requested: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			customerName: customer.name,
+			phone: customer.phone,
+			jobTypeName: jobType.name,
+			summary: job.summary,
+			number: job.number
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'reschedule_request', `${jobId}:${requested}`, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Reschedule requested — ${row.customerName} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} wants a different time for J-${row.number}`,
+				lines: [
+					`${row.jobTypeName ?? row.summary}: customer asked for ${requested}.`,
+					row.phone ? `Phone: ${row.phone}` : 'No phone on file.',
+					'The visit stays on the calendar until you move it.'
+				],
+				action: { label: 'Open dispatch', url: `${appOrigin()}/dispatch` }
+			})
+		});
+	}
+	await textStaffHot(
+		orgId,
+		'reschedule_request',
+		`${jobId}:${requested}`,
+		`${name}: ${row.customerName} asked to reschedule J-${row.number} → ${requested}`
+	);
 }
 
 /** Text receipt of an online booking — complements the confirmation email. */

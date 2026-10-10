@@ -46,6 +46,7 @@
 	import Send from '@lucide/svelte/icons/send';
 	import Mail from '@lucide/svelte/icons/mail';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import Printer from '@lucide/svelte/icons/printer';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Download from '@lucide/svelte/icons/download';
@@ -567,6 +568,16 @@
 													e.stopPropagation();
 													textInvoiceCmd(inv.invoice.id);
 												}}><MessageSquare class="size-4" /></Button
+											>
+											<Button
+												variant="ghost"
+												size="icon"
+												class="size-8"
+												title="Print invoice"
+												onclick={(e: MouseEvent) => {
+													e.stopPropagation();
+													window.open(`/invoices/${inv.invoice.id}/print`, '_blank');
+												}}><Printer class="size-4" /></Button
 											>
 											<Button
 												variant="ghost"

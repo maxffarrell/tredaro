@@ -1465,7 +1465,10 @@
 			<Card.Header><Card.Title class="text-base">Costing</Card.Title></Card.Header>
 			<Card.Content class="space-y-2 text-sm">
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Labor</span><span>{fmtDur(j.costing.laborMin)}</span>
+					<span class="text-muted-foreground">Labor</span><span class="tabular-nums"
+						>{fmtDur(j.costing.laborMin)}{#if j.costing.laborCost > 0}
+							· {formatMoney(j.costing.laborCost, settings.currency)}{/if}</span
+					>
 				</div>
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Materials (cost)</span><span class="tabular-nums"
@@ -1490,11 +1493,15 @@
 				</div>
 				<div class="flex justify-between font-medium">
 					<span>Margin</span><span
-						class="tabular-nums {j.costing.billed - j.costing.matCost - j.costing.expCost < 0
+						class="tabular-nums {j.costing.billed -
+							j.costing.laborCost -
+							j.costing.matCost -
+							j.costing.expCost <
+						0
 							? 'text-destructive'
 							: ''}"
 						>{formatMoney(
-							j.costing.billed - j.costing.matCost - j.costing.expCost,
+							j.costing.billed - j.costing.laborCost - j.costing.matCost - j.costing.expCost,
 							settings.currency
 						)}</span
 					>

@@ -5,6 +5,7 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import { formatDate } from '#lib/format.ts';
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import type { PageProps } from './$types';
 
@@ -71,6 +72,13 @@
 						{pending ? 'Cancelling…' : 'Yes, cancel this visit'}
 					</Button>
 				</form>
+				<p class="text-center text-sm text-muted-foreground">
+					Just need a different time?
+					<a
+						href="/book/reschedule/{page.params.token}"
+						class="font-medium text-foreground underline">Request a reschedule</a
+					> instead.
+				</p>
 			{/if}
 		</Card.Content>
 	</Card.Root>

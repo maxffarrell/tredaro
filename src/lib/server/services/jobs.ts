@@ -313,6 +313,10 @@ export async function getJob(orgId: string, id: string) {
 				sql<number>`(select coalesce(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60), 0) from ${jobTimeEntry} te where te.job_id = ${outer(job.id)})`.mapWith(
 					Number
 				),
+			laborCost:
+				sql<number>`(select coalesce(round(sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 3600.0 * m.labor_cost_cents)), 0) from ${jobTimeEntry} te join ${member} m on m.id = te.member_id where te.job_id = ${outer(job.id)})`.mapWith(
+					Number
+				),
 			matCost:
 				sql<number>`(select coalesce(sum(m.qty * i.unit_cost), 0) from ${jobMaterial} m inner join ${inventoryItem} i on m.inventory_item_id = i.id where m.job_id = ${outer(job.id)})`.mapWith(
 					Number
@@ -2658,6 +2662,46 @@ export async function cancelBookedJob(jobId: string) {
 	const { notifyBookingCancelled } = await import('./notifications.ts');
 	await notifyBookingCancelled(j.organizationId, jobId);
 	return { job: updated!, already: false };
+}
+
+export function bookingRescheduleUrl(jobId: string) {
+	return `${appOrigin()}/book/reschedule/${bookingCancelToken(jobId)}`;
+}
+
+/** Public reschedule request via the emailed link — staff confirm the new slot. */
+export async function requestReschedule(
+	jobId: string,
+	input: { date: string; slot: string; note: string }
+) {
+	const [j] = await db.select().from(job).where(eq(job.id, jobId)).limit(1);
+	if (!j) error(404, 'Visit not found');
+	if (j.status === 'cancelled' || j.cancelledAt)
+		error(409, 'This visit was cancelled — please rebook online or call us.');
+	if (j.status === 'done' || j.status === 'in_progress')
+		error(409, 'This visit can no longer be changed online — please call us.');
+	const requested = [input.date, input.slot].filter(Boolean).join(' — ');
+	await db
+		.update(job)
+		.set({ preferredTime: `Reschedule requested: ${requested}` })
+		.where(eq(job.id, jobId));
+	await db.insert(jobEvent).values({
+		organizationId: j.organizationId,
+		jobId,
+		kind: 'note',
+		note: `Customer asked for a different time: ${requested}${input.note ? ` — ${input.note}` : ''}`
+	});
+	await emit({
+		orgId: j.organizationId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'reschedule_requested',
+		summary: `J-${j.number} reschedule requested (${requested})`
+	});
+	const { notifyRescheduleRequested } = await import('./notifications.ts');
+	notifyRescheduleRequested(j.organizationId, jobId, requested).catch((err) =>
+		console.error('reschedule notify failed', err)
+	);
+	return { ok: true };
 }
 
 /** What the public /r/[token] page shows — a completed visit's customer-facing summary. */
