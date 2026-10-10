@@ -721,6 +721,10 @@
 					<Input id="i-prefsup" bind:value={preferredSupplier} placeholder="e.g. Ferguson" />
 				</Field.Field>
 				<Field.Field>
+					<Field.Label for="i-barcode">Barcode</Field.Label>
+					<Input id="i-barcode" bind:value={barcode} placeholder="UPC / EAN" />
+				</Field.Field>
+				<Field.Field>
 					<Field.Label for="inv-cat">Category</Field.Label>
 					<Input
 						id="inv-cat"
