@@ -1946,6 +1946,32 @@ export async function notifyChargeDispute(orgId: string, chargeId: string) {
 	}
 }
 
+/** Emails/inbox-pings admins when a portal customer sends a free-text message. */
+export async function notifyPortalMessage(orgId: string, customerId: string, body: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [c] = await db
+		.select({ name: customer.name })
+		.from(customer)
+		.where(eq(customer.id, customerId));
+	if (!c) return;
+	const name = await orgName(orgId);
+	const entity = `${customerId}:${Date.now()}`;
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'portal_message', entity, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Portal message — ${c.name} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${c.name} sent a message from the portal`,
+				lines: [`“${body}”`, 'Reply by email or text from the customer page.'],
+				action: { label: 'Open customer', url: `${appOrigin()}/customers/${customerId}` }
+			})
+		});
+	}
+}
+
 /** Emails admins when an item's on-hand drops to/below its reorder point. Re-arms on restock. */
 export async function notifyLowStock(orgId: string, itemId: string) {
 	const flags = await notifFlags(orgId);

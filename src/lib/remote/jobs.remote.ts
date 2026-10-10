@@ -316,16 +316,22 @@ export const getTimeEntries = query(idSchema, async (jobId) =>
 	svc.listTimeEntries(await requireOrg(), jobId)
 );
 
-export const startTimer = command(idSchema, async (jobId) => {
-	const t = await svc.startTimer(await requireOrg(), jobId);
+const clockInput = v.object({
+	jobId: idSchema,
+	lat: v.optional(v.pipe(v.number(), v.minValue(-90), v.maxValue(90))),
+	lng: v.optional(v.pipe(v.number(), v.minValue(-180), v.maxValue(180)))
+});
+
+export const startTimer = command(clockInput, async ({ jobId, lat, lng }) => {
+	const t = await svc.startTimer(await requireOrg(), jobId, { lat, lng });
 	await refreshQuery(getTimeEntries, jobId);
 	await refreshQuery(getJob, jobId);
 	await refreshQuery(getMyDay, undefined);
 	return t;
 });
 
-export const stopTimer = command(idSchema, async (jobId) => {
-	const t = await svc.stopTimer(await requireOrg(), jobId);
+export const stopTimer = command(clockInput, async ({ jobId, lat, lng }) => {
+	const t = await svc.stopTimer(await requireOrg(), jobId, { lat, lng });
 	await refreshQuery(getTimeEntries, jobId);
 	await refreshQuery(getJob, jobId);
 	await refreshQuery(getMyDay, undefined);

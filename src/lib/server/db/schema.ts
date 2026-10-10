@@ -571,6 +571,11 @@ export const jobTimeEntry = pgTable(
 		/** Admin flagged the entry as needing a fix before it can be approved. */
 		flaggedAt: timestamp('flagged_at', { withTimezone: true }),
 		flagNote: text('flag_note').notNull().default(''),
+		/** Best-effort device position at clock-in/out (payroll verification). */
+		startLat: doublePrecision('start_lat'),
+		startLng: doublePrecision('start_lng'),
+		endLat: doublePrecision('end_lat'),
+		endLng: doublePrecision('end_lng'),
 		/** Unpaid break minutes deducted from the payable span. */
 		breakMin: integer('break_min').notNull().default(0),
 		...timestamps

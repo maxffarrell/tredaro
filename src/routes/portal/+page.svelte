@@ -27,7 +27,8 @@
 		startCheckout,
 		updatePortalContact,
 		rateVisit,
-		reportChargeProblem
+		reportChargeProblem,
+		sendPortalMessage
 	} from '#lib/remote/portal.remote.ts';
 	import { errMsg, formatDate, formatMoney } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
@@ -249,6 +250,22 @@
 	let reportChargeId = $state('');
 	let reportNote = $state('');
 	let reportPending = $state(false);
+	let msgOpen = $state(false);
+	let msgBody = $state('');
+	let msgPending = $state(false);
+	async function sendMsg(e: SubmitEvent) {
+		e.preventDefault();
+		msgPending = true;
+		try {
+			await sendPortalMessage({ customerId, body: msgBody.trim() });
+			toast.success('Message sent — we will get back to you');
+			msgOpen = false;
+			msgBody = '';
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not send message'));
+		}
+		msgPending = false;
+	}
 	async function submitReport(e: SubmitEvent) {
 		e.preventDefault();
 		reportPending = true;
@@ -378,7 +395,7 @@
 	}
 </script>
 
-<div class="flex items-center justify-between gap-3">
+<div class="flex flex-wrap items-center justify-between gap-3">
 	<div>
 		<h1 class="text-2xl font-semibold tracking-tight">Hi, {d.customer.name}</h1>
 		<p class="text-sm text-muted-foreground">
@@ -402,12 +419,15 @@
 			{/if}
 		</p>
 	</div>
-	<Button
-		onclick={() => {
-			reqType = 'visit';
-			reqOpen = true;
-		}}><Wrench /> Request service</Button
-	>
+	<div class="flex flex-wrap gap-2">
+		<Button
+			onclick={() => {
+				reqType = 'visit';
+				reqOpen = true;
+			}}><Wrench /> Request service</Button
+		>
+		<Button variant="outline" onclick={() => (msgOpen = true)}><MessageSquare /> Message us</Button>
+	</div>
 </div>
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1135,6 +1155,40 @@
 			<Dialog.Footer>
 				<Button type="submit" disabled={reportPending || !reportNote.trim()}
 					>{reportPending ? 'Sending…' : 'Report problem'}</Button
+				>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- message-us dialog -->
+<Dialog.Root
+	open={msgOpen}
+	onOpenChange={(o: boolean) => {
+		if (!o) msgOpen = false;
+	}}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Message us</Dialog.Title>
+			<Dialog.Description>
+				Questions about a visit or your bill? We'll reply by email or text.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form class="space-y-4" onsubmit={sendMsg}>
+			<Field.Field>
+				<Field.Label for="msg-body">Your message</Field.Label>
+				<Textarea
+					id="msg-body"
+					rows={4}
+					bind:value={msgBody}
+					placeholder="Type your message…"
+					maxlength={1000}
+				/>
+			</Field.Field>
+			<Dialog.Footer>
+				<Button type="submit" disabled={msgPending || !msgBody.trim()}
+					>{msgPending ? 'Sending…' : 'Send message'}</Button
 				>
 			</Dialog.Footer>
 		</form>

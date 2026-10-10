@@ -163,3 +163,15 @@ export const reportChargeProblem = command(
 		return r;
 	}
 );
+
+/** Portal: customer sends a free-text message to the office. */
+export const sendPortalMessage = command(
+	v.object({
+		customerId: idSchema,
+		body: v.pipe(v.string(), v.maxLength(1000))
+	}),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		return svc.sendPortalMessage(c.organizationId, c.id, input.body);
+	}
+);
