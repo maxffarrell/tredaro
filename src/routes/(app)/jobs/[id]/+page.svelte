@@ -575,6 +575,7 @@
 	let matItem = $state('');
 	let matQty = $state(1);
 	let matPrice = $state<number | null>(null);
+	let matCustom = $state('');
 	let matSource = $state<'warehouse' | 'truck'>('warehouse');
 	const truckQty = $derived(
 		j.job.technicianId && matItem
@@ -585,25 +586,31 @@
 	);
 	function pickMat(v: string) {
 		matItem = v;
+		matCustom = '';
 		const cost = stock.find((s) => s.item.id === v)?.item.unitCost ?? 0;
-		matPrice = Math.round(cost * (1 + settings.materialsMarkupBps / 10_000));
+		matPrice =
+			v === '__custom' ? null : Math.round(cost * (1 + settings.materialsMarkupBps / 10_000));
 		matSource = 'warehouse';
 	}
 	async function logMaterial(e: SubmitEvent) {
 		e.preventDefault();
 		if (!matItem) return;
+		const custom = matItem === '__custom';
+		if (custom && !matCustom.trim()) return;
 		try {
 			await addJobMaterial({
 				jobId: id,
-				inventoryItemId: matItem,
+				inventoryItemId: custom ? null : matItem,
+				customName: custom ? matCustom.trim() : '',
 				qty: matQty,
 				unitPrice: matPrice ?? 0,
-				truckMemberId: matSource === 'truck' ? j.job.technicianId : null
+				truckMemberId: !custom && matSource === 'truck' ? j.job.technicianId : null
 			}).updates(getJobMaterials, getJob);
 			addingMat = false;
 			matItem = '';
 			matQty = 1;
 			matPrice = null;
+			matCustom = '';
 			toast.success('Material logged');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not log material'));
@@ -1573,7 +1580,7 @@
 						<li class="flex items-start gap-2 text-sm">
 							<div class="min-w-0 flex-1">
 								<p>
-									{m.material.qty} × {m.itemName}
+									{m.material.qty} × {m.itemName ?? m.material.customName}
 									{#if m.material.unitPrice}
 										<span class="text-muted-foreground tabular-nums">
 											· {formatMoney(m.material.qty * m.material.unitPrice, settings.currency)}
@@ -1586,8 +1593,10 @@
 									{#if m.material.sourceMemberId}
 										<Badge variant="outline" class="ml-1">from truck</Badge>
 									{/if}
-									{#if !m.itemBillable}
+									{#if m.itemName && !m.itemBillable}
 										<Badge variant="outline" class="ml-1">non-billable</Badge>
+									{:else if !m.itemName}
+										<Badge variant="outline" class="ml-1">custom</Badge>
 									{/if}
 								</p>
 							</div>
@@ -1618,10 +1627,13 @@
 						<form class="grid gap-2 border-t pt-3" onsubmit={logMaterial}>
 							<Select.Root type="single" value={matItem} onValueChange={pickMat}>
 								<Select.Trigger class="w-full"
-									>{stock.find((s) => s.item.id === matItem)?.item.name ??
-										'Pick an item…'}</Select.Trigger
+									>{matItem === '__custom'
+										? 'Custom — not in inventory'
+										: (stock.find((s) => s.item.id === matItem)?.item.name ??
+											'Pick an item…')}</Select.Trigger
 								>
 								<Select.Content>
+									<Select.Item value="__custom">Custom — not in inventory</Select.Item>
 									{#each stock as s (s.item.id)}
 										<Select.Item value={s.item.id}
 											>{s.item.name}
@@ -1631,6 +1643,13 @@
 									{/each}
 								</Select.Content>
 							</Select.Root>
+							{#if matItem === '__custom'}
+								<Input
+									bind:value={matCustom}
+									placeholder="Part name (e.g. 40A breaker)"
+									aria-label="Part name"
+								/>
+							{/if}
 							<div class="grid grid-cols-2 gap-2">
 								<Input
 									type="number"
@@ -1641,7 +1660,7 @@
 								/>
 								<MoneyInput bind:value={matPrice} placeholder="Unit price" />
 							</div>
-							{#if j.job.technicianId && matItem}
+							{#if j.job.technicianId && matItem && matItem !== '__custom'}
 								<Select.Root
 									type="single"
 									value={matSource}
@@ -1663,7 +1682,12 @@
 								</Select.Root>
 							{/if}
 							<div class="flex gap-2">
-								<Button type="submit" size="sm" disabled={!matItem || matQty < 1}>Log</Button>
+								<Button
+									type="submit"
+									size="sm"
+									disabled={!matItem || matQty < 1 || (matItem === '__custom' && !matCustom.trim())}
+									>Log</Button
+								>
 								<Button type="button" size="sm" variant="ghost" onclick={() => (addingMat = false)}
 									>Cancel</Button
 								>

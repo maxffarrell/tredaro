@@ -1165,7 +1165,7 @@ export async function recordJobEvent(
 					),
 					notes: `Auto-created when J-${j.number} was completed — review before sending`,
 					items: materials.map((m) => ({
-						name: m.itemName,
+						name: m.itemName ?? m.material.customName,
 						description: '',
 						qty: m.material.qty,
 						unitPrice: m.material.unitPrice
@@ -1403,7 +1403,12 @@ export async function updateTimeEntry(
 	ctx: OrgContext,
 	tz: string,
 	entryId: string,
-	input: { startedAt: string; endedAt?: string | null; note?: string | null }
+	input: {
+		startedAt: string;
+		endedAt?: string | null;
+		note?: string | null;
+		breakMin?: number | null;
+	}
 ) {
 	const [row] = await db
 		.select()
@@ -1416,19 +1421,22 @@ export async function updateTimeEntry(
 	const startedAt = zonedToUtc(input.startedAt, tz);
 	const endedAt = input.endedAt ? zonedToUtc(input.endedAt, tz) : null;
 	if (endedAt && endedAt <= startedAt) error(400, 'End must be after start');
-	// Changing the recorded times un-approves the entry — an approval granted on
-	// one set of hours shouldn't survive a time edit (also stops a running
-	// entry from staying approved when its end is cleared). An edit also clears
-	// any needs-fix flag — the member just addressed it.
+	// Changing the recorded times (or the unpaid break) un-approves the entry —
+	// an approval granted on one set of hours shouldn't survive a pay edit (also
+	// stops a running entry from staying approved when its end is cleared). An
+	// edit also clears any needs-fix flag — the member just addressed it.
+	const breakMin = input.breakMin ?? 0;
 	const timesChanged =
 		row.startedAt.getTime() !== startedAt.getTime() ||
-		(row.endedAt?.getTime() ?? null) !== (endedAt?.getTime() ?? null);
+		(row.endedAt?.getTime() ?? null) !== (endedAt?.getTime() ?? null) ||
+		row.breakMin !== breakMin;
 	await db
 		.update(jobTimeEntry)
 		.set({
 			startedAt,
 			endedAt,
 			note: input.note ?? '',
+			breakMin,
 			flaggedAt: null,
 			...(timesChanged ? { approvedAt: null, approvedById: null } : {})
 		})

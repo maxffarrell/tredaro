@@ -97,6 +97,8 @@ export const companySettings = pgTable('company_settings', {
 	serviceZips: text('service_zips').notNull().default(''),
 	/** Master switch for the public /book/[slug] form. */
 	bookingEnabled: boolean('booking_enabled').notNull().default(true),
+	/** Appended to automated customer texts (blank = unsigned). */
+	smsSignature: text('sms_signature').notNull().default(''),
 	/** Custom confirmation message on the booking success card (blank = default copy). */
 	bookingMessage: text('booking_message').notNull().default(''),
 	/** Require staff accept/decline on online bookings before they enter the queue. */
@@ -563,6 +565,8 @@ export const jobTimeEntry = pgTable(
 		/** Admin flagged the entry as needing a fix before it can be approved. */
 		flaggedAt: timestamp('flagged_at', { withTimezone: true }),
 		flagNote: text('flag_note').notNull().default(''),
+		/** Unpaid break minutes deducted from the payable span. */
+		breakMin: integer('break_min').notNull().default(0),
 		...timestamps
 	},
 	(t) => [
@@ -909,9 +913,12 @@ export const jobMaterial = pgTable(
 		jobId: text('job_id')
 			.notNull()
 			.references(() => job.id, { onDelete: 'cascade' }),
-		inventoryItemId: text('inventory_item_id')
-			.notNull()
-			.references(() => inventoryItem.id, { onDelete: 'restrict' }),
+		/** Null on ad-hoc lines logged without an inventory item (misc parts). */
+		inventoryItemId: text('inventory_item_id').references(() => inventoryItem.id, {
+			onDelete: 'restrict'
+		}),
+		/** Free-text name for ad-hoc lines (no stock to decrement). */
+		customName: text('custom_name').notNull().default(''),
 		qty: integer('qty').notNull().default(1),
 		/** Sell price per unit at the time it was logged, minor units. */
 		unitPrice: integer('unit_price').notNull().default(0),

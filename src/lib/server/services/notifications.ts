@@ -58,7 +58,8 @@ async function orgCurrencyOf(orgId: string) {
  * of hitting the customer's phone overnight.
  */
 export async function sendSmsQuiet(orgId: string, msg: { to: string; body: string }) {
-	const tz = await orgTimezone(orgId);
+	const [tz, sig] = await Promise.all([orgTimezone(orgId), smsSignature(orgId)]);
+	if (sig) msg = { ...msg, body: `${msg.body} — ${sig}` };
 	const now = new Date();
 	const localNow = new Date(now.toLocaleString('en-US', { timeZone: tz }));
 	const hour = localNow.getHours();
@@ -137,6 +138,15 @@ export async function flushSmsOutbox(orgId: string) {
 				.where(eq(smsOutbox.id, m.id));
 		}
 	}
+}
+
+/** Org's SMS sign-off (blank = none) — appended to every sendSmsQuiet body. */
+async function smsSignature(orgId: string) {
+	const [s] = await db
+		.select({ sig: companySettings.smsSignature })
+		.from(companySettings)
+		.where(eq(companySettings.organizationId, orgId));
+	return s?.sig ?? '';
 }
 
 async function orgTimezone(orgId: string) {

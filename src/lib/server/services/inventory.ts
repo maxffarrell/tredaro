@@ -157,7 +157,7 @@ export async function listJobMaterials(orgId: string, jobId: string) {
 			memberName: user.name
 		})
 		.from(jobMaterial)
-		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
+		.leftJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
 		.leftJoin(member, eq(jobMaterial.memberId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(and(eq(jobMaterial.organizationId, orgId), eq(jobMaterial.jobId, jobId)))
@@ -170,6 +170,43 @@ export async function addMaterial(
 	input: v.InferOutput<typeof s.jobMaterialInput>
 ) {
 	return db.transaction(async (tx) => {
+		// Ad-hoc line: free-text part not tracked in inventory — nothing to decrement.
+		if (!input.inventoryItemId) {
+			const name = (input.customName ?? '').trim();
+			if (!name) error(422, 'Pick an item or enter a name for a custom line');
+			if (input.truckMemberId) error(409, "Custom lines can't come from a truck");
+			const me0 = ctx.userId
+				? (
+						await tx
+							.select({ id: member.id })
+							.from(member)
+							.where(and(eq(member.userId, ctx.userId), eq(member.organizationId, ctx.orgId)))
+							.limit(1)
+					)[0]
+				: null;
+			const [m0] = await tx
+				.insert(jobMaterial)
+				.values({
+					organizationId: ctx.orgId,
+					jobId: input.jobId,
+					inventoryItemId: null,
+					customName: name,
+					qty: input.qty,
+					unitPrice: input.unitPrice,
+					memberId: me0?.id ?? null,
+					sourceMemberId: null
+				})
+				.returning();
+			void emit({
+				orgId: ctx.orgId,
+				actorId: ctx.userId,
+				entityType: 'job',
+				entityId: input.jobId,
+				action: 'material_added',
+				summary: `Logged ${input.qty} × ${name}`
+			});
+			return m0;
+		}
 		const [item] = await tx
 			.select()
 			.from(inventoryItem)
@@ -261,7 +298,9 @@ export async function removeMaterial(ctx: OrgContext, materialId: string) {
 			.where(and(eq(jobMaterial.id, materialId), eq(jobMaterial.organizationId, ctx.orgId)))
 			.returning();
 		if (!m) error(404, 'Material not found');
-		if (m.sourceMemberId) {
+		if (!m.inventoryItemId) {
+			// Ad-hoc line — nothing was decremented, nothing to restore.
+		} else if (m.sourceMemberId) {
 			await tx
 				.insert(truckStock)
 				.values({
@@ -293,7 +332,7 @@ export async function removeMaterial(ctx: OrgContext, materialId: string) {
 			orgId: ctx.orgId,
 			actorId: ctx.userId,
 			entityType: 'inventory_item',
-			entityId: m.inventoryItemId,
+			entityId: m.inventoryItemId ?? m.id,
 			action: 'material_removed',
 			summary: `Returned ${m.qty} to ${m.sourceMemberId ? 'truck' : 'stock'} from a job`
 		});
@@ -534,6 +573,7 @@ export async function createPoFromJob(ctx: OrgContext, jobId: string) {
 	if (!mats.length) error(409, 'Log materials on the job first — nothing to order');
 	const byItem = new Map<string, { qty: number; unitCost: number }>();
 	for (const m of mats) {
+		if (!m.inventoryItemId) continue; // ad-hoc lines aren't orderable
 		const e = byItem.get(m.inventoryItemId) ?? { qty: 0, unitCost: m.unitCost };
 		e.qty += m.qty;
 		byItem.set(m.inventoryItemId, e);

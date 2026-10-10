@@ -275,6 +275,7 @@
 	let publicPage = $state(settings.publicPage);
 	let emailNotifications = $state(settings.emailNotifications);
 	let smsNotifications = $state(settings.smsNotifications);
+	let smsSignature = $state(settings.smsSignature);
 	let staffDigest = $state(settings.staffDigest);
 	let invoiceTermsDays = $state(settings.invoiceTermsDays);
 	let estimateFooter = $state(settings.estimateFooter);
@@ -350,6 +351,7 @@
 				publicPage,
 				emailNotifications,
 				smsNotifications,
+				smsSignature,
 				staffDigest,
 				invoiceTermsDays,
 				estimateFooter,
@@ -729,6 +731,18 @@
 								</div>
 								<Switch bind:checked={smsNotifications} />
 							</div>
+							<Field.Field>
+								<Field.Label for="s-sms-sig">Text signature</Field.Label>
+								<Input
+									id="s-sms-sig"
+									bind:value={smsSignature}
+									placeholder="e.g. Acme Plumbing"
+									maxlength={60}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Appended to every automated customer text (blank = unsigned).
+								</p>
+							</Field.Field>
 							<div class="flex items-center justify-between">
 								<div>
 									<p>Staff morning digest</p>

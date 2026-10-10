@@ -94,8 +94,13 @@
 		return [...map.entries()];
 	});
 
-	const minutesOf = (e: { startedAt: Date; endedAt: Date | null }) =>
-		Math.max(0, Math.round(((e.endedAt ?? new Date()).getTime() - e.startedAt.getTime()) / 60000));
+	/** Payable minutes — elapsed span minus the unpaid break. */
+	const minutesOf = (e: { startedAt: Date; endedAt: Date | null; breakMin?: number }) =>
+		Math.max(
+			0,
+			Math.round(((e.endedAt ?? new Date()).getTime() - e.startedAt.getTime()) / 60000) -
+				(e.breakMin ?? 0)
+		);
 	const fmtDur = (min: number) => {
 		const m = Math.round(min);
 		return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`;
@@ -231,6 +236,7 @@
 	let teStart = $state('');
 	let teEnd = $state('');
 	let teNote = $state('');
+	let teBreak = $state(0);
 	function startEdit(r: (typeof rows)[number]) {
 		if (!r.jobId) return;
 		editEntryId = r.entry.id;
@@ -240,6 +246,7 @@
 			? `${localDate(r.entry.endedAt, tz)}T${localTime(r.entry.endedAt, tz)}`
 			: '';
 		teNote = r.entry.note;
+		teBreak = r.entry.breakMin;
 		editOpen = true;
 	}
 	async function saveEdit(e: SubmitEvent) {
@@ -250,7 +257,8 @@
 				jobId: editJobId,
 				startedAt: teStart,
 				endedAt: teEnd || null,
-				note: teNote
+				note: teNote,
+				breakMin: teBreak
 			}).updates(getPayroll);
 			editOpen = false;
 			toast.success('Entry updated');
@@ -426,7 +434,9 @@
 								{/if}
 							</div>
 							<span class="shrink-0 text-muted-foreground tabular-nums"
-								>{fmtDur(minutesOf(r.entry))}</span
+								>{fmtDur(minutesOf(r.entry))}{#if r.entry.breakMin > 0}&nbsp;<span
+										class="text-muted-foreground">(−{r.entry.breakMin}m break)</span
+									>{/if}</span
 							>
 							{#if r.entry.endedAt && !r.entry.lockedAt}
 								<Button
@@ -502,6 +512,8 @@
 			<Field.Field>
 				<Field.Label for="pe-note">Note</Field.Label>
 				<Input id="pe-note" bind:value={teNote} placeholder="What was done" />
+				<Field.Label for="pe-break">Unpaid break (minutes)</Field.Label>
+				<Input id="pe-break" type="number" min={0} max={720} bind:value={teBreak} />
 			</Field.Field>
 			<Dialog.Footer>
 				<Button type="button" variant="outline" onclick={() => (editOpen = false)}>Cancel</Button>
