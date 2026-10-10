@@ -322,6 +322,23 @@
 
 	<Card.Root>
 		<Card.Header>
+			<Card.Title class="text-base">Warranty work</Card.Title>
+			<Card.Description>No-charge visits under labor warranty — last 90 days</Card.Description>
+		</Card.Header>
+		<Card.Content class="space-y-2 px-4">
+			<div class="flex justify-between text-sm">
+				<span class="text-muted-foreground">Warranty visits completed</span>
+				<span class="tabular-nums">{r.warranty.count}</span>
+			</div>
+			<div class="flex justify-between text-sm">
+				<span class="text-muted-foreground">Labor logged on warranty jobs</span>
+				<span class="tabular-nums">{fmtHours(r.warranty.minutes)}</span>
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
 			<Card.Title class="text-base">Technician performance</Card.Title>
 			<Card.Description
 				>Jobs completed, hours logged, revenue collected on their jobs — last 90 days</Card.Description
