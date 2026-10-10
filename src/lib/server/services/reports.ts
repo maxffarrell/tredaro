@@ -824,6 +824,24 @@ async function tipsCollected(orgId: string) {
 		)
 		.groupBy(user.name)
 		.orderBy(desc(sql`sum(${payment.amount})`));
+	const [unattributed] = await db
+		.select({
+			n: sql<number>`count(*)`.mapWith(Number),
+			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
+		})
+		.from(payment)
+		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.where(
+			and(
+				eq(payment.organizationId, orgId),
+				eq(charge.kind, 'other'),
+				sql`${charge.description} like 'Tip —%'`,
+				isNull(charge.jobId),
+				gte(payment.paidAt, new Date(Date.now() - 30 * 86400_000))
+			)
+		);
+	if (unattributed && unattributed.total > 0)
+		byTech.push({ name: 'Unattributed', n: unattributed.n, total: unattributed.total });
 	return { ...(row ?? { n: 0, total: 0 }), byTech };
 }
 

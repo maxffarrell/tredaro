@@ -400,7 +400,22 @@
 								</Field.Field>
 								<Field.Field>
 									<Field.Label for="b-when">Preferred time</Field.Label>
-									<Input id="b-when" bind:value={preferredTime} placeholder="e.g. morning, ASAP" />
+									<div class="flex flex-wrap gap-1.5">
+										{#each ['First available', 'Morning', 'Afternoon', 'Evening'] as slot (slot)}
+											<Button
+												type="button"
+												size="sm"
+												variant={preferredTime === slot ? 'default' : 'outline'}
+												onclick={() => (preferredTime = preferredTime === slot ? '' : slot)}
+												>{slot}</Button
+											>
+										{/each}
+									</div>
+									<Input
+										id="b-when"
+										bind:value={preferredTime}
+										placeholder="or type e.g. after 3pm, ASAP"
+									/>
 								</Field.Field>
 							</div>
 							<Field.Field>

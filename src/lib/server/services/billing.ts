@@ -1071,7 +1071,7 @@ export async function publicInvoice(id: string) {
 			console.error('invoice-viewed alert failed', err)
 		);
 	}
-	const [items, [{ paid = 0 } = {}], [settings]] = await Promise.all([
+	const [items, [{ paid = 0 } = {}], [settings], [{ tips = 0 } = {}]] = await Promise.all([
 		db
 			.select()
 			.from(invoiceItem)
@@ -1091,7 +1091,19 @@ export async function publicInvoice(id: string) {
 				reviewUrl: companySettings.reviewUrl
 			})
 			.from(companySettings)
-			.where(eq(companySettings.organizationId, row.invoice.organizationId))
+			.where(eq(companySettings.organizationId, row.invoice.organizationId)),
+		// Tips ride on their own charges (invoice_id NULL) so paid stays exact — match by the
+		// 'Tip — INV-N' description stamped at checkout.
+		db
+			.select({ tips: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
+			.from(payment)
+			.innerJoin(charge, eq(charge.id, payment.chargeId))
+			.where(
+				and(
+					eq(charge.organizationId, row.invoice.organizationId),
+					eq(charge.description, `Tip — INV-${row.invoice.number}`)
+				)
+			)
 	]);
 	const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
 	// Same availability rule as the portal's pay button.
@@ -1112,6 +1124,7 @@ export async function publicInvoice(id: string) {
 		orgPhone: settings?.phone ?? '',
 		orgWebsite: settings?.website ?? '',
 		reviewUrl: settings?.reviewUrl ?? '',
+		tips,
 		providers: providers_
 	};
 }
