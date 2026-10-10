@@ -1349,8 +1349,12 @@
 				</div>
 				{#if j.job.preferredTime}
 					<div class="flex justify-between gap-3">
-						<span class="text-muted-foreground">Customer asked for</span><span class="text-right"
-							>{j.job.preferredTime}</span
+						<span class="text-muted-foreground"
+							>{j.job.preferredTime.startsWith('Reschedule requested:')
+								? 'Reschedule requested'
+								: 'Customer asked for'}</span
+						><span class="text-right"
+							>{j.job.preferredTime.replace(/^Reschedule requested:\s*/, '')}</span
 						>
 					</div>
 				{/if}

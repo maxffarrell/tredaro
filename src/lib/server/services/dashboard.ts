@@ -8,6 +8,7 @@ import {
 	inArray,
 	isNotNull,
 	isNull,
+	like,
 	lt,
 	lte,
 	ne,
@@ -434,6 +435,18 @@ export async function dashboard(orgId: string) {
 			)
 		);
 
+	const [rescheduleReqs] = await db
+		.select({ n: count() })
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				isNull(job.cancelledAt),
+				ne(job.status, 'done'),
+				like(job.preferredTime, 'Reschedule requested:%')
+			)
+		);
+
 	const uninvoicedJobs = await db
 		.select({ id: job.id, number: job.number, summary: job.summary, customerName: customer.name })
 		.from(job)
@@ -728,6 +741,17 @@ export async function dashboard(orgId: string) {
 				sub: 'waiting on parts',
 				amountCents: null as number | null
 			})),
+			...(rescheduleReqs.n > 0
+				? [
+						{
+							tone: 'amber' as const,
+							href: '/dispatch',
+							text: `${rescheduleReqs.n} reschedule request${rescheduleReqs.n === 1 ? '' : 's'}`,
+							sub: 'customers asked for a different time — move the visit on dispatch',
+							amountCents: null as number | null
+						}
+					]
+				: []),
 			...(openWaitlist.n > 0
 				? [
 						{

@@ -56,7 +56,13 @@
 				<p>Issued {formatDate(inv.invoice.issuedAt)}</p>
 				<p>Due {formatDate(inv.invoice.dueDate)}</p>
 				{#if inv.jobNumber}<p>Job J-{inv.jobNumber}</p>{/if}
-				<p class="capitalize">Status: {inv.invoice.status}</p>
+				<p class="capitalize">
+					Status: {balance <= 0
+						? 'paid'
+						: new Date(inv.invoice.dueDate) < new Date()
+							? 'overdue'
+							: inv.invoice.status}
+				</p>
 			</div>
 		</div>
 

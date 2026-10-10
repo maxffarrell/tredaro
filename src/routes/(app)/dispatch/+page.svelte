@@ -680,9 +680,17 @@
 					{#if !j.customerPhone}· <span class="text-red-500">no phone</span>{/if}
 					{#if j.city}· {j.city}{/if}
 					{#if j.job.preferredTime}
-						<br /><span class="text-amber-600 dark:text-amber-400"
-							>Asked: {j.job.preferredTime}</span
-						>
+						{#if j.job.preferredTime.startsWith('Reschedule requested:')}
+							<br /><span class="font-medium text-orange-600 dark:text-orange-400"
+								>reschedule asked: {j.job.preferredTime
+									.slice('Reschedule requested:'.length)
+									.trim()}</span
+							>
+						{:else}
+							<br /><span class="text-amber-600 dark:text-amber-400"
+								>Asked: {j.job.preferredTime}</span
+							>
+						{/if}
 					{/if}
 				</p>
 			</button>

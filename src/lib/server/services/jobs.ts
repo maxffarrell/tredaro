@@ -881,6 +881,13 @@ export async function updateJob(
 			dependsOnJobId: set.dependsOnJobId,
 			arrivalWindow: set.arrivalWindow,
 			completionNotes: set.completionNotes,
+			// A reschedule request is satisfied once staff moves the visit — clear the flag.
+			preferredTime:
+				start !== undefined &&
+				start !== null &&
+				existing.preferredTime?.startsWith('Reschedule requested:')
+					? null
+					: undefined,
 			startsAt: start,
 			endsAt,
 			status,
