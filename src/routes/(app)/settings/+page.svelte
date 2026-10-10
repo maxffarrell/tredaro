@@ -154,6 +154,7 @@
 	let jtName = $state('');
 	let jtDescription = $state('');
 	let jtDuration = $state(60);
+	let jtWarrantyDays = $state(0);
 	let jtAmount = $state<number | null>(null);
 	let jtRate = $state<number | null>(null);
 	let jtTech = $state('');
@@ -172,6 +173,7 @@
 		jtName = t?.name ?? '';
 		jtDescription = t?.description ?? '';
 		jtDuration = t?.durationMin ?? 60;
+		jtWarrantyDays = t?.laborWarrantyDays ?? 0;
 		jtAmount = t?.defaultAmount ?? null;
 		jtRate = t?.hourlyRate ?? null;
 		jtTech = t?.technicianId ?? '';
@@ -193,6 +195,7 @@
 			name: jtName,
 			description: jtDescription,
 			durationMin: jtDuration,
+			laborWarrantyDays: jtWarrantyDays,
 			defaultAmount: jtAmount,
 			hourlyRate: jtRate,
 			technicianId: jtTech || null,
@@ -1941,6 +1944,10 @@
 				<Field.Field>
 					<Field.Label for="jt-duration">Duration (min)</Field.Label>
 					<Input id="jt-duration" type="number" min={5} required bind:value={jtDuration} />
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="jt-warranty">Labor warranty (days)</Field.Label>
+					<Input id="jt-warranty" type="number" min={0} max={3650} bind:value={jtWarrantyDays} />
 				</Field.Field>
 				<Field.Field>
 					<Field.Label>Default tech</Field.Label>

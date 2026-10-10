@@ -565,7 +565,8 @@ export async function createPoFromJob(ctx: OrgContext, jobId: string) {
 		.select({
 			inventoryItemId: jobMaterial.inventoryItemId,
 			qty: jobMaterial.qty,
-			unitCost: inventoryItem.unitCost
+			unitCost: inventoryItem.unitCost,
+			preferredSupplier: inventoryItem.preferredSupplier
 		})
 		.from(jobMaterial)
 		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
@@ -590,8 +591,9 @@ export async function createPoFromJob(ctx: OrgContext, jobId: string) {
 		)
 		.orderBy(desc(purchaseOrder.createdAt))
 		.limit(1);
+	const preferred = mats.map((m) => m.preferredSupplier).find((v) => v && v.trim());
 	return createPurchaseOrder(ctx, {
-		supplier: lastSupplier?.supplier || 'TBD',
+		supplier: preferred || lastSupplier?.supplier || 'TBD',
 		expectedOn: '',
 		notes: `Parts for J-${j.number}`,
 		jobId,
