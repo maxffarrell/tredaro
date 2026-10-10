@@ -2896,6 +2896,8 @@ export async function convertWaitlist(ctx: OrgContext, tz: string, id: string) {
 		.where(and(eq(bookingWaitlist.id, id), eq(bookingWaitlist.organizationId, ctx.orgId)));
 	if (!w) error(404, 'Waitlist entry not found');
 	if (w.status === 'booked') error(409, 'Already booked');
+	const phoneDigits = w.phone.replace(/\D/g, '');
+	const emailNorm = w.email.trim().toLowerCase();
 	const [existing] = await db
 		.select({ id: customer.id })
 		.from(customer)
@@ -2903,8 +2905,10 @@ export async function convertWaitlist(ctx: OrgContext, tz: string, id: string) {
 			and(
 				eq(customer.organizationId, ctx.orgId),
 				or(
-					w.phone ? eq(customer.phone, w.phone) : undefined,
-					w.email ? eq(customer.email, w.email) : undefined
+					phoneDigits.length >= 7
+						? sql`regexp_replace(${customer.phone}, '\\D', '', 'g') = ${phoneDigits}`
+						: undefined,
+					emailNorm ? sql`lower(${customer.email}) = ${emailNorm}` : undefined
 				)
 			)
 		)

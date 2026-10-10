@@ -880,8 +880,10 @@
 									<Table.Cell class="max-w-48 truncate text-sm text-muted-foreground"
 										>{w.note || '—'}</Table.Cell
 									>
-									<Table.Cell class="text-sm whitespace-nowrap text-muted-foreground"
-										>{formatRelative(w.createdAt)}</Table.Cell
+									<Table.Cell
+										class="text-sm whitespace-nowrap {waitingDays(w.createdAt) >= 2
+											? 'font-medium text-amber-600 dark:text-amber-400'
+											: 'text-muted-foreground'}">{formatRelative(w.createdAt)}</Table.Cell
 									>
 									<Table.Cell class="pr-6">
 										<div class="flex justify-end gap-1.5">

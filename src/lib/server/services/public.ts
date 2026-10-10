@@ -434,5 +434,8 @@ export async function joinWaitlist(
 		action: 'waitlist_signup',
 		summary: `${row.name} joined the booking waitlist${row.phone ? ` — ${row.phone}` : ''}`
 	});
+	void import('./notifications.ts')
+		.then((m) => m.notifyWaitlistSignup(org.id, row!.id))
+		.catch((err) => console.error('waitlist signup notification failed', err));
 	return { ok: true };
 }

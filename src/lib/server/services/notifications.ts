@@ -5,6 +5,7 @@ import type { OrgContext } from '#lib/server/context.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
+	bookingWaitlist,
 	charge,
 	companySettings,
 	customer,
@@ -2991,4 +2992,55 @@ export async function sendAnnouncement(
 		summary: `Announcement sent — ${emailed} email${emailed === 1 ? '' : 's'}, ${texted} text${texted === 1 ? '' : 's'}`
 	});
 	return { total: rows.length, emailed, texted, skipped };
+}
+
+/** Booking waitlist signup: staff email (digest-gated) + hot text, plus an SMS ack to the customer. */
+export async function notifyWaitlistSignup(orgId: string, waitlistId: string) {
+	const flags = await notifFlags(orgId);
+	const [row] = await db
+		.select({
+			name: bookingWaitlist.name,
+			email: bookingWaitlist.email,
+			phone: bookingWaitlist.phone,
+			note: bookingWaitlist.note,
+			jobTypeName: jobType.name
+		})
+		.from(bookingWaitlist)
+		.leftJoin(jobType, eq(bookingWaitlist.jobTypeId, jobType.id))
+		.where(eq(bookingWaitlist.id, waitlistId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	if (flags.digest) {
+		for (const email of await adminEmails(orgId)) {
+			if (!(await logOnce(orgId, 'waitlist_staff_alert', waitlistId, email))) continue;
+			await sendEmail({
+				to: email,
+				subject: `Waitlist signup — ${row.name} (${name})`,
+				...renderEmail({
+					orgName: name,
+					heading: `${row.name} joined the booking waitlist`,
+					lines: [
+						`${row.jobTypeName ?? 'Any service'}${row.note ? ` — “${row.note}”` : ''}.`,
+						[row.phone ? `Phone: ${row.phone}` : null, row.email ? `Email: ${row.email}` : null]
+							.filter(Boolean)
+							.join(' · ') || 'No contact details'
+					],
+					action: { label: 'Open dispatch', url: `${appOrigin()}/dispatch` }
+				})
+			});
+		}
+	}
+	await textStaffHot(
+		orgId,
+		'waitlist_staff_alert',
+		waitlistId,
+		`Waitlist: ${row.name} — ${row.jobTypeName ?? 'any service'}`
+	);
+	if (row.phone && flags.sms && smsProvider()) {
+		if (await logOnce(orgId, 'waitlist_ack', waitlistId, row.phone))
+			await sendSmsQuiet(orgId, {
+				to: row.phone,
+				body: `${name}: got your waitlist request — we'll call you back to book a time.`
+			});
+	}
 }
