@@ -8,6 +8,7 @@ import {
 	desc,
 	eq,
 	getTableColumns,
+	gt,
 	gte,
 	inArray,
 	isNotNull,
@@ -493,6 +494,24 @@ export async function createJob(
 	if (start && jt?.requiresHelper && !input.helperId)
 		error(409, 'This job type needs a second tech — pick a helper before scheduling');
 	const durationMin = opts.durationMin ?? jt?.durationMin ?? 60;
+	// A completed job at this location still inside its labor-warranty window makes
+	// the follow-up warranty work (no charge) unless the caller explicitly sets it.
+	let coveredBy: { number: number; warrantyUntil: Date | null } | null = null;
+	if (input.serviceLocationId && input.warranty == null) {
+		[coveredBy] = await db
+			.select({ number: job.number, warrantyUntil: job.warrantyUntil })
+			.from(job)
+			.where(
+				and(
+					eq(job.organizationId, ctx.orgId),
+					eq(job.serviceLocationId, input.serviceLocationId),
+					gt(job.warrantyUntil, new Date())
+				)
+			)
+			.orderBy(desc(job.warrantyUntil))
+			.limit(1);
+		coveredBy ??= null;
+	}
 	// Tech resolution: explicit pick > job type default > the customer's preferred tech.
 	const technicianId = input.technicianId ?? jt?.technicianId ?? c.preferredMemberId ?? null;
 	if (start)
@@ -520,7 +539,7 @@ export async function createJob(
 			priority: input.priority,
 			tags: input.tags,
 			preferredTime: input.preferredTime ?? null,
-			warranty: input.warranty ?? false,
+			warranty: input.warranty ?? coveredBy != null,
 			arrivalWindow: input.arrivalWindow ?? null,
 			source: opts.source ?? 'manual',
 			dependsOnJobId: input.dependsOnJobId ?? null,
@@ -537,6 +556,13 @@ export async function createJob(
 		action: 'created',
 		summary: `Job J-${number}: ${row!.summary || jt?.name || c.name}`
 	});
+	if (coveredBy)
+		await db.insert(jobEvent).values({
+			organizationId: ctx.orgId,
+			jobId: row!.id,
+			kind: 'note',
+			note: `Auto-flagged warranty — this location is covered by J-${coveredBy.number} through ${coveredBy.warrantyUntil ? coveredBy.warrantyUntil.toISOString().slice(0, 10) : '—'}`
+		});
 	if (jt?.checklist?.length)
 		await db.insert(jobChecklistItem).values(
 			jt.checklist.map((label, i) => ({

@@ -60,7 +60,8 @@
 				(!cat || r.item.category === cat) &&
 				(!q ||
 					r.item.name.toLowerCase().includes(q.toLowerCase()) ||
-					r.item.sku.toLowerCase().includes(q.toLowerCase()))
+					r.item.sku.toLowerCase().includes(q.toLowerCase()) ||
+					r.item.barcode.toLowerCase().includes(q.toLowerCase()))
 		)
 	);
 	const totalValue = $derived(
@@ -86,6 +87,7 @@
 	let location = $state('');
 	let supplierSku = $state('');
 	let preferredSupplier = $state('');
+	let barcode = $state('');
 	let category = $state('');
 	let billable = $state(true);
 
@@ -102,6 +104,7 @@
 		location = i?.item.location ?? '';
 		supplierSku = i?.item.supplierSku ?? '';
 		preferredSupplier = i?.item.preferredSupplier ?? '';
+		barcode = i?.item.barcode ?? '';
 		category = i?.item.category ?? '';
 		billable = i?.item.billable ?? true;
 		open = true;
@@ -116,6 +119,7 @@
 				sku,
 				supplierSku,
 				preferredSupplier,
+				barcode,
 				category,
 				billable,
 				unit,

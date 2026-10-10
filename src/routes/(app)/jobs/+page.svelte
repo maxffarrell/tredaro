@@ -352,6 +352,9 @@
 								{#if j.job.blocked}
 									<Badge variant="outline" class="text-amber-600 dark:text-amber-400">parts</Badge>
 								{/if}
+								{#if j.job.warranty}
+									<Badge variant="outline">warranty</Badge>
+								{/if}
 								{#if j.job.status === 'done' && !j.invoiced}
 									<Badge
 										class="ml-1 border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"

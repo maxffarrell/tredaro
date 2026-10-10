@@ -912,6 +912,9 @@
 											{#if j.job.blocked}
 												· <span class="text-amber-600 dark:text-amber-400">parts</span>
 											{/if}
+											{#if j.job.warranty}
+												· <span>warranty</span>
+											{/if}
 											{#if j.depOpen}
 												· <span class="text-amber-600 dark:text-amber-400">dep J-{j.depNumber}</span
 												>
