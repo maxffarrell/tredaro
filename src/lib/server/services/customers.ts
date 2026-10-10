@@ -121,7 +121,7 @@ export async function getCustomer(orgId: string, id: string) {
 		.select({
 			...getTableColumns(serviceLocation),
 			/** Latest active labor-warranty window covering this location (from completed jobs). */
-			laborWarrantyUntil: sql<Date | null>`(select max(j.warranty_until) from ${job} j where j.service_location_id = ${serviceLocation.id} and j.warranty_until > now())`
+			laborWarrantyUntil: sql<Date | null>`(select max(j.warranty_until) from ${job} j where j.service_location_id = ${outer(serviceLocation.id)} and j.warranty_until > now())`
 		})
 		.from(serviceLocation)
 		.where(and(eq(serviceLocation.organizationId, orgId), eq(serviceLocation.customerId, id)))
