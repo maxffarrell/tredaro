@@ -1,4 +1,7 @@
 import { db } from '#lib/server/db/index.ts';
+import { UPLOADS_DIR } from '$app/env/private';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
 	agreementPlan,
 	charge,
@@ -16,6 +19,7 @@ import {
 	jobTimeEntry,
 	jobType,
 	member,
+	memberDocument,
 	office,
 	payment,
 	pricebookItem,
@@ -572,6 +576,31 @@ export async function loadDemoData(ctx: OrgContext) {
 		.update(companySettings)
 		.set({ nextEstimateNumber: 2, nextInvoiceNumber: 2 })
 		.where(eq(companySettings.organizationId, ctx.orgId));
+
+	// A member document expiring in ~2 weeks — shows the Documents card on the
+	// member page plus the amber dashboard attention row.
+	if (me) {
+		const dir = join(UPLOADS_DIR || 'data/uploads', ctx.orgId);
+		await mkdir(dir, { recursive: true });
+		const docPath = join(dir, `mdoc-demo-license.txt`);
+		await writeFile(
+			docPath,
+			`HVAC Contractor License\nLicense #: HC-2024-1187\nIssued to: Demo Technician\nState: TX\n`,
+			'utf8'
+		);
+		const exp = new Date(now.getTime() + 14 * 86400_000).toISOString().slice(0, 10);
+		await db.insert(memberDocument).values({
+			organizationId: ctx.orgId,
+			memberId: me.id,
+			uploadedById: me.id,
+			label: 'HVAC License',
+			fileName: 'hvac-license.txt',
+			mime: 'text/plain',
+			size: 92,
+			path: docPath,
+			expiresOn: exp
+		});
+	}
 
 	return { customers: customers.length, jobs: jobs.length };
 }

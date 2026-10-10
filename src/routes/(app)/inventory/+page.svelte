@@ -218,7 +218,7 @@
 	]);
 
 	function openPo(pre?: (typeof rows)[number]) {
-		poSupplier = '';
+		poSupplier = pre?.item.preferredSupplier ?? '';
 		poExpected = '';
 		poNotes = '';
 		poLines = pre

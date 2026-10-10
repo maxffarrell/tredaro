@@ -21,6 +21,7 @@ import {
 	followUp,
 	jobType,
 	jobTimeEntry,
+	memberDocument,
 	notificationLog,
 	organization,
 	inventoryItem,
@@ -1732,6 +1733,56 @@ export async function runReminders(orgId: string) {
 					action: { label: 'Open customer portal', url: `${appOrigin()}/portal` }
 				})
 			});
+		}
+	}
+
+	// Member document expiry heads-up: licenses/certs lapsing within 7 days (or
+	// already expired) — one email per doc+date to each alerting admin.
+	{
+		const flags = await notifFlags(orgId);
+		if (flags.email) {
+			const name2 = await orgName(orgId);
+			const admins = await adminEmails(orgId);
+			const expiring = await db
+				.select({
+					id: memberDocument.id,
+					fileName: memberDocument.fileName,
+					label: memberDocument.label,
+					expiresOn: memberDocument.expiresOn,
+					memberId: memberDocument.memberId,
+					memberName: user.name
+				})
+				.from(memberDocument)
+				.innerJoin(member, eq(memberDocument.memberId, member.id))
+				.innerJoin(user, eq(member.userId, user.id))
+				.where(
+					and(
+						eq(memberDocument.organizationId, orgId),
+						isNotNull(memberDocument.expiresOn),
+						lte(memberDocument.expiresOn, in7)
+					)
+				)
+				.limit(50);
+			for (const d of expiring) {
+				const when = d.expiresOn! < todayIso ? `expired ${d.expiresOn}` : `expires ${d.expiresOn}`;
+				for (const email of admins) {
+					if (!(await logOnce(orgId, 'member_doc_expiry', `${d.id}:${d.expiresOn}`, email)))
+						continue;
+					await sendEmail({
+						to: email,
+						subject: `${d.memberName}: ${d.label || d.fileName} ${when} — ${name2}`,
+						...renderEmail({
+							orgName: name2,
+							heading: `${d.memberName}'s ${d.label || 'document'} ${when}`,
+							lines: [
+								`${d.fileName} on ${d.memberName}'s profile ${when}.`,
+								'Update the expiry or upload a renewed copy from their team page.'
+							],
+							action: { label: 'Open team member', url: `${appOrigin()}/team/${d.memberId}` }
+						})
+					});
+				}
+			}
 		}
 	}
 
