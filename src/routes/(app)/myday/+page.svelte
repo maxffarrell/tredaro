@@ -823,6 +823,13 @@
 						>{/if}</span
 				>
 			{/if}
+			{#if day.tipsToday.total > 0}
+				<span class="text-muted-foreground tabular-nums"
+					>· tips: <span class="font-semibold text-emerald-600 dark:text-emerald-400"
+						>{formatMoney(day.tipsToday.total, currency)}</span
+					> today</span
+				>
+			{/if}
 			{#if day.monthCommissionCents > 0}
 				<span class="text-muted-foreground tabular-nums"
 					>· commission: <span class="font-semibold text-emerald-600 dark:text-emerald-400"

@@ -1071,40 +1071,60 @@ export async function publicInvoice(id: string) {
 			console.error('invoice-viewed alert failed', err)
 		);
 	}
-	const [items, [{ paid = 0 } = {}], [settings], [{ tips = 0 } = {}]] = await Promise.all([
-		db
-			.select()
-			.from(invoiceItem)
-			.where(eq(invoiceItem.invoiceId, id))
-			.orderBy(asc(invoiceItem.position)),
-		db
-			.select({ paid: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
-			.from(payment)
-			.innerJoin(charge, eq(charge.id, payment.chargeId))
-			.where(eq(charge.invoiceId, id)),
-		db
-			.select({
-				currency: companySettings.currency,
-				footer: companySettings.invoiceFooter,
-				phone: companySettings.phone,
-				website: companySettings.website,
-				reviewUrl: companySettings.reviewUrl
-			})
-			.from(companySettings)
-			.where(eq(companySettings.organizationId, row.invoice.organizationId)),
-		// Tips ride on their own charges (invoice_id NULL) so paid stays exact — match by the
-		// 'Tip — INV-N' description stamped at checkout.
-		db
-			.select({ tips: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
-			.from(payment)
-			.innerJoin(charge, eq(charge.id, payment.chargeId))
-			.where(
-				and(
-					eq(charge.organizationId, row.invoice.organizationId),
-					eq(charge.description, `Tip — INV-${row.invoice.number}`)
+	const [items, [{ paid = 0 } = {}], [settings], [{ tips = 0 } = {}], payments_, [visit]] =
+		await Promise.all([
+			db
+				.select()
+				.from(invoiceItem)
+				.where(eq(invoiceItem.invoiceId, id))
+				.orderBy(asc(invoiceItem.position)),
+			db
+				.select({ paid: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
+				.from(payment)
+				.innerJoin(charge, eq(charge.id, payment.chargeId))
+				.where(eq(charge.invoiceId, id)),
+			db
+				.select({
+					currency: companySettings.currency,
+					footer: companySettings.invoiceFooter,
+					phone: companySettings.phone,
+					website: companySettings.website,
+					reviewUrl: companySettings.reviewUrl
+				})
+				.from(companySettings)
+				.where(eq(companySettings.organizationId, row.invoice.organizationId)),
+			// Tips ride on their own charges (invoice_id NULL) so paid stays exact — match by the
+			// 'Tip — INV-N' description stamped at checkout.
+			db
+				.select({ tips: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
+				.from(payment)
+				.innerJoin(charge, eq(charge.id, payment.chargeId))
+				.where(
+					and(
+						eq(charge.organizationId, row.invoice.organizationId),
+						eq(charge.description, `Tip — INV-${row.invoice.number}`)
+					)
+				),
+			db
+				.select({
+					paidAt: payment.paidAt,
+					amount: payment.amount,
+					method: payment.method,
+					isTip: sql<boolean>`${charge.invoiceId} is null`
+				})
+				.from(payment)
+				.innerJoin(charge, eq(charge.id, payment.chargeId))
+				.where(
+					or(eq(charge.invoiceId, id), eq(charge.description, `Tip — INV-${row.invoice.number}`))
 				)
-			)
-	]);
+				.orderBy(desc(payment.paidAt)),
+			row.invoice.jobId
+				? db
+						.select({ startsAt: job.startsAt, endsAt: job.endsAt, status: job.status })
+						.from(job)
+						.where(eq(job.id, row.invoice.jobId))
+				: Promise.resolve([])
+		]);
 	const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
 	// Same availability rule as the portal's pay button.
 	const providers_ = [];
@@ -1125,6 +1145,8 @@ export async function publicInvoice(id: string) {
 		orgWebsite: settings?.website ?? '',
 		reviewUrl: settings?.reviewUrl ?? '',
 		tips,
+		payments: payments_,
+		visit: visit ?? null,
 		providers: providers_
 	};
 }

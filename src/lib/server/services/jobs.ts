@@ -1987,6 +1987,7 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 			weekLoggedMin: 0,
 			weekApprovedMin: 0,
 			monthCommissionCents: 0,
+			tipsToday: { total: 0, n: 0 },
 			truckLow: [],
 			tz,
 			today
@@ -2010,7 +2011,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		weekSums,
 		commissionSum,
 		truckLow,
-		flaggedTime
+		flaggedTime,
+		tipsToday
 	] = await Promise.all([
 		listJobs(ctx.orgId, { from, to, technicianId: me.id, orHelper: true }),
 		listJobs(ctx.orgId, { technicianId: me.id, orHelper: true, status: ['unscheduled'] }),
@@ -2170,6 +2172,24 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 					eq(jobTimeEntry.memberId, me.id),
 					isNotNull(jobTimeEntry.flaggedAt)
 				)
+			),
+		db
+			.select({
+				total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number),
+				n: sql<number>`count(*)`.mapWith(Number)
+			})
+			.from(payment)
+			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(job, eq(charge.jobId, job.id))
+			.where(
+				and(
+					eq(payment.organizationId, ctx.orgId),
+					eq(charge.kind, 'other'),
+					sql`${charge.description} like 'Tip —%'`,
+					eq(job.technicianId, me.id),
+					gte(payment.paidAt, from),
+					lt(payment.paidAt, to)
+				)
 			)
 	]);
 	// Tech's manual stop order (route_order) takes precedence over the start-time sort.
@@ -2243,7 +2263,8 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 		docs,
 		materials,
 		truckLow,
-		flaggedTime
+		flaggedTime,
+		tipsToday: { total: tipsToday[0]?.total ?? 0, n: tipsToday[0]?.n ?? 0 }
 	};
 }
 

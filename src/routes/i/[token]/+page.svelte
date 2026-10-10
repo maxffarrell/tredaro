@@ -25,7 +25,9 @@
 		orgPhone,
 		orgWebsite,
 		reviewUrl,
-		tips
+		tips,
+		payments,
+		visit
 	} = $derived(data);
 	const balance = $derived(total - paid);
 	const paidOff = $derived(
@@ -81,6 +83,13 @@
 				<h1 class="text-2xl font-semibold tracking-tight">Invoice INV-{inv.number}</h1>
 				<p class="text-sm text-muted-foreground">
 					For {customerName} · due {inv.dueDate}
+					{#if visit?.startsAt && visit.status !== 'done' && visit.status !== 'cancelled'}
+						· visit {new Date(visit.startsAt).toLocaleDateString('en-US', {
+							weekday: 'short',
+							month: 'short',
+							day: 'numeric'
+						})}
+					{/if}
 				</p>
 			</div>
 			<div class="flex items-center gap-2">
@@ -134,6 +143,28 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
+
+		{#if payments.length}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Payment history</Card.Title></Card.Header>
+				<Card.Content class="px-6">
+					<ul class="divide-y text-sm">
+						{#each payments as p (p.paidAt)}
+							<li class="flex justify-between gap-3 py-1.5">
+								<span class="text-muted-foreground"
+									>{new Date(p.paidAt).toLocaleDateString('en-US', {
+										month: 'short',
+										day: 'numeric',
+										year: 'numeric'
+									})} · {p.method}{p.isTip ? ' · tip' : ''}</span
+								>
+								<span class="font-medium tabular-nums">{formatMoney(p.amount, currency)}</span>
+							</li>
+						{/each}
+					</ul>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 
 		{#if inv.notes}
 			<Card.Root>
