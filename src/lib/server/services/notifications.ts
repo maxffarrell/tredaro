@@ -158,7 +158,7 @@ async function orgTimezone(orgId: string) {
 }
 
 /** Writes one notification_log row per (kind, entity, recipient), so repeats are no-ops. */
-async function logOnce(orgId: string, kind: string, entityId: string, recipient: string) {
+export async function logOnce(orgId: string, kind: string, entityId: string, recipient: string) {
 	const [row] = await db
 		.insert(notificationLog)
 		.values({ organizationId: orgId, kind, entityId, recipient })
@@ -1905,6 +1905,42 @@ export async function notifyStaffVisitCancel(orgId: string, jobId: string) {
 					'The job is still on the books — confirm or reschedule with the customer.'
 				],
 				action: { label: 'Open job', url: `${appOrigin()}/jobs/${jobId}` }
+			})
+		});
+	}
+}
+
+/** Emails/inbox-pings admins when a portal customer flags an open charge as wrong. */
+export async function notifyChargeDispute(orgId: string, chargeId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			description: charge.description,
+			amount: charge.amount,
+			note: charge.disputeNote,
+			customerName: customer.name,
+			customerId: charge.customerId
+		})
+		.from(charge)
+		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.where(eq(charge.id, chargeId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'charge_dispute', `${row.customerId}:${chargeId}`, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `Charge dispute — ${row.customerName} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} reported a problem with a charge`,
+				lines: [
+					`${row.description || 'Charge'} — ${formatMoney(row.amount)}`,
+					row.note ? `“${row.note}”` : 'No details given.',
+					'Follow up with the customer before collecting.'
+				],
+				action: { label: 'Open customer', url: `${appOrigin()}/customers/${row.customerId}` }
 			})
 		});
 	}

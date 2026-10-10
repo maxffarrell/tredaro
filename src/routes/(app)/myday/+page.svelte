@@ -19,7 +19,8 @@
 		getCalendarFeed,
 		requestTimeOff,
 		updateJob,
-		moveMyDayStop
+		moveMyDayStop,
+		textRunningLate
 	} from '#lib/remote/jobs.remote.ts';
 	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
 	import { getCustomerOpenBalance, recordPayment } from '#lib/remote/billing.remote.ts';
@@ -46,6 +47,7 @@
 	import CalendarCheck from '@lucide/svelte/icons/calendar-check';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
+	import Clock from '@lucide/svelte/icons/clock';
 	import Flag from '@lucide/svelte/icons/flag';
 	import Phone from '@lucide/svelte/icons/phone';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
@@ -140,6 +142,23 @@
 	let expVendor = $state('');
 	let expAmount = $state(0);
 	let textCustomerId = $state<string | null>(null);
+	let lateJobId = $state<string | null>(null);
+	async function sendLate(jobId: string, minutes: number) {
+		pending = jobId;
+		try {
+			const r = await textRunningLate({ jobId, minutes }).updates(getMyDay);
+			toast.success(
+				r.sent
+					? `Customer texted — new ETA about ${r.when}`
+					: `Already sent a ${minutes}-min update`
+			);
+			lateJobId = null;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not text the customer'));
+		} finally {
+			pending = null;
+		}
+	}
 	let textMsg = $state('');
 	let collectCustomerId = $state<string | null>(null);
 	let collectAmount = $state(0);
@@ -551,6 +570,13 @@
 							disabled={pending !== null}
 							title="Text the customer"
 							onclick={() => (textCustomerId = j.job.customerId)}><MessageSquare /> Text</Button
+						>
+						<Button
+							size="sm"
+							variant="ghost"
+							disabled={pending !== null}
+							title="Text the customer a new ETA"
+							onclick={() => (lateJobId = j.job.id)}><Clock /> Late</Button
 						>
 					{/if}
 					<Button
@@ -1178,5 +1204,29 @@
 		<Dialog.Footer>
 			<Button onclick={() => (wrapOpen = false)}>Done</Button>
 		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- running-late dialog -->
+<Dialog.Root
+	open={!!lateJobId}
+	onOpenChange={(o: boolean) => {
+		if (!o) lateJobId = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-xs">
+		<Dialog.Header>
+			<Dialog.Title>Running late</Dialog.Title>
+			<Dialog.Description>Text the customer a new ETA — how far behind are you?</Dialog.Description>
+		</Dialog.Header>
+		<div class="grid grid-cols-2 gap-2">
+			{#each [15, 30, 60, 90] as m (m)}
+				<Button
+					variant="outline"
+					disabled={pending !== null}
+					onclick={() => sendLate(lateJobId!, m)}>~{m} min</Button
+				>
+			{/each}
+		</div>
 	</Dialog.Content>
 </Dialog.Root>

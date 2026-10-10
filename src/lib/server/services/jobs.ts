@@ -992,6 +992,45 @@ export async function reviewBooking(ctx: OrgContext, jobId: string, approve: boo
 	return { approved: true };
 }
 
+/** Tech taps "Running late" — texts the customer a new ETA and notes it on the timeline. */
+export async function runningLate(ctx: OrgContext, jobId: string, minutes: number) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
+	if (!j) error(404, 'Job not found');
+	if (j.status === 'done' || j.status === 'cancelled') error(409, `Job is ${j.status}`);
+	const me = await memberFor(ctx);
+	const [c] = await db.select().from(customer).where(eq(customer.id, j.customerId));
+	if (!c?.phone) error(409, 'Customer has no phone on file');
+	const tz = (await getSettings(ctx.orgId)).timezone;
+	const eta = new Date(Date.now() + minutes * 60_000);
+	const when = localTime(eta, tz);
+	const { sendSmsQuiet, logOnce } = await import('./notifications.ts');
+	const sent = await logOnce(ctx.orgId, 'job_running_late', `${jobId}:${minutes}`, c.phone);
+	if (!sent) return { sent: false, when };
+	await sendSmsQuiet(ctx.orgId, {
+		to: c.phone,
+		body: `Hi ${c.name.split(' ')[0]}, ${me?.name ?? 'your technician'} is running about ${minutes} min behind — new ETA about ${when}. Sorry for the delay!`
+	});
+	await db.insert(jobEvent).values({
+		organizationId: ctx.orgId,
+		jobId,
+		kind: 'note',
+		memberId: me?.id ?? null,
+		note: `Customer texted: running ~${minutes} min late (ETA ~${when})`
+	});
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'running-late',
+		summary: `Running ~${minutes} min late on J-${j.number} — customer texted`
+	});
+	return { sent: true, when };
+}
+
 /** Tech arrived to a no-show: cancels the visit and rebooks it as an unscheduled copy. */
 export async function markNoShow(ctx: OrgContext, jobId: string) {
 	const [src] = await db

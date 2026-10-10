@@ -733,6 +733,9 @@ export const charge = pgTable(
 		dueDate: date('due_date', { mode: 'string' }).notNull(),
 		amount: integer('amount').notNull(),
 		status: chargeStatus('status').notNull().default('open'),
+		/** Customer flagged this charge from the portal ("Report a problem"). */
+		disputedAt: timestamp('disputed_at', { withTimezone: true }),
+		disputeNote: text('dispute_note'),
 		...timestamps
 	},
 	(t) => [

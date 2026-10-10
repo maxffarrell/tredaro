@@ -143,3 +143,23 @@ export const saveCardOnFile = command(
 		return { url: await svc.portalSaveCard(c.id, input.provider) };
 	}
 );
+
+/** Portal: customer flags an open charge as wrong ("Report a problem"). */
+export const reportChargeProblem = command(
+	v.object({
+		customerId: idSchema,
+		chargeId: idSchema,
+		note: v.optional(v.pipe(v.string(), v.maxLength(500)), '')
+	}),
+	async (input) => {
+		const c = await myCustomer(input.customerId);
+		const r = await svc.reportChargeProblem(
+			c.organizationId,
+			c.id,
+			input.chargeId,
+			input.note ?? ''
+		);
+		void getPortalOverview(c.id).refresh();
+		return r;
+	}
+);

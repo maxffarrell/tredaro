@@ -32,7 +32,7 @@ import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import { createJob } from './jobs.ts';
 import { emit } from './events.ts';
-import { notifyStaffVisitCancel } from './notifications.ts';
+import { notifyChargeDispute, notifyStaffVisitCancel } from './notifications.ts';
 import { nextNumber } from './settings.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
@@ -236,6 +236,7 @@ export async function portalOverview(customerId: string) {
 	const recentMessages = contacts.length
 		? await db
 				.select({
+					id: notificationLog.id,
 					kind: notificationLog.kind,
 					channel: sql<string>`case when ${notificationLog.recipient} = ${c.phone ?? ''} then 'text' else 'email' end`,
 					createdAt: notificationLog.createdAt
@@ -355,7 +356,8 @@ const PORTAL_MESSAGE_KINDS = [
 	'invoice_overdue_10',
 	'invoice_overdue_sms_3',
 	'invoice_overdue_sms_10',
-	'statement_auto'
+	'statement_auto',
+	'job_running_late'
 ] as const;
 
 /** Customers request work on their own company's org context. */
@@ -713,4 +715,40 @@ export async function confirmVisit(orgId: string, customerId: string, jobId: str
 		summary: `J-${j.number} confirmed by customer`
 	});
 	return { confirmed: true };
+}
+
+/** Customer flags an open charge as wrong — staff get an inbox row + email. */
+export async function reportChargeProblem(
+	orgId: string,
+	customerId: string,
+	chargeId: string,
+	note: string
+) {
+	const [row] = await db
+		.select()
+		.from(charge)
+		.where(
+			and(
+				eq(charge.organizationId, orgId),
+				eq(charge.id, chargeId),
+				eq(charge.customerId, customerId)
+			)
+		);
+	if (!row) error(404, 'Charge not found');
+	if (row.status !== 'open') error(409, 'Only unpaid charges can be disputed');
+	if (row.disputedAt) error(409, 'Problem already reported on this charge');
+	await db
+		.update(charge)
+		.set({ disputedAt: new Date(), disputeNote: note.trim() || null })
+		.where(eq(charge.id, chargeId));
+	await emit({
+		orgId,
+		actorId: null,
+		entityType: 'charge',
+		entityId: chargeId,
+		action: 'dispute_reported',
+		summary: `Charge “${row.description || 'charge'}” disputed by customer`
+	});
+	await notifyChargeDispute(orgId, chargeId);
+	return { ok: true };
 }
