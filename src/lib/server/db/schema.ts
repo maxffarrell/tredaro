@@ -79,6 +79,8 @@ export const companySettings = pgTable('company_settings', {
 	autoSendReport: boolean('auto_send_report').notNull().default(false),
 	/** Minimum days of advance notice required on the public booking page (0 = same-day ok). */
 	bookingNoticeDays: integer('booking_notice_days').notNull().default(0),
+	/** Farthest date the public booking page accepts (0 = no limit). */
+	bookingMaxDaysAhead: integer('booking_max_days_ahead').notNull().default(0),
 	/** Sales tax in basis points appended as a line item on new invoices (0 = untaxed). */
 	taxRateBps: integer('tax_rate_bps').notNull().default(0),
 	/** Max public bookings accepted per requested day (0 = unlimited). */

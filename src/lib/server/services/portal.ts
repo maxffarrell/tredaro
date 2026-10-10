@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { and, asc, desc, eq, gte, isNull, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, inArray, like, or, sql } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
@@ -32,6 +32,7 @@ import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import { createJob } from './jobs.ts';
 import { emit } from './events.ts';
+import { notifyStaffVisitCancel } from './notifications.ts';
 import { nextNumber } from './settings.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
@@ -102,6 +103,10 @@ export async function portalOverview(customerId: string) {
 			jobTypeName: jobType.name,
 			confirmed:
 				sql<boolean>`exists (select 1 from ${jobEvent} e where e.job_id = ${job.id} and e.kind = 'confirmed')`.mapWith(
+					Boolean
+				),
+			cancelRequested:
+				sql<boolean>`exists (select 1 from ${jobEvent} e where e.job_id = ${job.id} and e.kind = 'note' and e.note like 'Customer requested cancellation%')`.mapWith(
 					Boolean
 				),
 			technicianName: user.name,
@@ -583,6 +588,58 @@ export async function requestReschedule(
 		action: 'reschedule_requested',
 		summary: `J-${j.number} reschedule requested by customer`
 	});
+	return { ok: true };
+}
+
+/** Customer asks to cancel an upcoming visit — timeline note + staff alert, job stays put. */
+export async function requestVisitCancel(
+	orgId: string,
+	customerId: string,
+	jobId: string,
+	reason: string
+) {
+	const [j] = await db
+		.select()
+		.from(job)
+		.where(
+			and(
+				eq(job.organizationId, orgId),
+				eq(job.id, jobId),
+				eq(job.customerId, customerId),
+				inArray(job.status, ['scheduled', 'dispatched']),
+				isNull(job.cancelledAt)
+			)
+		);
+	if (!j) error(404, 'Visit not found');
+	if (j.startsAt && j.startsAt < new Date()) error(400, 'That visit is already underway');
+	const [asked] = await db
+		.select({ id: jobEvent.id })
+		.from(jobEvent)
+		.where(
+			and(
+				eq(jobEvent.jobId, jobId),
+				eq(jobEvent.kind, 'note'),
+				like(jobEvent.note, 'Customer requested cancellation%')
+			)
+		)
+		.limit(1);
+	if (asked) error(409, 'Cancellation already requested');
+	await db.insert(jobEvent).values({
+		organizationId: orgId,
+		jobId,
+		kind: 'note',
+		memberId: null,
+		note: `Customer requested cancellation${reason ? ` — ${reason}` : ''}`
+	});
+	await emit({
+		orgId,
+		actorId: null,
+		entityType: 'job',
+		entityId: jobId,
+		action: 'cancel_requested',
+		summary: `J-${j.number} cancellation requested by customer`
+	});
+	await notifyStaffVisitCancel(orgId, jobId);
 	return { ok: true };
 }
 

@@ -46,6 +46,10 @@
 	const minDate = $derived(
 		new Date(Date.now() + noticeDays * 86400_000).toISOString().slice(0, 10)
 	);
+	const maxDays = $derived(settings?.bookingMaxDaysAhead ?? 0);
+	const maxDate = $derived(
+		maxDays > 0 ? new Date(Date.now() + maxDays * 86400_000).toISOString().slice(0, 10) : undefined
+	);
 
 	const closedDays = $derived(
 		new Set(
@@ -317,7 +321,13 @@
 							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<Field.Field>
 									<Field.Label for="b-date">Preferred date</Field.Label>
-									<Input id="b-date" type="date" min={minDate} bind:value={preferredDate} />
+									<Input
+										id="b-date"
+										type="date"
+										min={minDate}
+										max={maxDate}
+										bind:value={preferredDate}
+									/>
 									{#if dayClosed}
 										<p class="text-xs font-medium text-red-600 dark:text-red-400">
 											We're closed that day — pick another.

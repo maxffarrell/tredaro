@@ -1875,6 +1875,41 @@ export async function notifyStaffBooking(orgId: string, jobId: string) {
 	}
 }
 
+/** Emails admins when a customer asks to cancel an upcoming visit from the portal. */
+export async function notifyStaffVisitCancel(orgId: string, jobId: string) {
+	const flags = await notifFlags(orgId);
+	if (!flags.digest) return;
+	const [row] = await db
+		.select({
+			customerName: customer.name,
+			number: job.number,
+			startsAt: job.startsAt
+		})
+		.from(job)
+		.innerJoin(customer, eq(job.customerId, customer.id))
+		.where(eq(job.id, jobId));
+	if (!row) return;
+	const name = await orgName(orgId);
+	for (const email of await adminEmails(orgId)) {
+		if (!(await logOnce(orgId, 'visit_cancel_request', jobId, email))) continue;
+		await sendEmail({
+			to: email,
+			subject: `J-${row.number} cancel request — ${row.customerName} (${name})`,
+			...renderEmail({
+				orgName: name,
+				heading: `${row.customerName} asked to cancel J-${row.number}`,
+				lines: [
+					row.startsAt
+						? `Scheduled for ${row.startsAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}.`
+						: 'This visit is unscheduled.',
+					'The job is still on the books — confirm or reschedule with the customer.'
+				],
+				action: { label: 'Open job', url: `${appOrigin()}/jobs/${jobId}` }
+			})
+		});
+	}
+}
+
 /** Emails admins when an item's on-hand drops to/below its reorder point. Re-arms on restock. */
 export async function notifyLowStock(orgId: string, itemId: string) {
 	const flags = await notifFlags(orgId);
