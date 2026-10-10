@@ -805,7 +805,9 @@ export async function updateJob(
 			(set.technicianId && set.technicianId !== existing.technicianId))
 	)
 		error(409, 'Review this online booking first — accept or decline it');
-	if (effectiveStart)
+	// Cancellations never gate on availability — a PTO block can't prevent
+	// marking a visit cancelled.
+	if (effectiveStart && set.cancelled !== true)
 		await assertTechAvailable(
 			ctx.orgId,
 			effectiveTech,
