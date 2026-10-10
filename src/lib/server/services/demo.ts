@@ -296,7 +296,9 @@ export async function loadDemoData(ctx: OrgContext) {
 			unit: 'each',
 			qtyOnHand: 3,
 			reorderPoint: 5,
-			unitCost: 1800
+			unitCost: 1800,
+			preferredSupplier: 'Johnstone Supply',
+			supplierSku: 'CAP45-5-440'
 		},
 		{
 			organizationId: ctx.orgId,
@@ -305,7 +307,8 @@ export async function loadDemoData(ctx: OrgContext) {
 			unit: 'each',
 			qtyOnHand: 7,
 			reorderPoint: 3,
-			unitCost: 14000
+			unitCost: 14000,
+			preferredSupplier: 'Johnstone Supply'
 		},
 		{
 			organizationId: ctx.orgId,
