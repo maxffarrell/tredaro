@@ -734,7 +734,6 @@
 							{
 								key: 'pct',
 								label: 'Capacity',
-								color: 'var(--color-pct)',
 								value: 'pct'
 							}
 						]}

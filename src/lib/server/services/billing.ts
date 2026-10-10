@@ -1138,7 +1138,13 @@ export async function publicInvoiceCheckout(token: string, providerId: string, t
 		currency: inv.currency,
 		description: `Invoice INV-${inv.invoice.number} — ${inv.orgName}` + (tip ? ' (incl. tip)' : ''),
 		meta: {
-			...(tip ? { tredaroTipCents: String(tip), tredaroTipInvoiceId: inv.invoice.id } : {})
+			...(tip
+				? {
+						tredaroTipCents: String(tip),
+						tredaroTipInvoiceId: inv.invoice.id,
+						tredaroTipInvoiceNumber: `INV-${inv.invoice.number}`
+					}
+				: {})
 		},
 		row,
 		paths: { success: `/i/${token}?paid=1`, cancel: `/i/${token}` }

@@ -59,36 +59,42 @@ async function onCheckoutPaid(event: Stripe.Event, session: Stripe.Checkout.Sess
 		externalId: extId,
 		provider: 'Stripe'
 	});
-	// A tip rides along as its own paid 'other' charge so invoice balances stay exact.
+	// A tip rides along as its own paid 'other' charge, unlinked from the invoice so
+	// invoice paid/balance stay exact. Skip entirely on webhook replays.
 	if (tipCents > 0 && session.metadata?.tredaroTipInvoiceId) {
-		const today = new Date().toISOString().slice(0, 10);
-		const invNum = session.metadata.tredaroTipInvoiceId.slice(0, 8);
-		const [tipCharge] = await db
-			.insert(charge)
-			.values({
-				organizationId: orgId,
-				customerId,
-				invoiceId: session.metadata.tredaroTipInvoiceId,
-				kind: 'other',
-				description: `Tip — invoice ${invNum}`,
-				dueDate: today,
-				amount: tipCents,
-				status: 'paid'
-			})
-			.returning();
-		await db
-			.insert(payment)
-			.values({
-				organizationId: orgId,
-				customerId,
-				chargeId: tipCharge.id,
-				amount: tipCents,
-				method: 'stripe',
-				reference: extId,
-				notes: 'Tip paid online with Stripe',
-				externalId: `${extId}:tip`
-			})
-			.onConflictDoNothing();
+		const tipExtId = `${extId}:tip`;
+		const [existing] = await db
+			.select({ id: payment.id })
+			.from(payment)
+			.where(eq(payment.externalId, tipExtId))
+			.limit(1);
+		if (!existing) {
+			const [tipCharge] = await db
+				.insert(charge)
+				.values({
+					organizationId: orgId,
+					customerId,
+					kind: 'other',
+					description: `Tip — ${session.metadata.tredaroTipInvoiceNumber ?? 'invoice payment'}`,
+					dueDate: new Date().toISOString().slice(0, 10),
+					amount: tipCents,
+					status: 'paid'
+				})
+				.returning();
+			await db
+				.insert(payment)
+				.values({
+					organizationId: orgId,
+					customerId,
+					chargeId: tipCharge.id,
+					amount: tipCents,
+					method: 'stripe',
+					reference: extId,
+					notes: 'Tip paid online with Stripe',
+					externalId: tipExtId
+				})
+				.onConflictDoNothing();
+		}
 	}
 }
 
