@@ -906,6 +906,9 @@
 				><FilePen /> Quote</Button
 			>
 		{/if}
+		<Button size="sm" variant="outline" onclick={() => window.open(`/jobs/${id}/print`, '_blank')}
+			><Printer /> Work order</Button
+		>
 		<Button
 			class="hidden md:inline-flex"
 			size="sm"

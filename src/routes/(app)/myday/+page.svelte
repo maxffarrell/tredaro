@@ -432,6 +432,13 @@
 						J-{j.job.number}
 						{j.job.summary || j.jobTypeName || 'Service call'}
 					</a>
+					<a
+						href="/jobs/{j.job.id}/print"
+						target="_blank"
+						title="Print work order"
+						class="ml-1 inline-flex align-middle text-muted-foreground hover:text-foreground"
+						><Printer class="size-3.5" /></a
+					>
 					<p class="truncate text-sm text-muted-foreground">
 						{j.companyName ?? j.customerName}{#if j.locationLabel}
 							· {j.locationLabel}{/if}
