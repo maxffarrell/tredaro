@@ -16,6 +16,8 @@ import {
 	invoice,
 	invoiceItem,
 	job,
+	jobChecklistItem,
+	jobMaterial,
 	jobTimeEntry,
 	jobType,
 	member,
@@ -510,6 +512,32 @@ export async function loadDemoData(ctx: OrgContext) {
 				memberId: me.id,
 				startedAt: new Date(Math.min(liveJob.startsAt.getTime(), now.getTime())),
 				endedAt: null
+			});
+	}
+
+	// Checklist + a logged material on the live job so the work-order print
+	// shows those sections.
+	if (liveJob) {
+		await db.insert(jobChecklistItem).values([
+			{ organizationId: ctx.orgId, jobId: liveJob.id, label: 'Inspect condenser coil', sort: 0 },
+			{
+				organizationId: ctx.orgId,
+				jobId: liveJob.id,
+				label: 'Check refrigerant charge',
+				done: true,
+				doneAt: now,
+				sort: 1
+			},
+			{ organizationId: ctx.orgId, jobId: liveJob.id, label: 'Test capacitor', sort: 2 }
+		]);
+		if (capacitor)
+			await db.insert(jobMaterial).values({
+				organizationId: ctx.orgId,
+				jobId: liveJob.id,
+				inventoryItemId: capacitor.id,
+				memberId: me?.id ?? null,
+				qty: 1,
+				unitPrice: 4500
 			});
 	}
 
