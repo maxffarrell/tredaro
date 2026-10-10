@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { error } from '@sveltejs/kit';
 import { TREDARO_CLOUD, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
-import { customer, paymentProvider, user } from '#lib/server/db/schema.ts';
+import { charge, customer, payment, paymentProvider, user } from '#lib/server/db/schema.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import { and, eq } from 'drizzle-orm';
 import { recordOnlinePayment } from './record.ts';
@@ -44,16 +44,52 @@ async function onCheckoutPaid(event: Stripe.Event, session: Stripe.Checkout.Sess
 			? session.payment_intent
 			: session.payment_intent?.id;
 	const chargeIds = session.metadata?.tredaroChargeIds?.split(',').filter(Boolean);
+	const tipCents = Math.min(
+		Math.max(0, parseInt(session.metadata?.tredaroTipCents ?? '0', 10) || 0),
+		session.amount_total
+	);
+	const extId = intent ?? session.id;
 	await recordOnlinePayment({
 		chargeIds,
 		orgId,
 		customerId,
-		amount: session.amount_total,
+		amount: session.amount_total - tipCents,
 		// Bank debits complete later through `async_payment_succeeded`; cards complete immediately.
 		method: 'stripe',
-		externalId: intent ?? session.id,
+		externalId: extId,
 		provider: 'Stripe'
 	});
+	// A tip rides along as its own paid 'other' charge so invoice balances stay exact.
+	if (tipCents > 0 && session.metadata?.tredaroTipInvoiceId) {
+		const today = new Date().toISOString().slice(0, 10);
+		const invNum = session.metadata.tredaroTipInvoiceId.slice(0, 8);
+		const [tipCharge] = await db
+			.insert(charge)
+			.values({
+				organizationId: orgId,
+				customerId,
+				invoiceId: session.metadata.tredaroTipInvoiceId,
+				kind: 'other',
+				description: `Tip — invoice ${invNum}`,
+				dueDate: today,
+				amount: tipCents,
+				status: 'paid'
+			})
+			.returning();
+		await db
+			.insert(payment)
+			.values({
+				organizationId: orgId,
+				customerId,
+				chargeId: tipCharge.id,
+				amount: tipCents,
+				method: 'stripe',
+				reference: extId,
+				notes: 'Tip paid online with Stripe',
+				externalId: `${extId}:tip`
+			})
+			.onConflictDoNothing();
+	}
 }
 
 async function onCardSaved(event: Stripe.Event, session: Stripe.Checkout.Session) {

@@ -1118,7 +1118,7 @@ export async function publicInvoice(id: string) {
  * Starts a provider checkout for the invoice's remaining balance, straight off the
  * public link — no portal login needed. Success/cancel return to the same link.
  */
-export async function publicInvoiceCheckout(token: string, providerId: string) {
+export async function publicInvoiceCheckout(token: string, providerId: string, tipPct = 0) {
 	const id = verifyInvoiceToken(token);
 	if (!id) error(400, 'Invalid link');
 	const inv = await publicInvoice(id);
@@ -1129,13 +1129,17 @@ export async function publicInvoiceCheckout(token: string, providerId: string) {
 	if (!provider?.configured()) error(404, 'Unknown provider');
 	const row = await providerRow(inv.invoice.organizationId, providerId);
 	if (!provider.ready(row)) error(400, `${provider.name} is not available right now`);
+	const tip = Math.round((balance * Math.max(0, Math.min(25, tipPct))) / 100);
 	return provider.checkout({
 		orgId: inv.invoice.organizationId,
 		customerId: inv.invoice.customerId,
 		email: null, // the payer types their email at checkout
-		amount: balance,
+		amount: balance + tip,
 		currency: inv.currency,
-		description: `Invoice INV-${inv.invoice.number} — ${inv.orgName}`,
+		description: `Invoice INV-${inv.invoice.number} — ${inv.orgName}` + (tip ? ' (incl. tip)' : ''),
+		meta: {
+			...(tip ? { tredaroTipCents: String(tip), tredaroTipInvoiceId: inv.invoice.id } : {})
+		},
 		row,
 		paths: { success: `/i/${token}?paid=1`, cancel: `/i/${token}` }
 	});

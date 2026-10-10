@@ -25,7 +25,7 @@
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
-	import { errMsg } from '#lib/format.ts';
+	import { errMsg, formatRelative } from '#lib/format.ts';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Inbox from '@lucide/svelte/icons/inbox';
@@ -33,6 +33,7 @@
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
+	import MapPin from '@lucide/svelte/icons/map-pin';
 	import ChevronsUp from '@lucide/svelte/icons/chevrons-up';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -843,6 +844,19 @@
 							>
 								<StickyNote class="size-3.5" />
 							</button>
+						{/if}
+						{#if techId && board.lastPing?.[techId]}
+							{@const ping = board.lastPing[techId]}
+							<a
+								class="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-accent"
+								title="Last GPS ping {formatRelative(ping.at)} — open map"
+								href="https://www.google.com/maps?q={ping.lat},{ping.lng}"
+								target="_blank"
+								rel="noopener noreferrer"
+								onclick={(e) => e.stopPropagation()}
+							>
+								<MapPin class="size-3.5" />
+							</a>
 						{/if}
 						{#if group.jobs.length}
 							<Badge variant="outline" class="font-normal text-muted-foreground"

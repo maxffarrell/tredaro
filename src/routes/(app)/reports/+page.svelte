@@ -13,15 +13,40 @@
 	import { getReports } from '#lib/remote/workspace.remote.ts';
 	import { getCurrency } from '#lib/remote/billing.remote.ts';
 	import { formatDate, formatMoney } from '#lib/format.ts';
+	import { BarChart } from 'layerchart';
+	import * as Chart from '#lib/components/ui/chart/index.js';
 	import Download from '@lucide/svelte/icons/download';
 
 	const r = await getReports();
 	const currency = await getCurrency();
 
-	const maxJobs = Math.max(1, ...r.completedJobs.map((d) => d.count));
-	const maxCustomers = Math.max(1, ...r.customers.map((m) => m.count));
-	const maxRevenue = Math.max(1, ...r.revenue.map((m) => m.total));
-	const maxPlan = Math.max(1, ...r.plans.map((p) => p.count));
+	const jobsCfg = {
+		count: { label: 'Jobs', theme: { light: '#2563eb', dark: '#60a5fa' } }
+	} satisfies Chart.ChartConfig;
+	const customersCfg = {
+		count: { label: 'New customers', theme: { light: '#2563eb', dark: '#60a5fa' } }
+	} satisfies Chart.ChartConfig;
+	const revenueCfg = {
+		total: { label: 'Collected', theme: { light: '#16a34a', dark: '#4ade80' } }
+	} satisfies Chart.ChartConfig;
+	const plansCfg = {
+		count: { label: 'Agreements', theme: { light: '#2563eb', dark: '#60a5fa' } }
+	} satisfies Chart.ChartConfig;
+	const laborCfg = {
+		approved: { label: 'Approved', theme: { light: '#059669', dark: '#34d399' } },
+		pending: { label: 'Pending approval', theme: { light: '#d97706', dark: '#fbbf24' } }
+	} satisfies Chart.ChartConfig;
+	const utilCfg = {
+		pct: { label: 'Capacity', theme: { light: '#2563eb', dark: '#60a5fa' } }
+	} satisfies Chart.ChartConfig;
+	const weekdayCfg = {
+		cents: { label: 'Collected', theme: { light: '#2563eb', dark: '#60a5fa' } }
+	} satisfies Chart.ChartConfig;
+	const laborChart = r.labor.map((t) => ({
+		name: t.name,
+		approved: t.approvedMin,
+		pending: Math.max(0, t.minutes - t.approvedMin)
+	}));
 	const decided = r.estimates.filter(
 		(e) => e.status === 'approved' || e.status === 'declined' || e.status === 'converted'
 	);
@@ -52,7 +77,6 @@
 		const m = Math.round(min);
 		return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`;
 	};
-	const maxLabor = Math.max(1, ...r.labor.map((l) => l.minutes));
 </script>
 
 <PageHeader title="Reports">
@@ -70,19 +94,15 @@
 			<Card.Description>{r.completedJobs.reduce((s, d) => s + d.count, 0)} total</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<div class="flex h-32 items-end gap-px">
-				{#each r.completedJobs as d (d.day)}
-					<div
-						class="flex-1 rounded-t bg-primary/80"
-						style="height: {Math.max(2, (d.count / maxJobs) * 100)}%"
-						title="{formatDate(d.day)} — {d.count}"
-					></div>
-				{/each}
-			</div>
-			<div class="mt-1 flex justify-between text-xs text-muted-foreground">
-				<span>{formatDate(r.completedJobs[0]!.day)}</span>
-				<span>{formatDate(r.completedJobs.at(-1)!.day)}</span>
-			</div>
+			<Chart.Container config={jobsCfg} class="h-44 w-full">
+				<BarChart
+					data={r.completedJobs}
+					x="day"
+					series={[{ key: 'count', label: 'Jobs', color: 'var(--color-count)', value: 'count' }]}
+					axis="x"
+					props={{ xAxis: { format: (d: string) => formatDate(d, true) } }}
+				/>
+			</Chart.Container>
 		</Card.Content>
 	</Card.Root>
 
@@ -91,16 +111,24 @@
 			<Card.Title class="text-base">New customers</Card.Title>
 			<Card.Description>Per month, last 12 months</Card.Description>
 		</Card.Header>
-		<Card.Content class="space-y-1.5">
-			{#each r.customers as m (m.month)}
-				<div class="flex items-center gap-2 text-sm">
-					<span class="w-14 shrink-0 text-muted-foreground">{monthLabel(m.month)}</span>
-					<div
-						class="h-4 rounded bg-primary/70"
-						style="width: {(m.count / maxCustomers) * 70}%"
-					></div>
-					<span class="tabular-nums">{m.count}</span>
-				</div>
+		<Card.Content>
+			{#if r.customers.length}
+				<Chart.Container config={customersCfg} class="h-44 w-full">
+					<BarChart
+						data={r.customers}
+						x="month"
+						series={[
+							{
+								key: 'count',
+								label: 'New customers',
+								color: 'var(--color-count)',
+								value: 'count'
+							}
+						]}
+						axis="x"
+						props={{ xAxis: { format: (m: string) => monthLabel(m) } }}
+					/>
+				</Chart.Container>
 			{:else}
 				<Empty.Root class="border-0 py-4">
 					<Empty.Header>
@@ -108,7 +136,7 @@
 						<Empty.Title class="text-sm">No customers yet</Empty.Title>
 					</Empty.Header>
 				</Empty.Root>
-			{/each}
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -118,15 +146,18 @@
 			<Card.Description>Payments per month, last 12 months</Card.Description>
 		</Card.Header>
 		<Card.Content class="space-y-1.5">
-			{#each r.revenue as m (m.month)}
-				<div class="flex items-center gap-2 text-sm">
-					<span class="w-14 shrink-0 text-muted-foreground">{monthLabel(m.month)}</span>
-					<div
-						class="h-4 rounded bg-green-500/70"
-						style="width: {(m.total / maxRevenue) * 70}%"
-					></div>
-					<span class="tabular-nums">{formatMoney(m.total, currency, true)}</span>
-				</div>
+			{#if r.revenue.length}
+				<Chart.Container config={revenueCfg} class="h-44 w-full">
+					<BarChart
+						data={r.revenue}
+						x="month"
+						series={[
+							{ key: 'total', label: 'Collected', color: 'var(--color-total)', value: 'total' }
+						]}
+						axis="x"
+						props={{ xAxis: { format: (m: string) => monthLabel(m) } }}
+					/>
+				</Chart.Container>
 			{:else}
 				<Empty.Root class="border-0 py-4">
 					<Empty.Header>
@@ -134,7 +165,7 @@
 						<Empty.Title class="text-sm">No payments yet</Empty.Title>
 					</Empty.Header>
 				</Empty.Root>
-			{/each}
+			{/if}
 			{#if r.avgTicket != null}
 				<p class="pt-2 text-sm text-muted-foreground">
 					Avg invoice (90d): <span class="font-medium text-foreground"
@@ -158,12 +189,23 @@
 			<Card.Description>Active agreements right now</Card.Description>
 		</Card.Header>
 		<Card.Content class="space-y-1.5">
-			{#each r.plans as p (p.planName)}
-				<div class="flex items-center gap-2 text-sm">
-					<span class="w-32 shrink-0 truncate">{p.planName}</span>
-					<div class="h-4 rounded bg-primary/70" style="width: {(p.count / maxPlan) * 70}%"></div>
-					<span class="tabular-nums">{p.count}</span>
-				</div>
+			{#if r.plans.length}
+				<Chart.Container config={plansCfg} class="h-44 w-full">
+					<BarChart
+						data={r.plans}
+						x="count"
+						y="planName"
+						orientation="horizontal"
+						series={[
+							{
+								key: 'count',
+								label: 'Agreements',
+								color: 'var(--color-count)',
+								value: 'count'
+							}
+						]}
+					/>
+				</Chart.Container>
 			{:else}
 				<Empty.Root class="border-0 py-4">
 					<Empty.Header>
@@ -171,7 +213,7 @@
 						<Empty.Title class="text-sm">No active agreements</Empty.Title>
 					</Empty.Header>
 				</Empty.Root>
-			{/each}
+			{/if}
 			{#if r.churnedAgreements > 0}
 				<p class="pt-2 text-sm text-muted-foreground">
 					Cancelled in last 90d: <span class="font-medium text-foreground"
@@ -636,29 +678,31 @@
 			<Button size="sm" variant="outline" href="/payroll">Payroll</Button>
 		</Card.Header>
 		<Card.Content class="space-y-1.5">
-			{#each r.labor as t (t.memberId)}
-				<div class="flex items-center gap-2 text-sm">
-					<span class="w-32 shrink-0 truncate">{t.name}</span>
-					<div class="h-4 rounded bg-primary/25" style="width: {(t.minutes / maxLabor) * 70}%">
-						{#if t.minutes > 0 && t.approvedMin > 0}
-							<div
-								class="h-4 rounded bg-emerald-600/80"
-								style="width: {Math.min(100, (t.approvedMin / t.minutes) * 100)}%"
-								title="{fmtHours(t.approvedMin)} approved"
-							></div>
-						{/if}
-					</div>
-					<span class="tabular-nums"
-						>{fmtHours(t.minutes)}{#if t.approvedMin > 0}
-							<span class="text-emerald-600 dark:text-emerald-400">
-								· {fmtHours(t.approvedMin)} appr</span
-							>{/if}{#if t.unapprovedMin > 0}
-							<span class="text-amber-600 dark:text-amber-400">
-								· {fmtHours(t.unapprovedMin)} unappr</span
-							>{/if}{#if t.open}
-							<span class="text-muted-foreground"> + running</span>{/if}</span
-					>
-				</div>
+			{#if laborChart.length}
+				<Chart.Container config={laborCfg} class="h-56 w-full">
+					<BarChart
+						data={laborChart}
+						x={['approved', 'pending']}
+						y="name"
+						orientation="horizontal"
+						series={[
+							{
+								key: 'approved',
+								label: 'Approved',
+								color: 'var(--color-approved)',
+								value: 'approved'
+							},
+							{
+								key: 'pending',
+								label: 'Pending approval',
+								color: 'var(--color-pending)',
+								value: 'pending'
+							}
+						]}
+						seriesLayout="stack"
+						props={{ xAxis: { format: (m: number) => fmtHours(m) } }}
+					/>
+				</Chart.Container>
 			{:else}
 				<Empty.Root class="border-0 py-4">
 					<Empty.Header>
@@ -667,7 +711,7 @@
 						<Empty.Description>In the last 30 days.</Empty.Description>
 					</Empty.Header>
 				</Empty.Root>
-			{/each}
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -679,17 +723,26 @@
 			>
 		</Card.Header>
 		<Card.Content class="space-y-1.5">
-			{#each r.utilization as t (t.name)}
-				<div class="flex items-center gap-2 text-sm">
-					<span class="w-32 shrink-0 truncate">{t.name}</span>
-					<div
-						class="h-4 rounded {t.pct > 100 ? 'bg-destructive/80' : 'bg-primary/70'}"
-						style="width: {Math.min(70, (t.pct / 100) * 70)}%"
-					></div>
-					<span class="tabular-nums {t.pct > 100 ? 'text-destructive' : ''}"
-						>{t.hours}h · {t.pct}%</span
-					>
-				</div>
+			{#if r.utilization.length}
+				<Chart.Container config={utilCfg} class="h-44 w-full">
+					<BarChart
+						data={r.utilization}
+						x="pct"
+						y="name"
+						orientation="horizontal"
+						series={[
+							{
+								key: 'pct',
+								label: 'Capacity',
+								color: 'var(--color-pct)',
+								value: 'pct'
+							}
+						]}
+						c={(d: { pct: number }) => (d.pct > 100 ? 'over' : 'ok')}
+						cDomain={['ok', 'over']}
+						cRange={['var(--color-pct)', '#e11d48']}
+					/>
+				</Chart.Container>
 			{:else}
 				<Empty.Root class="border-0 py-4">
 					<Empty.Header>
@@ -697,7 +750,7 @@
 						<Empty.Title class="text-sm">No technicians</Empty.Title>
 					</Empty.Header>
 				</Empty.Root>
-			{/each}
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -1009,24 +1062,21 @@
 	{/if}
 
 	{#if r.revWeekday.some((d) => d.cents > 0)}
-		{@const weekMax = Math.max(...r.revWeekday.map((d) => d.cents), 1)}
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Collected by weekday</Card.Title></Card.Header>
-			<Card.Content class="space-y-2">
-				{#each r.revWeekday as d (d.label)}
-					<div class="flex items-center gap-3 text-sm">
-						<span class="w-8 shrink-0 text-muted-foreground">{d.label}</span>
-						<div class="h-2.5 flex-1 rounded-full bg-muted">
-							<div
-								class="h-2.5 rounded-full bg-primary/75"
-								style:width="{(d.cents / weekMax) * 100}%"
-							></div>
-						</div>
-						<span class="w-20 shrink-0 text-right tabular-nums"
-							>{formatMoney(d.cents, currency, true)}</span
-						>
-					</div>
-				{/each}
+			<Card.Content>
+				<Chart.Container config={weekdayCfg} class="h-44 w-full">
+					<BarChart
+						data={r.revWeekday}
+						x="label"
+						series={[
+							{ key: 'cents', label: 'Collected', color: 'var(--color-cents)', value: 'cents' }
+						]}
+						props={{
+							yAxis: { format: (c: number) => formatMoney(c, currency, true) }
+						}}
+					/>
+				</Chart.Container>
 			</Card.Content>
 		</Card.Root>
 	{/if}

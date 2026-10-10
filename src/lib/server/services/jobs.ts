@@ -1859,7 +1859,8 @@ export async function moveDayStop(
 export async function dispatchBoard(orgId: string, from: Date, to: Date, officeId?: string) {
 	const fromIso = from.toISOString().slice(0, 10);
 	const toIso = to.toISOString().slice(0, 10);
-	const [scheduled, unscheduled, technicians, timeOff, dayNotes] = await Promise.all([
+	const pingCutoff = new Date(Date.now() - 7 * 86400_000);
+	const [scheduled, unscheduled, technicians, timeOff, dayNotes, pingRows] = await Promise.all([
 		listJobs(orgId, { from, to, officeId }),
 		listJobs(orgId, { unscheduled: true, officeId }),
 		listTechnicians(orgId),
@@ -1883,9 +1884,31 @@ export async function dispatchBoard(orgId: string, from: Date, to: Date, officeI
 					gte(memberDayNote.on, fromIso),
 					lte(memberDayNote.on, toIso)
 				)
+			),
+		db
+			.select({
+				memberId: jobEvent.memberId,
+				lat: jobEvent.lat,
+				lng: jobEvent.lng,
+				at: jobEvent.at
+			})
+			.from(jobEvent)
+			.where(
+				and(
+					eq(jobEvent.organizationId, orgId),
+					isNotNull(jobEvent.lat),
+					isNotNull(jobEvent.memberId),
+					gte(jobEvent.at, pingCutoff)
+				)
 			)
+			.orderBy(desc(jobEvent.at))
+			.limit(500)
 	]);
-	return { scheduled, unscheduled, technicians, timeOff, dayNotes };
+	const lastPing: Record<string, { lat: number; lng: number; at: Date }> = {};
+	for (const r of pingRows)
+		if (r.memberId && !lastPing[r.memberId])
+			lastPing[r.memberId] = { lat: r.lat!, lng: r.lng!, at: r.at };
+	return { scheduled, unscheduled, technicians, timeOff, dayNotes, lastPing };
 }
 
 /** Technicians = staff members of the org. */
@@ -2710,4 +2733,122 @@ export async function resolveVisitCancel(ctx: OrgContext, jobId: string, approve
 		console.error('cancel-declined notify failed', err)
 	);
 	return { approved: false };
+}
+
+// ---------- Member profile ----------
+
+/** One staff member's detail page: profile, 30-day stats, upcoming jobs, recent time, PTO. */
+export async function memberProfile(orgId: string, memberId: string) {
+	const [m] = await db
+		.select({
+			id: member.id,
+			userId: user.id,
+			name: user.name,
+			email: user.email,
+			image: user.image,
+			role: member.role,
+			commissionPct: member.commissionPct,
+			laborCostCents: member.laborCostCents,
+			overtimePct: member.overtimePct,
+			staffAlerts: member.staffAlerts,
+			phone: member.phone,
+			skillTags: member.skillTags,
+			color: member.color,
+			dispatchVisible: member.dispatchVisible,
+			licenseNo: member.licenseNo,
+			licenseExpiry: member.licenseExpiry,
+			createdAt: member.createdAt
+		})
+		.from(member)
+		.innerJoin(user, eq(user.id, member.userId))
+		.where(and(eq(member.organizationId, orgId), eq(member.id, memberId)));
+	if (!m) error(404, 'Member not found');
+	const tz = (await getSettings(orgId)).timezone;
+	const today = localDate(new Date(), tz);
+	const cut30 = new Date(Date.now() - 30 * 86400_000);
+	const [entries, stats, rating, upcoming, recentDone, timeOff] = await Promise.all([
+		db
+			.select({
+				id: jobTimeEntry.id,
+				jobId: jobTimeEntry.jobId,
+				jobNumber: job.number,
+				jobSummary: job.summary,
+				startedAt: jobTimeEntry.startedAt,
+				endedAt: jobTimeEntry.endedAt,
+				breakMin: jobTimeEntry.breakMin,
+				note: jobTimeEntry.note
+			})
+			.from(jobTimeEntry)
+			.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
+			.where(and(eq(jobTimeEntry.organizationId, orgId), eq(jobTimeEntry.memberId, memberId)))
+			.orderBy(desc(jobTimeEntry.startedAt))
+			.limit(15),
+		db
+			.select({
+				done30:
+					sql<number>`count(*) filter (where ${job.status} = 'done' and ${job.completedAt} >= ${cut30.toISOString()})`.mapWith(
+						Number
+					),
+				minutes30:
+					sql<number>`coalesce((select sum(extract(epoch from (coalesce(te.ended_at, now()) - te.started_at)) / 60 - te.break_min) from ${jobTimeEntry} te where te.member_id = ${outer(job.technicianId)} and te.started_at >= ${cut30.toISOString()}), 0)`.mapWith(
+						Number
+					)
+			})
+			.from(job)
+			.where(and(eq(job.organizationId, orgId), eq(job.technicianId, memberId)))
+			.groupBy(job.technicianId),
+		db
+			.select({
+				avg: sql<number>`avg(${job.rating})`.mapWith(Number),
+				n: sql<number>`count(*)`.mapWith(Number)
+			})
+			.from(job)
+			.where(
+				and(eq(job.organizationId, orgId), eq(job.technicianId, memberId), isNotNull(job.rating))
+			),
+		listJobs(orgId, {
+			from: zonedToUtc(`${today}T00:00`, tz),
+			to: zonedToUtc(`${addDays(today, 14)}T00:00`, tz),
+			technicianId: memberId,
+			orHelper: true
+		}),
+		db
+			.select({
+				id: job.id,
+				number: job.number,
+				summary: job.summary,
+				completedAt: job.completedAt,
+				rating: job.rating,
+				customerName: customer.name
+			})
+			.from(job)
+			.innerJoin(customer, eq(job.customerId, customer.id))
+			.where(
+				and(eq(job.organizationId, orgId), eq(job.technicianId, memberId), eq(job.status, 'done'))
+			)
+			.orderBy(desc(job.completedAt))
+			.limit(10),
+		db
+			.select()
+			.from(memberTimeOff)
+			.where(
+				and(
+					eq(memberTimeOff.organizationId, orgId),
+					eq(memberTimeOff.memberId, memberId),
+					gte(memberTimeOff.endsOn, today)
+				)
+			)
+			.orderBy(asc(memberTimeOff.startsOn))
+	]);
+	return {
+		member: m,
+		done30: stats[0]?.done30 ?? 0,
+		minutes30: Math.max(0, Math.round(stats[0]?.minutes30 ?? 0)),
+		avgRating: rating[0]?.avg ?? null,
+		ratingCount: rating[0]?.n ?? 0,
+		upcoming,
+		recentDone,
+		entries,
+		timeOff
+	};
 }

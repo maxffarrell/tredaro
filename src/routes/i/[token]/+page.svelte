@@ -31,10 +31,16 @@
 	);
 
 	let paying = $state(false);
+	let tipPct = $state(0);
+	const tipAmount = $derived(Math.round((balance * tipPct) / 100));
 	async function pay(provider: string) {
 		paying = true;
 		try {
-			const { url } = await payPublicInvoice({ token: page.params.token!, provider });
+			const { url } = await payPublicInvoice({
+				token: page.params.token!,
+				provider,
+				tipPct
+			});
 			location.assign(url);
 		} catch (err) {
 			paying = false;
@@ -155,6 +161,24 @@
 					<Card.Description>Pay this invoice online — secure checkout.</Card.Description>
 				</Card.Header>
 				<Card.Content class="px-6">
+					<div class="mb-3">
+						<p class="mb-1.5 text-sm text-muted-foreground">Add a tip for the crew</p>
+						<div class="flex flex-wrap gap-2">
+							{#each [0, 10, 15, 20] as pct (pct)}
+								<Button
+									size="sm"
+									variant={tipPct === pct ? 'default' : 'outline'}
+									onclick={() => (tipPct = pct)}>{pct === 0 ? 'No tip' : `${pct}%`}</Button
+								>
+							{/each}
+							{#if tipAmount > 0}
+								<span class="self-center text-sm text-muted-foreground"
+									>+{formatMoney(tipAmount, currency)} tip · total
+									{formatMoney(balance + tipAmount, currency)}</span
+								>
+							{/if}
+						</div>
+					</div>
 					<div class="flex flex-wrap gap-2">
 						{#each providers as p (p.id)}
 							<Button onclick={() => pay(p.id)} disabled={paying}>{p.payLabel}</Button>

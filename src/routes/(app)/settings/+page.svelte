@@ -1269,7 +1269,9 @@
 						{#each staff as s (s.id)}
 							<li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
 								<div class="min-w-0">
-									<p class="truncate font-medium">{s.name}</p>
+									<p class="truncate font-medium">
+										<a class="underline-offset-2 hover:underline" href="/team/{s.id}">{s.name}</a>
+									</p>
 									<p class="truncate text-xs text-muted-foreground">{s.email}</p>
 								</div>
 								<div class="flex flex-wrap items-center justify-end gap-2">

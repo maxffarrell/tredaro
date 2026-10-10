@@ -126,6 +126,11 @@ export const getDispatchBoard = query(
 
 export const getTechnicians = query(async () => svc.listTechnicians((await requireOrg()).orgId));
 
+/** One member's staff page — profile, 30-day stats, upcoming jobs, recent time, PTO. */
+export const getMemberProfile = query(idSchema, async (id) =>
+	svc.memberProfile((await requireOrg()).orgId, id)
+);
+
 /** The calling technician's My Day payload: today's jobs, unscheduled queue, open timer. */
 export const getMyDay = query(async () => {
 	const ctx = await requireOrg();

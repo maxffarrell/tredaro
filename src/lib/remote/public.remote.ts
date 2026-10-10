@@ -102,8 +102,12 @@ export const setVisitPreferencePublic = command(
 
 /** Starts provider checkout for an invoice's balance off the public /i/[token] page. */
 export const payPublicInvoice = command(
-	v.object({ token: v.string(), provider: v.string() }),
-	async ({ token, provider }) => ({
-		url: await publicInvoiceCheckout(token, provider)
+	v.object({
+		token: v.string(),
+		provider: v.string(),
+		tipPct: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(25)), 0)
+	}),
+	async ({ token, provider, tipPct }) => ({
+		url: await publicInvoiceCheckout(token, provider, tipPct)
 	})
 );
