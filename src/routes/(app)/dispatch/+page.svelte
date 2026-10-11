@@ -19,6 +19,7 @@
 		updateWaitlistStatus
 	} from '#lib/remote/jobs.remote.ts';
 	import { setDayNote } from '#lib/remote/followups.remote.ts';
+	import { getAiStatus, aiDispatchSuggestion } from '#lib/remote/ai.remote.ts';
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
@@ -40,6 +41,7 @@
 	import ChevronsUp from '@lucide/svelte/icons/chevrons-up';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 
 	const settings = await getSettings();
 	const offices = await getOffices();
@@ -70,6 +72,32 @@
 	const tz = settings.timezone;
 
 	const todayStr = localDate(new Date(), tz);
+	const ai = await getAiStatus();
+
+	// ------- AI dispatch suggestions -------
+	let suggestOpen = $state(false);
+	let suggestPending = $state(false);
+	let suggestions = $state<{ jobId: string; memberId: string; reason: string }[]>([]);
+	async function aiSuggest() {
+		suggestPending = true;
+		try {
+			const r = await aiDispatchSuggestion({ day: dayFilter || todayStr });
+			suggestions = r.suggestions;
+			suggestOpen = true;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not get suggestions'));
+		}
+		suggestPending = false;
+	}
+	async function applySuggestion(jobId: string, memberId: string) {
+		try {
+			await updateJob({ id: jobId, technicianId: memberId }).updates(getDispatchBoard);
+			suggestions = suggestions.filter((s) => s.jobId !== jobId);
+			if (!suggestions.length) suggestOpen = false;
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not assign'));
+		}
+	}
 	let start = $state(page.url.searchParams.get('from') ?? todayStr);
 	let etaPending = $state(false);
 
@@ -612,6 +640,15 @@
 				title="Duplicate this week's jobs onto the same weekdays next week"
 				><CalendarPlus /> {copyPending ? 'Copying…' : 'Copy week'}</Button
 			>
+			{#if ai.available}
+				<Button
+					variant="outline"
+					size="sm"
+					title="Suggest tech assignments for {dayFilter || todayStr}"
+					disabled={suggestPending}
+					onclick={aiSuggest}><Sparkles /> {suggestPending ? 'Thinking…' : 'AI suggest'}</Button
+				>
+			{/if}
 			<Button
 				variant="outline"
 				size="icon"
@@ -1141,5 +1178,41 @@
 				>
 			</div>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- AI dispatch suggestions -->
+<Dialog.Root bind:open={suggestOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>AI assignment suggestions — {dayFilter || todayStr}</Dialog.Title>
+			<Dialog.Description>
+				One pick per queued job — apply row by row, or close to keep the board as-is.
+			</Dialog.Description>
+		</Dialog.Header>
+		{#if suggestions.length}
+			<div class="divide-y">
+				{#each suggestions as s (s.jobId)}
+					{@const job = board.unscheduled.find((r) => r.job.id === s.jobId)}
+					{@const tech = board.technicians.find((t) => t.id === s.memberId)}
+					<div class="flex items-center gap-2 py-2 text-sm">
+						<span class="font-medium whitespace-nowrap"
+							>J-{job?.job.number ?? '?'} {job?.job.summary || job?.jobTypeName}</span
+						>
+						<span class="text-muted-foreground">→ {tech?.name ?? '?'}</span>
+						<span class="flex-1 truncate text-xs text-muted-foreground" title={s.reason}
+							>{s.reason}</span
+						>
+						<Button size="sm" variant="outline" onclick={() => applySuggestion(s.jobId, s.memberId)}
+							>Assign</Button
+						>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<p class="py-4 text-center text-sm text-muted-foreground">
+				No suggestions — the queue is empty or nothing matched a tech's day.
+			</p>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>

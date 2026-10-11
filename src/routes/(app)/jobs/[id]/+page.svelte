@@ -53,6 +53,7 @@
 		approveAllTimeEntries
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices, getStaff } from '#lib/remote/workspace.remote.ts';
+	import { getAiStatus, aiServiceSummary } from '#lib/remote/ai.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
 	import { addFollowUp, completeFollowUp, removeFollowUp } from '#lib/remote/followups.remote.ts';
 	import {
@@ -108,12 +109,14 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Printer from '@lucide/svelte/icons/printer';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Plus from '@lucide/svelte/icons/plus';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
 
 	const id = $derived(page.params.id!);
+	const ai = await getAiStatus();
 	const j = $derived(await getJob(id));
 	const jobTypes = $derived(await getJobTypes());
 	const technicians = $derived(await getTechnicians());
@@ -808,6 +811,18 @@
 	}
 
 	let note = $state('');
+	let aiPending = $state(false);
+	async function draftRecap() {
+		aiPending = true;
+		try {
+			const { summary } = await aiServiceSummary(id);
+			note = summary;
+			toast.success('Recap drafted — review and add');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not draft recap'));
+		}
+		aiPending = false;
+	}
 	async function addNote(e: SubmitEvent) {
 		e.preventDefault();
 		if (!note.trim()) return;
@@ -2281,6 +2296,15 @@
 				{#if !locked}
 					<form class="mt-4 flex gap-2" onsubmit={addNote}>
 						<Input placeholder="Add a note…" bind:value={note} />
+						{#if ai.available}
+							<Button
+								type="button"
+								variant="outline"
+								title="Draft a customer-facing recap with AI"
+								disabled={aiPending}
+								onclick={draftRecap}><Sparkles /></Button
+							>
+						{/if}
 						<Button type="submit" variant="secondary" disabled={!note.trim()}>Add</Button>
 					</form>
 				{/if}

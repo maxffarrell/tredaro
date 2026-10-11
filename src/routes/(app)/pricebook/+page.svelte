@@ -29,6 +29,10 @@
 	import Upload from '@lucide/svelte/icons/upload';
 	import Download from '@lucide/svelte/icons/download';
 	import { parseCsv } from '#lib/csv.ts';
+	import { getAiStatus, aiPricebookDraft } from '#lib/remote/ai.remote.ts';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+
+	const ai = await getAiStatus();
 
 	const currency = await getCurrency();
 	const jobTypes = $derived(await getJobTypes());
@@ -150,6 +154,57 @@
 		importPending = false;
 	}
 
+	// ------- AI draft -------
+	let aiOpen = $state(false);
+	let aiPrompt = $state('');
+	let aiPending = $state(false);
+	let aiAddPending = $state(false);
+	let aiRows = $state<
+		{
+			name: string;
+			kind: 'service' | 'material';
+			category: string;
+			price: number;
+			durationMin: number | null;
+		}[]
+	>([]);
+	async function runAiDraft() {
+		aiPending = true;
+		try {
+			const r = await aiPricebookDraft({ prompt: aiPrompt });
+			aiRows = r.items;
+			if (!r.items.length) toast.info('Nothing to add — try describing more services');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not draft items'));
+		}
+		aiPending = false;
+	}
+	async function addAiRows() {
+		aiAddPending = true;
+		try {
+			for (const r of aiRows)
+				await createPricebookItem({
+					name: r.name,
+					kind: r.kind,
+					category: r.category,
+					price: r.price,
+					cost: 0,
+					durationMin: r.durationMin,
+					description: '',
+					jobTypeId: null,
+					taxable: true
+				});
+			toast.success(`Added ${aiRows.length} item${aiRows.length === 1 ? '' : 's'}`);
+			aiOpen = false;
+			aiRows = [];
+			aiPrompt = '';
+			items = await getPricebook({ q });
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not add items'));
+		}
+		aiAddPending = false;
+	}
+
 	let adjustOpen = $state(false);
 	let adjustPct = $state(0);
 	let adjustCat = $state('');
@@ -174,6 +229,11 @@
 
 <PageHeader title="Pricebook">
 	{#snippet actions()}
+		{#if ai.available}
+			<Button size="sm" variant="outline" onclick={() => (aiOpen = true)}
+				><Sparkles /> Draft with AI</Button
+			>
+		{/if}
 		<Button size="sm" variant="outline" onclick={() => (adjustOpen = true)}>Adjust prices</Button>
 		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
 			><Upload /> Import</Button
@@ -444,5 +504,65 @@
 				>{adjustPending ? 'Applying…' : 'Apply'}</Button
 			>
 		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- AI draft -->
+<Dialog.Root bind:open={aiOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Draft items with AI</Dialog.Title>
+			<Dialog.Description>
+				Describe the services you offer or paste a vendor price list — the model drafts items
+				gaps-first against your catalog.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<Textarea
+				rows={5}
+				placeholder="e.g. residential HVAC — seasonal tune-ups, capacitor and contactor swaps, refrigerant recharge, blower motor replacement…"
+				bind:value={aiPrompt}
+			/>
+			<Button
+				variant="secondary"
+				disabled={aiPending || aiPrompt.trim().length < 3}
+				onclick={runAiDraft}><Sparkles /> {aiPending ? 'Drafting…' : 'Draft items'}</Button
+			>
+			{#if aiRows.length}
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>Name</Table.Head>
+							<Table.Head>Kind</Table.Head>
+							<Table.Head>Category</Table.Head>
+							<Table.Head class="text-right">Price</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each aiRows as r (r.name)}
+							<Table.Row>
+								<Table.Cell class="font-medium">{r.name}</Table.Cell>
+								<Table.Cell class="capitalize">{r.kind}</Table.Cell>
+								<Table.Cell>{r.category}</Table.Cell>
+								<Table.Cell class="text-right tabular-nums"
+									>{formatMoney(r.price, currency)}{r.durationMin
+										? ` · ${r.durationMin}m`
+										: ''}</Table.Cell
+								>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			{/if}
+		</div>
+		{#if aiRows.length}
+			<Dialog.Footer>
+				<Button disabled={aiAddPending} onclick={addAiRows}
+					>{aiAddPending
+						? 'Adding…'
+						: `Add ${aiRows.length} item${aiRows.length === 1 ? '' : 's'}`}</Button
+				>
+			</Dialog.Footer>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>
