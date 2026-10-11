@@ -50,7 +50,7 @@
 			</p>
 		</div>
 		<Field.Field>
-			<Field.Label for="org">Gym name</Field.Label>
+			<Field.Label for="org">Company name</Field.Label>
 			<Input id="org" placeholder="Hill Country HVAC" required bind:value={name} autofocus />
 		</Field.Field>
 		<Button type="submit" class="w-full" disabled={pending || !name.trim()}

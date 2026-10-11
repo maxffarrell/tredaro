@@ -260,7 +260,7 @@ export async function loadDemoData(ctx: OrgContext) {
 				[4, 'Rooftop unit — zone A', 'HVAC', 'Lennox', 'LGH120', 'LNX-30817', year - 6, year - 1],
 				[
 					6,
-					'Compressor — gym floor',
+					'Compressor — rooftop',
 					'Refrigeration',
 					'Copeland',
 					'ZP54K5E',
