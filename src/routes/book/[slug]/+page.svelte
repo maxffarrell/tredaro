@@ -369,15 +369,16 @@
 									{#if data.earliestDay}
 										<p class="text-xs text-muted-foreground">
 											First opening:
-											<button
+											<Button
+												variant="link"
 												type="button"
-												class="text-primary hover:underline"
+												class="h-auto p-0"
 												onclick={() => (preferredDate = data.earliestDay!)}
 												>{new Date(`${data.earliestDay}T00:00:00`).toLocaleDateString('en-US', {
 													weekday: 'short',
 													month: 'short',
 													day: 'numeric'
-												})}</button
+												})}</Button
 											>
 										</p>
 									{:else if noticeDays > 0}

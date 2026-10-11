@@ -1872,11 +1872,12 @@
 						<li class="flex items-center justify-between">
 							<span class="truncate"
 								>{row.label}
-								{#if row.disputed}<button
+								{#if row.disputed}<Button
+										variant="link"
 										type="button"
-										class="ml-1 cursor-pointer text-xs font-medium text-amber-600 hover:underline dark:text-amber-400"
+										class="ml-1 h-auto p-0 text-xs font-medium text-amber-600 dark:text-amber-400"
 										title="Clear the dispute flag after following up with the customer"
-										onclick={() => resolveDispute(row.chargeId)}>disputed · resolve</button
+										onclick={() => resolveDispute(row.chargeId)}>disputed · resolve</Button
 									>{/if}
 								<span class="text-xs text-muted-foreground">{formatDate(row.d)}</span></span
 							>

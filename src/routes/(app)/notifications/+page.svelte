@@ -188,18 +188,20 @@
 							>
 							<Table.Cell class="pr-6 text-right">
 								{#if n.kind === 'inbound_sms_staff'}
-									<button
-										class="mr-3 text-xs text-primary hover:underline"
+									<Button
+										variant="link"
+										class="mr-3 h-auto p-0 text-xs"
 										onclick={() => {
 											replyTo = n.entityId.split(':')[0] ?? null;
 											replyText = '';
-										}}>Reply</button
+										}}>Reply</Button
 									>
 								{/if}
 								{#if !n.readAt}
-									<button
-										class="mr-3 text-xs text-muted-foreground hover:text-foreground hover:underline"
-										onclick={() => markRead(n.id)}>Mark read</button
+									<Button
+										variant="link"
+										class="mr-3 h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+										onclick={() => markRead(n.id)}>Mark read</Button
 									>
 								{/if}
 								{#if link}

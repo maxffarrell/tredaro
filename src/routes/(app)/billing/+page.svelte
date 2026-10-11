@@ -420,7 +420,10 @@
 				>{customers.find((x) => x.id === customerFilter)?.name ?? 'customer'}</a
 			>
 			·
-			<button class="text-muted-foreground underline" onclick={() => goto('/billing')}>clear</button
+			<Button
+				variant="link"
+				class="h-auto p-0 text-muted-foreground"
+				onclick={() => goto('/billing')}>clear</Button
 			>
 		</p>
 	{/if}
