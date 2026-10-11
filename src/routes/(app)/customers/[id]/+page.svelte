@@ -25,6 +25,7 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { toast } from 'svelte-sonner';
+	import { getAiStatus, aiCustomerBrief } from '#lib/remote/ai.remote.ts';
 	import {
 		getCustomer,
 		getCustomers,
@@ -87,6 +88,7 @@
 	import Mail from '@lucide/svelte/icons/mail';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import Repeat from '@lucide/svelte/icons/repeat';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	const id = $derived(page.params.id!);
@@ -622,6 +624,24 @@
 	// ------- merge duplicates -------
 	const dupes = $derived(await getCustomerDuplicates(id));
 	let mergeOpen = $state(false);
+
+	// ------- AI customer brief -------
+	const ai = await getAiStatus();
+	let briefOpen = $state(false);
+	let briefPending = $state(false);
+	let briefText = $state('');
+	async function runBrief() {
+		briefOpen = true;
+		briefPending = true;
+		try {
+			const r = await aiCustomerBrief(id);
+			briefText = r.brief;
+		} catch (err) {
+			briefOpen = false;
+			toast.error(errMsg(err, 'Could not draft brief'));
+		}
+		briefPending = false;
+	}
 	let mergeSource = $state('');
 	let mergePending = $state(false);
 	const mergeTarget = $derived(dupes.find((d) => d.customer.id === mergeSource));
@@ -790,6 +810,14 @@
 		{/if}
 		{#if c.customer.doNotService}
 			<Badge variant="destructive">do not service</Badge>
+		{/if}
+		{#if ai.available}
+			<Button
+				size="sm"
+				variant="outline"
+				title="Summarize this customer's history with AI"
+				onclick={runBrief}><Sparkles /> Brief</Button
+			>
 		{/if}
 		{#if dupes.length}
 			<Button
@@ -2393,5 +2421,22 @@
 				<Button type="submit">Save</Button>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- AI customer brief -->
+<Dialog.Root bind:open={briefOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>AI brief — {c.customer.name}</Dialog.Title>
+			<Dialog.Description
+				>Skim before the call. Drafted from jobs, invoices, and agreements.</Dialog.Description
+			>
+		</Dialog.Header>
+		{#if briefPending}
+			<p class="py-4 text-sm text-muted-foreground">Drafting…</p>
+		{:else}
+			<p class="text-sm leading-relaxed whitespace-pre-wrap">{briefText}</p>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>

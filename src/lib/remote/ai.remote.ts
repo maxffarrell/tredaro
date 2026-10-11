@@ -11,6 +11,9 @@ import { draftPricebookItems } from '#lib/server/ee/ai-pricebook.ts';
 import { parseJobIntake, createIntake } from '#lib/server/ee/ai-intake.ts';
 import { draftChecklist } from '#lib/server/ee/ai-checklist.ts';
 import { suggestEstimateSummary } from '#lib/server/ee/ai-estimate-summary.ts';
+import { customerBrief } from '#lib/server/ee/ai-brief.ts';
+import { suggestMaterials } from '#lib/server/ee/ai-materials.ts';
+import { suggestTiers } from '#lib/server/ee/ai-tiers.ts';
 import * as v from 'valibot';
 
 const AI_GATE =
@@ -157,3 +160,38 @@ export const aiEstimateSummary = command(idSchema, async (estimateId) => {
 	if (!aiAvailable()) error(403, AI_GATE);
 	return suggestEstimateSummary(orgId, estimateId);
 });
+
+/** AI customer brief — a few sentences of history + open items for a CSR. */
+export const aiCustomerBrief = command(idSchema, async (customerId) => {
+	const { orgId } = await requireOrg();
+	if (!aiAvailable()) error(403, AI_GATE);
+	return customerBrief(orgId, customerId);
+});
+
+/** AI-suggested materials to load for a job, restricted to real inventory ids. */
+export const aiSuggestMaterials = command(idSchema, async (jobId) => {
+	const { orgId } = await requireOrg();
+	if (!aiAvailable()) error(403, AI_GATE);
+	return suggestMaterials(orgId, jobId);
+});
+
+/** AI-named option tiers (good/better/best) grouping an estimate's line items. */
+export const aiEstimateTiers = command(
+	v.object({
+		items: v.pipe(
+			v.array(
+				v.object({
+					name: v.pipe(v.string(), v.minLength(1), v.maxLength(200)),
+					unitPrice: v.number(),
+					qty: v.number()
+				})
+			),
+			v.minLength(1)
+		)
+	}),
+	async ({ items }) => {
+		await requireOrg();
+		if (!aiAvailable()) error(403, AI_GATE);
+		return suggestTiers(items);
+	}
+);

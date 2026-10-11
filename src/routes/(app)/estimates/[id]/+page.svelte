@@ -41,7 +41,7 @@
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Printer from '@lucide/svelte/icons/printer';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
-	import { getAiStatus, aiEstimateSummary } from '#lib/remote/ai.remote.ts';
+	import { getAiStatus, aiEstimateSummary, aiEstimateTiers } from '#lib/remote/ai.remote.ts';
 	import CopyPlus from '@lucide/svelte/icons/copy-plus';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
@@ -79,6 +79,39 @@
 			toast.error(errMsg(err, 'Could not draft note'));
 		}
 		aiNotePending = false;
+	}
+
+	// ------- AI option tiers -------
+	let tiersOpen = $state(false);
+	let tiersPending = $state(false);
+	let tierGroups = $state<{ name: string; items: number[] }[]>([]);
+	async function aiTier() {
+		tiersPending = true;
+		try {
+			const r = await aiEstimateTiers({
+				items: items
+					.filter((i) => i.name.trim())
+					.map((i) => ({
+						name: i.name,
+						unitPrice: i.unitPrice,
+						qty: i.qty
+					}))
+			});
+			tierGroups = r.groups;
+			tiersOpen = true;
+			if (!r.groups.length) toast.info('No tiers suggested — items may already fit one option');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not tier items'));
+		}
+		tiersPending = false;
+	}
+	function applyTiers() {
+		const named = items.filter((i) => i.name.trim());
+		for (const g of tierGroups)
+			for (const n of g.items) if (named[n]) named[n]!.optionGroup = g.name;
+		tiersOpen = false;
+		tierGroups = [];
+		toast.success('Tiers applied — review and save');
 	}
 	let internalNotes = $state('');
 	let customerPo = $state('');
@@ -375,7 +408,20 @@
 
 <div class="grid grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-3">
 	<Card.Root class="lg:col-span-2">
-		<Card.Header><Card.Title class="text-base">Items</Card.Title></Card.Header>
+		<Card.Header class="flex-row items-center justify-between space-y-0">
+			<Card.Title class="text-base">Items</Card.Title>
+			{#if draft && ai.available && items.some((i) => i.name.trim())}
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					class="h-7 text-muted-foreground"
+					title="Group line items into named option tiers (good/better/best)"
+					disabled={tiersPending}
+					onclick={aiTier}><Sparkles /> {tiersPending ? 'Tiering…' : 'AI tiers'}</Button
+				>
+			{/if}
+		</Card.Header>
 		<Card.Content>
 			{#if draft}
 				<form class="space-y-4" onsubmit={save}>
@@ -716,5 +762,38 @@
 				>{progBusy ? 'Creating…' : 'Create invoice'}</Button
 			>
 		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- AI option tiers -->
+<Dialog.Root bind:open={tiersOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>AI option tiers</Dialog.Title>
+			<Dialog.Description
+				>Named groups the customer picks between on the approval page. Applying sets each line's
+				option group — review before saving.</Dialog.Description
+			>
+		</Dialog.Header>
+		{#if tierGroups.length}
+			<div class="space-y-3">
+				{#each tierGroups as g (g.name)}
+					{@const named = items.filter((i) => i.name.trim())}
+					<div class="rounded-lg border p-3">
+						<p class="text-sm font-semibold">{g.name}</p>
+						<ul class="mt-1 space-y-0.5 text-sm text-muted-foreground">
+							{#each g.items as n (n)}
+								<li>{named[n]?.name}</li>
+							{/each}
+						</ul>
+					</div>
+				{/each}
+			</div>
+			<Dialog.Footer>
+				<Button onclick={applyTiers}>Apply tiers</Button>
+			</Dialog.Footer>
+		{:else}
+			<p class="py-4 text-center text-sm text-muted-foreground">No tiers suggested.</p>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>

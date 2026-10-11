@@ -53,7 +53,7 @@
 		approveAllTimeEntries
 	} from '#lib/remote/jobs.remote.ts';
 	import { getSettings, getOffices, getStaff } from '#lib/remote/workspace.remote.ts';
-	import { getAiStatus, aiServiceSummary } from '#lib/remote/ai.remote.ts';
+	import { getAiStatus, aiServiceSummary, aiSuggestMaterials } from '#lib/remote/ai.remote.ts';
 	import { getCustomer } from '#lib/remote/customers.remote.ts';
 	import { addFollowUp, completeFollowUp, removeFollowUp } from '#lib/remote/followups.remote.ts';
 	import {
@@ -643,6 +643,46 @@
 		}
 	}
 	let applyingKit = $state(false);
+
+	// ------- AI material suggestions -------
+	let aiMatOpen = $state(false);
+	let aiMatPending = $state(false);
+	let aiMatApplying = $state(false);
+	let aiMats = $state<{ inventoryItemId: string; name: string; qty: number; reason: string }[]>([]);
+	async function aiSuggestMats() {
+		aiMatPending = true;
+		try {
+			const r = await aiSuggestMaterials(id);
+			aiMats = r.items;
+			aiMatOpen = true;
+			if (!r.items.length) toast.info('Nothing to add — the job already has what it needs');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not suggest materials'));
+		}
+		aiMatPending = false;
+	}
+	async function applyAiMats() {
+		aiMatApplying = true;
+		let added = 0;
+		for (const m of aiMats) {
+			try {
+				await addJobMaterial({
+					jobId: id,
+					inventoryItemId: m.inventoryItemId,
+					customName: '',
+					qty: m.qty,
+					unitPrice: 0,
+					truckMemberId: null
+				}).updates(getJobMaterials, getJob);
+				added++;
+			} catch (err) {
+				toast.warning(`Skipped ${m.name}: ${errMsg(err, 'unavailable')}`);
+			}
+		}
+		if (added) toast.success(`Added ${added} material${added === 1 ? '' : 's'}`);
+		aiMatApplying = false;
+		aiMatOpen = false;
+	}
 	async function applyKit() {
 		applyingKit = true;
 		try {
@@ -1858,6 +1898,19 @@
 							<Plus />
 							{stock.length ? 'Log material' : 'Add stock items in Inventory first'}
 						</Button>
+						{#if ai.available}
+							<Button
+								size="sm"
+								variant="ghost"
+								class="w-full"
+								disabled={aiMatPending || !stock.length}
+								title="Suggest materials for this job with AI"
+								onclick={aiSuggestMats}
+							>
+								<Sparkles class="size-3.5" />
+								{aiMatPending ? 'Thinking…' : 'Suggest materials'}
+							</Button>
+						{/if}
 						{#if jobKit.length}
 							<Button
 								size="sm"
@@ -2459,6 +2512,39 @@
 				{#if lightbox.phase}<Badge variant="outline" class="capitalize">{lightbox.phase}</Badge
 					>{/if}
 			</p>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- AI material suggestions -->
+<Dialog.Root bind:open={aiMatOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Suggested materials — J-{j.job.number}</Dialog.Title>
+			<Dialog.Description
+				>Picked from in-stock inventory. Applying logs them on the job.</Dialog.Description
+			>
+		</Dialog.Header>
+		{#if aiMats.length}
+			<div class="divide-y">
+				{#each aiMats as m (m.inventoryItemId)}
+					<div class="flex items-center gap-2 py-2 text-sm">
+						<span class="font-medium whitespace-nowrap">{m.qty} × {m.name}</span>
+						<span class="flex-1 truncate text-xs text-muted-foreground" title={m.reason}
+							>{m.reason}</span
+						>
+					</div>
+				{/each}
+			</div>
+			<Dialog.Footer>
+				<Button disabled={aiMatApplying} onclick={applyAiMats}
+					>{aiMatApplying
+						? 'Adding…'
+						: `Add ${aiMats.length} item${aiMats.length === 1 ? '' : 's'}`}</Button
+				>
+			</Dialog.Footer>
+		{:else}
+			<p class="py-4 text-center text-sm text-muted-foreground">No suggestions.</p>
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
