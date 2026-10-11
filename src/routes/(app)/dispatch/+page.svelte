@@ -90,8 +90,25 @@
 		suggestPending = false;
 	}
 	async function applySuggestion(jobId: string, memberId: string) {
+		const day = dayFilter || todayStr;
+		const toInput = (d: Date | string) => `${localDate(new Date(d), tz)}T${localTime(d, tz)}`;
+		const lastEnd = board.scheduled
+			.filter(
+				(j) =>
+					j.job.technicianId === memberId &&
+					j.job.startsAt &&
+					localDate(new Date(j.job.startsAt), tz) === day
+			)
+			.map((j) => j.job.endsAt)
+			.filter((d): d is Date => !!d)
+			.sort((a, b) => a.getTime() - b.getTime())
+			.at(-1);
+		const when = lastEnd ? toInput(lastEnd) : `${day}T08:00`;
 		try {
-			await updateJob({ id: jobId, technicianId: memberId }).updates(getDispatchBoard);
+			await updateJob({ id: jobId, technicianId: memberId, startsAt: when }).updates(
+				getDispatchBoard
+			);
+			toast.success('Assigned');
 			suggestions = suggestions.filter((s) => s.jobId !== jobId);
 			if (!suggestions.length) suggestOpen = false;
 		} catch (err) {
