@@ -6,7 +6,7 @@ import { organization } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { apiKey } from '@better-auth/api-key';
 import { db } from '#lib/server/db/index.ts';
-import { enterprisePlugins } from '#lib/server/ee/auth.ts';
+import { authPlugins } from '#lib/server/auth-plugins.ts';
 import { appOrigin, sendEmail } from '#lib/server/email.ts';
 import { renderEmail } from '#lib/server/email-template.ts';
 
@@ -39,7 +39,7 @@ export const auth = betterAuth({
 			}
 		}),
 		apiKey({ references: 'organization', defaultPrefix: 'td_', enableMetadata: true }),
-		...enterprisePlugins,
+		...authPlugins,
 		sveltekitCookies(getRequestEvent) // must be last
 	]
 });

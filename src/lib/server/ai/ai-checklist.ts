@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
@@ -14,7 +12,11 @@ export async function draftChecklist(
 	name: string,
 	context: string
 ): Promise<{ steps: string[]; model: string }> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const system = [
 		'You draft field-service job checklists — the steps a technician ticks off on site.',

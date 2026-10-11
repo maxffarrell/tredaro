@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import { getEstimate } from '../services/estimates.ts';
 import { aiAvailable, aiChat, aiModel } from './ai.ts';
@@ -13,7 +11,11 @@ export async function suggestEstimateSummary(
 	orgId: string,
 	estimateId: string
 ): Promise<{ summary: string; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const est = await getEstimate(orgId, estimateId);
 

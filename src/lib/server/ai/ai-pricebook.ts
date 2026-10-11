@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
@@ -43,7 +41,11 @@ export async function draftPricebookItems(
 	orgId: string,
 	prompt: string
 ): Promise<{ items: DraftedItem[]; model: string }> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const [catalog, settings] = await Promise.all([listPricebook(orgId), getSettings(orgId)]);
 

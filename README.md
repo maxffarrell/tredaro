@@ -32,7 +32,8 @@ Customers, service locations, dispatch board, estimates, invoices, service agree
 - **Documents**: printable invoice, estimate, work order, purchase order, dispatch day plan and My Day sheets
 - **Command palette** (<kbd>⌘K</kbd>), `g d`/`g p`/`g j`/`g c`/`g e`/`g b`/`g a`/`g k`/`g r`/`g t` nav shortcuts
 - **REST API + API keys** (`td_`), signed **webhooks** (`x-tredaro-signature`), and an MIT **SDK** in `packages/sdk`
-- **Enterprise** (Cloud or `TREDARO_ENTERPRISE_KEY`): SAML & OIDC single sign-on, passkeys, and AI features (BYOK — set `TREDARO_AI_API_KEY`/`TREDARO_AI_MODEL`, optionally `TREDARO_AI_BASE_URL`, to any OpenAI-compatible endpoint): AI-suggested invoice and estimate line items drafted from the job's notes and your pricebook
+- **Basic SAML/OIDC SSO and passkeys**: included in the free self-hosted core; connect your own identity provider
+- **BYOK AI**: included in the free self-hosted core; use your own API key or a compatible local model endpoint
 
 Webhooks + the REST API are the integration surface.
 
@@ -65,6 +66,10 @@ Open http://localhost:5173, create an account, then click **Explore with demo da
 
 Environment variables are documented in [`src/env.ts`](src/env.ts).
 
+### Self-hosted SSO and AI
+
+Basic SAML/OIDC SSO, passkeys and BYOK AI are included without an enterprise key or Cloud subscription. See [the configuration guide](docs/self-hosted-sso-ai.md). You supply your identity provider and any model-provider credentials; provider usage fees are separate. Credentials stay on the server. Public demos continue to block SSO/passkey configuration.
+
 ## Scheduled jobs
 
 Agreement billing (posting each period's charge and marking overdue charges) runs whenever someone opens the app. The same endpoint also sends automated reminders: appointment reminders to customers (email + SMS, jobs starting within 36h), follow-ups on sent estimates idle for a week, and a morning digest of today's schedule to each technician. To run it on time every day, set `CRON_SECRET` and call `GET /api/cron` with `Authorization: Bearer $CRON_SECRET`. On Vercel, the cron in `vercel.json` does this for you. Elsewhere, use any scheduler, for example:
@@ -85,4 +90,4 @@ Webhooks (Settings → Webhooks) are signed with HMAC-SHA256 in `x-tredaro-signa
 
 ## License
 
-AGPLv3 for the core. `ee/`/`src/lib/server/ee/` under the Tredaro Enterprise License (SAML/OIDC SSO, passkeys, AI — free with `TREDARO_ENTERPRISE_KEY` or on Tredaro Cloud). `packages/sdk` is MIT.
+AGPLv3 for the core, including basic SSO, passkeys and all current BYOK AI features. `packages/sdk` is MIT. The enterprise license in `ee/LICENSE` is reserved for future files under `src/lib/server/ee/` or marked `/* @license Enterprise */`; no current application feature requires an enterprise key.

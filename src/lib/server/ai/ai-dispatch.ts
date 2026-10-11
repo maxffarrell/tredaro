@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
@@ -33,7 +31,11 @@ export async function suggestDispatch(
 	orgId: string,
 	day: string
 ): Promise<{ suggestions: DispatchSuggestion[]; model: string }> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const tz = (await getSettings(orgId)).timezone;
 	const from = zonedToUtc(`${day}T00:00`, tz);

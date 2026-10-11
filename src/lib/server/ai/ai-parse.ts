@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import * as v from 'valibot';
 
 export type SuggestedItem = { name: string; qty: number; unitPrice: number };

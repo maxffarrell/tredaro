@@ -2,26 +2,25 @@ import { command, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { requireOrg } from '#lib/server/context.ts';
 import { idSchema } from '#lib/schemas.ts';
-import { aiAvailable, aiDecisionAvailable } from '#lib/server/ee/ai.ts';
-import { suggestInvoiceItems } from '#lib/server/ee/ai-invoice.ts';
-import { suggestEstimateItems } from '#lib/server/ee/ai-estimate.ts';
-import { suggestServiceSummary } from '#lib/server/ee/ai-summary.ts';
-import { suggestDispatch } from '#lib/server/ee/ai-dispatch.ts';
-import { draftPricebookItems } from '#lib/server/ee/ai-pricebook.ts';
-import { parseJobIntake, createIntake } from '#lib/server/ee/ai-intake.ts';
-import { draftChecklist } from '#lib/server/ee/ai-checklist.ts';
-import { suggestEstimateSummary } from '#lib/server/ee/ai-estimate-summary.ts';
-import { customerBrief } from '#lib/server/ee/ai-brief.ts';
-import { suggestMaterials } from '#lib/server/ee/ai-materials.ts';
-import { suggestTiers } from '#lib/server/ee/ai-tiers.ts';
+import { aiAvailable, aiDecisionAvailable } from '#lib/server/ai/ai.ts';
+import { suggestInvoiceItems } from '#lib/server/ai/ai-invoice.ts';
+import { suggestEstimateItems } from '#lib/server/ai/ai-estimate.ts';
+import { suggestServiceSummary } from '#lib/server/ai/ai-summary.ts';
+import { suggestDispatch } from '#lib/server/ai/ai-dispatch.ts';
+import { draftPricebookItems } from '#lib/server/ai/ai-pricebook.ts';
+import { parseJobIntake, createIntake } from '#lib/server/ai/ai-intake.ts';
+import { draftChecklist } from '#lib/server/ai/ai-checklist.ts';
+import { suggestEstimateSummary } from '#lib/server/ai/ai-estimate-summary.ts';
+import { customerBrief } from '#lib/server/ai/ai-brief.ts';
+import { suggestMaterials } from '#lib/server/ai/ai-materials.ts';
+import { suggestTiers } from '#lib/server/ai/ai-tiers.ts';
 import * as v from 'valibot';
 
-const AI_GATE =
-	'AI requires Tredaro Cloud or an enterprise license — then set TREDARO_AI_API_KEY and TREDARO_AI_MODEL';
+const AI_GATE = 'Configure TREDARO_AI_MODEL and an API key or a custom endpoint';
 const AI_DECISION_GATE =
-	'AI requires Tredaro Cloud or an enterprise license — then set TREDARO_AI_API_KEY and TREDARO_AI_MODEL (or the TREDARO_AI_DECISION_* overrides)';
+	'Configure TREDARO_AI_MODEL and an API key or a custom endpoint (or the TREDARO_AI_DECISION_* overrides)';
 
-/** Whether enterprise AI is licensed and an endpoint is configured. */
+/** Whether a BYOK AI endpoint is configured. */
 export const getAiStatus = query(async () => {
 	await requireOrg();
 	return {
@@ -30,14 +29,14 @@ export const getAiStatus = query(async () => {
 	};
 });
 
-/** AI-drafted line items for invoicing a job. Enterprise + configured endpoint required. */
+/** AI-drafted line items for invoicing a job. Configured BYOK endpoint required. */
 export const aiInvoiceSuggestions = command(idSchema, async (jobId) => {
 	const { orgId } = await requireOrg();
-	if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+	if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 	return suggestInvoiceItems(orgId, jobId);
 });
 
-/** AI-drafted line items for a new estimate. Enterprise + configured endpoint required. */
+/** AI-drafted line items for a new estimate. Configured BYOK endpoint required. */
 export const aiEstimateSuggestions = command(
 	v.object({
 		customerId: idSchema,
@@ -46,7 +45,7 @@ export const aiEstimateSuggestions = command(
 	}),
 	async (input) => {
 		const { orgId } = await requireOrg();
-		if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+		if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 		return suggestEstimateItems(orgId, {
 			customerId: input.customerId,
 			jobTypeId: input.jobTypeId ?? null,
@@ -55,14 +54,11 @@ export const aiEstimateSuggestions = command(
 	}
 );
 
-/** AI-drafted customer-facing visit recap for a job. Enterprise + configured endpoint required. */
+/** AI-drafted customer-facing visit recap for a job. Configured BYOK endpoint required. */
 export const aiServiceSummary = command(idSchema, async (jobId) => {
 	const { orgId } = await requireOrg();
 	if (!aiAvailable()) {
-		error(
-			403,
-			'AI requires Tredaro Cloud or an enterprise license — then set TREDARO_AI_API_KEY and TREDARO_AI_MODEL'
-		);
+		error(403, 'Configure TREDARO_AI_MODEL and an API key or a custom endpoint');
 	}
 	return suggestServiceSummary(orgId, jobId);
 });
@@ -70,7 +66,7 @@ export const aiServiceSummary = command(idSchema, async (jobId) => {
 /** AI-suggested tech assignments for the unscheduled queue on a day (YYYY-MM-DD). */
 export const aiDispatchSuggestion = command(v.object({ day: v.string() }), async ({ day }) => {
 	const { orgId } = await requireOrg();
-	if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+	if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 	return suggestDispatch(orgId, day);
 });
 
@@ -79,7 +75,7 @@ export const aiPricebookDraft = command(
 	v.object({ prompt: v.pipe(v.string(), v.minLength(3), v.maxLength(4000)) }),
 	async ({ prompt }) => {
 		const { orgId } = await requireOrg();
-		if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+		if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 		return draftPricebookItems(orgId, prompt);
 	}
 );
@@ -89,7 +85,7 @@ export const aiJobIntake = command(
 	v.object({ notes: v.pipe(v.string(), v.minLength(5), v.maxLength(4000)) }),
 	async ({ notes }) => {
 		const { orgId } = await requireOrg();
-		if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+		if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 		return parseJobIntake(orgId, notes);
 	}
 );
@@ -120,7 +116,7 @@ export const aiIntakeCreate = command(
 	v.object({ draft: intakeDraftSchema, matchedCustomerId: v.nullable(idSchema) }),
 	async ({ draft, matchedCustomerId }) => {
 		const ctx = await requireOrg();
-		if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+		if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 		// createJob/addServiceLocation re-verify the customer belongs to this org.
 		return createIntake(ctx, draft, matchedCustomerId);
 	}
@@ -134,7 +130,7 @@ export const aiChecklistDraft = command(
 	}),
 	async ({ name, context }) => {
 		await requireOrg();
-		if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+		if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 		return draftChecklist(name, context ?? '');
 	}
 );
@@ -142,21 +138,21 @@ export const aiChecklistDraft = command(
 /** AI-drafted customer-facing cover note for an estimate. */
 export const aiEstimateSummary = command(idSchema, async (estimateId) => {
 	const { orgId } = await requireOrg();
-	if (!aiAvailable()) error(403, AI_GATE);
+	if (!aiAvailable()) error(400, AI_GATE);
 	return suggestEstimateSummary(orgId, estimateId);
 });
 
 /** AI customer brief — a few sentences of history + open items for a CSR. */
 export const aiCustomerBrief = command(idSchema, async (customerId) => {
 	const { orgId } = await requireOrg();
-	if (!aiAvailable()) error(403, AI_GATE);
+	if (!aiAvailable()) error(400, AI_GATE);
 	return customerBrief(orgId, customerId);
 });
 
 /** AI-suggested materials to load for a job, restricted to real inventory ids. */
 export const aiSuggestMaterials = command(idSchema, async (jobId) => {
 	const { orgId } = await requireOrg();
-	if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+	if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 	return suggestMaterials(orgId, jobId);
 });
 
@@ -176,7 +172,7 @@ export const aiEstimateTiers = command(
 	}),
 	async ({ items }) => {
 		await requireOrg();
-		if (!aiDecisionAvailable()) error(403, AI_DECISION_GATE);
+		if (!aiDecisionAvailable()) error(400, AI_DECISION_GATE);
 		return suggestTiers(items);
 	}
 );

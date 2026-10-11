@@ -1,42 +1,35 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
 import { suggestedItemsResponse, toSuggestedItems, type SuggestedItem } from './ai-parse.ts';
+import { getJob } from '../services/jobs.ts';
 import { listPricebook } from '../services/billing.ts';
 import { getSettings } from '../services/settings.ts';
-import { db } from '#lib/server/db/index.ts';
-import { customer, jobType } from '#lib/server/db/schema.ts';
-import { and, eq } from 'drizzle-orm';
 
 /**
- * Drafts estimate line items before a job exists. The model sees the customer,
- * chosen job type and the estimator's notes plus the org's flat-rate pricebook.
+ * Drafts invoice line items for a completed job. The model sees the job summary,
+ * description and technician notes plus the org's flat-rate pricebook, and is
+ * asked to price work from the catalog where it applies.
  */
-export async function suggestEstimateItems(
+export async function suggestInvoiceItems(
 	orgId: string,
-	args: { customerId: string; jobTypeId: string | null; notes: string }
+	jobId: string
 ): Promise<{ items: SuggestedItem[]; model: string }> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
-	const [[c], [jt], catalog, settings] = await Promise.all([
-		db
-			.select({ name: customer.name, type: customer.type })
-			.from(customer)
-			.where(and(eq(customer.organizationId, orgId), eq(customer.id, args.customerId))),
-		args.jobTypeId
-			? db
-					.select({ name: jobType.name })
-					.from(jobType)
-					.where(and(eq(jobType.organizationId, orgId), eq(jobType.id, args.jobTypeId)))
-			: Promise.resolve([undefined]),
-		listPricebook(orgId),
-		getSettings(orgId)
-	]);
-	if (!c) error(400, 'Customer not found');
+	const j = await getJob(orgId, jobId);
+	const [catalog, settings] = await Promise.all([listPricebook(orgId), getSettings(orgId)]);
+
+	const notes = j.events
+		.filter((e) => e.event.note)
+		.slice(-12)
+		.map((e) => `${e.event.kind}: ${e.event.note}`);
 
 	const system = [
-		'You draft estimate line items for a field service company.',
+		'You draft invoice line items for a field service company.',
 		'Reply with ONLY JSON: {"items":[{"name":string,"qty":number,"unitPriceCents":number}]}.',
 		'Rules: prefer pricebook names and prices when an item matches the work; qty is whole units',
 		'(bill labor in hours when the catalog prices labor hourly); unitPriceCents is an integer in',
@@ -45,9 +38,13 @@ export async function suggestEstimateItems(
 	].join(' ');
 
 	const user = JSON.stringify({
-		customer: { name: c.name, type: c.type },
-		jobType: jt?.name ?? null,
-		notes: args.notes,
+		job: {
+			type: j.jobTypeName,
+			summary: j.job.summary,
+			description: j.job.description,
+			equipment: j.equipmentName,
+			technicianNotes: notes
+		},
 		pricebook: catalog
 			.filter((i) => i.active)
 			.slice(0, 60)
