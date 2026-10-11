@@ -17,19 +17,24 @@ Customers, service locations, dispatch board, estimates, invoices, service agree
 
 ## Features
 
-- **Customers**: searchable roster, residential/commercial, service locations, per-customer balances and portal invite links
-- **Jobs & dispatch**: unscheduled queue, technician board, status events (dispatched → en route → on site → done), priorities, job types with colors
-- **Estimates**: line-item builder, shareable public approve/decline links (`/e/[token]`); approval converts to a job
-- **Billing**: invoices from completed jobs (prefilled from the estimate or flat rate), charges, payments with oldest-first allocation, customer balances; Stripe Checkout/Connect for online card payments
-- **Service agreements**: monthly/annual plans with initial fees; period charges post automatically
-- **Pricebook**: flat-rate items (code, category, tax flag)
-- **Customer portal**: scheduled visits, open balance + pay online, pending estimates, request-service form
-- **Public booking page** (`/book/[company]`): company info, agreement plans, anti-spam service-request form that lands in the unscheduled queue
+- **Customers**: searchable roster with CSV import/export + merge, residential/commercial, service locations with equipment records, documents, per-customer balances and portal invite links
+- **Jobs & dispatch**: unscheduled queue, technician board, status events (dispatched → en route → on site → done), priorities, job types with colors + material kits, helper techs, recurring jobs, reschedule/cancel request triage, GPS ping, per-tech iCal feeds
+- **Estimates**: line-item builder with good/better/best option groups, revisions, shareable public approve/decline links (`/e/[token]`) with viewed-tracking; approval converts to a job; follow-up reminders
+- **Billing**: invoices from completed jobs, charges, payments with oldest-first allocation, refunds, customer balances; Stripe Checkout/Connect for online card payments with tips and receipts; payment-history timeline, statement export, late-fee + overdue reminders
+- **Service agreements**: monthly/annual plans, initial fees, auto-charge + renewal flow, auto-generated maintenance visits
+- **Pricebook**: flat-rate items with cost + category + tax flag, CSV import/export, bulk price adjustments
+- **Inventory**: stock items with reorder points + par levels, purchase orders (draft → ordered → partial receive → paid) with printable supplier POs, truck stock per tech, job materials, low/out-of-stock alerts, CSV import/export
+- **Team**: member profiles with documents (licenses/certs + expiry alerts), time clock, PTO/availability, per-tech tips + commissions, payroll export, staff SMS/email alerts
+- **Customer portal**: scheduled visits, open balance + pay online, pending estimates, agreements, equipment, documents, statement download, request-service form, review + confirm/reschedule/cancel flows
+- **Public booking page** (`/book/[company]`): job types, preferred tech + time slots, blackout dates + advance-notice rules, booking deposits, waitlist, anti-spam — lands in the unscheduled queue
+- **Reports**: revenue, utilization, margins (labor-inclusive), tips per tech, taxes, payables, CSV exports (incl. QuickBooks + Xero formats)
+- **Notifications**: email + SMS (Twilio) for every customer touchpoint with quiet hours, staff alerts, dedupe log; two-way inbound SMS (confirm/reschedule flows)
+- **Documents**: printable invoice, estimate, work order, purchase order, dispatch day plan and My Day sheets
 - **Command palette** (<kbd>⌘K</kbd>), `g d`/`g p`/`g j`/`g c`/`g e`/`g b`/`g a`/`g k`/`g r`/`g t` nav shortcuts
 - **REST API + API keys** (`td_`), signed **webhooks** (`x-tredaro-signature`), and an MIT **SDK** in `packages/sdk`
-- **Enterprise** (Cloud or `TREDARO_ENTERPRISE_KEY`): SAML & OIDC single sign-on, passkeys, and AI features (BYOK — set `TREDARO_AI_API_KEY`/`TREDARO_AI_MODEL`, optionally `TREDARO_AI_BASE_URL`, to any OpenAI-compatible endpoint). First feature: AI-suggested invoice line items drafted from the job's notes and your pricebook
+- **Enterprise** (Cloud or `TREDARO_ENTERPRISE_KEY`): SAML & OIDC single sign-on, passkeys, and AI features (BYOK — set `TREDARO_AI_API_KEY`/`TREDARO_AI_MODEL`, optionally `TREDARO_AI_BASE_URL`, to any OpenAI-compatible endpoint): AI-suggested invoice and estimate line items drafted from the job's notes and your pricebook
 
-Out of scope by design: payroll, inventory and fleet tracking. Webhooks + the REST API are the integration surface.
+Webhooks + the REST API are the integration surface.
 
 ## Quick start
 

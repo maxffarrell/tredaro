@@ -527,10 +527,15 @@
 								{#if j.photos?.length}
 									<div class="mt-2 flex flex-wrap gap-2">
 										{#each j.photos as pid (pid)}
-											<a href="/files/portal-job-photo/{pid}" target="_blank" rel="noreferrer">
+											<a
+												href="/files/portal-job-photo/{pid}"
+												target="_blank"
+												rel="noreferrer"
+												aria-label="Open photo from your visit"
+											>
 												<img
 													src="/files/portal-job-photo/{pid}"
-													alt="Photo from your visit"
+													alt=""
 													class="size-16 rounded-md border object-cover"
 												/>
 											</a>
