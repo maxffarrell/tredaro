@@ -153,15 +153,22 @@
 			intakeDraft = r.draft;
 			intakeMatchedId = r.matchedCustomerId;
 			intakeMatchedName = r.matchedCustomerName ?? '';
-			if (!r.draft.summary && !r.draft.customer.name)
-				toast.info('Nothing to create — paste fuller call notes');
+			if (!intakeUsable) toast.warning('Could not pull a job out of that — try fuller call notes');
 		} catch (err) {
 			toast.error(errMsg(err, 'Could not parse intake'));
 		}
 		intakePending = false;
 	}
+	const intakeUsable = $derived(
+		!!(
+			intakeDraft &&
+			(intakeDraft.customer.name.trim() ||
+				intakeDraft.customer.companyName.trim() ||
+				intakeDraft.summary.trim())
+		)
+	);
 	async function createIntakeJob() {
-		if (!intakeDraft) return;
+		if (!intakeDraft || !intakeUsable) return;
 		intakeCreating = true;
 		try {
 			const r = await aiIntakeCreate({ draft: intakeDraft, matchedCustomerId: intakeMatchedId });
@@ -671,7 +678,7 @@
 				</div>
 			{/if}
 		</div>
-		{#if intakeDraft}
+		{#if intakeDraft && intakeUsable}
 			<Dialog.Footer>
 				<Button disabled={intakeCreating} onclick={createIntakeJob}
 					>{intakeCreating ? 'Creating…' : 'Create job'}</Button
