@@ -4,6 +4,7 @@
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
@@ -229,11 +230,9 @@
 									<label
 										class="mr-2 inline-flex cursor-pointer items-center gap-1.5 align-middle text-xs text-muted-foreground"
 									>
-										<input
-											type="checkbox"
-											class="accent-primary"
+										<Checkbox
 											checked={!excluded.has(i.id)}
-											onchange={(e) => toggleOptional(i.id, e.currentTarget.checked)}
+											onCheckedChange={(v) => toggleOptional(i.id, v === true)}
 										/>
 										include
 									</label>

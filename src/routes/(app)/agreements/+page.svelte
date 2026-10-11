@@ -11,6 +11,7 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import MoneyInput from '#lib/components/app/money-input.svelte';
@@ -484,7 +485,7 @@
 			</Field.Field>
 			{#if agMaxPeriods}
 				<label class="flex cursor-pointer items-center gap-2 text-sm select-none">
-					<input type="checkbox" class="size-4 accent-primary" bind:checked={agAutoRenew} />
+					<Checkbox bind:checked={agAutoRenew} />
 					Auto-renew at the end of each term
 				</label>
 				<p class="-mt-2 text-xs text-muted-foreground">
