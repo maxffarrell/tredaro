@@ -1,12 +1,27 @@
 /* @license Enterprise */
 
 import { error } from '@sveltejs/kit';
-import { aiAvailable, aiChat, aiModel } from './ai.ts';
+import * as v from 'valibot';
+import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
 import { dispatchBoard } from '../services/jobs.ts';
 import { getSettings } from '../services/settings.ts';
 import { zonedToUtc } from '#lib/tz.ts';
 
 export type DispatchSuggestion = { jobId: string; memberId: string; reason: string };
+
+const suggestionRow = v.object({
+	jobId: v.string(),
+	memberId: v.string(),
+	reason: v.pipe(
+		v.string(),
+		v.transform((s) => s.trim().slice(0, 120))
+	)
+});
+
+const dispatchResponse = v.union([
+	v.object({ suggestions: v.array(v.unknown()) }),
+	v.array(v.unknown())
+]);
 
 /**
  * Suggests technician assignments for the unscheduled queue on a given day
@@ -18,7 +33,7 @@ export async function suggestDispatch(
 	orgId: string,
 	day: string
 ): Promise<{ suggestions: DispatchSuggestion[]; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
 
 	const tz = (await getSettings(orgId)).timezone;
 	const from = zonedToUtc(`${day}T00:00`, tz);
@@ -26,7 +41,7 @@ export async function suggestDispatch(
 
 	const queue = board.unscheduled.slice(0, 15);
 	const techs = board.technicians;
-	if (!queue.length) return { suggestions: [], model: aiModel() };
+	if (!queue.length) return { suggestions: [], model: aiDecisionModel() };
 	if (!techs.length) error(409, 'No dispatchable technicians');
 
 	const system = [
@@ -63,59 +78,21 @@ export async function suggestDispatch(
 		}))
 	});
 
-	const text = await aiChat(
-		[
-			{ role: 'system', content: system },
-			{ role: 'user', content: user }
-		],
-		{ maxTokens: 1200 }
-	);
+	const parsed = await aiDecision(dispatchResponse, system, user, { maxTokens: 1200 });
+	const rows = parsed == null ? [] : Array.isArray(parsed) ? parsed : parsed.suggestions;
 
 	const jobIds = new Set(queue.map((r) => r.job.id));
 	const memberIds = new Set(techs.map((t) => t.id));
 	const seen = new Set<string>();
 	const suggestions: DispatchSuggestion[] = [];
-	for (const s of parseSuggestions(text)) {
-		if (!jobIds.has(s.jobId) || !memberIds.has(s.memberId) || seen.has(s.jobId)) continue;
+	for (const row of rows) {
+		const r = v.safeParse(suggestionRow, row);
+		if (!r.success) continue;
+		const s = r.output;
+		if (!s.jobId || !jobIds.has(s.jobId) || !memberIds.has(s.memberId) || seen.has(s.jobId))
+			continue;
 		seen.add(s.jobId);
 		suggestions.push(s);
 	}
-	return { suggestions, model: aiModel() };
-}
-
-/** Best-effort `{"suggestions":[…]}` extraction — tolerates prose/code fences. */
-export function parseSuggestions(text: string): DispatchSuggestion[] {
-	const start = text.search(/[[{]/);
-	if (start < 0) return [];
-	let parsed: unknown = null;
-	for (const end of [text.length, ...closingOffsets(text, start).slice(0, 40)]) {
-		try {
-			parsed = JSON.parse(text.slice(start, end));
-			break;
-		} catch {
-			// keep shrinking
-		}
-	}
-	const list = Array.isArray(parsed)
-		? parsed
-		: Array.isArray((parsed as { suggestions?: unknown } | null)?.suggestions)
-			? (parsed as { suggestions: unknown[] }).suggestions
-			: [];
-	const out: DispatchSuggestion[] = [];
-	for (const row of list) {
-		if (!row || typeof row !== 'object') continue;
-		const r = row as Record<string, unknown>;
-		const jobId = typeof r.jobId === 'string' ? r.jobId : '';
-		const memberId = typeof r.memberId === 'string' ? r.memberId : '';
-		const reason = typeof r.reason === 'string' ? r.reason.slice(0, 120) : '';
-		if (jobId && memberId) out.push({ jobId, memberId, reason });
-	}
-	return out;
-}
-
-function closingOffsets(text: string, start: number): number[] {
-	const out: number[] = [];
-	for (let i = text.length - 1; i > start; i--)
-		if (text[i] === '}' || text[i] === ']') out.push(i + 1);
-	return out;
+	return { suggestions, model: aiDecisionModel() };
 }

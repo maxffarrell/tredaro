@@ -1,7 +1,10 @@
 /* @license Enterprise */
 
 import { error } from '@sveltejs/kit';
-import { aiAvailable, aiChat, aiModel } from './ai.ts';
+import * as v from 'valibot';
+import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
+
+const stepsResponse = v.union([v.object({ steps: v.array(v.unknown()) }), v.array(v.unknown())]);
 
 /**
  * Drafts a job-type checklist — the ordered steps copied onto each new job of
@@ -11,7 +14,7 @@ export async function draftChecklist(
 	name: string,
 	context: string
 ): Promise<{ steps: string[]; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
 
 	const system = [
 		'You draft field-service job checklists — the steps a technician ticks off on site.',
@@ -26,40 +29,12 @@ export async function draftChecklist(
 		context: context.slice(0, 2000)
 	});
 
-	const text = await aiChat(
-		[
-			{ role: 'system', content: system },
-			{ role: 'user', content: user }
-		],
-		{ maxTokens: 800 }
-	);
-	return { steps: parseSteps(text), model: aiModel() };
-}
+	const parsed = await aiDecision(stepsResponse, system, user, { maxTokens: 800 });
+	const rows = parsed == null ? [] : Array.isArray(parsed) ? parsed : parsed.steps;
 
-export function parseSteps(text: string): string[] {
-	const start = text.search(/[[{]/);
-	if (start < 0) return [];
-	let parsed: unknown = null;
-	for (const end of [text.length, ...closingOffsets(text, start).slice(0, 40)]) {
-		try {
-			const p = JSON.parse(text.slice(start, end));
-			if (p && (Array.isArray(p) || typeof p === 'object')) {
-				parsed = p;
-				break;
-			}
-		} catch {
-			/* shrink and retry */
-		}
-	}
-	const raw = Array.isArray(parsed)
-		? parsed
-		: parsed && typeof parsed === 'object'
-			? ((parsed as Record<string, unknown>).steps ?? [])
-			: [];
-	if (!Array.isArray(raw)) return [];
 	const out: string[] = [];
 	const seen = new Set<string>();
-	for (const s of raw) {
+	for (const s of rows) {
 		if (typeof s !== 'string') continue;
 		const step = s.trim().slice(0, 200);
 		const key = step.toLowerCase();
@@ -68,12 +43,5 @@ export function parseSteps(text: string): string[] {
 		out.push(step);
 		if (out.length >= 12) break;
 	}
-	return out;
-}
-
-function closingOffsets(text: string, start: number): number[] {
-	const out: number[] = [];
-	for (let i = text.length - 1; i > start; i--)
-		if (text[i] === '}' || text[i] === ']') out.push(i + 1);
-	return out;
+	return { steps: out, model: aiDecisionModel() };
 }

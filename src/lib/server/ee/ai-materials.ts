@@ -1,9 +1,10 @@
 /* @license Enterprise */
 
 import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { getJob } from '../services/jobs.ts';
 import { listItems, listJobMaterials } from '../services/inventory.ts';
-import { aiAvailable, aiChat, aiModel } from './ai.ts';
+import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
 
 export type SuggestedMaterial = {
 	inventoryItemId: string;
@@ -11,6 +12,23 @@ export type SuggestedMaterial = {
 	qty: number;
 	reason: string;
 };
+
+const materialRow = v.object({
+	inventoryItemId: v.string(),
+	qty: v.optional(v.number()),
+	reason: v.fallback(
+		v.pipe(
+			v.string(),
+			v.transform((s) => s.trim().slice(0, 200))
+		),
+		''
+	)
+});
+
+const materialsResponse = v.union([
+	v.object({ items: v.array(v.unknown()) }),
+	v.array(v.unknown())
+]);
 
 /**
  * Suggests materials to pull for a job — "what should the tech load on the
@@ -21,7 +39,7 @@ export async function suggestMaterials(
 	orgId: string,
 	jobId: string
 ): Promise<{ items: SuggestedMaterial[]; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
 
 	const [j, inventory, onJob] = await Promise.all([
 		getJob(orgId, jobId),
@@ -54,68 +72,32 @@ export async function suggestMaterials(
 		}))
 	});
 
-	const text = await aiChat(
-		[
-			{ role: 'system', content: system },
-			{ role: 'user', content: user }
-		],
-		{ maxTokens: 1200 }
-	);
-	return {
-		items: parseMaterials(text, stock, onJob.map((m) => m.itemName ?? m.material.customName)),
-		model: aiModel()
-	};
-}
+	const parsed = await aiDecision(materialsResponse, system, user, { maxTokens: 1200 });
+	const rows = parsed == null ? [] : Array.isArray(parsed) ? parsed : parsed.items;
 
-export function parseMaterials(
-	text: string,
-	stock: { id: string; name: string; qtyOnHand: number }[],
-	onJob: (string | null)[]
-): SuggestedMaterial[] {
-	const start = text.search(/[[{]/);
-	if (start < 0) return [];
-	let parsed: unknown = null;
-	for (const end of [text.length, ...closingOffsets(text, start).slice(0, 40)]) {
-		try {
-			const p = JSON.parse(text.slice(start, end));
-			if (p && typeof p === 'object') {
-				parsed = p;
-				break;
-			}
-		} catch {
-			/* shrink and retry */
-		}
-	}
-	const raw =
-		parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-			? (parsed as Record<string, unknown>).items
-			: parsed;
-	if (!Array.isArray(raw)) return [];
 	const byId = new Map(stock.map((i) => [i.id, i]));
-	const onJobNames = new Set(onJob.filter((n): n is string => !!n).map((n) => n.toLowerCase()));
+	const onJobNames = new Set(
+		onJob
+			.map((m) => m.itemName ?? m.material.customName)
+			.filter((n): n is string => !!n)
+			.map((n) => n.toLowerCase())
+	);
 	const out: SuggestedMaterial[] = [];
 	const seen = new Set<string>();
-	for (const r of raw) {
-		if (!r || typeof r !== 'object') continue;
-		const rec = r as Record<string, unknown>;
-		const item = byId.get(String(rec.inventoryItemId));
+	for (const row of rows) {
+		const r = v.safeParse(materialRow, row);
+		if (!r.success) continue;
+		const item = byId.get(r.output.inventoryItemId);
 		if (!item || seen.has(item.id) || onJobNames.has(item.name.toLowerCase())) continue;
 		seen.add(item.id);
-		const qty = Math.min(99, Math.max(1, Math.round(Number(rec.qty) || 1)));
+		const qty = r.output.qty;
 		out.push({
 			inventoryItemId: item.id,
 			name: item.name,
-			qty,
-			reason: typeof rec.reason === 'string' ? rec.reason.trim().slice(0, 200) : ''
+			qty: Math.min(99, Math.max(1, Math.round(Number.isFinite(qty) ? (qty ?? 1) : 1))),
+			reason: r.output.reason
 		});
 		if (out.length >= 10) break;
 	}
-	return out;
-}
-
-function closingOffsets(text: string, start: number): number[] {
-	const out: number[] = [];
-	for (let i = text.length - 1; i > start; i--)
-		if (text[i] === '}' || text[i] === ']') out.push(i + 1);
-	return out;
+	return { items: out, model: aiDecisionModel() };
 }

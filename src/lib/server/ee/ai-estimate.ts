@@ -1,8 +1,8 @@
 /* @license Enterprise */
 
 import { error } from '@sveltejs/kit';
-import { aiAvailable, aiChat, aiModel } from './ai.ts';
-import { parseSuggestedItems, type SuggestedItem } from './ai-parse.ts';
+import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
+import { suggestedItemsResponse, toSuggestedItems, type SuggestedItem } from './ai-parse.ts';
 import { listPricebook } from '../services/billing.ts';
 import { getSettings } from '../services/settings.ts';
 import { db } from '#lib/server/db/index.ts';
@@ -17,7 +17,7 @@ export async function suggestEstimateItems(
 	orgId: string,
 	args: { customerId: string; jobTypeId: string | null; notes: string }
 ): Promise<{ items: SuggestedItem[]; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
 
 	const [[c], [jt], catalog, settings] = await Promise.all([
 		db
@@ -61,12 +61,6 @@ export async function suggestEstimateItems(
 		currency: settings.currency
 	});
 
-	const text = await aiChat(
-		[
-			{ role: 'system', content: system },
-			{ role: 'user', content: user }
-		],
-		{ maxTokens: 800 }
-	);
-	return { items: parseSuggestedItems(text), model: aiModel() };
+	const parsed = await aiDecision(suggestedItemsResponse, system, user, { maxTokens: 800 });
+	return { items: parsed ? toSuggestedItems(parsed) : [], model: aiDecisionModel() };
 }

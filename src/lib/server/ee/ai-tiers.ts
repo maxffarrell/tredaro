@@ -1,9 +1,17 @@
 /* @license Enterprise */
 
 import { error } from '@sveltejs/kit';
-import { aiAvailable, aiChat, aiModel } from './ai.ts';
+import * as v from 'valibot';
+import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
 
 export type TierGroup = { name: string; items: number[] };
+
+const tierGroupRow = v.object({
+	name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(40)),
+	items: v.array(v.number())
+});
+
+const tiersResponse = v.union([v.object({ groups: v.array(v.unknown()) }), v.array(v.unknown())]);
 
 /**
  * Groups an estimate's line items into named option tiers (the good/better/
@@ -13,7 +21,7 @@ export type TierGroup = { name: string; items: number[] };
 export async function suggestTiers(
 	items: { name: string; unitPrice: number; qty: number }[]
 ): Promise<{ groups: TierGroup[]; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
 	if (!items.length) error(400, 'Add line items before tiering');
 
 	const system = [
@@ -34,59 +42,23 @@ export async function suggestTiers(
 		}))
 	});
 
-	const text = await aiChat(
-		[
-			{ role: 'system', content: system },
-			{ role: 'user', content: user }
-		],
-		{ maxTokens: 800 }
-	);
-	return { groups: parseTiers(text, items.length), model: aiModel() };
-}
+	const parsed = await aiDecision(tiersResponse, system, user, { maxTokens: 800 });
+	const rows = parsed == null ? [] : Array.isArray(parsed) ? parsed : parsed.groups;
 
-export function parseTiers(text: string, itemCount: number): TierGroup[] {
-	const start = text.search(/[[{]/);
-	if (start < 0) return [];
-	let parsed: unknown = null;
-	for (const end of [text.length, ...closingOffsets(text, start).slice(0, 40)]) {
-		try {
-			const p = JSON.parse(text.slice(start, end));
-			if (p && typeof p === 'object') {
-				parsed = p;
-				break;
-			}
-		} catch {
-			/* shrink and retry */
-		}
-	}
-	const raw =
-		parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-			? (parsed as Record<string, unknown>).groups
-			: parsed;
-	if (!Array.isArray(raw)) return [];
 	const used = new Set<number>();
 	const out: TierGroup[] = [];
-	for (const g of raw.slice(0, 4)) {
-		if (!g || typeof g !== 'object') continue;
-		const rec = g as Record<string, unknown>;
-		const name = typeof rec.name === 'string' ? rec.name.trim().slice(0, 40) : '';
-		const idx = Array.isArray(rec.items) ? rec.items : [];
-		const items: number[] = [];
-		for (const n of idx) {
-			const i = Math.trunc(Number(n));
-			if (Number.isInteger(i) && i >= 0 && i < itemCount && !used.has(i)) {
+	for (const row of rows.slice(0, 4)) {
+		const r = v.safeParse(tierGroupRow, row);
+		if (!r.success) continue;
+		const idx: number[] = [];
+		for (const n of r.output.items) {
+			const i = Math.trunc(n);
+			if (Number.isInteger(i) && i >= 0 && i < items.length && !used.has(i)) {
 				used.add(i);
-				items.push(i);
+				idx.push(i);
 			}
 		}
-		if (name && items.length) out.push({ name, items });
+		if (r.output.name && idx.length) out.push({ name: r.output.name, items: idx });
 	}
-	return out;
-}
-
-function closingOffsets(text: string, start: number): number[] {
-	const out: number[] = [];
-	for (let i = text.length - 1; i > start; i--)
-		if (text[i] === '}' || text[i] === ']') out.push(i + 1);
-	return out;
+	return { groups: out, model: aiDecisionModel() };
 }

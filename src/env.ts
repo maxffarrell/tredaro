@@ -69,6 +69,21 @@ export const variables = defineEnvVars({
 		description: 'Chat model name the endpoint should run, e.g. `gpt-5-mini`.',
 		schema: (value) => value || undefined
 	},
+	TREDARO_AI_DECISION_BASE_URL: {
+		description:
+			'Optional separate OpenAI-compatible base for structured decision calls (JSON outputs the app parses). Falls back to `TREDARO_AI_BASE_URL`.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_AI_DECISION_API_KEY: {
+		description:
+			'Optional separate API key for decision calls. Falls back to `TREDARO_AI_API_KEY` — a single key still enables everything.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_AI_DECISION_MODEL: {
+		description:
+			'Optional separate model for structured decision calls (e.g. a cheaper or stricter-JSON model). Falls back to `TREDARO_AI_MODEL`.',
+		schema: (value) => value || undefined
+	},
 	TREDARO_TWILIO_ACCOUNT_SID: {
 		description:
 			'Twilio account SID for SMS notifications (job scheduled / tech en route / job completed). Bring-your-own-account; all three Twilio vars are required.',

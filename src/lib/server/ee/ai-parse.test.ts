@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseSuggestedItems } from './ai-parse.ts';
+import * as v from 'valibot';
+import { extractJson, parseSuggestedItems, suggestedItemsResponse } from './ai-parse.ts';
 
 describe('parseSuggestedItems', () => {
 	it('parses a clean {"items":[]} payload', () => {
@@ -44,5 +45,24 @@ describe('parseSuggestedItems', () => {
 		expect(parseSuggestedItems('no json here')).toEqual([]);
 		expect(parseSuggestedItems('{"ok":true}')).toEqual([]);
 		expect(parseSuggestedItems('{"items":[]}')).toEqual([]);
+	});
+});
+
+describe('extractJson', () => {
+	it('returns null when nothing parses', () => {
+		expect(extractJson('no json here')).toBeNull();
+		expect(extractJson('')).toBeNull();
+	});
+
+	it('extracts a payload wrapped in prose and a code fence', () => {
+		expect(extractJson('Sure:\n```json\n{"a":1}\n```\nDone.')).toEqual({ a: 1 });
+	});
+});
+
+describe('suggestedItemsResponse schema', () => {
+	it('accepts wrapped and bare-array shapes, rejects other objects', () => {
+		expect(v.safeParse(suggestedItemsResponse, { items: [] }).success).toBe(true);
+		expect(v.safeParse(suggestedItemsResponse, []).success).toBe(true);
+		expect(v.safeParse(suggestedItemsResponse, { ok: true }).success).toBe(false);
 	});
 });

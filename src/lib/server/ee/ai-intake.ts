@@ -2,13 +2,14 @@
 
 import { error } from '@sveltejs/kit';
 import { and, eq, sql } from 'drizzle-orm';
+import * as v from 'valibot';
 import { db } from '../db/index.ts';
 import { customer, jobType } from '../db/schema.ts';
 import type { OrgContext } from '../context.ts';
 import { addServiceLocation, createCustomer } from '../services/customers.ts';
 import { createJob } from '../services/jobs.ts';
 import { getSettings } from '../services/settings.ts';
-import { aiAvailable, aiChat, aiModel } from './ai.ts';
+import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
 
 export type IntakeDraft = {
 	customer: { name: string; companyName: string; phone: string; email: string };
@@ -34,8 +35,37 @@ export type IntakeResult = {
  * customer is matched server-side on email or phone digits so the UI can
  * offer "use existing" instead of duplicating.
  */
+const optText = (fallback = '') => v.fallback(v.string(), fallback);
+
+const intakeResponse = v.object({
+	customer: v.fallback(
+		v.object({
+			name: optText(),
+			companyName: optText(),
+			phone: optText(),
+			email: optText()
+		}),
+		{ name: '', companyName: '', phone: '', email: '' }
+	),
+	address: v.fallback(
+		v.nullish(
+			v.object({
+				line1: optText(),
+				city: optText(),
+				state: optText(),
+				zip: optText()
+			})
+		),
+		null
+	),
+	jobTypeId: v.fallback(v.nullish(v.string()), null),
+	summary: optText(),
+	description: optText(),
+	priority: v.fallback(v.picklist(['low', 'normal', 'high', 'urgent']), 'normal')
+});
+
 export async function parseJobIntake(orgId: string, notes: string): Promise<IntakeResult> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
 
 	const types = await db
 		.select({ id: jobType.id, name: jobType.name })
@@ -57,14 +87,8 @@ export async function parseJobIntake(orgId: string, notes: string): Promise<Inta
 		jobTypes: types.slice(0, 60)
 	});
 
-	const text = await aiChat(
-		[
-			{ role: 'system', content: system },
-			{ role: 'user', content: user }
-		],
-		{ maxTokens: 1200 }
-	);
-	const draft = parseDraft(text, types);
+	const parsed = await aiDecision(intakeResponse, system, user, { maxTokens: 1200 });
+	const draft = toDraft(parsed, types);
 	const match =
 		draft.customer.email || digits(draft.customer.phone).length >= 7
 			? await matchCustomer(orgId, draft)
@@ -73,7 +97,7 @@ export async function parseJobIntake(orgId: string, notes: string): Promise<Inta
 		draft,
 		matchedCustomerId: match?.id ?? null,
 		matchedCustomerName: match?.name ?? null,
-		model: aiModel()
+		model: aiDecisionModel()
 	};
 }
 
@@ -83,7 +107,7 @@ export async function createIntake(
 	draft: IntakeDraft,
 	matchedCustomerId: string | null
 ): Promise<{ jobId: string; customerId: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
 	const name = draft.customer.name.trim() || draft.customer.companyName.trim();
 	if (!name) error(400, 'A customer name is required');
 
@@ -164,10 +188,10 @@ async function matchCustomer(orgId: string, draft: IntakeDraft) {
 function digits(s: string): string {
 	return s.replace(/[^0-9]/g, '');
 }
-
-const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
-
-export function parseDraft(text: string, types: { id: string; name: string }[]): IntakeDraft {
+function toDraft(
+	parsed: v.InferOutput<typeof intakeResponse> | null,
+	types: { id: string; name: string }[]
+): IntakeDraft {
 	const empty: IntakeDraft = {
 		customer: { name: '', companyName: '', phone: '', email: '' },
 		address: null,
@@ -176,26 +200,11 @@ export function parseDraft(text: string, types: { id: string; name: string }[]):
 		description: '',
 		priority: 'normal'
 	};
-	const start = text.search(/[[{]/);
-	if (start < 0) return empty;
-	let parsed: Record<string, unknown> | null = null;
-	for (const end of [text.length, ...closingOffsets(text, start).slice(0, 40)]) {
-		try {
-			const p = JSON.parse(text.slice(start, end));
-			if (p && typeof p === 'object' && !Array.isArray(p)) {
-				parsed = p as Record<string, unknown>;
-				break;
-			}
-		} catch {
-			/* shrink and retry */
-		}
-	}
 	if (!parsed) return empty;
 	const typeIds = new Set(types.map((t) => t.id));
-	const c = (parsed.customer ?? {}) as Record<string, unknown>;
-	const a = (parsed.address ?? null) as Record<string, unknown> | null;
-	const str = (x: unknown, max = 300) => (typeof x === 'string' ? x.trim().slice(0, max) : '');
-	const jobTypeId = typeIds.has(String(parsed.jobTypeId)) ? String(parsed.jobTypeId) : null;
+	const str = (x: string, max = 300) => x.trim().slice(0, max);
+	const c = parsed.customer;
+	const a = parsed.address ?? null;
 	return {
 		customer: {
 			name: str(c.name, 200),
@@ -203,27 +212,17 @@ export function parseDraft(text: string, types: { id: string; name: string }[]):
 			phone: str(c.phone, 40),
 			email: str(c.email, 200)
 		},
-		address:
-			a && typeof a === 'object'
-				? {
-						line1: str(a.line1, 300),
-						city: str(a.city, 100),
-						state: str(a.state, 50),
-						zip: str(a.zip, 20)
-					}
-				: null,
-		jobTypeId,
+		address: a
+			? {
+					line1: str(a.line1, 300),
+					city: str(a.city, 100),
+					state: str(a.state, 50),
+					zip: str(a.zip, 20)
+				}
+			: null,
+		jobTypeId: parsed.jobTypeId && typeIds.has(parsed.jobTypeId) ? parsed.jobTypeId : null,
 		summary: str(parsed.summary),
 		description: str(parsed.description, 5000),
-		priority: PRIORITIES.has(String(parsed.priority))
-			? (parsed.priority as IntakeDraft['priority'])
-			: 'normal'
+		priority: parsed.priority
 	};
-}
-
-function closingOffsets(text: string, start: number): number[] {
-	const out: number[] = [];
-	for (let i = text.length - 1; i > start; i--)
-		if (text[i] === '}' || text[i] === ']') out.push(i + 1);
-	return out;
 }
