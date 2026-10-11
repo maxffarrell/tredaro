@@ -87,6 +87,23 @@ export const customerImportInput = v.pipe(
 
 export const customerUpdate = v.object({ id: idSchema, ...v.partial(customerInput).entries });
 
+/** CSV import row for inventory items — dedupes on sku, falling back to name. */
+export const inventoryImportRow = v.object({
+	name: requiredText('Name'),
+	sku: optionalText,
+	unit: optionalText,
+	qtyOnHand: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
+	unitCost: v.optional(cents, 0),
+	category: optionalText,
+	location: optionalText,
+	reorderPoint: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))))
+});
+export const inventoryImportInput = v.pipe(
+	v.array(inventoryImportRow),
+	v.minLength(1),
+	v.maxLength(2000)
+);
+
 /** A contact on a customer account. */
 export const contactInput = v.object({
 	customerId: idSchema,

@@ -6,6 +6,7 @@ import * as eventsSvc from '#lib/server/services/events.ts';
 import {
 	idSchema,
 	inventoryAdjustInput,
+	inventoryImportInput,
 	inventoryItemInput,
 	inventoryItemUpdate,
 	jobMaterialInput,
@@ -51,6 +52,13 @@ export const adjustInventoryQty = command(adjustInput, async (input) => {
 	await refreshQuery(getItemHistory, input.id);
 	void getDashboard().refresh();
 	return i;
+});
+
+export const importInventoryItems = command(inventoryImportInput, async (rows) => {
+	const r = await svc.importItems(await requireOrg('admin'), rows);
+	await refreshQuery(getInventory, undefined);
+	void getDashboard().refresh();
+	return r;
 });
 
 export const deleteInventoryItem = command(idSchema, async (id) => {

@@ -30,8 +30,10 @@
 		deletePurchaseOrder,
 		getTruckStock,
 		transferTruckStock,
-		getItemHistory
+		getItemHistory,
+		importInventoryItems
 	} from '#lib/remote/inventory.remote.ts';
+	import { parseCsv } from '#lib/csv.ts';
 	import { getTechnicians } from '#lib/remote/jobs.remote.ts';
 	import { getCurrency } from '#lib/remote/billing.remote.ts';
 	import { errMsg, formatMoney, formatRelative } from '#lib/format.ts';
@@ -47,6 +49,7 @@
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import History from '@lucide/svelte/icons/history';
 	import Printer from '@lucide/svelte/icons/printer';
+	import Upload from '@lucide/svelte/icons/upload';
 
 	const currency = await getCurrency();
 	let rows = $state(await getInventory());
@@ -236,9 +239,72 @@
 			: [{ inventoryItemId: '', qty: 1, unitCost: 0 }];
 		poOpen = true;
 	}
+
 	function pickPoItem(i: number, v: string) {
 		poLines[i].inventoryItemId = v;
 		poLines[i].unitCost = rows.find((r) => r.item.id === v)?.item.unitCost ?? 0;
+	}
+	/** Pre-fills a PO with every below-reorder item (qty to reach par/2×reorder). */
+	function openPoLow() {
+		const low = rows.filter((r) => r.low);
+		poSupplier = low.map((r) => r.item.preferredSupplier).find((x) => x?.trim()) ?? '';
+		poExpected = '';
+		poNotes = 'Restock low items';
+		poLines = low.map((r) => ({
+			inventoryItemId: r.item.id,
+			qty: Math.max((r.item.parLevel ?? (r.item.reorderPoint ?? 0) * 2) - r.item.qtyOnHand, 1),
+			unitCost: r.item.unitCost
+		}));
+		poOpen = true;
+	}
+
+	// ------- csv import -------
+	let importOpen = $state(false);
+	let importText = $state('');
+	let importPending = $state(false);
+	/** Parsed rows — a leading header row is dropped, blank names skipped. unitCost is dollars → cents. */
+	const importRows = $derived.by(() => {
+		let rows = parseCsv(importText).map((r) => ({
+			name: r[0]?.trim() ?? '',
+			sku: r[1]?.trim() ?? '',
+			unit: r[2]?.trim() ?? '',
+			qtyOnHand: Math.max(0, Math.floor(Number(r[3]) || 0)),
+			unitCost: Math.max(0, Math.round((Number(r[4]) || 0) * 100)),
+			category: r[5]?.trim() ?? '',
+			reorderPoint: r[6]?.trim() ? Math.max(0, Math.floor(Number(r[6]) || 0)) : null
+		}));
+		if (rows.length && rows[0]!.name.toLowerCase() === 'name') rows = rows.slice(1);
+		return rows.filter((r) => r.name);
+	});
+	function onImportFile(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		file?.text().then((t) => (importText = t));
+	}
+	async function runImport() {
+		importPending = true;
+		try {
+			const r = await importInventoryItems(
+				importRows.map((row) => ({
+					name: row.name,
+					sku: row.sku || null,
+					unit: row.unit || null,
+					qtyOnHand: row.qtyOnHand,
+					unitCost: row.unitCost,
+					category: row.category || null,
+					location: null,
+					reorderPoint: row.reorderPoint
+				}))
+			).updates(getInventory);
+			toast.success(
+				`Imported ${r.created} item${r.created === 1 ? '' : 's'}${r.skipped ? ` — skipped ${r.skipped} duplicate${r.skipped === 1 ? '' : 's'}` : ''}`
+			);
+			importOpen = false;
+			importText = '';
+			rows = await getInventory();
+		} catch (err) {
+			toast.error(errMsg(err, 'Import failed'));
+		}
+		importPending = false;
 	}
 	async function savePo(e: SubmitEvent) {
 		e.preventDefault();
@@ -347,6 +413,9 @@
 
 <PageHeader title="Inventory">
 	{#snippet actions()}
+		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}>
+			<Upload /> Import
+		</Button>
 		<Button size="sm" variant="outline" href="/api/export/inventory.csv" download>
 			<Download /> Export CSV
 		</Button>
@@ -405,6 +474,9 @@
 		{#if lowCount}
 			<Badge variant="outline" class="mr-2 hidden text-amber-600 md:inline-flex dark:text-amber-400"
 				>{lowCount} low</Badge
+			>
+			<Button size="sm" variant="outline" onclick={openPoLow}
+				><ShoppingCart /> Order low stock</Button
 			>
 		{/if}
 		{#if outCount}
@@ -1097,5 +1169,38 @@
 				</Empty.Root>
 			{/each}
 		</div>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- csv import -->
+<Dialog.Root bind:open={importOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Import inventory items</Dialog.Title>
+			<Dialog.Description>
+				Paste CSV or pick a file — columns: name, sku, unit, qty, unit_cost, category, reorder_point
+				(all but name optional; header row optional; unit_cost in dollars). Items whose sku (or name
+				when no sku) already exists are skipped.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<Input type="file" accept=".csv,text/csv,text/plain" onchange={onImportFile} />
+			<Textarea
+				rows={6}
+				class="font-mono text-xs"
+				placeholder="name,sku,unit,qty,unit_cost,category,reorder_point&#10;Capacitor 45/5,CAP45-5-440,each,10,18.00,Electrical,3"
+				bind:value={importText}
+			/>
+			{#if importText.trim()}
+				<p class="text-xs text-muted-foreground">
+					{importRows.length} item{importRows.length === 1 ? '' : 's'} ready to import
+				</p>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button disabled={importPending || !importRows.length} onclick={runImport}
+				>{importPending ? 'Importing…' : 'Import'}</Button
+			>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

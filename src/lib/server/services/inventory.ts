@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	companySettings,
@@ -69,6 +69,71 @@ export async function createItem(
 		summary: `Added inventory item ${i.name}`
 	});
 	return i;
+}
+
+/** Bulk-creates stock items from CSV rows; skips rows whose sku (or name when no sku) already exists. */
+export async function importItems(
+	ctx: OrgContext,
+	rows: v.InferOutput<typeof s.inventoryImportInput>
+) {
+	const key = (r: (typeof rows)[number]) => (r.sku?.trim() || r.name).toLowerCase();
+	const skus = rows.map((r) => r.sku?.trim()).filter((x): x is string => !!x);
+	const names = rows.map((r) => r.name.toLowerCase());
+	const taken = new Set<string>();
+	if (skus.length || names.length) {
+		const existing = await db
+			.select({ sku: inventoryItem.sku, name: inventoryItem.name })
+			.from(inventoryItem)
+			.where(
+				and(
+					eq(inventoryItem.organizationId, ctx.orgId),
+					or(
+						skus.length
+							? inArray(
+									sql`lower(${inventoryItem.sku})`,
+									skus.map((x) => x.toLowerCase())
+								)
+							: undefined,
+						inArray(sql`lower(${inventoryItem.name})`, names)
+					)
+				)
+			);
+		for (const e of existing) {
+			if (e.sku.trim()) taken.add(e.sku.toLowerCase());
+			taken.add(e.name.toLowerCase());
+		}
+	}
+	const seen = new Set<string>();
+	const toInsert = rows.filter((r) => {
+		const k = key(r);
+		if (taken.has(k) || seen.has(k)) return false;
+		seen.add(k);
+		return true;
+	});
+	if (toInsert.length)
+		await db.insert(inventoryItem).values(
+			toInsert.map((r) => ({
+				organizationId: ctx.orgId,
+				name: r.name,
+				sku: r.sku?.trim() ?? '',
+				unit: r.unit?.trim() || 'each',
+				qtyOnHand: r.qtyOnHand,
+				unitCost: r.unitCost,
+				category: r.category?.trim() ?? '',
+				location: r.location?.trim() ?? '',
+				reorderPoint: r.reorderPoint ?? null
+			}))
+		);
+	await emit({
+		orgId: ctx.orgId,
+		actorId: ctx.userId,
+		entityType: 'inventory_item',
+		entityId: 'csv-import',
+		action: 'imported',
+		summary: `Imported ${toInsert.length} inventory item${toInsert.length === 1 ? '' : 's'}`,
+		data: { skipped: rows.length - toInsert.length }
+	});
+	return { created: toInsert.length, skipped: rows.length - toInsert.length };
 }
 
 export async function updateItem(
