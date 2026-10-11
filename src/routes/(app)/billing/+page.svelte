@@ -65,7 +65,7 @@
 	let tab = $state<'invoices' | 'charges' | 'payments'>(
 		page.url.searchParams.has('customer') ? 'charges' : 'invoices'
 	);
-	const customerFilter = $state(page.url.searchParams.get('customer') ?? '');
+	const customerFilter = $derived(page.url.searchParams.get('customer') ?? '');
 
 	let statusParam = $state(page.url.searchParams.get('status') ?? '');
 	function setStatus(s: string) {

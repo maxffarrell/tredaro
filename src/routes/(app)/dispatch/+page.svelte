@@ -24,6 +24,7 @@
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { addDays } from '#lib/tz.ts';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -35,6 +36,7 @@
 	import Inbox from '@lucide/svelte/icons/inbox';
 	import Printer from '@lucide/svelte/icons/printer';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import StickyNote from '@lucide/svelte/icons/sticky-note';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -598,7 +600,7 @@
 				<Badge class="hidden md:inline-flex" variant="outline">{doneThisWeek} done</Badge>
 			{/if}
 			{#if onSiteNow}
-				<Badge variant="outline" class="text-green-600 dark:text-green-400"
+				<Badge variant="outline" class="hidden text-green-600 md:inline-flex dark:text-green-400"
 					>{onSiteNow} on site now</Badge
 				>
 			{/if}
@@ -641,46 +643,82 @@
 			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(7)}
 				><ChevronRight /></Button
 			>
-			<Button
-				variant="outline"
-				size="sm"
-				onclick={textEtas}
-				disabled={etaPending}
-				title="Text every customer with a job that day their ETA"
-				><MessageSquare /> {etaPending ? 'Texting…' : 'Text ETAs'}</Button
-			>
-			<Button
-				variant="outline"
-				size="sm"
-				onclick={copyThisWeek}
-				disabled={copyPending}
-				title="Duplicate this week's jobs onto the same weekdays next week"
-				><CalendarPlus /> {copyPending ? 'Copying…' : 'Copy week'}</Button
-			>
-			{#if ai.available}
+			<div class="hidden lg:contents">
 				<Button
 					variant="outline"
 					size="sm"
-					title="Suggest tech assignments for {dayFilter || todayStr}"
-					disabled={suggestPending}
-					onclick={aiSuggest}><Sparkles /> {suggestPending ? 'Thinking…' : 'AI suggest'}</Button
+					onclick={textEtas}
+					disabled={etaPending}
+					title="Text every customer with a job that day their ETA"
+					><MessageSquare /> {etaPending ? 'Texting…' : 'Text ETAs'}</Button
 				>
-			{/if}
-			<Button
-				variant="outline"
-				size="icon"
-				class="size-8"
-				title="Print this week's schedule"
-				href="/dispatch/print?from={start}"
-				target="_blank"><Printer /></Button
-			>
-			<Button
-				variant="outline"
-				size="sm"
-				title="Printable route sheet per tech for {dayFilter || todayStr}"
-				href="/dispatch/routesheets?day={dayFilter || todayStr}"
-				target="_blank">Sheets</Button
-			>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={copyThisWeek}
+					disabled={copyPending}
+					title="Duplicate this week's jobs onto the same weekdays next week"
+					><CalendarPlus /> {copyPending ? 'Copying…' : 'Copy week'}</Button
+				>
+				{#if ai.available}
+					<Button
+						variant="outline"
+						size="sm"
+						title="Suggest tech assignments for {dayFilter || todayStr}"
+						disabled={suggestPending}
+						onclick={aiSuggest}><Sparkles /> {suggestPending ? 'Thinking…' : 'AI suggest'}</Button
+					>
+				{/if}
+				<Button
+					variant="outline"
+					size="icon"
+					class="size-8"
+					title="Print this week's schedule"
+					href="/dispatch/print?from={start}"
+					target="_blank"><Printer /></Button
+				>
+				<Button
+					variant="outline"
+					size="sm"
+					title="Printable route sheet per tech for {dayFilter || todayStr}"
+					href="/dispatch/routesheets?day={dayFilter || todayStr}"
+					target="_blank">Sheets</Button
+				>
+			</div>
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button
+							{...props}
+							variant="outline"
+							size="icon"
+							class="size-8 lg:hidden"
+							title="More actions"><Ellipsis /></Button
+						>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end">
+					<DropdownMenu.Item onclick={textEtas} disabled={etaPending}
+						><MessageSquare /> {etaPending ? 'Texting…' : 'Text ETAs'}</DropdownMenu.Item
+					>
+					<DropdownMenu.Item onclick={copyThisWeek} disabled={copyPending}
+						><CalendarPlus /> {copyPending ? 'Copying…' : 'Copy week'}</DropdownMenu.Item
+					>
+					{#if ai.available}
+						<DropdownMenu.Item onclick={aiSuggest} disabled={suggestPending}
+							><Sparkles /> {suggestPending ? 'Thinking…' : 'AI suggest'}</DropdownMenu.Item
+						>
+					{/if}
+					<DropdownMenu.Item onclick={() => window.open(`/dispatch/print?from=${start}`, '_blank')}
+						><Printer /> Print week</DropdownMenu.Item
+					>
+					<DropdownMenu.Item
+						onclick={() =>
+							window.open(`/dispatch/routesheets?day=${dayFilter || todayStr}`, '_blank')}
+						><StickyNote /> Route sheets</DropdownMenu.Item
+					>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 		</div>
 	{/snippet}
 </PageHeader>
@@ -694,7 +732,7 @@
 				onCheckedChange={() => toggleSelect(j.job.id)}
 			/>
 			<button
-				class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent {selected.has(
+				class="min-w-0 flex-1 cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent {selected.has(
 					j.job.id
 				)
 					? 'border-primary bg-primary/5'
@@ -1054,7 +1092,7 @@
 					{:else}
 						<ul class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
 							{#each dayJobs(group.jobs) as j, i (j.job.id)}
-								<li class="flex items-stretch gap-1">
+								<li class="flex min-w-0 items-stretch gap-1">
 									<button
 										class="w-full cursor-grab rounded-lg border p-3 text-left transition-colors hover:bg-accent"
 										draggable="true"

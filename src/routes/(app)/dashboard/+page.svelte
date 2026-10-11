@@ -148,7 +148,7 @@
 						<Table.Body>
 							{#each d.todayJobs as j (j.id)}
 								<Table.Row onclick={() => goto(`/jobs/${j.id}`)} class="cursor-pointer">
-									<Table.Cell>
+									<Table.Cell class="whitespace-normal">
 										<span class="mr-2 inline-block size-2 rounded-full" style:background={j.color}
 										></span>{j.summary || j.jobTypeName}
 										<span class="text-muted-foreground">· {j.customerName}</span>
