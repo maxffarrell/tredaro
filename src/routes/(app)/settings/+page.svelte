@@ -68,6 +68,7 @@
 		refreshProvider
 	} from '#lib/remote/payments.remote.ts';
 	import { getApiKeys, createApiKey, deleteApiKey } from '#lib/remote/api-keys.remote.ts';
+	import { getAiStatus, aiChecklistDraft } from '#lib/remote/ai.remote.ts';
 	import { API_RESOURCES } from '#lib/api-permissions.ts';
 	import { errMsg, formatDate, formatRelative } from '#lib/format.ts';
 	import { tour } from '#lib/components/app/tour.svelte.ts';
@@ -86,6 +87,7 @@
 	import { userPrefersMode, setMode } from 'mode-watcher';
 
 	let settings = $state(await getSettings());
+	const aiStatus = await getAiStatus();
 	const smsLog = await getSmsOutbox();
 	let offices = $state(await getOffices());
 	let webhooks = $state(await getWebhooks());
@@ -153,6 +155,20 @@
 	let jtOpen = $state(false);
 	let jtEdit: (typeof jobTypes)[number] | null = $state(null);
 	let jtName = $state('');
+	let jtAiPending = $state(false);
+	async function draftJtChecklist() {
+		jtAiPending = true;
+		try {
+			const r = await aiChecklistDraft({ name: jtName, context: jtDescription });
+			if (r.steps.length) {
+				jtChecklist = r.steps.join('\n');
+				toast.success(`Drafted ${r.steps.length} steps`);
+			} else toast.info('No steps drafted — try a more descriptive name');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not draft checklist'));
+		}
+		jtAiPending = false;
+	}
 	let jtDescription = $state('');
 	let jtDuration = $state(60);
 	let jtWarrantyDays = $state(0);
@@ -2007,7 +2023,20 @@
 				</Field.Field>
 			</div>
 			<Field.Field>
-				<Field.Label for="jt-checklist">Checklist — one step per line</Field.Label>
+				<div class="flex items-center justify-between">
+					<Field.Label for="jt-checklist">Checklist — one step per line</Field.Label>
+					{#if aiStatus.available}
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							class="h-7 text-muted-foreground"
+							title="Draft steps with AI from the job-type name"
+							disabled={jtAiPending || jtName.trim().length < 2}
+							onclick={draftJtChecklist}><Sparkles /> {jtAiPending ? 'Drafting…' : 'Draft'}</Button
+						>
+					{/if}
+				</div>
 				<Textarea
 					id="jt-checklist"
 					rows={4}

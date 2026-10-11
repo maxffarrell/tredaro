@@ -40,6 +40,8 @@
 	import Mail from '@lucide/svelte/icons/mail';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Printer from '@lucide/svelte/icons/printer';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import { getAiStatus, aiEstimateSummary } from '#lib/remote/ai.remote.ts';
 	import CopyPlus from '@lucide/svelte/icons/copy-plus';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
@@ -54,6 +56,7 @@
 	import Percent from '@lucide/svelte/icons/percent';
 
 	const id = $derived(page.params.id!);
+	const ai = await getAiStatus();
 	const est = $derived(await getEstimate(id));
 	const settings = await getSettings();
 	const currency = settings.currency;
@@ -65,6 +68,18 @@
 	const linkedJob = $derived(est.linkedJob ?? null);
 
 	let notes = $state('');
+	let aiNotePending = $state(false);
+	async function draftNote() {
+		aiNotePending = true;
+		try {
+			const r = await aiEstimateSummary(id);
+			notes = r.summary;
+			toast.success('Drafted — review and save');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not draft note'));
+		}
+		aiNotePending = false;
+	}
 	let internalNotes = $state('');
 	let customerPo = $state('');
 	let validUntil = $state('');
@@ -481,7 +496,20 @@
 						</div>
 					{/if}
 					<Field.Field>
-						<Field.Label for="ed-notes">Notes</Field.Label>
+						<div class="flex items-center justify-between">
+							<Field.Label for="ed-notes">Notes</Field.Label>
+							{#if ai.available}
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									class="h-7 text-muted-foreground"
+									title="Draft a customer-facing cover note with AI"
+									disabled={aiNotePending}
+									onclick={draftNote}><Sparkles /> {aiNotePending ? 'Drafting…' : 'Draft'}</Button
+								>
+							{/if}
+						</div>
 						<Textarea id="ed-notes" rows={3} bind:value={notes} />
 						<Field.Description>Shown on the public quote.</Field.Description>
 					</Field.Field>

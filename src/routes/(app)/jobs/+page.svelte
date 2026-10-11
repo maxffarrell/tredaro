@@ -24,13 +24,16 @@
 	} from '#lib/remote/jobs.remote.ts';
 	import { getCustomers, getCustomer } from '#lib/remote/customers.remote.ts';
 	import { getSettings } from '#lib/remote/workspace.remote.ts';
+	import { getAiStatus, aiJobIntake, aiIntakeCreate } from '#lib/remote/ai.remote.ts';
 	import { errMsg } from '#lib/format.ts';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Download from '@lucide/svelte/icons/download';
 	import Wrench from '@lucide/svelte/icons/wrench';
 
 	const settings = await getSettings();
+	const ai = await getAiStatus();
 	const tz = settings.timezone;
 	const jobTypes = await getJobTypes();
 	const technicians = await getTechnicians();
@@ -127,6 +130,53 @@
 		).length
 	);
 
+	// ------- AI intake -------
+	let intakeOpen = $state(false);
+	let intakeNotes = $state('');
+	let intakePending = $state(false);
+	let intakeCreating = $state(false);
+	type IntakeDraft = {
+		customer: { name: string; companyName: string; phone: string; email: string };
+		address: { line1: string; city: string; state: string; zip: string } | null;
+		jobTypeId: string | null;
+		summary: string;
+		description: string;
+		priority: 'low' | 'normal' | 'high' | 'urgent';
+	};
+	let intakeDraft = $state<IntakeDraft | null>(null);
+	let intakeMatchedId = $state<string | null>(null);
+	let intakeMatchedName = $state('');
+	async function runIntake() {
+		intakePending = true;
+		try {
+			const r = await aiJobIntake({ notes: intakeNotes });
+			intakeDraft = r.draft;
+			intakeMatchedId = r.matchedCustomerId;
+			intakeMatchedName = r.matchedCustomerName ?? '';
+			if (!r.draft.summary && !r.draft.customer.name)
+				toast.info('Nothing to create — paste fuller call notes');
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not parse intake'));
+		}
+		intakePending = false;
+	}
+	async function createIntakeJob() {
+		if (!intakeDraft) return;
+		intakeCreating = true;
+		try {
+			const r = await aiIntakeCreate({ draft: intakeDraft, matchedCustomerId: intakeMatchedId });
+			toast.success('Job created');
+			intakeOpen = false;
+			intakeNotes = '';
+			intakeDraft = null;
+			intakeMatchedId = null;
+			goto(`/jobs/${r.jobId}`);
+		} catch (err) {
+			toast.error(errMsg(err, 'Could not create job'));
+		}
+		intakeCreating = false;
+	}
+
 	// ------- new job -------
 	let open = $state(page.url.searchParams.get('new') === '1');
 	let pending = $state(false);
@@ -187,6 +237,11 @@
 		<Button size="sm" variant="outline" href="/api/export/jobs.csv" download
 			><Download /> Export</Button
 		>
+		{#if ai.available}
+			<Button size="sm" variant="outline" onclick={() => (intakeOpen = true)}
+				><Sparkles /> AI intake</Button
+			>
+		{/if}
 		<Button size="sm" onclick={() => (open = true)}><Plus /> New job</Button>
 	{/snippet}
 </PageHeader>
@@ -524,5 +579,104 @@
 				>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- AI job intake -->
+<Dialog.Root bind:open={intakeOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>AI job intake</Dialog.Title>
+			<Dialog.Description>
+				Paste call notes, a voicemail transcript, or a forwarded email — the model drafts the
+				customer and job for review.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3">
+			<Textarea
+				rows={6}
+				placeholder="e.g. Maria at 512-555-0143, 420 Live Oak Dr, AC blowing warm air since yesterday, wants someone this week…"
+				bind:value={intakeNotes}
+			/>
+			<Button
+				variant="secondary"
+				disabled={intakePending || intakeNotes.trim().length < 5}
+				onclick={runIntake}><Sparkles /> {intakePending ? 'Parsing…' : 'Parse'}</Button
+			>
+			{#if intakeDraft}
+				<div class="space-y-2 rounded-lg border p-3 text-sm">
+					{#if intakeMatchedId}
+						<p class="text-xs text-muted-foreground">
+							Matches existing customer <span class="font-medium text-foreground"
+								>{intakeMatchedName}</span
+							> — a new customer won't be created.
+						</p>
+					{/if}
+					<div class="grid grid-cols-2 gap-x-3 gap-y-1">
+						<span class="text-muted-foreground">Customer</span>
+						<span class="font-medium"
+							>{intakeDraft.customer.name || intakeDraft.customer.companyName || '—'}</span
+						>
+						<span class="text-muted-foreground">Phone</span>
+						<span>{intakeDraft.customer.phone || '—'}</span>
+						<span class="text-muted-foreground">Email</span>
+						<span>{intakeDraft.customer.email || '—'}</span>
+						{#if intakeDraft.address}
+							<span class="text-muted-foreground">Address</span>
+							<span
+								>{[
+									intakeDraft.address.line1,
+									intakeDraft.address.city,
+									intakeDraft.address.state,
+									intakeDraft.address.zip
+								]
+									.filter(Boolean)
+									.join(', ') || '—'}</span
+							>
+						{/if}
+					</div>
+					<Field.Field>
+						<Field.Label>Job type</Field.Label>
+						<Select.Root
+							type="single"
+							value={intakeDraft.jobTypeId ?? ''}
+							onValueChange={(v) => {
+								if (intakeDraft) intakeDraft.jobTypeId = v || null;
+							}}
+						>
+							<Select.Trigger class="w-full"
+								>{jobTypes.find((t) => t.id === intakeDraft?.jobTypeId)?.name ??
+									'No type'}</Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">No type</Select.Item>
+								{#each jobTypes as t (t.id)}
+									<Select.Item value={t.id}>{t.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="intake-summary">Summary</Field.Label>
+						<Input id="intake-summary" bind:value={intakeDraft.summary} />
+					</Field.Field>
+					<div class="flex items-center gap-2">
+						<Badge variant="outline" class="capitalize">{intakeDraft.priority}</Badge>
+						{#if intakeDraft.description}
+							<span class="truncate text-xs text-muted-foreground" title={intakeDraft.description}
+								>{intakeDraft.description}</span
+							>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		</div>
+		{#if intakeDraft}
+			<Dialog.Footer>
+				<Button disabled={intakeCreating} onclick={createIntakeJob}
+					>{intakeCreating ? 'Creating…' : 'Create job'}</Button
+				>
+			</Dialog.Footer>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>
