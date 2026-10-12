@@ -148,6 +148,8 @@ export const customer = pgTable(
 		organizationId: orgId(),
 		officeId: text('office_id').references(() => office.id, { onDelete: 'set null' }),
 		portalUserId: text('portal_user_id').references(() => user.id, { onDelete: 'set null' }),
+		/** Single-use invitation capability, cleared on claim and revocation. */
+		portalInviteNonce: text('portal_invite_nonce'),
 		type: customerType('type').notNull().default('residential'),
 		/** Company name for commercial accounts. */
 		companyName: text('company_name'),

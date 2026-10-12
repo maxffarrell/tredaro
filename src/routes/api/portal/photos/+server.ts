@@ -22,7 +22,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	const [j] = await db
 		.select({ id: job.id, orgId: job.organizationId })
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(and(eq(job.id, jobId), eq(customer.portalUserId, user.id)))
 		.limit(1);
 	if (!j) error(404, 'Job not found');

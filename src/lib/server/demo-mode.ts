@@ -50,6 +50,7 @@ function rateLimit(ip: string) {
 
 /** Deletes demo users older than the TTL along with their workspaces. */
 export async function purgeExpiredDemos() {
+	if (!TREDARO_DEMO) return;
 	const stale = await db
 		.select({ id: user.id })
 		.from(user)

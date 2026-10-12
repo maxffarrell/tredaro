@@ -17,7 +17,10 @@ export const load: PageServerLoad = async ({ params }) => {
 			location: serviceLocation
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.leftJoin(
 			serviceLocation,

@@ -1,13 +1,6 @@
-// Minimal app-shell service worker: installable PWA + launches offline with the
-// last-seen shell. Build assets are content-hashed so they're cached forever;
-// navigations go network-first and fall back to the cached shell when offline.
-const VERSION = 'v1';
-const SHELL = `tredaro-shell-${VERSION}`;
-const ASSETS = `tredaro-assets-${VERSION}`;
-
-self.addEventListener('install', (e) => {
-	e.waitUntil(caches.open(SHELL).then((c) => c.add('/')).then(() => self.skipWaiting()));
-});
+// Cache public immutable assets only. Authenticated HTML never enters Cache Storage.
+const ASSETS = 'tredaro-assets-v2';
+self.addEventListener('install', (e) => { e.waitUntil(self.skipWaiting()); });
 
 self.addEventListener('activate', (e) => {
 	e.waitUntil(
@@ -16,7 +9,7 @@ self.addEventListener('activate', (e) => {
 			.then((keys) =>
 				Promise.all(
 					keys
-						.filter((k) => k !== SHELL && k !== ASSETS)
+						.filter((k) => k.startsWith('tredaro-') && k !== ASSETS)
 						.map((k) => caches.delete(k))
 				)
 			)
@@ -42,23 +35,11 @@ self.addEventListener('fetch', (e) => {
 		return;
 	}
 
-	// Page navigations: network-first, cached shell as the offline fallback.
+	// An offline navigation returns a generic page without previous-session data.
 	if (e.request.mode === 'navigate') {
-		e.respondWith(
-			fetch(e.request)
-				.then((res) => {
-					if (res.ok) {
-						const copy = res.clone();
-						caches.open(SHELL).then((c) => c.put(e.request, copy));
-					}
-					return res;
-				})
-				.catch(() =>
-					caches
-						.match(e.request)
-						.then((hit) => hit || caches.match('/'))
-						.then((hit) => hit || Response.error())
-				)
-		);
+		e.respondWith(fetch(e.request).catch(() => new Response(
+			'<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Offline</title><h1>You are offline</h1><p>Reconnect to access your workspace.</p></html>',
+			{ status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
+		)));
 	}
 });

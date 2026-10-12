@@ -513,7 +513,14 @@ async function techPerformance(orgId: string) {
 				total: sql<number>`sum(${payment.amount})`.mapWith(Number)
 			})
 			.from(payment)
-			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(
+				charge,
+				and(
+					eq(payment.chargeId, charge.id),
+					eq(charge.organizationId, payment.organizationId),
+					eq(charge.customerId, payment.customerId)
+				)
+			)
 			.innerJoin(job, eq(charge.jobId, job.id))
 			.where(
 				and(
@@ -568,9 +575,9 @@ async function avgDaysToPay(orgId: string) {
 	const rows = await db
 		.select({
 			issuedAt: invoice.issuedAt,
-			lastPaid: sql<string>`(select max(p.paid_at) from ${payment} p join ${charge} c on p.charge_id = c.id where c.invoice_id = ${outer(invoice.id)})`,
+			lastPaid: sql<string>`(select max(p.paid_at) from ${payment} p join ${charge} c on p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id where c.invoice_id = ${outer(invoice.id)})`,
 			covered:
-				sql<boolean>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on p.charge_id = c.id where c.invoice_id = ${outer(invoice.id)}), 0) >= coalesce((select sum(it.qty * it.unit_price) from ${invoiceItem} it where it.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
+				sql<boolean>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id where c.invoice_id = ${outer(invoice.id)}), 0) >= coalesce((select sum(it.qty * it.unit_price) from ${invoiceItem} it where it.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 					Boolean
 				)
 		})
@@ -684,7 +691,10 @@ async function revenueByCustomerType(orgId: string) {
 			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(payment.customerId, customer.id), eq(customer.organizationId, payment.organizationId))
+		)
 		.where(
 			and(
 				eq(payment.organizationId, orgId),
@@ -737,7 +747,14 @@ async function revenueByZip(orgId: string) {
 			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(
+			charge,
+			and(
+				eq(payment.chargeId, charge.id),
+				eq(charge.organizationId, payment.organizationId),
+				eq(charge.customerId, payment.customerId)
+			)
+		)
 		.innerJoin(invoice, eq(charge.invoiceId, invoice.id))
 		.innerJoin(job, eq(invoice.jobId, job.id))
 		.innerJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
@@ -793,7 +810,14 @@ async function tipsCollected(orgId: string) {
 			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(
+			charge,
+			and(
+				eq(payment.chargeId, charge.id),
+				eq(charge.organizationId, payment.organizationId),
+				eq(charge.customerId, payment.customerId)
+			)
+		)
 		.where(
 			and(
 				eq(payment.organizationId, orgId),
@@ -809,7 +833,14 @@ async function tipsCollected(orgId: string) {
 			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(
+			charge,
+			and(
+				eq(payment.chargeId, charge.id),
+				eq(charge.organizationId, payment.organizationId),
+				eq(charge.customerId, payment.customerId)
+			)
+		)
 		.innerJoin(job, eq(charge.jobId, job.id))
 		.innerJoin(member, eq(job.technicianId, member.id))
 		.innerJoin(user, eq(member.userId, user.id))
@@ -830,7 +861,14 @@ async function tipsCollected(orgId: string) {
 			total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(
+			charge,
+			and(
+				eq(payment.chargeId, charge.id),
+				eq(charge.organizationId, payment.organizationId),
+				eq(charge.customerId, payment.customerId)
+			)
+		)
 		.where(
 			and(
 				eq(payment.organizationId, orgId),
@@ -1124,7 +1162,14 @@ async function salesByJobType(orgId: string) {
 			total: sql<number>`sum(${payment.amount})`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(
+			charge,
+			and(
+				eq(payment.chargeId, charge.id),
+				eq(charge.organizationId, payment.organizationId),
+				eq(charge.customerId, payment.customerId)
+			)
+		)
 		.innerJoin(job, eq(charge.jobId, job.id))
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(payment.organizationId, orgId))
@@ -1165,7 +1210,10 @@ async function leadsBySource(orgId: string) {
 			total: sql<number>`sum(${payment.amount})`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(payment.customerId, customer.id), eq(customer.organizationId, payment.organizationId))
+		)
 		.where(eq(payment.organizationId, orgId))
 		.groupBy(sql`coalesce(nullif(${customer.leadSource}, ''), 'Unknown')`);
 	const map = new Map(collected.map((r) => [r.source, r.total]));
@@ -1210,7 +1258,10 @@ async function jobProfitability(orgId: string) {
 				)
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(and(eq(job.organizationId, orgId), isNull(job.cancelledAt), gte(job.completedAt, since)))
 		.orderBy(desc(job.completedAt));
 }
@@ -1263,11 +1314,11 @@ async function receivablesAging(orgId: string) {
 				else '90+'
 			end`,
 			balance:
-				sql<number>`sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0))`.mapWith(
+				sql<number>`sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0))`.mapWith(
 					Number
 				),
 			count:
-				sql<number>`count(*) filter (where ${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0) > 0)`.mapWith(
+				sql<number>`count(*) filter (where ${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0) > 0)`.mapWith(
 					Number
 				)
 		})
@@ -1300,7 +1351,10 @@ async function topCustomers(orgId: string) {
 			collected: sql<number>`sum(${payment.amount})`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(payment.customerId, customer.id), eq(customer.organizationId, payment.organizationId))
+		)
 		.where(and(eq(payment.organizationId, orgId), gte(payment.paidAt, since)))
 		.groupBy(customer.id, customer.name)
 		.orderBy(desc(sql`sum(${payment.amount})`))
@@ -1329,7 +1383,14 @@ async function officePerformance(orgId: string) {
 			total: sql<number>`sum(${payment.amount})`.mapWith(Number)
 		})
 		.from(payment)
-		.innerJoin(charge, eq(payment.chargeId, charge.id))
+		.innerJoin(
+			charge,
+			and(
+				eq(payment.chargeId, charge.id),
+				eq(charge.organizationId, payment.organizationId),
+				eq(charge.customerId, payment.customerId)
+			)
+		)
 		.innerJoin(job, eq(charge.jobId, job.id))
 		.where(eq(payment.organizationId, orgId))
 		.groupBy(job.officeId);

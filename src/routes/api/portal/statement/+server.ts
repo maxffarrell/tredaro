@@ -5,7 +5,7 @@ import { db } from '#lib/server/db/index.ts';
 import { charge, customer, payment } from '#lib/server/db/schema.ts';
 import type { RequestHandler } from './$types';
 
-const csvCell = (v: unknown) => `"${String(v ?? '').replaceAll('"', '""')}"`;
+import { cell as csvCell } from '#lib/csv.ts';
 
 /**
  * Portal statement download: `GET /api/portal/statement?customer=<id>` → CSV of

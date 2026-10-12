@@ -1,3 +1,4 @@
+import { outboundFetch } from '#lib/server/outbound-http.ts';
 import { createHmac } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
@@ -97,7 +98,7 @@ async function deliverWebhooks(event: TredaroEvent) {
 		const body = JSON.stringify(event);
 		let status = 0;
 		try {
-			const res = await fetch(h.url, {
+			const res = await outboundFetch(h.url, {
 				method: 'POST',
 				headers: {
 					'content-type': 'application/json',
@@ -139,7 +140,7 @@ export async function testWebhookDelivery(orgId: string, hookId: string) {
 	const body = JSON.stringify(event);
 	let status = 0;
 	try {
-		const res = await fetch(h.url, {
+		const res = await outboundFetch(h.url, {
 			method: 'POST',
 			headers: {
 				'content-type': 'application/json',
@@ -175,7 +176,7 @@ export async function retryWebhookDelivery(orgId: string, deliveryId: string) {
 	if (!d.payload) error(409, 'This delivery has no stored payload to retry');
 	let status = 0;
 	try {
-		const res = await fetch(h.url, {
+		const res = await outboundFetch(h.url, {
 			method: 'POST',
 			headers: {
 				'content-type': 'application/json',

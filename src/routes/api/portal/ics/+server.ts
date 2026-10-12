@@ -27,7 +27,10 @@ export const GET: RequestHandler = async ({ url }) => {
 			location: serviceLocation
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.innerJoin(organization, eq(organization.id, job.organizationId))
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))

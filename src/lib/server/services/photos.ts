@@ -274,7 +274,10 @@ export async function readPortalJobDoc(userId: string, id: string) {
 		.select({ doc: jobDocument })
 		.from(jobDocument)
 		.innerJoin(job, eq(jobDocument.jobId, job.id))
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(
 			and(eq(jobDocument.id, id), eq(jobDocument.shared, true), eq(customer.portalUserId, userId))
 		)
@@ -290,7 +293,10 @@ export async function readPortalJobPhoto(userId: string, id: string) {
 		.select({ photo: jobPhoto })
 		.from(jobPhoto)
 		.innerJoin(job, eq(jobPhoto.jobId, job.id))
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(and(eq(jobPhoto.id, id), eq(jobPhoto.shared, true), eq(customer.portalUserId, userId)))
 		.limit(1);
 	if (!row) error(404, 'Photo not found');

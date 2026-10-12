@@ -1,9 +1,14 @@
 # Self-host Tredaro with Postgres: `BETTER_AUTH_SECRET=$(openssl rand -hex 32) docker compose up -d`
 services:
   app:
-    image: ghcr.io/maxffarrell/tredaro:latest
+    image: tredaro:local
     build: .
+    pull_policy: build
+    env_file:
+      - path: .env
+        required: false
     ports: ['3000:3000']
+    volumes: ['uploads:/app/data']
     environment:
       DATABASE_URL: postgres://tredaro:tredaro@db:5432/tredaro
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
@@ -26,3 +31,4 @@ services:
     restart: unless-stopped
 volumes:
   pgdata:
+  uploads:

@@ -5,7 +5,7 @@ import { getDashboard } from './workspace.remote.ts';
 import { requireOrg } from '#lib/server/context.ts';
 import * as svc from '#lib/server/services/customers.ts';
 import { chargeOpenBalance } from '#lib/server/services/billing.ts';
-import { portalToken } from '#lib/server/services/portal.ts';
+import { createPortalInvite } from '#lib/server/services/portal.ts';
 import {
 	deleteCustomerDoc,
 	setCustomerDocShared,
@@ -157,9 +157,9 @@ export const updateEquipment = command(equipmentUpdate, async (input) => {
 });
 
 /** The shareable claim link for attaching a customer's login to the portal. */
-export const getPortalInvite = query(idSchema, async (customerId) => {
-	await requireOrg();
-	return { url: `${appOrigin()}/portal/claim/${portalToken(customerId)}` };
+export const getPortalInvite = command(idSchema, async (customerId) => {
+	const token = await createPortalInvite(await requireOrg(), customerId);
+	return { url: `${appOrigin()}/portal/claim/${token}` };
 });
 
 export const getMergePreview = query(idSchema, async (id) => {

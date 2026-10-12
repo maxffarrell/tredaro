@@ -23,7 +23,7 @@ import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
 /** Public booking page at /book/[slug]: identity, listed agreement plans, job types and offices. */
-export async function getPublicCompany(slug: string) {
+async function getCompanyConfiguration(slug: string) {
 	const [org] = await db.select().from(organization).where(eq(organization.slug, slug));
 	if (!org) error(404, 'Not found');
 	const [settings] = await db
@@ -121,12 +121,40 @@ export async function getPublicCompany(slug: string) {
 	return { org, settings, plans, jobTypes, offices, techs, earliestDay };
 }
 
+/** Only fields intentionally published on the anonymous booking page. */
+export async function getPublicCompany(slug: string) {
+	const { org, settings, plans, jobTypes, offices, techs, earliestDay } =
+		await getCompanyConfiguration(slug);
+	return {
+		org,
+		plans,
+		jobTypes,
+		offices,
+		techs,
+		earliestDay,
+		settings: {
+			address: settings.address,
+			bookingEnabled: settings.bookingEnabled,
+			businessHours: settings.businessHours,
+			phone: settings.phone,
+			tagline: settings.tagline,
+			website: settings.website,
+			bookingBlackouts: settings.bookingBlackouts,
+			bookingDailyLimit: settings.bookingDailyLimit,
+			bookingMaxDaysAhead: settings.bookingMaxDaysAhead,
+			bookingMessage: settings.bookingMessage,
+			bookingNoticeDays: settings.bookingNoticeDays,
+			currency: settings.currency
+		}
+	};
+}
+
 /**
  * Open public-booking slots left on a requested day. `limited:false` means the
  * org doesn't cap daily bookings — every day is open.
  */
 export async function publicAvailability(slug: string, dateIso: string) {
-	const { org, settings } = await getPublicCompany(slug);
+	const { org, settings } = await getCompanyConfiguration(slug);
 	if (!settings || settings.bookingDailyLimit <= 0) return { limited: false, remaining: 0 };
 	const [{ taken }] = await db
 		.select({ taken: sql<number>`count(*)`.mapWith(Number) })
@@ -159,7 +187,7 @@ export async function requestBooking(
 	if (hits.length >= 10) error(429, 'Too many attempts — try again later');
 	bookRate.set(ip, [...hits, now]);
 
-	const { org, settings } = await getPublicCompany(slug);
+	const { org, settings } = await getCompanyConfiguration(slug);
 	if (settings && !settings.bookingEnabled)
 		error(400, 'Online booking is currently closed — please call us directly.');
 
@@ -289,7 +317,13 @@ export async function requestBooking(
 		const [primary] = await db
 			.select({ id: serviceLocation.id })
 			.from(serviceLocation)
-			.where(and(eq(serviceLocation.customerId, c.id), eq(serviceLocation.isPrimary, true)))
+			.where(
+				and(
+					eq(serviceLocation.organizationId, org.id),
+					eq(serviceLocation.customerId, c.id),
+					eq(serviceLocation.isPrimary, true)
+				)
+			)
 			.limit(1);
 		locationId = primary?.id ?? null;
 	}
@@ -364,7 +398,7 @@ export async function requestBooking(
 		}
 	}
 
-	return { job: j, customer: c, payUrl };
+	return { job: { id: j.id, organizationId: j.organizationId, number: j.number }, payUrl };
 }
 
 /**
