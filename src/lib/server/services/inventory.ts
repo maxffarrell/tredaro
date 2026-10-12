@@ -1,3 +1,4 @@
+import { assertReference } from './references.ts';
 import { error } from '@sveltejs/kit';
 import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -235,6 +236,7 @@ export async function addMaterial(
 	input: v.InferOutput<typeof s.jobMaterialInput>
 ) {
 	return db.transaction(async (tx) => {
+		await assertReference(ctx.orgId, job, input.jobId, undefined, tx);
 		// Ad-hoc line: free-text part not tracked in inventory — nothing to decrement.
 		if (!input.inventoryItemId) {
 			const name = (input.customName ?? '').trim();

@@ -22,6 +22,7 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/package.json ./
 COPY --from=build /app/drizzle ./drizzle
 COPY --from=build /app/scripts ./scripts
+RUN mkdir -p /app/data/uploads && chown -R node:node /app/data
 EXPOSE 3000
 USER node
 CMD ["sh", "-c", "node scripts/migrate.ts && node scripts/server.ts"]

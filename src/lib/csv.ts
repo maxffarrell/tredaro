@@ -56,7 +56,7 @@ export function parseCsv(input: string): string[][] {
 /** Spreadsheet apps run cells starting with these as formulas. */
 const FORMULA = /^[=+\-@\t\r]/;
 
-function cell(value: CsvValue) {
+export function cell(value: CsvValue) {
 	if (value == null) return '';
 	if (typeof value === 'number') return String(value);
 	const safe = FORMULA.test(value) ? `'${value}` : value;

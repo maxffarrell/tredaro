@@ -1,3 +1,4 @@
+import { assertReference } from './references.ts';
 import { error } from '@sveltejs/kit';
 import {
 	and,
@@ -64,7 +65,7 @@ export async function listCustomers(orgId: string, q?: string) {
 			leadSource: customer.leadSource,
 			officeName: office.name,
 			openBalance:
-				sql<number>`coalesce((select sum(c.amount - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0)) from ${charge} c where c.customer_id = ${outer(customer.id)} and c.status = 'open'), 0)`.mapWith(
+				sql<number>`coalesce((select sum(c.amount - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id), 0)) from ${charge} c where c.customer_id = ${outer(customer.id)} and c.status = 'open'), 0)`.mapWith(
 					Number
 				),
 			hasAgreement:
@@ -198,7 +199,7 @@ export async function getCustomer(orgId: string, id: string) {
 	const charges = await db
 		.select({
 			charge,
-			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 				Number
 			)
 		})
@@ -229,7 +230,7 @@ export async function getCustomer(orgId: string, id: string) {
 		.select({
 			invoiced: sql<number>`coalesce(sum(${charge.amount}), 0)`.mapWith(Number),
 			collected:
-				sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c2 on p.charge_id = c2.id where c2.customer_id = ${id} and c2.organization_id = ${orgId}), 0)`.mapWith(
+				sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c2 on p.charge_id = c2.id and p.organization_id = c2.organization_id and p.customer_id = c2.customer_id where c2.customer_id = ${id} and c2.organization_id = ${orgId}), 0)`.mapWith(
 					Number
 				)
 		})
@@ -306,6 +307,8 @@ export async function createCustomer(
 	ctx: OrgContext,
 	input: v.InferOutput<typeof s.customerInput>
 ) {
+	await assertReference(ctx.orgId, office, input.officeId);
+	await assertReference(ctx.orgId, member, input.preferredMemberId);
 	const [row] = await db
 		.insert(customer)
 		.values({
@@ -420,7 +423,7 @@ export async function removeSavedCard(ctx: OrgContext, customerId: string) {
 export async function revokePortalAccess(ctx: OrgContext, customerId: string) {
 	const [row] = await db
 		.update(customer)
-		.set({ portalUserId: null })
+		.set({ portalUserId: null, portalInviteNonce: null })
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, customerId)))
 		.returning({ id: customer.id, name: customer.name });
 	if (!row) error(404, 'Customer not found');
@@ -440,6 +443,8 @@ export async function updateCustomer(
 	input: v.InferOutput<typeof s.customerUpdate>
 ) {
 	const { id, ...set } = input;
+	await assertReference(ctx.orgId, office, input.officeId);
+	await assertReference(ctx.orgId, member, input.preferredMemberId);
 	const [row] = await db
 		.update(customer)
 		.set({
@@ -541,8 +546,21 @@ export async function listEquipment(orgId: string, customerId?: string) {
 				)
 		})
 		.from(equipment)
-		.innerJoin(customer, eq(equipment.customerId, customer.id))
-		.leftJoin(serviceLocation, eq(equipment.serviceLocationId, serviceLocation.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(equipment.customerId, customer.id),
+				eq(customer.organizationId, equipment.organizationId)
+			)
+		)
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(equipment.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, equipment.organizationId),
+				eq(serviceLocation.customerId, equipment.customerId)
+			)
+		)
 		.where(
 			and(
 				eq(equipment.organizationId, orgId),
@@ -561,8 +579,21 @@ export async function getEquipment(orgId: string, id: string) {
 			locationAddress: serviceLocation.address1
 		})
 		.from(equipment)
-		.innerJoin(customer, eq(equipment.customerId, customer.id))
-		.leftJoin(serviceLocation, eq(equipment.serviceLocationId, serviceLocation.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(equipment.customerId, customer.id),
+				eq(customer.organizationId, equipment.organizationId)
+			)
+		)
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(equipment.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, equipment.organizationId),
+				eq(serviceLocation.customerId, equipment.customerId)
+			)
+		)
 		.where(and(eq(equipment.organizationId, orgId), eq(equipment.id, id)));
 	if (!row) error(404, 'Equipment not found');
 	return row;
@@ -624,6 +655,17 @@ export async function updateEquipment(
 	input: v.InferOutput<typeof s.equipmentUpdate>
 ) {
 	const { id, ...set } = input;
+	const [existing] = await db
+		.select()
+		.from(equipment)
+		.where(and(eq(equipment.id, id), eq(equipment.organizationId, ctx.orgId)));
+	if (!existing) error(404, 'Equipment not found');
+	await assertReference(
+		ctx.orgId,
+		serviceLocation,
+		set.serviceLocationId === undefined ? existing.serviceLocationId : set.serviceLocationId,
+		existing.customerId
+	);
 	const [row] = await db
 		.update(equipment)
 		.set(set)

@@ -55,7 +55,7 @@ export const requestBookingForm = command(
 		void notifyBookingConfirmationSms(r.job!.organizationId, r.job!.id).catch((err) =>
 			console.error('booking sms failed', err)
 		);
-		return r;
+		return { job: { number: r.job!.number }, payUrl: r.payUrl };
 	}
 );
 

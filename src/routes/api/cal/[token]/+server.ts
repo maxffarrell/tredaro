@@ -49,7 +49,10 @@ export const GET: RequestHandler = async ({ params }) => {
 	const jobs = await db
 		.select({ job, customerName: customer.name, loc: serviceLocation })
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
 		.where(
 			and(

@@ -1,3 +1,4 @@
+import { assertReference } from './references.ts';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm';
@@ -12,6 +13,7 @@ import {
 	invoice,
 	invoiceItem,
 	job,
+	jobType,
 	pricebookItem,
 	serviceLocation,
 	organization,
@@ -73,7 +75,13 @@ export async function listEstimates(orgId: string, status?: string[]) {
 			viewed: sql<boolean>`exists (select 1 from ${activity} a where a.entity_type = 'estimate' and a.entity_id = ${outer(estimate.id)} and a.action = 'viewed')`
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.organizationId, orgId))
 		.orderBy(desc(estimate.createdAt));
 	return rows
@@ -85,8 +93,21 @@ export async function getEstimate(orgId: string, id: string) {
 	const [row] = await db
 		.select({ estimate, customer, location: serviceLocation })
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
-		.leftJoin(serviceLocation, eq(estimate.serviceLocationId, serviceLocation.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(estimate.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, estimate.organizationId),
+				eq(serviceLocation.customerId, estimate.customerId)
+			)
+		)
 		.where(and(eq(estimate.organizationId, orgId), eq(estimate.id, id)));
 	if (!row) error(404, 'Estimate not found');
 	const items = await db
@@ -166,6 +187,8 @@ export async function createEstimate(
 		.from(customer)
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
 	if (!c) error(404, 'Customer not found');
+	await assertReference(ctx.orgId, serviceLocation, input.serviceLocationId, input.customerId);
+	await assertReference(ctx.orgId, jobType, input.jobTypeId);
 	const number = await nextNumber(ctx.orgId, 'estimate');
 	const [row] = await db
 		.insert(estimate)
@@ -202,6 +225,17 @@ export async function updateEstimate(
 		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, input.id)));
 	if (!existing) error(404, 'Estimate not found');
 	if (existing.status !== 'draft') error(409, 'Only drafts can be edited');
+	await assertReference(
+		ctx.orgId,
+		serviceLocation,
+		input.serviceLocationId === undefined ? existing.serviceLocationId : input.serviceLocationId,
+		existing.customerId
+	);
+	await assertReference(
+		ctx.orgId,
+		jobType,
+		input.jobTypeId === undefined ? existing.jobTypeId : input.jobTypeId
+	);
 	const [row] = await db
 		.update(estimate)
 		.set({
@@ -225,6 +259,9 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 		.from(estimate)
 		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
 	if (!e) error(404, 'Estimate not found');
+	await assertReference(ctx.orgId, customer, e.customerId);
+	await assertReference(ctx.orgId, serviceLocation, e.serviceLocationId, e.customerId);
+	await assertReference(ctx.orgId, jobType, e.jobTypeId);
 	if (e.status !== 'sent' && e.status !== 'declined' && e.status !== 'expired')
 		error(409, 'Only sent, declined, or expired estimates can be revised');
 	const items = await db
@@ -284,6 +321,9 @@ export async function duplicateEstimate(ctx: OrgContext, id: string) {
 		.from(estimate)
 		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
 	if (!e) error(404, 'Estimate not found');
+	await assertReference(ctx.orgId, customer, e.customerId);
+	await assertReference(ctx.orgId, serviceLocation, e.serviceLocationId, e.customerId);
+	await assertReference(ctx.orgId, jobType, e.jobTypeId);
 	const items = await db
 		.select()
 		.from(estimateItem)
@@ -559,10 +599,23 @@ export async function publicEstimate(id: string) {
 			location: serviceLocation
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.innerJoin(organization, eq(organization.id, estimate.organizationId))
 		.leftJoin(companySettings, eq(companySettings.organizationId, estimate.organizationId))
-		.leftJoin(serviceLocation, eq(estimate.serviceLocationId, serviceLocation.id))
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(estimate.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, estimate.organizationId),
+				eq(serviceLocation.customerId, estimate.customerId)
+			)
+		)
 		.where(eq(estimate.id, id));
 	if (!row) error(404, 'Estimate not found');
 	const items = await db

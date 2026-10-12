@@ -25,7 +25,8 @@ import {
 	notificationLog,
 	organization,
 	inventoryItem,
-	smsOutbox
+	smsOutbox,
+	outer
 } from '#lib/server/db/schema.ts';
 import { member, user } from '#lib/server/db/auth.schema.ts';
 import { emit } from './events.ts';
@@ -297,7 +298,13 @@ export async function notifyEstimateSent(orgId: string, estimateId: string) {
 				)
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if ((!row.email || row.emailOptOut) && (!row.phone || row.smsOptOut || !smsProvider())) return;
 	const name = await orgName(orgId);
@@ -347,7 +354,13 @@ export async function notifyEstimateResent(orgId: string, estimateId: string) {
 			customerName: customer.name
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if (!row) return;
 	if (
@@ -391,7 +404,10 @@ export async function notifyBookingReceived(orgId: string, jobId: string) {
 			jobTypeName: jobType.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row?.email || row.emailOptOut) return;
@@ -427,7 +443,10 @@ export async function notifyBookingCancelled(orgId: string, jobId: string) {
 			number: job.number
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row) return;
@@ -463,7 +482,10 @@ export async function notifyRescheduleRequested(orgId: string, jobId: string, re
 			number: job.number
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row) return;
@@ -503,7 +525,10 @@ export async function notifyBookingConfirmationSms(orgId: string, jobId: string)
 			number: job.number
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(eq(job.id, jobId));
 	if (!row?.phone || row.smsOptOut || !flags.sms || !smsProvider()) return;
 	if (!(await logOnce(orgId, 'booking_sms', jobId, row.phone))) return;
@@ -531,7 +556,10 @@ export async function notifyInvoiceSent(orgId: string, invoiceId: string) {
 				)
 		})
 		.from(invoice)
-		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(invoice.customerId, customer.id), eq(customer.organizationId, invoice.organizationId))
+		)
 		.where(eq(invoice.id, invoiceId));
 	if (!row?.email || row.emailOptOut || row.status !== 'open') return false;
 	if (!(await logOnce(orgId, 'invoice_sent', invoiceId, row.email))) return false;
@@ -567,7 +595,10 @@ export async function notifyInvoiceTexted(orgId: string, invoiceId: string) {
 				)
 		})
 		.from(invoice)
-		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(invoice.customerId, customer.id), eq(customer.organizationId, invoice.organizationId))
+		)
 		.where(eq(invoice.id, invoiceId));
 	if (!row?.phone || row.smsOptOut || row.status !== 'open') return false;
 	if (!(await logOnce(orgId, 'invoice_texted', invoiceId, row.phone))) return false;
@@ -617,7 +648,10 @@ export async function textJobEta(ctx: OrgContext, jobId: string, minutes: number
 			number: job.number
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
 	if (!row) error(404, 'Job not found');
 	if (!row.phone) error(400, 'Customer has no phone number');
@@ -654,7 +688,10 @@ export async function textDayEtas(ctx: OrgContext, dayStr: string) {
 			techName: user.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(
@@ -702,7 +739,7 @@ export async function emailStatement(ctx: OrgContext, customerId: string) {
 			description: charge.description,
 			dueDate: charge.dueDate,
 			balance:
-				sql<number>`${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${charge.id}), 0)`.mapWith(
+				sql<number>`${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 					Number
 				)
 		})
@@ -763,7 +800,10 @@ export async function notifyJobScheduled(orgId: string, jobId: string) {
 			jobTypeName: jobType.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row?.startsAt || (!row.email && !row.phone)) return;
@@ -824,7 +864,10 @@ export async function notifyJobRescheduledCustomer(orgId: string, jobId: string)
 			jobTypeName: jobType.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row?.startsAt || (!row.email && !row.phone)) return;
@@ -885,7 +928,10 @@ export async function notifyJobCancelled(orgId: string, jobId: string) {
 			jobTypeName: jobType.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row?.startsAt || (!row.email && !row.phone)) return;
@@ -944,7 +990,10 @@ export async function notifyVisitCancelDeclined(orgId: string, jobId: string) {
 			summary: job.summary
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row?.startsAt || (!row.email && !row.phone)) return;
@@ -1004,7 +1053,10 @@ export async function notifyAppointmentReminder(orgId: string, jobId: string) {
 			jobTypeName: jobType.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (
@@ -1069,7 +1121,13 @@ export async function notifyEstimateFollowup(orgId: string, estimateId: string) 
 				)
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if (!row || row.status !== 'sent') return;
 	const name = await orgName(orgId);
@@ -1122,7 +1180,13 @@ export async function notifyEstimateExpiring(orgId: string, estimateId: string) 
 				)
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if (!row || row.status !== 'sent' || !row.validUntil) return;
 	const name = await orgName(orgId);
@@ -1164,12 +1228,15 @@ export async function notifyInvoiceOverdue(orgId: string, invoiceId: string, sta
 				sql`coalesce((select sum(i.qty * i.unit_price) from invoice_item i where i.invoice_id = ${invoice.id}), 0)`.mapWith(
 					Number
 				),
-			paid: sql`coalesce((select sum(p.amount) from payment p join charge c on p.charge_id = c.id where c.invoice_id = ${invoice.id}), 0)`.mapWith(
+			paid: sql`coalesce((select sum(p.amount) from payment p join charge c on p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id where c.invoice_id = ${invoice.id}), 0)`.mapWith(
 				Number
 			)
 		})
 		.from(invoice)
-		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(invoice.customerId, customer.id), eq(customer.organizationId, invoice.organizationId))
+		)
 		.where(eq(invoice.id, invoiceId));
 	const balance = row ? row.total - row.paid : 0;
 	if (!row || row.status !== 'open' || balance <= 0) return;
@@ -1308,12 +1375,15 @@ export async function notifyChargeDueSoon(orgId: string, chargeId: string) {
 			status: charge.status,
 			invoiceId: charge.invoiceId,
 			balance:
-				sql<number>`${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${charge.id}), 0)`.mapWith(
+				sql<number>`${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 					Number
 				)
 		})
 		.from(charge)
-		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(charge.customerId, customer.id), eq(customer.organizationId, charge.organizationId))
+		)
 		.where(eq(charge.id, chargeId));
 	if (!row || row.status !== 'open' || row.balance <= 0 || row.invoiceId) return;
 	if (!row.email || row.emailOptOut) return;
@@ -1354,7 +1424,10 @@ export async function runMonthlyStatements(orgId: string) {
 			total: sql<number>`coalesce(sum(${charge.amount}), 0)`.mapWith(Number)
 		})
 		.from(charge)
-		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(charge.customerId, customer.id), eq(customer.organizationId, charge.organizationId))
+		)
 		.where(
 			and(
 				eq(charge.organizationId, orgId),
@@ -1444,7 +1517,13 @@ export async function runReminders(orgId: string) {
 			views: sql<number>`count(*)`.mapWith(Number)
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.innerJoin(
 			activity,
 			and(
@@ -1591,7 +1670,13 @@ export async function runReminders(orgId: string) {
 			emailOptOut: customer.emailOptOut
 		})
 		.from(equipment)
-		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(equipment.customerId, customer.id),
+				eq(customer.organizationId, equipment.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(equipment.organizationId, orgId),
@@ -1637,7 +1722,13 @@ export async function runReminders(orgId: string) {
 				smsOptOut: customer.smsOptOut
 			})
 			.from(equipment)
-			.innerJoin(customer, eq(equipment.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(
+					eq(equipment.customerId, customer.id),
+					eq(customer.organizationId, equipment.organizationId)
+				)
+			)
 			.where(
 				and(
 					eq(equipment.organizationId, orgId),
@@ -1889,7 +1980,10 @@ export async function runReminders(orgId: string) {
 		.from(job)
 		.innerJoin(member, eq(job.technicianId, member.id))
 		.innerJoin(user, eq(member.userId, user.id))
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(
 			and(
@@ -1945,7 +2039,10 @@ export async function notifyJobEnRoute(orgId: string, jobId: string) {
 			technicianName: user.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
@@ -1977,7 +2074,10 @@ export async function notifyJobCompleted(orgId: string, jobId: string) {
 			autoReport: companySettings.autoSendReport
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.innerJoin(companySettings, eq(companySettings.organizationId, job.organizationId))
 		.where(eq(job.id, jobId));
@@ -2035,7 +2135,10 @@ export async function notifyStaffBooking(orgId: string, jobId: string) {
 			preferredTime: job.preferredTime
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row) return;
@@ -2075,7 +2178,10 @@ export async function notifyStaffVisitCancel(orgId: string, jobId: string) {
 			startsAt: job.startsAt
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(eq(job.id, jobId));
 	if (!row) return;
 	const name = await orgName(orgId);
@@ -2118,7 +2224,10 @@ export async function notifyChargeDispute(orgId: string, chargeId: string) {
 			customerId: charge.customerId
 		})
 		.from(charge)
-		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(charge.customerId, customer.id), eq(customer.organizationId, charge.organizationId))
+		)
 		.where(eq(charge.id, chargeId));
 	if (!row) return;
 	const name = await orgName(orgId);
@@ -2243,7 +2352,10 @@ export async function notifyPartsDelay(orgId: string, jobId: string) {
 			number: job.number
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(eq(job.id, jobId));
 	if (!row || (!row.email && !row.phone)) return;
 	const name = await orgName(orgId);
@@ -2277,7 +2389,10 @@ export async function notifyVisitRated(orgId: string, jobId: string, rating: num
 			reviewUrl: companySettings.reviewUrl
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.innerJoin(companySettings, eq(companySettings.organizationId, job.organizationId))
 		.where(eq(job.id, jobId));
 	if (!row) return;
@@ -2395,7 +2510,10 @@ export async function notifyJobUnblocked(
 			customerName: customer.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(eq(job.id, dependentJobId));
 	if (!row?.technicianId) return;
 	const [m] = await db
@@ -2556,7 +2674,13 @@ export async function notifyStaffEstimateDecision(orgId: string, estimateId: str
 			customerName: customer.name
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if (!row || !['converted', 'declined'].includes(row.status)) return;
 	const approved = row.status === 'converted';
@@ -2589,7 +2713,13 @@ export async function notifyStaffEstimateViewed(orgId: string, estimateId: strin
 	const [row] = await db
 		.select({ number: estimate.number, customerName: customer.name })
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if (!row) return;
 	const name = await orgName(orgId);
@@ -2617,7 +2747,10 @@ export async function notifyStaffInvoiceViewed(orgId: string, invoiceId: string)
 	const [row] = await db
 		.select({ number: invoice.number, customerName: customer.name })
 		.from(invoice)
-		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(invoice.customerId, customer.id), eq(customer.organizationId, invoice.organizationId))
+		)
 		.where(eq(invoice.id, invoiceId));
 	if (!row) return;
 	const name = await orgName(orgId);
@@ -2645,7 +2778,10 @@ export async function notifyVisitPreference(orgId: string, jobId: string, note: 
 	const [row] = await db
 		.select({ number: job.number, customerName: customer.name })
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(eq(job.id, jobId));
 	if (!row) return;
 	const name = await orgName(orgId);
@@ -2708,7 +2844,13 @@ export async function notifyStaffEstimateChanges(orgId: string, estimateId: stri
 	const [row] = await db
 		.select({ number: estimate.number, customerName: customer.name })
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if (!row) return;
 	const name = await orgName(orgId);
@@ -2733,7 +2875,13 @@ export async function notifyStaffQuoteRequest(orgId: string, estimateId: string)
 	const [row] = await db
 		.select({ number: estimate.number, customerName: customer.name })
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(eq(estimate.id, estimateId));
 	if (!row) return;
 	const name = await orgName(orgId);
@@ -2796,7 +2944,10 @@ export async function notifyPaymentReceived(orgId: string, paymentIds: string[])
 			smsOptOut: customer.smsOptOut
 		})
 		.from(payment)
-		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(payment.customerId, customer.id), eq(customer.organizationId, payment.organizationId))
+		)
 		.where(inArray(payment.id, paymentIds))
 		.groupBy(
 			payment.method,
@@ -2851,7 +3002,10 @@ export async function notifyPartsArrived(orgId: string, jobId: string, memberId:
 	const j = await db
 		.select({ number: job.number, summary: job.summary, customerName: customer.name })
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(eq(job.id, jobId))
 		.limit(1);
 	if (!m.length || !j.length || !m[0].email) return;
@@ -2879,7 +3033,10 @@ export async function runCreditHolds(orgId: string) {
 	const rows = await db
 		.select({ id: customer.id, name: customer.name })
 		.from(charge)
-		.innerJoin(customer, eq(customer.id, charge.customerId))
+		.innerJoin(
+			customer,
+			and(eq(customer.id, charge.customerId), eq(customer.organizationId, orgId))
+		)
 		.where(
 			and(
 				eq(charge.organizationId, orgId),
@@ -2890,7 +3047,10 @@ export async function runCreditHolds(orgId: string) {
 		)
 		.groupBy(customer.id, customer.name);
 	for (const c of rows) {
-		await db.update(customer).set({ onHold: true }).where(eq(customer.id, c.id));
+		await db
+			.update(customer)
+			.set({ onHold: true })
+			.where(and(eq(customer.id, c.id), eq(customer.organizationId, orgId)));
 		await emit({
 			orgId,
 			entityType: 'customer',
@@ -2936,7 +3096,10 @@ export async function notifyServiceReport(orgId: string, jobId: string) {
 			jobTypeName: jobType.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.where(eq(job.id, jobId));
 	if (!row || row.status !== 'done') return;

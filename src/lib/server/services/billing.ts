@@ -1,3 +1,4 @@
+import { assertReference } from './references.ts';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
@@ -404,7 +405,7 @@ export async function chargeOpenBalance(ctx: OrgContext, customerId: string) {
 		.select({
 			id: charge.id,
 			description: charge.description,
-			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 				Number
 			)
 		})
@@ -800,13 +801,16 @@ export async function listInvoices(orgId: string, status?: string) {
 				sql<number>`coalesce((select sum(i.qty * i.unit_price) from ${invoiceItem} i where i.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 					Number
 				),
-			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on c.id = p.charge_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on c.id = p.charge_id and p.organization_id = c.organization_id and p.customer_id = c.customer_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 				Number
 			),
 			viewed: sql<boolean>`exists (select 1 from ${activity} a where a.entity_type = 'invoice' and a.entity_id = ${outer(invoice.id)} and a.action = 'viewed')`
 		})
 		.from(invoice)
-		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(invoice.customerId, customer.id), eq(customer.organizationId, invoice.organizationId))
+		)
 		.leftJoin(job, eq(invoice.jobId, job.id))
 		.where(
 			and(
@@ -817,7 +821,7 @@ export async function listInvoices(orgId: string, status?: string) {
 						where c.invoice_id = ${invoice.id}
 							and c.status = 'open'
 							and c.due_date < current_date
-							and coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id), 0) < c.amount
+							and coalesce((select sum(p.amount) from ${payment} p where p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id), 0) < c.amount
 					)`
 					: status
 						? eq(invoice.status, status as never)
@@ -831,7 +835,10 @@ export async function getInvoice(orgId: string, id: string) {
 	const [row] = await db
 		.select({ invoice, customer, jobNumber: job.number })
 		.from(invoice)
-		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(invoice.customerId, customer.id), eq(customer.organizationId, invoice.organizationId))
+		)
 		.leftJoin(job, eq(invoice.jobId, job.id))
 		.where(and(eq(invoice.organizationId, orgId), eq(invoice.id, id)));
 	if (!row) error(404, 'Invoice not found');
@@ -843,7 +850,7 @@ export async function getInvoice(orgId: string, id: string) {
 	const charges = await db
 		.select({
 			charge,
-			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 				Number
 			)
 		})
@@ -1006,7 +1013,7 @@ export async function updateInvoice(ctx: OrgContext, input: v.InferOutput<typeof
 				and(
 					eq(charge.invoiceId, input.id),
 					eq(charge.status, 'open'),
-					sql`(select coalesce(sum(p.amount),0) from ${payment} p where p.charge_id = ${charge.id}) = 0`
+					sql`(select coalesce(sum(p.amount),0) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}) = 0`
 				)
 			);
 	}
@@ -1042,7 +1049,10 @@ export async function publicInvoice(id: string) {
 	const [row] = await db
 		.select({ invoice, customerName: customer.name, orgName: organization.name })
 		.from(invoice)
-		.innerJoin(customer, eq(invoice.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(invoice.customerId, customer.id), eq(customer.organizationId, invoice.organizationId))
+		)
 		.innerJoin(organization, eq(organization.id, invoice.organizationId))
 		.where(eq(invoice.id, id));
 	if (!row) error(404, 'Invoice not found');
@@ -1256,6 +1266,7 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		.where(
 			and(
 				eq(jobMaterial.jobId, jobId),
+				eq(jobMaterial.organizationId, orgId),
 				or(eq(inventoryItem.billable, true), isNull(jobMaterial.inventoryItemId))
 			)
 		);
@@ -1378,12 +1389,15 @@ export async function listCharges(orgId: string, status?: string) {
 			customerName: customer.name,
 			companyName: customer.companyName,
 			invoiceNumber: invoice.number,
-			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 				Number
 			)
 		})
 		.from(charge)
-		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(charge.customerId, customer.id), eq(customer.organizationId, charge.organizationId))
+		)
 		.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
 		.where(
 			and(eq(charge.organizationId, orgId), status ? eq(charge.status, status as never) : undefined)
@@ -1395,7 +1409,7 @@ export async function listCharges(orgId: string, status?: string) {
 export async function customerOpenBalance(orgId: string, customerId: string) {
 	const [row] = await db
 		.select({
-			open: sql<number>`coalesce(sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)), 0)`.mapWith(
+			open: sql<number>`coalesce(sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)), 0)`.mapWith(
 				Number
 			),
 			count: sql<number>`count(*)`.mapWith(Number)
@@ -1413,6 +1427,8 @@ export async function customerOpenBalance(orgId: string, customerId: string) {
 
 export async function addCharge(ctx: OrgContext, input: v.InferOutput<typeof s.chargeInput>) {
 	const row = await db.transaction(async (tx) => {
+		await assertReference(ctx.orgId, customer, input.customerId, undefined, tx);
+		await assertReference(ctx.orgId, job, input.jobId, input.customerId, tx);
 		const [r] = await tx
 			.insert(charge)
 			.values({
@@ -1546,7 +1562,7 @@ export async function applyUnappliedCredit(orgId: string, customerId: string, q:
 		.select({
 			id: charge.id,
 			description: charge.description,
-			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+			open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 				Number
 			)
 		})
@@ -1602,7 +1618,7 @@ export async function applyUnappliedCredit(orgId: string, customerId: string, q:
 	await q.execute(sql`
 		update ${charge} c set status = 'paid', updated_at = now()
 		where c.organization_id = ${orgId} and c.status = 'open' and c.amount > 0
-		  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id) >= c.amount
+		  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id) >= c.amount
 	`);
 }
 
@@ -1617,6 +1633,7 @@ export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof
 	const rows = await db.transaction(async (tx) => {
 		const out = [];
 		if (input.chargeId) {
+			await assertReference(ctx.orgId, charge, input.chargeId, input.customerId, tx);
 			const [row] = await tx
 				.insert(payment)
 				.values({
@@ -1636,12 +1653,18 @@ export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof
 			const open = await tx
 				.select({
 					id: charge.id,
-					open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+					open: sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 						Number
 					)
 				})
 				.from(charge)
-				.where(and(eq(charge.customerId, input.customerId), eq(charge.status, 'open')))
+				.where(
+					and(
+						eq(charge.organizationId, ctx.orgId),
+						eq(charge.customerId, input.customerId),
+						eq(charge.status, 'open')
+					)
+				)
 				.orderBy(asc(charge.dueDate), asc(charge.createdAt));
 			for (const ch of open) {
 				if (remaining <= 0) break;
@@ -1684,7 +1707,7 @@ export async function recordPayment(ctx: OrgContext, input: v.InferOutput<typeof
 		await tx.execute(sql`
 			update ${charge} c set status = 'paid', updated_at = now()
 			where c.organization_id = ${ctx.orgId} and c.status = 'open' and c.amount > 0
-			  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id) >= c.amount
+			  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id) >= c.amount
 		`);
 		return out;
 	});
@@ -1712,7 +1735,7 @@ export async function refundPayment(ctx: OrgContext, paymentId: string) {
 	const [c] = await db
 		.select({ name: customer.name })
 		.from(customer)
-		.where(eq(customer.id, p.customerId));
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, p.customerId)));
 	await db.transaction(async (tx) => {
 		await tx.update(payment).set({ refundedAt: new Date() }).where(eq(payment.id, p.id));
 		await tx.insert(payment).values({
@@ -1729,7 +1752,7 @@ export async function refundPayment(ctx: OrgContext, paymentId: string) {
 		await tx.execute(sql`
 			update ${charge} c set status = 'open', updated_at = now()
 			where c.organization_id = ${ctx.orgId} and c.status = 'paid'
-			  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id) < c.amount
+			  and (select coalesce(sum(p.amount), 0) from ${payment} p where p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id) < c.amount
 		`);
 	});
 	await emit({
@@ -1748,7 +1771,10 @@ export async function listPayments(orgId: string) {
 	return db
 		.select({ payment, customerName: customer.name })
 		.from(payment)
-		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(payment.customerId, customer.id), eq(customer.organizationId, payment.organizationId))
+		)
 		.where(eq(payment.organizationId, orgId))
 		.orderBy(desc(payment.paidAt))
 		.limit(200);
@@ -1759,7 +1785,7 @@ export async function customerBalance(orgId: string, customerId: string) {
 	const [row] = await db
 		.select({
 			balance:
-				sql<number>`coalesce(sum(case when ${outer(charge.status)} = 'open' then ${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0) else 0 end), 0) - coalesce((select sum(p2.amount) from ${payment} p2 where p2.customer_id = ${customerId} and p2.charge_id is null), 0)`.mapWith(
+				sql<number>`coalesce(sum(case when ${outer(charge.status)} = 'open' then ${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0) else 0 end), 0) - coalesce((select sum(p2.amount) from ${payment} p2 where p2.customer_id = ${customerId} and p2.organization_id = ${orgId} and p2.charge_id is null), 0)`.mapWith(
 					Number
 				)
 		})
@@ -1795,7 +1821,10 @@ export async function paymentsBetween(orgId: string, from: Date, to: Date) {
 	return db
 		.select({ payment, customerName: customer.name })
 		.from(payment)
-		.innerJoin(customer, eq(payment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(payment.customerId, customer.id), eq(customer.organizationId, payment.organizationId))
+		)
 		.where(
 			and(eq(payment.organizationId, orgId), gte(payment.paidAt, from), lt(payment.paidAt, to))
 		)

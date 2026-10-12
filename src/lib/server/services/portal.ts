@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { assertReference } from './references.ts';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { and, asc, desc, eq, gte, isNull, inArray, like, or, sql } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
@@ -38,18 +39,28 @@ import {
 	notifyStaffVisitCancel
 } from './notifications.ts';
 import { nextNumber } from './settings.ts';
+import type { OrgContext } from '#lib/server/context.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
 const TTL_MS = 14 * 86400_000;
 
 function sign(payload: string) {
-	return createHmac('sha256', BETTER_AUTH_SECRET).update(`portal:${payload}`).digest('base64url');
+	return createHmac('sha256', BETTER_AUTH_SECRET)
+		.update(`portal:v2:${payload}`)
+		.digest('base64url');
 }
 
-/** A signed, expiring link that lets a customer attach their login to their customer record. */
-export function portalToken(customerId: string) {
-	const payload = `${customerId}.${Date.now() + TTL_MS}`;
+/** Issue a revocable, single-use invitation only for the caller's workspace. */
+export async function createPortalInvite(ctx: OrgContext, customerId: string) {
+	const nonce = randomUUID();
+	const [c] = await db
+		.update(customer)
+		.set({ portalInviteNonce: nonce })
+		.where(and(eq(customer.id, customerId), eq(customer.organizationId, ctx.orgId)))
+		.returning({ id: customer.id });
+	if (!c) error(404, 'Customer not found');
+	const payload = `${c.id}.${Date.now() + TTL_MS}.${nonce}`;
 	return `${Buffer.from(payload).toString('base64url')}.${sign(payload)}`;
 }
 
@@ -70,15 +81,15 @@ export async function claimPortal(token: string, userId: string) {
 	const given = Buffer.from(sig);
 	if (expected.length !== given.length || !timingSafeEqual(expected, given))
 		error(400, 'Invalid link');
-	const [customerId, exp] = payload.split('.');
-	if (!customerId || Number(exp) < Date.now())
+	const [customerId, exp, nonce, extra] = payload.split('.');
+	if (!customerId || !nonce || extra || !Number.isFinite(Number(exp)) || Number(exp) < Date.now())
 		error(410, 'This link has expired. Ask your service company for a new one.');
 	const [c] = await db
 		.update(customer)
-		.set({ portalUserId: userId })
-		.where(eq(customer.id, customerId))
+		.set({ portalUserId: userId, portalInviteNonce: null })
+		.where(and(eq(customer.id, customerId), eq(customer.portalInviteNonce, nonce)))
 		.returning();
-	if (!c) error(404, 'Customer not found');
+	if (!c) error(410, 'This link is no longer valid. Ask for a new invitation.');
 	return c;
 }
 
@@ -120,7 +131,14 @@ export async function portalOverview(customerId: string) {
 		})
 		.from(job)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
-		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(job.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, job.organizationId),
+				eq(serviceLocation.customerId, job.customerId)
+			)
+		)
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(
@@ -157,7 +175,7 @@ export async function portalOverview(customerId: string) {
 		.select({
 			charge,
 			invoiceNumber: invoice.number,
-			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 				Number
 			)
 		})
@@ -202,7 +220,7 @@ export async function portalOverview(customerId: string) {
 				sql<number>`coalesce((select sum(i.qty * i.unit_price) from invoice_item i where i.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 					Number
 				),
-			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on c.id = p.charge_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
+			paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p join ${charge} c on c.id = p.charge_id and p.organization_id = c.organization_id and p.customer_id = c.customer_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 				Number
 			)
 		})
@@ -222,7 +240,14 @@ export async function portalOverview(customerId: string) {
 			invoiceNumber: invoice.number
 		})
 		.from(payment)
-		.leftJoin(charge, eq(payment.chargeId, charge.id))
+		.leftJoin(
+			charge,
+			and(
+				eq(payment.chargeId, charge.id),
+				eq(charge.organizationId, payment.organizationId),
+				eq(charge.customerId, payment.customerId)
+			)
+		)
 		.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
 		.where(eq(payment.customerId, customerId))
 		.orderBy(desc(payment.createdAt))
@@ -389,6 +414,9 @@ export async function requestService(
 			)
 		);
 	if (!c) error(404, 'Customer not found');
+	await assertReference(orgId, serviceLocation, input.serviceLocationId, c.id);
+	await assertReference(orgId, equipment, input.equipmentId, c.id);
+	await assertReference(orgId, jobType, input.jobTypeId);
 	let techId: string | null = null;
 	if (input.preferredMemberId) {
 		const [m] = await db

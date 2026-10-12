@@ -92,11 +92,11 @@ export async function dashboard(orgId: string) {
 	const [openStats] = await db
 		.select({
 			openTotal:
-				sql<number>`coalesce(sum(${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)) filter (where ${outer(charge.status)} = 'open'), 0)`.mapWith(
+				sql<number>`coalesce(sum(${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)) filter (where ${outer(charge.status)} = 'open'), 0)`.mapWith(
 					Number
 				),
 			overdueTotal:
-				sql<number>`coalesce(sum(${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)) filter (where ${outer(charge.status)} = 'open' and ${outer(charge.dueDate)} < ${today}), 0)`.mapWith(
+				sql<number>`coalesce(sum(${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)) filter (where ${outer(charge.status)} = 'open' and ${outer(charge.dueDate)} < ${today}), 0)`.mapWith(
 					Number
 				)
 		})
@@ -157,7 +157,10 @@ export async function dashboard(orgId: string) {
 		})
 		.from(job)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(
@@ -205,12 +208,15 @@ export async function dashboard(orgId: string) {
 			customerName: customer.name,
 			invoiceNumber: invoice.number,
 			balance:
-				sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+				sql<number>`${outer(charge.amount)} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 					Number
 				)
 		})
 		.from(charge)
-		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(charge.customerId, customer.id), eq(customer.organizationId, charge.organizationId))
+		)
 		.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
 		.where(
 			and(eq(charge.organizationId, orgId), eq(charge.status, 'open'), lt(charge.dueDate, today))
@@ -225,7 +231,13 @@ export async function dashboard(orgId: string) {
 			customerName: customer.name
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(estimate.organizationId, orgId),
@@ -244,7 +256,13 @@ export async function dashboard(orgId: string) {
 			customerName: customer.name
 		})
 		.from(estimate)
-		.innerJoin(customer, eq(estimate.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(estimate.customerId, customer.id),
+				eq(customer.organizationId, estimate.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(estimate.organizationId, orgId),
@@ -264,7 +282,13 @@ export async function dashboard(orgId: string) {
 			customerName: customer.name
 		})
 		.from(equipment)
-		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(equipment.customerId, customer.id),
+				eq(customer.organizationId, equipment.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(equipment.organizationId, orgId),
@@ -284,7 +308,13 @@ export async function dashboard(orgId: string) {
 			customerName: customer.name
 		})
 		.from(equipment)
-		.innerJoin(customer, eq(equipment.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(
+				eq(equipment.customerId, customer.id),
+				eq(customer.organizationId, equipment.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(equipment.organizationId, orgId),
@@ -366,7 +396,7 @@ export async function dashboard(orgId: string) {
 		.innerJoin(
 			job,
 			and(
-				eq(job.customerId, customer.id),
+				and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId)),
 				eq(job.organizationId, orgId),
 				eq(job.status, 'done'),
 				isNull(job.cancelledAt)
@@ -392,7 +422,10 @@ export async function dashboard(orgId: string) {
 			visits: sql<number>`count(*)`.mapWith(Number)
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(
 			and(
 				eq(job.organizationId, orgId),
@@ -436,7 +469,10 @@ export async function dashboard(orgId: string) {
 	const blockedJobs = await db
 		.select({ id: job.id, number: job.number, summary: job.summary, customerName: customer.name })
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(
 			and(
 				eq(job.organizationId, orgId),
@@ -473,7 +509,10 @@ export async function dashboard(orgId: string) {
 	const uninvoicedJobs = await db
 		.select({ id: job.id, number: job.number, summary: job.summary, customerName: customer.name })
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(
 			and(
 				eq(job.organizationId, orgId),
@@ -496,7 +535,10 @@ export async function dashboard(orgId: string) {
 		})
 		.from(jobTimeEntry)
 		.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(and(eq(jobTimeEntry.organizationId, orgId), isNull(jobTimeEntry.endedAt)))
@@ -545,7 +587,10 @@ export async function dashboard(orgId: string) {
 			credit: sql<number>`sum(${charge.amount})`.mapWith(Number)
 		})
 		.from(charge)
-		.innerJoin(customer, eq(charge.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(charge.customerId, customer.id), eq(customer.organizationId, charge.organizationId))
+		)
 		.where(
 			and(eq(charge.organizationId, orgId), eq(charge.status, 'open'), sql`${charge.amount} < 0`)
 		)
@@ -562,7 +607,10 @@ export async function dashboard(orgId: string) {
 			customerName: customer.name
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(
 			and(
 				eq(job.organizationId, orgId),

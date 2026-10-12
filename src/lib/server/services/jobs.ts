@@ -1,3 +1,4 @@
+import { assertJobReferences } from './references.ts';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { error } from '@sveltejs/kit';
@@ -192,9 +193,26 @@ export async function listJobs(
 		.select(jobSelect)
 		.from(job)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
-		.innerJoin(customer, eq(job.customerId, customer.id))
-		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
-		.leftJoin(equipment, eq(job.equipmentId, equipment.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(job.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, job.organizationId),
+				eq(serviceLocation.customerId, job.customerId)
+			)
+		)
+		.leftJoin(
+			equipment,
+			and(
+				eq(job.equipmentId, equipment.id),
+				eq(equipment.organizationId, job.organizationId),
+				eq(equipment.customerId, job.customerId)
+			)
+		)
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(
@@ -282,9 +300,26 @@ export async function getJob(orgId: string, id: string) {
 		.select({ ...jobSelect, officeName: office.name })
 		.from(job)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
-		.innerJoin(customer, eq(job.customerId, customer.id))
-		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
-		.leftJoin(equipment, eq(job.equipmentId, equipment.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(job.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, job.organizationId),
+				eq(serviceLocation.customerId, job.customerId)
+			)
+		)
+		.leftJoin(
+			equipment,
+			and(
+				eq(job.equipmentId, equipment.id),
+				eq(equipment.organizationId, job.organizationId),
+				eq(equipment.customerId, job.customerId)
+			)
+		)
 		.leftJoin(office, eq(job.officeId, office.id))
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
@@ -301,7 +336,7 @@ export async function getJob(orgId: string, id: string) {
 
 	const [{ open }] = await db
 		.select({
-			open: sql<number>`coalesce(sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)), 0)`.mapWith(
+			open: sql<number>`coalesce(sum(${charge.amount} - coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)), 0)`.mapWith(
 				Number
 			)
 		})
@@ -526,6 +561,11 @@ export async function createJob(
 	}
 	// Tech resolution: explicit pick > job type default > the customer's preferred tech.
 	const technicianId = input.technicianId ?? jt?.technicianId ?? c.preferredMemberId ?? null;
+	await assertJobReferences(ctx.orgId, {
+		...input,
+		technicianId,
+		officeId: input.officeId ?? jt?.officeId ?? null
+	});
 	if (start)
 		await assertTechAvailable(
 			ctx.orgId,
@@ -650,6 +690,7 @@ export async function duplicateJob(ctx: OrgContext, jobId: string) {
 		.from(job)
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, jobId)));
 	if (!src) error(404, 'Job not found');
+	await assertJobReferences(ctx.orgId, src);
 	const number = await nextNumber(ctx.orgId, 'job');
 	const [row] = await db
 		.insert(job)
@@ -770,6 +811,10 @@ export async function updateJob(
 		.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, id)));
 	if (!existing) error(404, 'Job not found');
 	if (existing.status === 'done') error(409, 'Job is done — edit is locked');
+	await assertJobReferences(ctx.orgId, {
+		...existing,
+		...Object.fromEntries(Object.entries(set).filter(([, value]) => value !== undefined))
+	});
 	if (set.dependsOnJobId) await assertValidDependency(ctx.orgId, id, set.dependsOnJobId);
 
 	const start =
@@ -1717,7 +1762,10 @@ export async function payrollHours(ctx: OrgContext, from: Date, to: Date) {
 		.leftJoin(user, eq(member.userId, user.id))
 		.leftJoin(approver, eq(jobTimeEntry.approvedById, approver.id))
 		.leftJoin(job, eq(jobTimeEntry.jobId, job.id))
-		.leftJoin(customer, eq(job.customerId, customer.id))
+		.leftJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
 		.where(
 			and(
 				eq(jobTimeEntry.organizationId, ctx.orgId),
@@ -2139,7 +2187,14 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 				total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 			})
 			.from(payment)
-			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(
+				charge,
+				and(
+					eq(payment.chargeId, charge.id),
+					eq(charge.organizationId, payment.organizationId),
+					eq(charge.customerId, payment.customerId)
+				)
+			)
 			.innerJoin(job, eq(charge.jobId, job.id))
 			.where(
 				and(
@@ -2191,7 +2246,14 @@ export async function myDay(ctx: OrgContext, from: Date, to: Date) {
 				n: sql<number>`count(*)`.mapWith(Number)
 			})
 			.from(payment)
-			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(
+				charge,
+				and(
+					eq(payment.chargeId, charge.id),
+					eq(charge.organizationId, payment.organizationId),
+					eq(charge.customerId, payment.customerId)
+				)
+			)
 			.innerJoin(job, eq(charge.jobId, job.id))
 			.where(
 				and(
@@ -2723,8 +2785,18 @@ export async function publicServiceReport(id: string) {
 			location: serviceLocation
 		})
 		.from(job)
-		.innerJoin(customer, eq(job.customerId, customer.id))
-		.leftJoin(serviceLocation, eq(job.serviceLocationId, serviceLocation.id))
+		.innerJoin(
+			customer,
+			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+		)
+		.leftJoin(
+			serviceLocation,
+			and(
+				eq(job.serviceLocationId, serviceLocation.id),
+				eq(serviceLocation.organizationId, job.organizationId),
+				eq(serviceLocation.customerId, job.customerId)
+			)
+		)
 		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
@@ -2930,7 +3002,10 @@ export async function memberProfile(orgId: string, memberId: string) {
 				customerName: customer.name
 			})
 			.from(job)
-			.innerJoin(customer, eq(job.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+			)
 			.where(
 				and(eq(job.organizationId, orgId), eq(job.technicianId, memberId), eq(job.status, 'done'))
 			)
@@ -2953,7 +3028,14 @@ export async function memberProfile(orgId: string, memberId: string) {
 				total: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number)
 			})
 			.from(payment)
-			.innerJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(
+				charge,
+				and(
+					eq(payment.chargeId, charge.id),
+					eq(charge.organizationId, payment.organizationId),
+					eq(charge.customerId, payment.customerId)
+				)
+			)
 			.innerJoin(job, eq(charge.jobId, job.id))
 			.where(
 				and(

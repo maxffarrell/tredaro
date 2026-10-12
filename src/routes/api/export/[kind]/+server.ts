@@ -25,11 +25,11 @@ import { exportWorkspace } from '#lib/server/services/backup.ts';
 import { getSettings } from '#lib/server/services/settings.ts';
 import type { RequestHandler } from './$types';
 
-const cell = (v: unknown) => {
-	const s = v == null ? '' : String(v);
-	return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-const row = (cells: unknown[]) => cells.map(cell).join(',');
+import { cell } from '#lib/csv.ts';
+const row = (cells: unknown[]) =>
+	cells
+		.map((value) => cell(value == null ? null : typeof value === 'number' ? value : String(value)))
+		.join(',');
 const money = (cents: number | null | undefined) => (cents == null ? '' : (cents / 100).toFixed(2));
 
 /** CSV exports for staff: `GET /api/export/{invoices,jobs,time-entries,customers,quickbooks,xero}.csv` (optional ?from=&to= YYYY-MM-DD). */
@@ -56,12 +56,18 @@ export const GET: RequestHandler = async ({ params, url }) => {
 					sql<number>`coalesce((select sum(i.qty * i.unit_price) from ${invoiceItem} i where i.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 						Number
 					),
-				paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p inner join ${charge} c on p.charge_id = c.id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
+				paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p inner join ${charge} c on p.charge_id = c.id and p.organization_id = c.organization_id and p.customer_id = c.customer_id where c.invoice_id = ${outer(invoice.id)}), 0)`.mapWith(
 					Number
 				)
 			})
 			.from(invoice)
-			.innerJoin(customer, eq(invoice.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(
+					eq(invoice.customerId, customer.id),
+					eq(customer.organizationId, invoice.organizationId)
+				)
+			)
 			.where(
 				and(
 					eq(invoice.organizationId, ctx.orgId),
@@ -100,7 +106,10 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				createdAt: job.createdAt
 			})
 			.from(job)
-			.innerJoin(customer, eq(job.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+			)
 			.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
 			.leftJoin(member, eq(job.technicianId, member.id))
 			.leftJoin(user, eq(member.userId, user.id))
@@ -152,7 +161,10 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			.leftJoin(member, eq(jobTimeEntry.memberId, member.id))
 			.leftJoin(user, eq(member.userId, user.id))
 			.innerJoin(job, eq(jobTimeEntry.jobId, job.id))
-			.innerJoin(customer, eq(job.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+			)
 			.where(
 				and(
 					eq(jobTimeEntry.organizationId, ctx.orgId),
@@ -190,7 +202,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			})
 			.from(invoiceItem)
 			.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
-			.innerJoin(customer, eq(invoice.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(
+					eq(invoice.customerId, customer.id),
+					eq(customer.organizationId, invoice.organizationId)
+				)
+			)
 			.where(
 				and(
 					eq(invoice.organizationId, ctx.orgId),
@@ -237,8 +255,21 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				invoiceNumber: invoice.number
 			})
 			.from(payment)
-			.innerJoin(customer, eq(payment.customerId, customer.id))
-			.leftJoin(charge, eq(payment.chargeId, charge.id))
+			.innerJoin(
+				customer,
+				and(
+					eq(payment.customerId, customer.id),
+					eq(customer.organizationId, payment.organizationId)
+				)
+			)
+			.leftJoin(
+				charge,
+				and(
+					eq(payment.chargeId, charge.id),
+					eq(charge.organizationId, payment.organizationId),
+					eq(charge.customerId, payment.customerId)
+				)
+			)
 			.leftJoin(invoice, eq(charge.invoiceId, invoice.id))
 			.where(
 				and(
@@ -277,7 +308,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 				charge: charge,
 				jobNumber: job.number,
 				invoiceNumber: invoice.number,
-				paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)}), 0)`.mapWith(
+				paid: sql<number>`coalesce((select sum(p.amount) from ${payment} p where p.charge_id = ${outer(charge.id)} and p.organization_id = ${outer(charge.organizationId)} and p.customer_id = ${outer(charge.customerId)}), 0)`.mapWith(
 					Number
 				)
 			})
@@ -307,7 +338,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			]);
 		});
 		body = [
-			`Statement for ${cust.name}`,
+			row([`Statement for ${cust.name}`]),
 			row(['Date', 'Description', 'Job', 'Invoice', 'Due', 'Amount', 'Paid', 'Balance']),
 			...lines,
 			row(['', '', '', '', '', '', 'Balance due', money(bal)])
@@ -328,7 +359,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			})
 			.from(invoiceItem)
 			.innerJoin(invoice, eq(invoiceItem.invoiceId, invoice.id))
-			.innerJoin(customer, eq(invoice.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(
+					eq(invoice.customerId, customer.id),
+					eq(customer.organizationId, invoice.organizationId)
+				)
+			)
 			.where(
 				and(
 					eq(invoice.organizationId, ctx.orgId),
@@ -381,7 +418,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 					)
 			})
 			.from(estimate)
-			.innerJoin(customer, eq(estimate.customerId, customer.id))
+			.innerJoin(
+				customer,
+				and(
+					eq(estimate.customerId, customer.id),
+					eq(customer.organizationId, estimate.organizationId)
+				)
+			)
 			.where(
 				and(
 					eq(estimate.organizationId, ctx.orgId),
@@ -493,7 +536,10 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			.leftJoin(user, eq(member.userId, user.id))
 			.leftJoin(approver, eq(jobTimeEntry.approvedById, approver.id))
 			.leftJoin(job, eq(jobTimeEntry.jobId, job.id))
-			.leftJoin(customer, eq(job.customerId, customer.id))
+			.leftJoin(
+				customer,
+				and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
+			)
 			.where(
 				and(
 					eq(jobTimeEntry.organizationId, ctx.orgId),
