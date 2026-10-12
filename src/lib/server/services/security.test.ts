@@ -315,7 +315,8 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 				v.parse(schemas.chargeInput, {
 					customerId: customers[0],
 					amount: 700,
-					description: 'Balance boundary'
+					description: 'Balance boundary',
+					dueDate: null
 				})
 			);
 			await db.insert(payment).values([
