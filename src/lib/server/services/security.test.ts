@@ -316,7 +316,7 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 					customerId: customers[0],
 					amount: 700,
 					description: 'Balance boundary',
-					dueDate: null
+					dueDate: '2026-01-01'
 				})
 			);
 			await db.insert(payment).values([
