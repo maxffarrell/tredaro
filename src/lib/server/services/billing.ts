@@ -1735,7 +1735,7 @@ export async function refundPayment(ctx: OrgContext, paymentId: string) {
 	const [c] = await db
 		.select({ name: customer.name })
 		.from(customer)
-		.where(eq(customer.id, p.customerId));
+		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, p.customerId)));
 	await db.transaction(async (tx) => {
 		await tx.update(payment).set({ refundedAt: new Date() }).where(eq(payment.id, p.id));
 		await tx.insert(payment).values({
