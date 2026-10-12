@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { getJob } from '../services/jobs.ts';
@@ -39,7 +37,11 @@ export async function suggestMaterials(
 	orgId: string,
 	jobId: string
 ): Promise<{ items: SuggestedMaterial[]; model: string }> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const [j, inventory, onJob] = await Promise.all([
 		getJob(orgId, jobId),

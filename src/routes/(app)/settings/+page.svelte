@@ -639,6 +639,7 @@
 </script>
 
 <PageHeader title="Settings" />
+<Button href="/settings/security" variant="outline">Sign-in and SSO settings</Button>
 
 <div class="p-4 md:p-6">
 	<Tabs.Root value="general">

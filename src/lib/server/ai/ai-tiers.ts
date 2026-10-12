@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { aiDecision, aiDecisionAvailable, aiDecisionModel } from './ai.ts';
@@ -21,7 +19,11 @@ const tiersResponse = v.union([v.object({ groups: v.array(v.unknown()) }), v.arr
 export async function suggestTiers(
 	items: { name: string; unitPrice: number; qty: number }[]
 ): Promise<{ groups: TierGroup[]; model: string }> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 	if (!items.length) error(400, 'Add line items before tiering');
 
 	const system = [

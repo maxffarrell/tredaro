@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.ts';
@@ -15,7 +13,11 @@ export async function customerBrief(
 	orgId: string,
 	customerId: string
 ): Promise<{ brief: string; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const [c] = await db
 		.select()

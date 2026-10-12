@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import {
 	TREDARO_AI_BASE_URL,
 	TREDARO_AI_API_KEY,
@@ -9,7 +7,6 @@ import {
 	TREDARO_AI_DECISION_MODEL
 } from '$app/env/private';
 import * as v from 'valibot';
-import { hasFeature } from './license.ts';
 import { extractJson } from './ai-parse.ts';
 
 type AiConfig = { base: string; key: string; model: string };
@@ -41,23 +38,23 @@ function decisionConfig(): AiConfig {
 /** Whether a text-generation endpoint is configured (key + model). */
 export function aiConfigured(): boolean {
 	const c = featureConfig();
-	return !!(c.key && c.model);
+	return !!(c.model && (c.key || c.base !== 'https://api.openai.com/v1'));
 }
 
 /** Whether a decision endpoint resolves (decision vars, else feature vars). */
 export function aiDecisionConfigured(): boolean {
 	const c = decisionConfig();
-	return !!(c.key && c.model);
+	return !!(c.model && (c.key || c.base !== 'https://api.openai.com/v1'));
 }
 
-/** Whether AI features may run: enterprise license + a configured BYOK endpoint. */
+/** Whether AI features may run: a configured BYOK endpoint. */
 export function aiAvailable(): boolean {
-	return hasFeature('ai') && aiConfigured();
+	return aiConfigured();
 }
 
 /** Whether structured decision calls may run. */
 export function aiDecisionAvailable(): boolean {
-	return hasFeature('ai') && aiDecisionConfigured();
+	return aiDecisionConfigured();
 }
 
 type ChatMessage = { role: 'system' | 'user'; content: string };
@@ -67,7 +64,7 @@ async function chat(cfg: AiConfig, messages: ChatMessage[], maxTokens: number) {
 		method: 'POST',
 		headers: {
 			'content-type': 'application/json',
-			authorization: `Bearer ${cfg.key}`
+			...(cfg.key ? { authorization: `Bearer ${cfg.key}` } : {})
 		},
 		body: JSON.stringify({
 			model: cfg.model,

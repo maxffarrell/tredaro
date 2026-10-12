@@ -12,7 +12,7 @@ export const variables = defineEnvVars({
 	},
 	TREDARO_ENTERPRISE_KEY: {
 		description:
-			'Enterprise license key. Unlocks SAML/OIDC SSO and passkeys on self-hosted installs.',
+			'Reserved enterprise license key. No current application feature requires it; basic SSO, passkeys and BYOK AI are core.',
 		schema: (value) => value || undefined
 	},
 	TREDARO_DEMO: {
@@ -58,7 +58,7 @@ export const variables = defineEnvVars({
 	},
 	TREDARO_AI_BASE_URL: {
 		description:
-			'OpenAI-compatible API base for enterprise AI features, e.g. `https://api.openai.com/v1` or a self-hosted gateway. Defaults to OpenAI.',
+			'OpenAI-compatible API base for BYOK AI features, e.g. `https://api.openai.com/v1` or a self-hosted gateway. Defaults to OpenAI.',
 		schema: (value) => value || undefined
 	},
 	TREDARO_AI_API_KEY: {

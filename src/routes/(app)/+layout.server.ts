@@ -16,6 +16,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		demoServerNow: Date.now(),
 		demo: isDemo(),
 		user: { name: locals.user.name, email: locals.user.email, image: locals.user.image ?? null },
+		role: org.role,
 		org: { name: org.org.name, id: org.org.id, slug: org.org.slug }
 	};
 };

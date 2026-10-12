@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import { db } from '#lib/server/db/index.ts';
 import { jobChecklistItem, jobMaterial } from '#lib/server/db/schema.ts';
@@ -16,7 +14,11 @@ export async function suggestServiceSummary(
 	orgId: string,
 	jobId: string
 ): Promise<{ summary: string; model: string }> {
-	if (!aiAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const [j, materials, checklist] = await Promise.all([
 		getJob(orgId, jobId),

@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { error } from '@sveltejs/kit';
 import { and, eq, sql } from 'drizzle-orm';
 import * as v from 'valibot';
@@ -65,7 +63,11 @@ const intakeResponse = v.object({
 });
 
 export async function parseJobIntake(orgId: string, notes: string): Promise<IntakeResult> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 
 	const types = await db
 		.select({ id: jobType.id, name: jobType.name })
@@ -107,7 +109,11 @@ export async function createIntake(
 	draft: IntakeDraft,
 	matchedCustomerId: string | null
 ): Promise<{ jobId: string; customerId: string }> {
-	if (!aiDecisionAvailable()) error(403, 'AI requires Tredaro Cloud or an enterprise license');
+	if (!aiDecisionAvailable())
+		error(
+			403,
+			'No AI provider configured — set TREDARO_AI_MODEL and an API key or a custom endpoint'
+		);
 	const name = draft.customer.name.trim() || draft.customer.companyName.trim();
 	if (!name) error(400, 'A customer name is required');
 
