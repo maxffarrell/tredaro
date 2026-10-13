@@ -105,10 +105,10 @@
 		<Sidebar.Group class="mt-auto">
 			<Sidebar.Menu>
 				<Sidebar.MenuItem>
-					<Sidebar.MenuButton tooltipContent="Member portal">
+					<Sidebar.MenuButton tooltipContent="Customer portal">
 						{#snippet child({ props })}
 							<a href="/portal" target="_blank" {...props} data-tour="nav-portal"
-								><ExternalLink /><span>Member portal</span></a
+								><ExternalLink /><span>Customer portal</span></a
 							>
 						{/snippet}
 					</Sidebar.MenuButton>
