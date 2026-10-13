@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.1.1
+
+### Patch Changes
+
+- 3dc6edd: Close resource permission, tenant reference, and public data exposure gaps found in the release audit.
+
 ## 0.1.0
 
 ### Minor Changes
