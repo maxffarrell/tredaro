@@ -14,6 +14,7 @@ import { runJobEscalation } from '#lib/server/services/jobs.ts';
 import { runSchedules } from '#lib/server/services/maintenance.ts';
 import { runRestock } from '#lib/server/services/inventory.ts';
 import { purgeExpiredDemos } from '#lib/server/demo-mode.ts';
+import { syncAllProfiles } from '#lib/server/profile/client.ts';
 import type { RequestHandler } from './$types';
 
 const authorized = (header: string | null) => {
@@ -44,7 +45,8 @@ export const GET: RequestHandler = async ({ request }) => {
 		}
 	}
 	await purgeExpiredDemos();
-	return json({ workspaces: orgs.length, failed });
+	const profiles = await syncAllProfiles();
+	return json({ workspaces: orgs.length, failed, profiles });
 };
 
 export const POST = GET;

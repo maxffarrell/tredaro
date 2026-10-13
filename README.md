@@ -71,6 +71,13 @@ Environment variables are documented in [`src/env.ts`](src/env.ts).
 
 Basic SAML/OIDC SSO, passkeys and BYOK AI are included without an enterprise key or Cloud subscription. See [the configuration guide](docs/self-hosted-sso-ai.md). You supply your identity provider and any model-provider credentials; provider usage fees are separate. Credentials stay on the server. Public demos continue to block SSO/passkey configuration.
 
+### Leroa Profile (shared customer identity)
+
+Set `TREDARO_PROFILE_URL` to a Leroa Profile service origin (e.g. `https://id.leroa.com`, or any install running `LEROA_PROFILE_HUB=true`, including a self-hosted one) to get:
+
+- **Continue with Leroa** on the login page — unified sign-in across the product suite via the hub's `identity` scope (OAuth 2.0 + PKCE; the install's own origin is its client ID, nothing to register).
+- **Connect your Leroa profile** in the customer portal — customers share contact details with consent, pick which linked companies stay in sync (`customer.profile_sync`), and the daily cron plus portal visits refresh them.
+
 ## Scheduled jobs
 
 Agreement billing (posting each period's charge and marking overdue charges) runs whenever someone opens the app. The same endpoint also sends automated reminders: appointment reminders to customers (email + SMS, jobs starting within 36h), follow-ups on sent estimates idle for a week, and a morning digest of today's schedule to each technician. To run it on time every day, set `CRON_SECRET` and call `GET /api/cron` with `Authorization: Bearer $CRON_SECRET`. On Vercel, the cron in `vercel.json` does this for you. Elsewhere, use any scheduler, for example:

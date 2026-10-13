@@ -32,6 +32,16 @@
 		await goto(next, { invalidateAll: true });
 	}
 
+	async function suite() {
+		const { error } = await authClient.signIn.social({
+			provider: 'leroa',
+			callbackURL: next,
+			newUserCallbackURL: next,
+			errorCallbackURL: '/login'
+		});
+		if (error) toast.error(error.message ?? 'Could not sign in with Leroa');
+	}
+
 	async function sso() {
 		if (!email.includes('@')) return toast.error('Enter your work email first');
 		const { error } = await authClient.signIn.sso({ email, callbackURL: next });
@@ -100,6 +110,11 @@
 				<Building />
 				{showSso ? 'Use a password instead' : 'Single sign-on (SAML / OIDC)'}
 			</Button>
+			{#if page.data.suite}
+				<Button type="button" variant="outline" onclick={suite}>
+					<KeyRound /> Continue with Leroa
+				</Button>
+			{/if}
 		</div>
 	{/if}
 	{#if !page.data.demo}<p class="text-center text-sm text-muted-foreground">
