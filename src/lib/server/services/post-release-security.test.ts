@@ -104,7 +104,8 @@ import {
 	duplicateEstimate,
 	reviseEstimate
 } from './estimates.ts';
-import { createInvoice } from './billing.ts';
+import { createInvoice, invoicePrefill } from './billing.ts';
+import { getJob } from './jobs.ts';
 import { addFollowUp, dueFollowUps } from './followups.ts';
 import { updateSchedule, runSchedules, listSchedules } from './maintenance.ts';
 import { joinWaitlist } from './public.ts';
@@ -187,7 +188,7 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 					id,
 					organizationId: orgs[i],
 					name: 'PRIVATE FOREIGN CATALOG',
-					unitPrice: 1000,
+					price: 1000,
 					taxable: i === 0
 				}))
 			);
@@ -243,7 +244,11 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 			await expect(
 				createInvoice(
 					ctx,
-					v.parse(s.invoiceInput, { customerId: customers[0], items: [line(prices[1])] })
+					v.parse(s.invoiceInput, {
+						customerId: customers[0],
+						dueDate: today,
+						items: [line(prices[1])]
+					})
 				)
 			).rejects.toMatchObject({ status: 404 });
 			const own = await createEstimate(
@@ -314,7 +319,22 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 				.set({ jobTypeId: types[1], nextDueOn: today })
 				.where(eq(maintenanceSchedule.id, scid));
 			expect((await listSchedules(orgs[0]))[0].jobTypeName).toBeNull();
-			await expect(runSchedules(orgs[0])).rejects.toMatchObject({ status: 404 });
+			expect(await runSchedules(orgs[0])).toBe(0);
+			await db
+				.insert(maintenanceSchedule)
+				.values({
+					organizationId: orgs[0],
+					customerId: customers[0],
+					jobTypeId: types[0],
+					intervalDays: 30,
+					nextDueOn: today
+				});
+			expect(await runSchedules(orgs[0])).toBe(1);
+			await db.update(job).set({ jobTypeId: types[1] }).where(eq(job.id, jobs[0]));
+			expect(JSON.stringify(await getJob(orgs[0], jobs[0]))).not.toContain('PRIVATE FOREIGN TYPE');
+			expect(JSON.stringify(await invoicePrefill(orgs[0], jobs[0]))).not.toContain(
+				'PRIVATE FOREIGN TYPE'
+			);
 		});
 		it('waitlist contact deduplication is durable and independent of IP or contact spelling', async () => {
 			expect(

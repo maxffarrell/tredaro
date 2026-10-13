@@ -1,5 +1,5 @@
 import { assertReference } from './references.ts';
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -133,12 +133,16 @@ export async function runSchedules(orgId: string) {
 				lte(maintenanceSchedule.nextDueOn, today)
 			)
 		);
-	for (const { schedule } of due) {
-		await assertReference(orgId, customer, schedule.customerId);
-		await assertReference(orgId, jobType, schedule.jobTypeId);
-	}
+
 	let created = 0;
 	for (const { schedule: sc, jobTypeName, checklist } of due) {
+		try {
+			await assertReference(orgId, customer, sc.customerId);
+			await assertReference(orgId, jobType, sc.jobTypeId);
+		} catch (err) {
+			if (isHttpError(err, 404)) continue; // Leave invalid schedules for staff repair; other work must proceed.
+			throw err;
+		}
 		let period = sc.nextDueOn;
 		let lastCreated = false;
 		// Catch up on any missed periods; the unique index dedupes re-runs.

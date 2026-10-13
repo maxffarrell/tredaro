@@ -192,7 +192,10 @@ export async function listJobs(
 	return db
 		.select(jobSelect)
 		.from(job)
-		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(eq(job.jobTypeId, jobType.id), eq(job.organizationId, jobType.organizationId))
+		)
 		.innerJoin(
 			customer,
 			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
@@ -299,7 +302,10 @@ export async function getJob(orgId: string, id: string) {
 	const [row] = await db
 		.select({ ...jobSelect, officeName: office.name })
 		.from(job)
-		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(eq(job.jobTypeId, jobType.id), eq(job.organizationId, jobType.organizationId))
+		)
 		.innerJoin(
 			customer,
 			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
@@ -1250,7 +1256,10 @@ export async function recordJobEvent(
 			const [j0] = await db
 				.select({ days: jobType.laborWarrantyDays })
 				.from(job)
-				.innerJoin(jobType, eq(job.jobTypeId, jobType.id))
+				.innerJoin(
+					jobType,
+					and(eq(job.jobTypeId, jobType.id), eq(job.organizationId, jobType.organizationId))
+				)
 				.where(eq(job.id, input.jobId))
 				.limit(1);
 			if (j0?.days) warrantyUntil = new Date(doneAt.getTime() + j0.days * 86_400_000);
@@ -2797,7 +2806,10 @@ export async function publicServiceReport(id: string) {
 				eq(serviceLocation.customerId, job.customerId)
 			)
 		)
-		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(eq(job.jobTypeId, jobType.id), eq(job.organizationId, jobType.organizationId))
+		)
 		.leftJoin(member, eq(job.technicianId, member.id))
 		.leftJoin(user, eq(member.userId, user.id))
 		.where(and(eq(job.id, id), eq(job.status, 'done')));

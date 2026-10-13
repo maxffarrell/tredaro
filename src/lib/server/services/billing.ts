@@ -1254,7 +1254,10 @@ export async function invoicePrefill(orgId: string, jobId: string) {
 		}
 	}
 	const [jt] = j.jobTypeId
-		? await db.select().from(jobType).where(eq(jobType.id, j.jobTypeId))
+		? await db
+				.select()
+				.from(jobType)
+				.where(and(eq(jobType.id, j.jobTypeId), eq(jobType.organizationId, orgId)))
 		: [];
 	// Materials logged on the job become billable lines at their recorded sell price.
 	// Billable inventory lines + ad-hoc lines (custom names are billable by definition).
