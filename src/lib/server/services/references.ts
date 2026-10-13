@@ -6,6 +6,7 @@ import {
 	customer,
 	equipment,
 	jobType,
+	pricebookItem,
 	member,
 	office,
 	serviceLocation
@@ -60,4 +61,13 @@ export async function assertJobReferences(orgId: string, input: JobReferences) {
 		assertReference(orgId, member, input.technicianId),
 		assertReference(orgId, member, input.helperId)
 	]);
+}
+
+/** Validate linked catalog IDs before any estimate/invoice mutation. */
+export async function assertPricebookItems(
+	orgId: string,
+	items: { pricebookItemId?: string | null }[]
+) {
+	for (const id of new Set(items.map((i) => i.pricebookItemId).filter(Boolean)))
+		await assertReference(orgId, pricebookItem, id);
 }

@@ -1,3 +1,4 @@
+import { consumeWaitlistLimits, waitlistContact } from '../public-submission-limits.ts';
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, like, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -432,8 +433,20 @@ export async function setVisitPreference(token: string, note: string) {
  */
 export async function joinWaitlist(
 	slug: string,
-	input: { name: string; email?: string; phone?: string; jobTypeId?: string; note?: string }
+	input: {
+		name: string;
+		email?: string;
+		phone?: string;
+		jobTypeId?: string;
+		note?: string;
+		website?: string;
+	},
+	ip: string
 ) {
+	if (input.website) error(400, 'Invalid form');
+	if (!input.name.trim() || input.name.length > 200 || (input.note?.length ?? 0) > 2000)
+		error(400, 'Invalid waitlist details');
+	const contact = waitlistContact(input);
 	const [org] = await db.select().from(organization).where(eq(organization.slug, slug));
 	if (!org) error(404, 'Not found');
 	const [settings] = await db
@@ -450,17 +463,21 @@ export async function joinWaitlist(
 			.where(and(eq(jobType.id, input.jobTypeId), eq(jobType.organizationId, org.id)));
 		if (!jt) error(400, 'Unknown service');
 	}
-	const [row] = await db
-		.insert(bookingWaitlist)
-		.values({
-			organizationId: org.id,
-			name: input.name.trim().slice(0, 200),
-			email: (input.email ?? '').trim().slice(0, 320),
-			phone: (input.phone ?? '').trim().slice(0, 40),
-			jobTypeId: input.jobTypeId || null,
-			note: (input.note ?? '').trim().slice(0, 2000)
-		})
-		.returning();
+	const row = await db.transaction(async (tx) => {
+		await consumeWaitlistLimits(tx, org.id, ip, contact.destinations);
+		const [created] = await tx
+			.insert(bookingWaitlist)
+			.values({
+				organizationId: org.id,
+				name: input.name.trim(),
+				email: contact.email,
+				phone: contact.phone,
+				jobTypeId: input.jobTypeId || null,
+				note: (input.note ?? '').trim()
+			})
+			.returning();
+		return created!;
+	});
 	await emit({
 		orgId: org.id,
 		entityType: 'booking_waitlist',

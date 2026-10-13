@@ -1,3 +1,4 @@
+import { assertReference } from './references.ts';
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -23,7 +24,13 @@ export async function listSchedules(orgId: string, customerId?: string) {
 		})
 		.from(maintenanceSchedule)
 		.innerJoin(customer, eq(maintenanceSchedule.customerId, customer.id))
-		.leftJoin(jobType, eq(maintenanceSchedule.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(
+				eq(maintenanceSchedule.jobTypeId, jobType.id),
+				eq(maintenanceSchedule.organizationId, jobType.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(maintenanceSchedule.organizationId, orgId),
@@ -78,6 +85,7 @@ export async function updateSchedule(
 	ctx: OrgContext,
 	input: v.InferOutput<typeof s.scheduleUpdate>
 ) {
+	await assertReference(ctx.orgId, jobType, input.jobTypeId);
 	const { id, ...set } = input;
 	const [row] = await db
 		.update(maintenanceSchedule)
@@ -111,7 +119,13 @@ export async function runSchedules(orgId: string) {
 			checklist: jobType.checklist
 		})
 		.from(maintenanceSchedule)
-		.leftJoin(jobType, eq(maintenanceSchedule.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(
+				eq(maintenanceSchedule.jobTypeId, jobType.id),
+				eq(maintenanceSchedule.organizationId, jobType.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(maintenanceSchedule.organizationId, orgId),
@@ -119,6 +133,10 @@ export async function runSchedules(orgId: string) {
 				lte(maintenanceSchedule.nextDueOn, today)
 			)
 		);
+	for (const { schedule } of due) {
+		await assertReference(orgId, customer, schedule.customerId);
+		await assertReference(orgId, jobType, schedule.jobTypeId);
+	}
 	let created = 0;
 	for (const { schedule: sc, jobTypeName, checklist } of due) {
 		let period = sc.nextDueOn;

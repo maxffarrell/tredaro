@@ -66,10 +66,11 @@ export const joinBookingWaitlist = command(
 		name: v.pipe(v.string(), v.minLength(1)),
 		email: v.optional(v.string(), ''),
 		phone: v.optional(v.string(), ''),
+		website: v.optional(v.string(), ''),
 		jobTypeId: v.optional(v.string(), ''),
 		note: v.optional(v.string(), '')
 	}),
-	async (input) => joinWaitlist(input.slug, input)
+	async (input) => joinWaitlist(input.slug, input, clientIp())
 );
 
 /** Public estimate page data for /e/[token]. */

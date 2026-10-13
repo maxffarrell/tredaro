@@ -199,14 +199,20 @@ export async function portalOverview(customerId: string) {
 
 	const pendingEstimateRows = await db
 		.select({
-			estimate,
+			estimate: { id: estimate.id, number: estimate.number },
 			total:
 				sql<number>`coalesce((select sum(i.qty * i.unit_price) from ${estimateItem} i where i.estimate_id = ${outer(estimate.id)}), 0)`.mapWith(
 					Number
 				)
 		})
 		.from(estimate)
-		.where(and(eq(estimate.customerId, customerId), eq(estimate.status, 'sent')))
+		.where(
+			and(
+				eq(estimate.organizationId, orgId),
+				eq(estimate.customerId, customerId),
+				eq(estimate.status, 'sent')
+			)
+		)
 		.orderBy(desc(estimate.sentAt));
 	const pendingEstimates = pendingEstimateRows.map((row) => ({
 		...row,

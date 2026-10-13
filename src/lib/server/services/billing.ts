@@ -1,4 +1,4 @@
-import { assertReference } from './references.ts';
+import { assertPricebookItems, assertReference } from './references.ts';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
@@ -896,6 +896,7 @@ export async function createInvoice(
 		if (!j) error(404, 'Job not found');
 	}
 
+	await assertPricebookItems(ctx.orgId, input.items);
 	const number = await nextNumber(ctx.orgId, 'invoice');
 	const settings = await getSettings(ctx.orgId);
 	const items = [...input.items];
@@ -925,7 +926,9 @@ export async function createInvoice(
 					await db
 						.select({ id: pricebookItem.id, taxable: pricebookItem.taxable })
 						.from(pricebookItem)
-						.where(inArray(pricebookItem.id, linkedIds))
+						.where(
+							and(eq(pricebookItem.organizationId, ctx.orgId), inArray(pricebookItem.id, linkedIds))
+						)
 				).map((r) => [r.id, r.taxable])
 			: []
 	);
