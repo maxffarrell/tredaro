@@ -320,15 +320,13 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 				.where(eq(maintenanceSchedule.id, scid));
 			expect((await listSchedules(orgs[0]))[0].jobTypeName).toBeNull();
 			expect(await runSchedules(orgs[0])).toBe(0);
-			await db
-				.insert(maintenanceSchedule)
-				.values({
-					organizationId: orgs[0],
-					customerId: customers[0],
-					jobTypeId: types[0],
-					intervalDays: 30,
-					nextDueOn: today
-				});
+			await db.insert(maintenanceSchedule).values({
+				organizationId: orgs[0],
+				customerId: customers[0],
+				jobTypeId: types[0],
+				intervalDays: 30,
+				nextDueOn: today
+			});
 			expect(await runSchedules(orgs[0])).toBe(1);
 			await db.update(job).set({ jobTypeId: types[1] }).where(eq(job.id, jobs[0]));
 			expect(JSON.stringify(await getJob(orgs[0], jobs[0]))).not.toContain('PRIVATE FOREIGN TYPE');
