@@ -179,8 +179,8 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 				types.map((id, i) => ({
 					id,
 					organizationId: orgs[i],
-					name: 'PRIVATE FOREIGN TYPE',
-					checklist: ['PRIVATE FOREIGN CHECKLIST']
+					name: i === 0 ? 'OWN TYPE' : 'PRIVATE FOREIGN TYPE',
+					checklist: [i === 0 ? 'OWN CHECKLIST' : 'PRIVATE FOREIGN CHECKLIST']
 				}))
 			);
 			await db.insert(pricebookItem).values(
