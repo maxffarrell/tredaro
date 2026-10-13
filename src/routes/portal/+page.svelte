@@ -14,6 +14,7 @@
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import PortalProfile from '#lib/components/app/portal-profile.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
 	import {
@@ -573,6 +574,8 @@
 	</Card.Root>
 
 	<div class="space-y-6">
+		<PortalProfile />
+
 		<!-- balance / pay -->
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">

@@ -18,6 +18,7 @@ import { member, organization, user } from './auth.schema.ts';
 export * from './auth.schema.ts';
 
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import type { SharedProfile } from '../../profile.ts';
 
 /** Table-qualified column for correlated subqueries; Drizzle omits the qualifier on single-table selects. */
 export const outer = (column: AnyPgColumn) =>
@@ -150,6 +151,8 @@ export const customer = pgTable(
 		portalUserId: text('portal_user_id').references(() => user.id, { onDelete: 'set null' }),
 		/** Single-use invitation capability, cleared on claim and revocation. */
 		portalInviteNonce: text('portal_invite_nonce'),
+		/** Customer opted this record in to Leroa Profile contact sync. */
+		profileSync: boolean('profile_sync').notNull().default(false),
 		type: customerType('type').notNull().default('residential'),
 		/** Company name for commercial accounts. */
 		companyName: text('company_name'),
@@ -1308,3 +1311,17 @@ export const publicSubmissionLimit = pgTable(
 	},
 	(t) => [index('public_submission_limit_expiry_idx').on(t.expiresAt)]
 );
+
+/** Install side of Leroa Profile (TREDARO_PROFILE_URL): a local account's connection to a profile service. */
+export const profileLink = pgTable('profile_link', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	hubUrl: text('hub_url').notNull(),
+	/** Sealed with the server secret. */
+	accessToken: text('access_token').notNull(),
+	scopes: text('scopes').array().notNull(),
+	data: jsonb('data').$type<SharedProfile>().notNull(),
+	syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+});

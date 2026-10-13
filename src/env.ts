@@ -20,6 +20,11 @@ export const variables = defineEnvVars({
 			'Set to `true` for a public demo: visitors get a throwaway sample workspace (deleted after 24h), and sign-up, API access, webhooks, invites and uploads are disabled.',
 		schema: (value) => value === 'true'
 	},
+	TREDARO_PROFILE_URL: {
+		description:
+			'Leroa Profile service origin, e.g. `https://id.leroa.com`. Enables "Continue with Leroa" unified sign-in and the portal\'s "Connect your Leroa profile" contact sync.',
+		schema: (value) => value || undefined
+	},
 	EMAIL_FROM: {
 		description: 'Sender for notification emails, e.g. `Tredaro <no-reply@acme-hvac.com>`.',
 		schema: (value) => value || undefined
