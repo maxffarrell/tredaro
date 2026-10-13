@@ -1297,3 +1297,14 @@ export const bookingWaitlist = pgTable(
 	},
 	(t) => [index('booking_waitlist_org_idx').on(t.organizationId, t.status)]
 );
+
+/** Shared expiring public-form quotas. Keys hash contact/IP identity; no raw contact is retained here. */
+export const publicSubmissionLimit = pgTable(
+	'public_submission_limit',
+	{
+		key: text('key').primaryKey(),
+		hits: integer('hits').notNull(),
+		expiresAt: timestamp('expires_at', { withTimezone: true }).notNull()
+	},
+	(t) => [index('public_submission_limit_expiry_idx').on(t.expiresAt)]
+);

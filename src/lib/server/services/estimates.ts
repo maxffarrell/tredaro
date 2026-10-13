@@ -1,4 +1,4 @@
-import { assertReference } from './references.ts';
+import { assertPricebookItems, assertReference } from './references.ts';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm';
@@ -113,7 +113,13 @@ export async function getEstimate(orgId: string, id: string) {
 	const items = await db
 		.select({ item: estimateItem, pricebookName: pricebookItem.name })
 		.from(estimateItem)
-		.leftJoin(pricebookItem, eq(estimateItem.pricebookItemId, pricebookItem.id))
+		.leftJoin(
+			pricebookItem,
+			and(
+				eq(estimateItem.pricebookItemId, pricebookItem.id),
+				eq(pricebookItem.organizationId, orgId)
+			)
+		)
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
 	row.estimate = withExpiry(row.estimate);
@@ -189,6 +195,7 @@ export async function createEstimate(
 	if (!c) error(404, 'Customer not found');
 	await assertReference(ctx.orgId, serviceLocation, input.serviceLocationId, input.customerId);
 	await assertReference(ctx.orgId, jobType, input.jobTypeId);
+	await assertPricebookItems(ctx.orgId, input.items);
 	const number = await nextNumber(ctx.orgId, 'estimate');
 	const [row] = await db
 		.insert(estimate)
@@ -236,6 +243,7 @@ export async function updateEstimate(
 		jobType,
 		input.jobTypeId === undefined ? existing.jobTypeId : input.jobTypeId
 	);
+	if (input.items) await assertPricebookItems(ctx.orgId, input.items);
 	const [row] = await db
 		.update(estimate)
 		.set({
@@ -269,6 +277,7 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 		.from(estimateItem)
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
+	await assertPricebookItems(ctx.orgId, items);
 	const row = await db.transaction(async (tx) => {
 		await tx
 			.update(estimate)
@@ -329,6 +338,7 @@ export async function duplicateEstimate(ctx: OrgContext, id: string) {
 		.from(estimateItem)
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
+	await assertPricebookItems(ctx.orgId, items);
 	const number = await nextNumber(ctx.orgId, 'estimate');
 	const [row] = await db
 		.insert(estimate)

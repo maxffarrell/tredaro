@@ -1,4 +1,5 @@
-import { error } from '@sveltejs/kit';
+import { assertReference } from './references.ts';
+import { error, isHttpError } from '@sveltejs/kit';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
@@ -23,7 +24,13 @@ export async function listSchedules(orgId: string, customerId?: string) {
 		})
 		.from(maintenanceSchedule)
 		.innerJoin(customer, eq(maintenanceSchedule.customerId, customer.id))
-		.leftJoin(jobType, eq(maintenanceSchedule.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(
+				eq(maintenanceSchedule.jobTypeId, jobType.id),
+				eq(maintenanceSchedule.organizationId, jobType.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(maintenanceSchedule.organizationId, orgId),
@@ -78,6 +85,7 @@ export async function updateSchedule(
 	ctx: OrgContext,
 	input: v.InferOutput<typeof s.scheduleUpdate>
 ) {
+	await assertReference(ctx.orgId, jobType, input.jobTypeId);
 	const { id, ...set } = input;
 	const [row] = await db
 		.update(maintenanceSchedule)
@@ -111,7 +119,13 @@ export async function runSchedules(orgId: string) {
 			checklist: jobType.checklist
 		})
 		.from(maintenanceSchedule)
-		.leftJoin(jobType, eq(maintenanceSchedule.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(
+				eq(maintenanceSchedule.jobTypeId, jobType.id),
+				eq(maintenanceSchedule.organizationId, jobType.organizationId)
+			)
+		)
 		.where(
 			and(
 				eq(maintenanceSchedule.organizationId, orgId),
@@ -119,8 +133,16 @@ export async function runSchedules(orgId: string) {
 				lte(maintenanceSchedule.nextDueOn, today)
 			)
 		);
+
 	let created = 0;
 	for (const { schedule: sc, jobTypeName, checklist } of due) {
+		try {
+			await assertReference(orgId, customer, sc.customerId);
+			await assertReference(orgId, jobType, sc.jobTypeId);
+		} catch (err) {
+			if (isHttpError(err, 404)) continue; // Leave invalid schedules for staff repair; other work must proceed.
+			throw err;
+		}
 		let period = sc.nextDueOn;
 		let lastCreated = false;
 		// Catch up on any missed periods; the unique index dedupes re-runs.

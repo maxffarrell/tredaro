@@ -1,3 +1,4 @@
+import { assertReference } from './references.ts';
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -32,10 +33,22 @@ const followUpQuery = () =>
 	db
 		.select(followUpSelect)
 		.from(followUp)
-		.innerJoin(member, eq(followUp.memberId, member.id))
+		.innerJoin(
+			member,
+			and(eq(followUp.memberId, member.id), eq(followUp.organizationId, member.organizationId))
+		)
 		.innerJoin(user, eq(member.userId, user.id))
-		.leftJoin(customer, eq(followUp.customerId, customer.id))
-		.leftJoin(job, eq(followUp.jobId, job.id));
+		.leftJoin(
+			customer,
+			and(
+				eq(followUp.customerId, customer.id),
+				eq(followUp.organizationId, customer.organizationId)
+			)
+		)
+		.leftJoin(
+			job,
+			and(eq(followUp.jobId, job.id), eq(followUp.organizationId, job.organizationId))
+		);
 
 /** Open-then-done follow-ups (open first, soonest due first), scoped when given. */
 export async function listFollowUps(orgId: string, opts?: { customerId?: string; jobId?: string }) {
@@ -53,6 +66,8 @@ export async function listFollowUps(orgId: string, opts?: { customerId?: string;
 export async function addFollowUp(ctx: OrgContext, input: v.InferOutput<typeof s.followUpInput>) {
 	const me = await caller(ctx);
 	if (!me) error(403, 'Not a member of this organization');
+	await assertReference(ctx.orgId, customer, input.customerId);
+	await assertReference(ctx.orgId, job, input.jobId, input.customerId ?? undefined);
 	const memberId = input.memberId || me.id;
 	if (memberId !== me.id) {
 		const [m] = await db

@@ -1935,10 +1935,19 @@ export async function runReminders(orgId: string) {
 			jobNumber: job.number
 		})
 		.from(followUp)
-		.innerJoin(member, eq(followUp.memberId, member.id))
+		.innerJoin(
+			member,
+			and(eq(followUp.memberId, member.id), eq(followUp.organizationId, member.organizationId))
+		)
 		.innerJoin(user, eq(member.userId, user.id))
-		.leftJoin(customer, eq(followUp.customerId, customer.id))
-		.leftJoin(job, eq(followUp.jobId, job.id))
+		.leftJoin(
+			customer,
+			and(
+				eq(followUp.customerId, customer.id),
+				eq(followUp.organizationId, customer.organizationId)
+			)
+		)
+		.leftJoin(job, and(eq(followUp.jobId, job.id), eq(followUp.organizationId, job.organizationId)))
 		.where(
 			and(eq(followUp.organizationId, orgId), isNull(followUp.doneAt), lte(followUp.dueOn, today))
 		);
@@ -3252,7 +3261,7 @@ export async function sendAnnouncement(
 	return { total: rows.length, emailed, texted, skipped };
 }
 
-/** Booking waitlist signup: staff email (digest-gated) + hot text, plus an SMS ack to the customer. */
+/** Booking waitlist signup: staff email (digest-gated) + hot text. Anonymous contacts are unverified. */
 export async function notifyWaitlistSignup(orgId: string, waitlistId: string) {
 	const flags = await notifFlags(orgId);
 	const [row] = await db
@@ -3265,7 +3274,7 @@ export async function notifyWaitlistSignup(orgId: string, waitlistId: string) {
 		})
 		.from(bookingWaitlist)
 		.leftJoin(jobType, eq(bookingWaitlist.jobTypeId, jobType.id))
-		.where(eq(bookingWaitlist.id, waitlistId));
+		.where(and(eq(bookingWaitlist.organizationId, orgId), eq(bookingWaitlist.id, waitlistId)));
 	if (!row) return;
 	const name = await orgName(orgId);
 	if (flags.digest) {
@@ -3294,11 +3303,5 @@ export async function notifyWaitlistSignup(orgId: string, waitlistId: string) {
 		waitlistId,
 		`Waitlist: ${row.name} — ${row.jobTypeName ?? 'any service'}`
 	);
-	if (row.phone && flags.sms && smsProvider()) {
-		if (await logOnce(orgId, 'waitlist_ack', waitlistId, row.phone))
-			await sendSmsQuiet(orgId, {
-				to: row.phone,
-				body: `${name}: got your waitlist request — we'll call you back to book a time.`
-			});
-	}
+	// An anonymous contact is unverified: staff may call back, but no automatic SMS is sent.
 }

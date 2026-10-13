@@ -666,6 +666,13 @@
 			"when": 1792390000001,
 			"tag": "0094_portal_invitations",
 			"breakpoints": true
+		},
+		{
+			"idx": 95,
+			"version": "7",
+			"when": 1792390000002,
+			"tag": "0095_public_submission_limits",
+			"breakpoints": true
 		}
 	]
 }
