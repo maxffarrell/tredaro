@@ -54,21 +54,24 @@
 {#if page.data.demo}
 	<form method="POST" action="/demo" class="mb-8 space-y-3 rounded-xl border bg-muted/40 p-4">
 		<div class="space-y-1">
-			<h2 class="font-semibold">Try the live demo</h2>
+			<h2 class="font-semibold">Try it first — no sign-up needed</h2>
 			<p class="text-sm text-muted-foreground">
-				Get a private sample service company with customers, jobs, estimates, invoices and
-				agreements. No sign-up. Sessions end after 8 minutes. Sample workspaces are deleted after 24
+				Open a private sample service company with realistic data. Staff view opens the workspace;
+				customer view opens the customer portal. Sessions last 8 minutes and are deleted within 24
 				hours.
 			</p>
 		</div>
-		<Button type="submit" class="w-full"><Sparkles /> Open demo workspace</Button>
+		<Button type="submit" class="w-full"><Sparkles /> Staff view</Button>
+		<Button type="submit" formaction="/demo?view=member" variant="outline" class="w-full"
+			><Sparkles /> Customer view</Button
+		>
 	</form>
 {/if}
 
 <form class="flex flex-col gap-6" onsubmit={submit}>
 	<div class="space-y-1">
 		<h1 class="text-2xl font-semibold tracking-tight">Welcome back</h1>
-		<p class="text-sm text-muted-foreground">Sign in to your workspace.</p>
+		<p class="text-sm text-muted-foreground">Sign in to your service company.</p>
 	</div>
 	<Field.Group>
 		<Field.Field>
@@ -98,21 +101,23 @@
 			<Button type="button" onclick={sso}><Building /> Continue with SSO</Button>
 		{/if}
 	</Field.Group>
-	{#if page.data.security}
+	{#if page.data.security || page.data.suite}
 		<div class="flex items-center gap-3 text-xs text-muted-foreground">
 			<Separator class="flex-1" /> or <Separator class="flex-1" />
 		</div>
 		<div class="grid gap-2">
-			<Button type="button" variant="outline" onclick={passkey}
-				><KeyRound /> Sign in with a passkey</Button
-			>
-			<Button type="button" variant="outline" onclick={() => (showSso = !showSso)}>
-				<Building />
-				{showSso ? 'Use a password instead' : 'Single sign-on (SAML / OIDC)'}
-			</Button>
 			{#if page.data.suite}
-				<Button type="button" variant="outline" onclick={suite}>
-					<KeyRound /> Continue with Leroa
+				<Button type="button" variant="outline" onclick={suite}
+					><KeyRound /> Continue with Leroa</Button
+				>
+			{/if}
+			{#if page.data.security}
+				<Button type="button" variant="outline" onclick={passkey}
+					><KeyRound /> Sign in with a passkey</Button
+				>
+				<Button type="button" variant="outline" onclick={() => (showSso = !showSso)}>
+					<Building />
+					{showSso ? 'Use a password instead' : 'Single sign-on (SAML / OIDC)'}
 				</Button>
 			{/if}
 		</div>
