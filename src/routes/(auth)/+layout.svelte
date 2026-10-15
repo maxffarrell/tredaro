@@ -16,11 +16,10 @@
 		<div class="max-w-md px-10 text-neutral-200">
 			<Logo class="mb-6 size-10 text-white" />
 			<blockquote class="text-2xl leading-snug font-medium text-white">
-				The route is full and the money just works.
+				Field service, minus the busywork.
 			</blockquote>
 			<p class="mt-4 text-sm text-neutral-400">
-				Customers, jobs, estimates, invoices and service agreements — one workspace, self-hosted on
-				your own infrastructure.
+				Customers, jobs, estimates, invoices and service agreements.
 			</p>
 		</div>
 	</div>
