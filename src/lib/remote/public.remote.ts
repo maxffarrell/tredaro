@@ -87,7 +87,7 @@ export const decidePublicEstimate = command(estimateDecisionInput, async (input)
 		void notifyStaffEstimateDecision(r.organizationId, r.id).catch((err) =>
 			console.error('estimate decision alert failed', err)
 		);
-	return r;
+	return { jobId: r?.jobId ?? null };
 });
 
 /** Customer asks for changes on the public estimate link — keeps it 'sent' and pings staff. */
@@ -102,7 +102,7 @@ export const requestEstimateChangesPublic = command(
 		void notifyStaffEstimateChanges(r.organizationId, r.id, input.note).catch((err) =>
 			console.error('estimate changes alert failed', err)
 		);
-		return r;
+		return { ok: true };
 	}
 );
 

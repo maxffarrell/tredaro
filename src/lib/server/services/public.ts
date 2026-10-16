@@ -17,7 +17,7 @@ import {
 import { member, user } from '#lib/server/db/auth.schema.ts';
 import { emit } from './events.ts';
 import { createJob } from './jobs.ts';
-import { verifyEstimateToken } from './estimates.ts';
+import { publicEstimateAvailable, verifyEstimateToken } from './estimates.ts';
 import { providers } from '#lib/server/payments/index.ts';
 import { providerRow } from '#lib/server/payments/settings.ts';
 import type * as s from '#lib/schemas.ts';
@@ -410,9 +410,12 @@ export async function setVisitPreference(token: string, note: string) {
 	const estimateId = verifyEstimateToken(token);
 	if (!estimateId) error(404, 'Estimate not found');
 	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
-	if (!est) error(404, 'Estimate not found');
+	if (!est || !publicEstimateAvailable(est)) error(404, 'Estimate not found');
 	if (!est.jobId) error(409, 'No visit to schedule yet');
-	await db.update(job).set({ preferredTime: note }).where(eq(job.id, est.jobId));
+	await db
+		.update(job)
+		.set({ preferredTime: note })
+		.where(and(eq(job.id, est.jobId), eq(job.organizationId, est.organizationId)));
 	await emit({
 		orgId: est.organizationId,
 		entityType: 'job',

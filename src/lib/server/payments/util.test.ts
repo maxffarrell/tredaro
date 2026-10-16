@@ -40,19 +40,21 @@ describe('customer refs', () => {
 describe('hmacValid', () => {
 	const body = '{"type":"payment.updated"}';
 	it('checks hex signatures', () => {
-		const sig = createHmac('sha256', 'wh_secret').update(body).digest('hex');
-		expect(hmacValid(body, sig, ['old', 'wh_secret'], 'hex')).toBe(true);
-		expect(hmacValid(body + ' ', sig, ['wh_secret'], 'hex')).toBe(false);
+		const sig = createHmac('sha256', 'whsec_test_not_real').update(body).digest('hex');
+		expect(hmacValid(body, sig, ['old_test_not_real', 'whsec_test_not_real'], 'hex')).toBe(true);
+		expect(hmacValid(body + ' ', sig, ['whsec_test_not_real'], 'hex')).toBe(false);
 		expect(hmacValid(body, sig, ['wrong'], 'hex')).toBe(false);
-		expect(hmacValid(body, null, ['wh_secret'], 'hex')).toBe(false);
-		expect(hmacValid(body, 'zz', ['wh_secret'], 'hex')).toBe(false);
+		expect(hmacValid(body, null, ['whsec_test_not_real'], 'hex')).toBe(false);
+		expect(hmacValid(body, 'zz', ['whsec_test_not_real'], 'hex')).toBe(false);
 	});
 	it('checks base64 signatures over a prefix + body', () => {
 		const url = 'https://pm.example.com/api/payments/stripe/webhook';
-		const sig = createHmac('sha256', 'sk_key')
+		const sig = createHmac('sha256', 'test_not_real_signing_key')
 			.update(url + body)
 			.digest('base64');
-		expect(hmacValid(body, sig, ['sk_key'], 'base64', url)).toBe(true);
-		expect(hmacValid(body, sig, ['sk_key'], 'base64', 'https://evil.example.com/x')).toBe(false);
+		expect(hmacValid(body, sig, ['test_not_real_signing_key'], 'base64', url)).toBe(true);
+		expect(
+			hmacValid(body, sig, ['test_not_real_signing_key'], 'base64', 'https://evil.example.com/x')
+		).toBe(false);
 	});
 });

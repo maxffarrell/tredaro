@@ -1,6 +1,7 @@
 import { assertJobReferences } from './references.ts';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { BETTER_AUTH_SECRET } from '$app/env/private';
+import { publicToken, verifyPublicToken } from '#lib/server/public-token.ts';
 import { error } from '@sveltejs/kit';
 import {
 	and,
@@ -2676,43 +2677,25 @@ export async function listJobEvents(orgId: string, jobId?: string | null) {
 
 // ---------- Public service report ----------
 
-function signReport(payload: string) {
-	return createHmac('sha256', BETTER_AUTH_SECRET).update(`report:${payload}`).digest('base64url');
-}
-
-/** Stateless signed link to the public visit report (`/r/<id>.<sig>`). */
+/** Signed service report link, valid for at most 90 days. */
 export function serviceReportToken(jobId: string) {
-	return `${jobId}.${signReport(jobId)}`;
+	return publicToken('report', jobId);
 }
 
 export function verifyServiceReportToken(token: string) {
-	const m = /^([0-9a-f-]{36})\.([\w-]+)$/.exec(token.trim());
-	if (!m) return null;
-	const [, jobId, sig] = m;
-	const expected = Buffer.from(signReport(jobId!));
-	const got = Buffer.from(sig!);
-	return expected.length === got.length && timingSafeEqual(expected, got) ? jobId : null;
+	return verifyPublicToken('report', token);
 }
 
 export function serviceReportUrl(id: string) {
 	return `${appOrigin()}/r/${serviceReportToken(id)}`;
 }
 
-function signCancel(payload: string) {
-	return createHmac('sha256', BETTER_AUTH_SECRET).update(`cancel:${payload}`).digest('base64url');
-}
-
 export function bookingCancelToken(jobId: string) {
-	return `${jobId}.${signCancel(jobId)}`;
+	return publicToken('cancel', jobId);
 }
 
 export function verifyBookingCancelToken(token: string) {
-	const m = /^([^.]+)\.([A-Za-z0-9_-]+)$/.exec(token);
-	if (!m) return null;
-	const [, jobId, sig] = m;
-	const expected = Buffer.from(signCancel(jobId!));
-	const got = Buffer.from(sig!);
-	return expected.length === got.length && timingSafeEqual(expected, got) ? jobId! : null;
+	return verifyPublicToken('cancel', token);
 }
 
 export function bookingCancelUrl(jobId: string) {
@@ -2791,7 +2774,12 @@ export async function publicServiceReport(id: string) {
 			customerName: customer.name,
 			techName: user.name,
 			typeName: jobType.name,
-			location: serviceLocation
+			location: {
+				address1: serviceLocation.address1,
+				city: serviceLocation.city,
+				state: serviceLocation.state,
+				zip: serviceLocation.zip
+			}
 		})
 		.from(job)
 		.innerJoin(
@@ -2810,15 +2798,23 @@ export async function publicServiceReport(id: string) {
 			jobType,
 			and(eq(job.jobTypeId, jobType.id), eq(job.organizationId, jobType.organizationId))
 		)
-		.leftJoin(member, eq(job.technicianId, member.id))
+		.leftJoin(
+			member,
+			and(eq(job.technicianId, member.id), eq(member.organizationId, job.organizationId))
+		)
 		.leftJoin(user, eq(member.userId, user.id))
-		.where(and(eq(job.id, id), eq(job.status, 'done')));
+		.where(and(eq(job.id, id), eq(job.status, 'done'), isNull(job.cancelledAt)));
 	if (!row) error(404, 'Report not found');
 	const settings = await getSettings(row.job.organizationId);
 	const checklist = await db
-		.select()
+		.select({ id: jobChecklistItem.id, label: jobChecklistItem.label, done: jobChecklistItem.done })
 		.from(jobChecklistItem)
-		.where(eq(jobChecklistItem.jobId, id))
+		.where(
+			and(
+				eq(jobChecklistItem.jobId, id),
+				eq(jobChecklistItem.organizationId, row.job.organizationId)
+			)
+		)
 		.orderBy(asc(jobChecklistItem.sort));
 	const materials = await db
 		.select({
@@ -2828,16 +2824,34 @@ export async function publicServiceReport(id: string) {
 			unitPrice: jobMaterial.unitPrice
 		})
 		.from(jobMaterial)
-		.innerJoin(inventoryItem, eq(jobMaterial.inventoryItemId, inventoryItem.id))
-		.where(eq(jobMaterial.jobId, id))
+		.innerJoin(
+			inventoryItem,
+			and(
+				eq(jobMaterial.inventoryItemId, inventoryItem.id),
+				eq(inventoryItem.organizationId, row.job.organizationId)
+			)
+		)
+		.where(and(eq(jobMaterial.jobId, id), eq(jobMaterial.organizationId, row.job.organizationId)))
 		.orderBy(asc(jobMaterial.createdAt));
 	const photos = await db
 		.select({ id: jobPhoto.id, phase: jobPhoto.phase, fileName: jobPhoto.fileName })
 		.from(jobPhoto)
-		.where(and(eq(jobPhoto.jobId, id), eq(jobPhoto.shared, true)))
+		.where(
+			and(
+				eq(jobPhoto.jobId, id),
+				eq(jobPhoto.organizationId, row.job.organizationId),
+				eq(jobPhoto.shared, true)
+			)
+		)
 		.orderBy(asc(jobPhoto.createdAt));
 	return {
-		job: row.job,
+		job: {
+			number: row.job.number,
+			summary: row.job.summary,
+			startsAt: row.job.startsAt,
+			completedAt: row.job.completedAt,
+			completionNotes: row.job.completionNotes
+		},
 		customerName: row.customerName,
 		techName: row.techName,
 		typeName: row.typeName,

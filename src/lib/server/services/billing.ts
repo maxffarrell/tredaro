@@ -1,7 +1,6 @@
 import { assertPricebookItems, assertReference } from './references.ts';
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
-import { BETTER_AUTH_SECRET } from '$app/env/private';
+import { publicToken, verifyPublicToken } from '#lib/server/public-token.ts';
 import {
 	and,
 	asc,
@@ -1025,30 +1024,20 @@ export async function updateInvoice(ctx: OrgContext, input: v.InferOutput<typeof
 
 // ---------- Public invoice link ----------
 
-function signInvoice(payload: string) {
-	return createHmac('sha256', BETTER_AUTH_SECRET).update(`invoice:${payload}`).digest('base64url');
-}
-
-/** Stateless signed link to the public invoice page (`/i/<id>.<sig>`). */
+/** Signed invoice link, valid for at most 30 days. */
 export function invoiceToken(invoiceId: string) {
-	return `${invoiceId}.${signInvoice(invoiceId)}`;
+	return publicToken('invoice', invoiceId);
 }
 
 export function verifyInvoiceToken(token: string) {
-	const m = /^([0-9a-f-]{36})\.([\w-]+)$/.exec(token.trim());
-	if (!m) return null;
-	const [, invoiceId, sig] = m;
-	const expected = Buffer.from(signInvoice(invoiceId!));
-	const got = Buffer.from(sig!);
-	return expected.length === got.length && timingSafeEqual(expected, got) ? invoiceId : null;
+	return verifyPublicToken('invoice', token);
 }
 
 export function invoiceUrl(id: string) {
 	return `${appOrigin()}/i/${invoiceToken(id)}`;
 }
 
-/** What the public /i/[token] page shows. */
-export async function publicInvoice(id: string) {
+async function invoiceForPublicLink(id: string) {
 	const [row] = await db
 		.select({ invoice, customerName: customer.name, orgName: organization.name })
 		.from(invoice)
@@ -1059,6 +1048,12 @@ export async function publicInvoice(id: string) {
 		.innerJoin(organization, eq(organization.id, invoice.organizationId))
 		.where(eq(invoice.id, id));
 	if (!row) error(404, 'Invoice not found');
+	return row;
+}
+
+/** What the public /i/[token] page shows. */
+export async function publicInvoice(id: string) {
+	const row = await invoiceForPublicLink(id);
 	// First customer open of the public link leaves a 'viewed' trail for staff.
 	const [seen] = await db
 		.select({ id: activity.id })
@@ -1087,7 +1082,13 @@ export async function publicInvoice(id: string) {
 	const [items, [{ paid = 0 } = {}], [settings], [{ tips = 0 } = {}], payments_, [visit]] =
 		await Promise.all([
 			db
-				.select()
+				.select({
+					id: invoiceItem.id,
+					name: invoiceItem.name,
+					description: invoiceItem.description,
+					qty: invoiceItem.qty,
+					unitPrice: invoiceItem.unitPrice
+				})
 				.from(invoiceItem)
 				.where(eq(invoiceItem.invoiceId, id))
 				.orderBy(asc(invoiceItem.position)),
@@ -1095,7 +1096,13 @@ export async function publicInvoice(id: string) {
 				.select({ paid: sql<number>`coalesce(sum(${payment.amount}), 0)`.mapWith(Number) })
 				.from(payment)
 				.innerJoin(charge, eq(charge.id, payment.chargeId))
-				.where(eq(charge.invoiceId, id)),
+				.where(
+					and(
+						eq(charge.invoiceId, id),
+						eq(charge.organizationId, row.invoice.organizationId),
+						eq(payment.organizationId, row.invoice.organizationId)
+					)
+				),
 			db
 				.select({
 					currency: companySettings.currency,
@@ -1115,6 +1122,7 @@ export async function publicInvoice(id: string) {
 				.where(
 					and(
 						eq(charge.organizationId, row.invoice.organizationId),
+						eq(payment.organizationId, row.invoice.organizationId),
 						eq(charge.description, `Tip — INV-${row.invoice.number}`)
 					)
 				),
@@ -1130,6 +1138,7 @@ export async function publicInvoice(id: string) {
 				.where(
 					and(
 						eq(charge.organizationId, row.invoice.organizationId),
+						eq(payment.organizationId, row.invoice.organizationId),
 						or(eq(charge.invoiceId, id), eq(charge.description, `Tip — INV-${row.invoice.number}`))
 					)
 				)
@@ -1138,7 +1147,13 @@ export async function publicInvoice(id: string) {
 				? db
 						.select({ startsAt: job.startsAt, endsAt: job.endsAt, status: job.status })
 						.from(job)
-						.where(eq(job.id, row.invoice.jobId))
+						.where(
+							and(
+								eq(job.id, row.invoice.jobId),
+								eq(job.organizationId, row.invoice.organizationId),
+								eq(job.customerId, row.invoice.customerId)
+							)
+						)
 				: Promise.resolve([])
 		]);
 	const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
@@ -1151,7 +1166,14 @@ export async function publicInvoice(id: string) {
 			providers_.push({ id: p.id, name: p.name, payLabel: p.payLabel, newTab: p.newTab });
 	}
 	return {
-		...row,
+		invoice: {
+			number: row.invoice.number,
+			status: row.invoice.status,
+			dueDate: row.invoice.dueDate,
+			notes: row.invoice.notes
+		},
+		customerName: row.customerName,
+		orgName: row.orgName,
 		items,
 		total,
 		paid,
@@ -1173,19 +1195,20 @@ export async function publicInvoice(id: string) {
  */
 export async function publicInvoiceCheckout(token: string, providerId: string, tipPct = 0) {
 	const id = verifyInvoiceToken(token);
-	if (!id) error(400, 'Invalid link');
+	if (!id) error(404, 'Invoice not found');
+	const { invoice: source } = await invoiceForPublicLink(id);
 	const inv = await publicInvoice(id);
 	if (inv.invoice.status !== 'open') error(409, 'Invoice is no longer payable');
 	const balance = inv.total - inv.paid;
 	if (balance <= 0) error(400, 'Nothing to pay');
 	const provider = providers.find((p) => p.id === providerId);
 	if (!provider?.configured()) error(404, 'Unknown provider');
-	const row = await providerRow(inv.invoice.organizationId, providerId);
+	const row = await providerRow(source.organizationId, providerId);
 	if (!provider.ready(row)) error(400, `${provider.name} is not available right now`);
 	const tip = Math.round((balance * Math.max(0, Math.min(25, tipPct))) / 100);
 	return provider.checkout({
-		orgId: inv.invoice.organizationId,
-		customerId: inv.invoice.customerId,
+		orgId: source.organizationId,
+		customerId: source.customerId,
 		email: null, // the payer types their email at checkout
 		amount: balance + tip,
 		currency: inv.currency,
@@ -1194,7 +1217,7 @@ export async function publicInvoiceCheckout(token: string, providerId: string, t
 			...(tip
 				? {
 						tredaroTipCents: String(tip),
-						tredaroTipInvoiceId: inv.invoice.id,
+						tredaroTipInvoiceId: source.id,
 						tredaroTipInvoiceNumber: `INV-${inv.invoice.number}`
 					}
 				: {})

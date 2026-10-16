@@ -1,8 +1,7 @@
 import { assertPricebookItems, assertReference } from './references.ts';
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm';
-import { BETTER_AUTH_SECRET } from '$app/env/private';
+import { publicToken, verifyPublicToken } from '#lib/server/public-token.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -31,22 +30,13 @@ import type * as v from 'valibot';
 
 // ---------- Public approval link ----------
 
-function sign(payload: string) {
-	return createHmac('sha256', BETTER_AUTH_SECRET).update(`estimate:${payload}`).digest('base64url');
-}
-
-/** Stateless signed link to the public approve/decline page (`/e/<id>.<sig>`). */
+/** Signed approval link, valid for at most 30 days. */
 export function estimateToken(estimateId: string) {
-	return `${estimateId}.${sign(estimateId)}`;
+	return publicToken('estimate', estimateId);
 }
 
 export function verifyEstimateToken(token: string) {
-	const m = /^([0-9a-f-]{36})\.([\w-]+)$/.exec(token.trim());
-	if (!m) return null;
-	const [, estimateId, sig] = m;
-	const expected = Buffer.from(sign(estimateId!));
-	const given = Buffer.from(sig!);
-	return expected.length === given.length && timingSafeEqual(expected, given) ? estimateId! : null;
+	return verifyPublicToken('estimate', token);
 }
 
 export function estimateUrl(id: string) {
@@ -606,7 +596,12 @@ export async function publicEstimate(id: string) {
 			orgPhone: companySettings.phone,
 			orgWebsite: companySettings.website,
 			estFooter: companySettings.estimateFooter,
-			location: serviceLocation
+			location: {
+				address1: serviceLocation.address1,
+				city: serviceLocation.city,
+				state: serviceLocation.state,
+				zip: serviceLocation.zip
+			}
 		})
 		.from(estimate)
 		.innerJoin(
@@ -627,9 +622,17 @@ export async function publicEstimate(id: string) {
 			)
 		)
 		.where(eq(estimate.id, id));
-	if (!row) error(404, 'Estimate not found');
+	if (!row || !publicEstimateAvailable(row.estimate)) error(404, 'Estimate not found');
 	const items = await db
-		.select()
+		.select({
+			id: estimateItem.id,
+			name: estimateItem.name,
+			description: estimateItem.description,
+			qty: estimateItem.qty,
+			unitPrice: estimateItem.unitPrice,
+			optional: estimateItem.optional,
+			optionGroup: estimateItem.optionGroup
+		})
 		.from(estimateItem)
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
@@ -666,9 +669,33 @@ export async function publicEstimate(id: string) {
 			);
 		}
 	}
-	// internal_notes is staff-only — strip it before serializing to the public page.
-	row.estimate.internalNotes = '';
-	return { ...row, items, currency: settings?.currency ?? 'usd' };
+	return {
+		estimate: {
+			number: row.estimate.number,
+			status: row.estimate.status,
+			notes: row.estimate.notes,
+			validUntil: row.estimate.validUntil,
+			acceptedOption: row.estimate.acceptedOption,
+			customerPo: row.estimate.customerPo,
+			jobId: row.estimate.jobId
+		},
+		customerName: row.customerName,
+		orgName: row.orgName,
+		orgLogoUrl: row.orgLogoUrl,
+		orgPhone: row.orgPhone,
+		orgWebsite: row.orgWebsite,
+		estFooter: row.estFooter,
+		location: row.location,
+		items,
+		currency: settings?.currency ?? 'usd'
+	};
+}
+
+export function publicEstimateAvailable(est: { status: string; validUntil: string | null }) {
+	return (
+		['sent', 'approved', 'declined', 'converted'].includes(est.status) &&
+		!(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
+	);
 }
 
 /**
@@ -684,15 +711,9 @@ export async function decideEstimate(
 	input: v.InferOutput<typeof s.estimateDecisionInput>
 ) {
 	const estimateId = verifyEstimateToken(token);
-	if (!estimateId) error(400, 'Invalid link');
+	if (!estimateId) error(404, 'Estimate not found');
 	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
-	if (!est) error(404, 'Estimate not found');
-	if (
-		est.status === 'expired' ||
-		(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
-	) {
-		error(409, 'This estimate has expired — ask for a new one');
-	}
+	if (!est || !publicEstimateAvailable(est)) error(404, 'Estimate not found');
 	if (est.status !== 'sent') error(409, 'This estimate has already been answered');
 
 	if (input.approve && !input.name) error(400, 'Type your name to approve');
@@ -709,14 +730,9 @@ export async function requestEstimateChanges(
 	input: { name?: string; note: string }
 ) {
 	const estimateId = verifyEstimateToken(token);
-	if (!estimateId) error(400, 'Invalid link');
+	if (!estimateId) error(404, 'Estimate not found');
 	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
-	if (!est) error(404, 'Estimate not found');
-	if (
-		est.status === 'expired' ||
-		(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
-	)
-		error(409, 'This estimate has expired — ask for a new one');
+	if (!est || !publicEstimateAvailable(est)) error(404, 'Estimate not found');
 	if (est.status !== 'sent') error(409, 'This estimate has already been answered');
 	const req = `Changes requested by ${input.name || 'customer'} (ip ${ip}): ${input.note.slice(0, 400)}`;
 	await db

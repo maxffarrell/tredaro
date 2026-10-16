@@ -7,3 +7,5 @@ Follow the README development setup. Before submitting a pull request run `pnpm 
 The application core is licensed under AGPL-3.0; see `LICENSE` and any file or directory license overrides. SDK packages use their own licenses. Preserve these boundaries. Basic SSO, passkeys and BYOK AI remain part of the free self-hosted core.
 
 Report vulnerabilities privately as described in `SECURITY.md`.
+
+Never commit real credentials or local `.env` files. Keep [.env.example](.env.example) placeholder-only; use obviously fake test fixtures and disposable local/CI credentials. Report vulnerabilities privately using [SECURITY.md](SECURITY.md), not public issues.

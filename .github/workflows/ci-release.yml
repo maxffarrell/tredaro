@@ -90,6 +90,7 @@ jobs:
         # pull rate limit (429) and killing the build before tests run.
         image: public.ecr.aws/docker/library/postgres:18-alpine
         env:
+          # Isolated, disposable CI database credentials; never use in production.
           POSTGRES_USER: demo_test
           POSTGRES_PASSWORD: runner-test-only
           POSTGRES_DB: demo_test
@@ -107,6 +108,7 @@ jobs:
         with:
           node-version: '26'
       - name: Validate application and release safeguards
+        # These database/auth values are test-only and never reach a deployment.
         env:
           DATABASE_URL: postgres://demo_test:runner-test-only@localhost:5432/demo_test
           BETTER_AUTH_SECRET: runner-test-only

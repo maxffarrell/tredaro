@@ -11,7 +11,8 @@ export const GET: RequestHandler = async ({ params }) => {
 		headers: {
 			'content-type': row.mime,
 			'content-length': String(row.size),
-			'cache-control': 'private, max-age=3600',
+			'cache-control': 'private, no-store',
+			'x-content-type-options': 'nosniff',
 			'content-disposition': `inline; filename="${row.fileName.replace(/"/g, '')}"`
 		}
 	});

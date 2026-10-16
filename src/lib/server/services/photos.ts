@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { UPLOADS_DIR } from '$app/env/private';
-import { and, asc, desc, eq, or } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, isNull, or } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import {
 	customer,
@@ -507,9 +507,20 @@ export async function readPortalCustomerDoc(userId: string, id: string) {
  * verifies the job token first, so this only checks the photo belongs to that
  * job and is customer-shared. */
 export async function readSharedJobPhoto(jobId: string, id: string) {
+	if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id))
+		error(404, 'Photo not found');
 	const [row] = await db
-		.select()
+		.select(getTableColumns(jobPhoto))
 		.from(jobPhoto)
+		.innerJoin(
+			job,
+			and(
+				eq(job.id, jobPhoto.jobId),
+				eq(job.organizationId, jobPhoto.organizationId),
+				eq(job.status, 'done'),
+				isNull(job.cancelledAt)
+			)
+		)
 		.where(and(eq(jobPhoto.id, id), eq(jobPhoto.jobId, jobId), eq(jobPhoto.shared, true)))
 		.limit(1);
 	if (!row) error(404, 'Photo not found');

@@ -39,9 +39,12 @@ Webhooks + the REST API are the integration surface.
 
 ## Quick start
 
+Tredaro is open core: the core is licensed under AGPL-3.0 ([LICENSE-AGPL.txt](LICENSE-AGPL.txt)), with separately licensed enterprise features. Copy [.env.example](.env.example) to `.env` for self-hosted setup. Report vulnerabilities privately through [SECURITY.md](SECURITY.md).
+
 ```sh
 cp .env.example .env           # set a persistent random BETTER_AUTH_SECRET (32+ characters)
 # In .env set DATABASE_URL=postgres://tredaro:tredaro@localhost:5432/tredaro
+# This database password is for local development only.
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 pnpm install
 node --env-file=.env scripts/migrate.ts
@@ -106,6 +109,14 @@ This is pre-1.0 software. Start with a disposable evaluation and check your work
 
 For Docker self-hosting, create `.env` once and keep its authentication secret across upgrades. Optional SSO/AI/provider settings in `.env` are passed to the application container. Use `docker compose up -d --build` when building this checkout; published images use version tags rather than an unversioned `latest` tag.
 
+Before creating a production Compose database, set a persistent URL-safe random `POSTGRES_PASSWORD` in `.env` (for example, generate it with `openssl rand -hex 32`). The `tredaro` fallback is for local development only. For an existing database volume, retain its existing password: changing an environment variable does not rotate a PostgreSQL role password. Coordinate any rotation with the database administrator and update the application connection string together; never delete/reinitialize the volume to change credentials.
+
 Docker Compose keeps uploaded photos and documents in the `uploads` volume at `/app/data`, alongside the separate PostgreSQL volume. Back up and restore both together. Other Node hosts must provide a persistent, writable `UPLOADS_DIR`; ephemeral/serverless filesystems are unsuitable for uploaded files. After this security upgrade, reissue outstanding portal invitations: legacy links are invalidated, and new invitations are single-use and revoked when portal access is revoked or a new invitation is issued.
 
 The source Compose setup builds this checkout and requires Docker Compose 2.24 or newer for its optional `.env` file. Rebuild after updating source to pick up security fixes.
+
+### Public-link security upgrade
+
+After upgrading, **previous estimate (`/e/`), invoice (`/i/`), service-report (`/r/`, including photo downloads), booking-cancel and booking-reschedule links stop working**. Their old non-expiring format is deliberately rejected; there is no insecure legacy fallback. Re-send outstanding links from staff workflows or use fresh links in the authenticated customer portal. No production links are changed until an operator deploys this upgrade.
+
+New HMAC-authenticated links expire 30 days after issuance for estimates, invoices and booking changes, and 90 days for service reports. Estimate validity dates can end access sooner. Loaders, remote queries/commands, form actions, invoice checkout and photo downloads share the same verifier and return generic not-found responses for invalid/expired links. Draft/expired/superseded estimates and non-completed/cancelled service reports are unavailable; unsharing a photo denies future downloads. Booking changes are blocked once a visit is in progress or done; cancelled bookings cannot be rescheduled, and repeat cancellation remains idempotent. These visit-status checks also run at mutation time; there is no additional hours-before-visit cutoff. A booking more than 30 days after link issuance may need a fresh link. Reissuing a link does not revoke another unexpired link. Individual-link revocation is not available: restrict the underlying record where supported or, for an installation-wide emergency, coordinate authentication-secret rotation (which also affects other authenticated features). Links are bearer credentials: send them only to the intended recipient, and keep them out of logs and public issues.
