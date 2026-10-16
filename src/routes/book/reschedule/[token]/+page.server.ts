@@ -1,4 +1,4 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, isHttpError } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '#lib/server/db/index.ts';
 import { and, eq } from 'drizzle-orm';
@@ -8,7 +8,7 @@ import { getSettings } from '#lib/server/services/settings.ts';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const jobId = verifyBookingCancelToken(params.token!);
-	if (!jobId) error(404, 'This link is invalid or has expired');
+	if (!jobId) error(404, 'Visit not found');
 	const [row] = await db
 		.select({
 			job,
@@ -21,12 +21,16 @@ export const load: PageServerLoad = async ({ params }) => {
 			customer,
 			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
 		)
-		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(eq(job.jobTypeId, jobType.id), eq(jobType.organizationId, job.organizationId))
+		)
 		.leftJoin(
 			serviceLocation,
 			and(
 				eq(job.serviceLocationId, serviceLocation.id),
-				eq(serviceLocation.organizationId, job.organizationId)
+				eq(serviceLocation.organizationId, job.organizationId),
+				eq(serviceLocation.customerId, job.customerId)
 			)
 		)
 		.where(eq(job.id, jobId))
@@ -55,17 +59,22 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	default: async ({ params, request }) => {
 		const jobId = verifyBookingCancelToken(params.token!);
-		if (!jobId) return fail(404, { message: 'This link is invalid or has expired' });
+		if (!jobId) return fail(404, { message: 'Visit not found' });
 		const form = await request.formData();
-		const date = String(form.get('date') ?? '').trim();
-		const slot = String(form.get('slot') ?? '').trim();
+		const date = String(form.get('date') ?? '')
+			.trim()
+			.slice(0, 10);
+		const slot = String(form.get('slot') ?? '')
+			.trim()
+			.slice(0, 120);
 		const note = String(form.get('note') ?? '')
 			.trim()
 			.slice(0, 500);
 		if (!date && !slot) return fail(400, { message: 'Pick a day or a time window' });
 		try {
 			await requestReschedule(jobId, { date, slot, note });
-		} catch {
+		} catch (err) {
+			if (isHttpError(err, 404)) return fail(404, { message: 'Visit not found' });
 			return fail(409, { message: 'This visit can no longer be changed online' });
 		}
 		return { sent: true };

@@ -1,10 +1,31 @@
-import importlib.util, json, os, subprocess, tempfile, unittest
+import importlib.util, json, os, runpy, stat, subprocess, tempfile, unittest
 from pathlib import Path
 from unittest.mock import patch
 HERE=Path(__file__).parent
 spec=importlib.util.spec_from_file_location('deploy_server',HERE/'deploy-server.py')
 server=importlib.util.module_from_spec(spec);spec.loader.exec_module(server)
 PAYLOAD=dict(image_digest='sha256:'+'a'*64,source_commit='b'*40,version='0.0.2',registry_user='maxffarrell',registry_token='test-only')
+class SenderTests(unittest.TestCase):
+ def test_key_is_private_and_removed_after_success_or_failure(self):
+  env=dict(DEMO_SSH_KEY='test_not_real_ssh_key',IMAGE_DIGEST=PAYLOAD['image_digest'],GITHUB_ACTOR=PAYLOAD['registry_user'],GH_TOKEN='test_not_real_registry_token',SOURCE_COMMIT=PAYLOAD['source_commit'],RELEASE_VERSION=PAYLOAD['version'])
+  for fail in (False,True):
+   paths=[]
+   def send(args,**kw):
+    key=Path(args[args.index('-i')+1]);paths.append(key)
+    self.assertEqual(stat.S_IMODE(key.stat().st_mode),0o600)
+    self.assertEqual(stat.S_IMODE(key.parent.stat().st_mode),0o700)
+    self.assertIn('StrictHostKeyChecking=yes',args)
+    if fail:raise subprocess.CalledProcessError(1,args)
+   old_umask=os.umask(0o077)
+   try:
+    with patch.dict(os.environ,env),patch('subprocess.run',side_effect=send):
+     if fail:
+      with self.assertRaises(subprocess.CalledProcessError):runpy.run_path(str(HERE/'send.py'))
+     else:runpy.run_path(str(HERE/'send.py'))
+   finally:os.umask(old_umask)
+   self.assertEqual(len(paths),1)
+   self.assertFalse(paths[0].exists())
+   self.assertFalse(paths[0].parent.exists())
 class DeploymentTests(unittest.TestCase):
  def test_session_timestamp_creation_lag_without_allowing_extension(self):
   created='2026-10-13T00:00:00.001Z'

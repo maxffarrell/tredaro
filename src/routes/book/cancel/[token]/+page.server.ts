@@ -8,7 +8,7 @@ import { getSettings } from '#lib/server/services/settings.ts';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const jobId = verifyBookingCancelToken(params.token!);
-	if (!jobId) error(404, 'This link is invalid or has expired');
+	if (!jobId) error(404, 'Visit not found');
 	const [row] = await db
 		.select({
 			job,
@@ -21,12 +21,16 @@ export const load: PageServerLoad = async ({ params }) => {
 			customer,
 			and(eq(job.customerId, customer.id), eq(customer.organizationId, job.organizationId))
 		)
-		.leftJoin(jobType, eq(job.jobTypeId, jobType.id))
+		.leftJoin(
+			jobType,
+			and(eq(job.jobTypeId, jobType.id), eq(jobType.organizationId, job.organizationId))
+		)
 		.leftJoin(
 			serviceLocation,
 			and(
 				eq(job.serviceLocationId, serviceLocation.id),
-				eq(serviceLocation.organizationId, job.organizationId)
+				eq(serviceLocation.organizationId, job.organizationId),
+				eq(serviceLocation.customerId, job.customerId)
 			)
 		)
 		.where(eq(job.id, jobId))
@@ -52,7 +56,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	default: async ({ params }) => {
 		const jobId = verifyBookingCancelToken(params.token!);
-		if (!jobId) return fail(404, { message: 'This link is invalid or has expired' });
+		if (!jobId) return fail(404, { message: 'Visit not found' });
 		const { already } = await cancelBookedJob(jobId);
 		return { cancelled: true, already };
 	}

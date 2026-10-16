@@ -51,23 +51,28 @@ type JobReferences = {
 	technicianId?: string | null;
 	helperId?: string | null;
 };
-export async function assertJobReferences(orgId: string, input: JobReferences) {
+export async function assertJobReferences(
+	orgId: string,
+	input: JobReferences,
+	q: Pick<DB, 'select'> = db
+) {
 	await Promise.all([
-		assertReference(orgId, customer, input.customerId),
-		assertReference(orgId, serviceLocation, input.serviceLocationId, input.customerId),
-		assertReference(orgId, equipment, input.equipmentId, input.customerId),
-		assertReference(orgId, jobType, input.jobTypeId),
-		assertReference(orgId, office, input.officeId),
-		assertReference(orgId, member, input.technicianId),
-		assertReference(orgId, member, input.helperId)
+		assertReference(orgId, customer, input.customerId, undefined, q),
+		assertReference(orgId, serviceLocation, input.serviceLocationId, input.customerId, q),
+		assertReference(orgId, equipment, input.equipmentId, input.customerId, q),
+		assertReference(orgId, jobType, input.jobTypeId, undefined, q),
+		assertReference(orgId, office, input.officeId, undefined, q),
+		assertReference(orgId, member, input.technicianId, undefined, q),
+		assertReference(orgId, member, input.helperId, undefined, q)
 	]);
 }
 
 /** Validate linked catalog IDs before any estimate/invoice mutation. */
 export async function assertPricebookItems(
 	orgId: string,
-	items: { pricebookItemId?: string | null }[]
+	items: { pricebookItemId?: string | null }[],
+	q: Pick<DB, 'select'> = db
 ) {
 	for (const id of new Set(items.map((i) => i.pricebookItemId).filter(Boolean)))
-		await assertReference(orgId, pricebookItem, id);
+		await assertReference(orgId, pricebookItem, id, undefined, q);
 }

@@ -2,7 +2,7 @@ import { outboundFetch } from '#lib/server/outbound-http.ts';
 import { createHmac } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
-import { db } from '#lib/server/db/index.ts';
+import { db, type DB } from '#lib/server/db/index.ts';
 import { activity, user, webhook, webhookDelivery } from '#lib/server/db/schema.ts';
 
 export type EventInput = {
@@ -15,9 +15,15 @@ export type EventInput = {
 	data?: Record<string, unknown>;
 };
 
+export type EventOptions = {
+	q?: Pick<DB, 'insert'>;
+	/** Caller runs these only after the transaction commits. */
+	afterCommit?: (() => void)[];
+};
+
 /** Records an activity entry and fans the event out to webhooks and integrations. */
-export async function emit(e: EventInput) {
-	const [row] = await db
+export async function emit(e: EventInput, options: EventOptions = {}) {
+	const [row] = await (options.q ?? db)
 		.insert(activity)
 		.values({
 			organizationId: e.orgId,
@@ -40,7 +46,11 @@ export async function emit(e: EventInput) {
 		createdAt: row!.createdAt.toISOString()
 	};
 
-	void deliverWebhooks(event).catch((err) => console.error('webhook delivery failed', err));
+	const deliver = () => {
+		void deliverWebhooks(event).catch((err) => console.error('webhook delivery failed', err));
+	};
+	if (options.afterCommit) options.afterCommit.push(deliver);
+	else deliver();
 }
 
 export type TredaroEvent = {

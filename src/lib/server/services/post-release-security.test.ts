@@ -94,7 +94,9 @@ import {
 	maintenanceSchedule,
 	followUp,
 	bookingWaitlist,
-	companySettings
+	companySettings,
+	invoice,
+	jobPhoto
 } from '../db/schema.ts';
 import { portalOverview } from './portal.ts';
 import {
@@ -102,10 +104,21 @@ import {
 	updateEstimate,
 	getEstimate,
 	duplicateEstimate,
-	reviseEstimate
+	reviseEstimate,
+	publicEstimate,
+	decideEstimate,
+	requestEstimateChanges,
+	estimateToken
 } from './estimates.ts';
-import { createInvoice, invoicePrefill } from './billing.ts';
-import { getJob } from './jobs.ts';
+import {
+	createInvoice,
+	invoicePrefill,
+	publicInvoice,
+	publicInvoiceCheckout,
+	invoiceToken
+} from './billing.ts';
+import { readSharedJobPhoto } from './photos.ts';
+import { getJob, publicServiceReport } from './jobs.ts';
 import { addFollowUp, dueFollowUps } from './followups.ts';
 import { updateSchedule, runSchedules, listSchedules } from './maintenance.ts';
 import { joinWaitlist } from './public.ts';
@@ -224,6 +237,140 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 			expect(result.pendingEstimates[0].token).toBeTruthy();
 			expect(result.pendingEstimates[0].total).toBe(500);
 			await db.update(estimate).set({ status: 'draft' }).where(eq(estimate.id, eid));
+		});
+		it('public estimate DTO keeps recipient line items but excludes internal fields and rejects missing/revoked records', async () => {
+			await db.update(estimate).set({ status: 'sent' }).where(eq(estimate.id, eid));
+			const result = await publicEstimate(eid);
+			expect(result.estimate).toEqual({
+				number: 90,
+				status: 'sent',
+				notes: 'Public note',
+				validUntil: null,
+				acceptedOption: null,
+				customerPo: '',
+				jobId: null
+			});
+			expect(result.items).toEqual([
+				expect.objectContaining({ name: 'Old line', unitPrice: 500, qty: 1 })
+			]);
+			expect(Object.keys(result.items[0]).sort()).toEqual([
+				'description',
+				'id',
+				'name',
+				'optionGroup',
+				'optional',
+				'qty',
+				'unitPrice'
+			]);
+			expect(JSON.stringify(result)).not.toContain('PRIVATE STAFF NOTE');
+			await expect(publicEstimate(randomUUID())).rejects.toMatchObject({ status: 404 });
+			await db.update(estimate).set({ status: 'draft' }).where(eq(estimate.id, eid));
+			await expect(publicEstimate(eid)).rejects.toMatchObject({ status: 404 });
+			const token = estimateToken(eid);
+			await expect(requestEstimateChanges(token, 'test', { note: 'Change' })).rejects.toMatchObject(
+				{ status: 404 }
+			);
+			await db.update(estimate).set({ status: 'expired' }).where(eq(estimate.id, eid));
+			await expect(
+				decideEstimate(token, 'test', v.parse(s.estimateDecisionInput, { token, approve: true }))
+			).rejects.toMatchObject({ status: 404 });
+			await db.update(estimate).set({ status: 'draft' }).where(eq(estimate.id, eid));
+		});
+		it('public report is completed-only and projects customer-facing work, not private job fields', async () => {
+			await expect(publicServiceReport(jobs[0])).rejects.toMatchObject({ status: 404 });
+			await expect(publicServiceReport(randomUUID())).rejects.toMatchObject({ status: 404 });
+			await db
+				.update(job)
+				.set({
+					status: 'done',
+					description: 'PRIVATE DISPATCH NOTE',
+					completionNotes: 'Work completed'
+				})
+				.where(eq(job.id, jobs[0]));
+			const result = await publicServiceReport(jobs[0]);
+			expect(result.job.completionNotes).toBe('Work completed');
+			expect(Object.keys(result.job).sort()).toEqual([
+				'completedAt',
+				'completionNotes',
+				'number',
+				'signature',
+				'signedAt',
+				'signedName',
+				'startsAt',
+				'summary'
+			]);
+			expect(JSON.stringify(result)).not.toContain('PRIVATE DISPATCH NOTE');
+			await db.update(job).set({ cancelledAt: new Date() }).where(eq(job.id, jobs[0]));
+			await expect(publicServiceReport(jobs[0])).rejects.toMatchObject({ status: 404 });
+			await db
+				.update(job)
+				.set({ status: 'unscheduled', cancelledAt: null })
+				.where(eq(job.id, jobs[0]));
+		});
+		it('shared photo downloads reject incomplete/cancelled visits and unshared photos before reading storage', async () => {
+			const photoId = randomUUID();
+			await db.insert(jobPhoto).values({
+				id: photoId,
+				jobId: jobs[0],
+				organizationId: orgs[0],
+				shared: true,
+				path: '/nonexistent-test-photo',
+				fileName: 'test.jpg',
+				mime: 'image/jpeg',
+				size: 1
+			});
+			await expect(readSharedJobPhoto(jobs[0], photoId)).rejects.toMatchObject({ status: 404 });
+			await db
+				.update(job)
+				.set({ status: 'done', cancelledAt: new Date() })
+				.where(eq(job.id, jobs[0]));
+			await expect(readSharedJobPhoto(jobs[0], photoId)).rejects.toMatchObject({ status: 404 });
+			await db.update(job).set({ cancelledAt: null }).where(eq(job.id, jobs[0]));
+			await db.update(jobPhoto).set({ shared: false }).where(eq(jobPhoto.id, photoId));
+			await expect(readSharedJobPhoto(jobs[0], photoId)).rejects.toMatchObject({ status: 404 });
+			await expect(readSharedJobPhoto(jobs[0], 'malformed')).rejects.toMatchObject({ status: 404 });
+			await db.delete(jobPhoto).where(eq(jobPhoto.id, photoId));
+			await db.update(job).set({ status: 'unscheduled' }).where(eq(job.id, jobs[0]));
+		});
+		it('public invoice projects billing details and rejects missing records and expired checkout tokens', async () => {
+			const created = await createInvoice(
+				ctx,
+				v.parse(s.invoiceInput, {
+					customerId: customers[0],
+					dueDate: today,
+					items: [line(prices[0])]
+				})
+			);
+			const result = await publicInvoice(created.id);
+			expect(Object.keys(result.invoice).sort()).toEqual(['dueDate', 'notes', 'number', 'status']);
+			expect(Object.keys(result.items[0]).sort()).toEqual([
+				'description',
+				'id',
+				'name',
+				'qty',
+				'unitPrice'
+			]);
+			expect(result.total).toBeGreaterThan(0);
+			await expect(publicInvoice(randomUUID())).rejects.toMatchObject({ status: 404 });
+			const token = invoiceToken(randomUUID());
+			await expect(publicInvoiceCheckout(token, 'test_not_real')).rejects.toMatchObject({
+				status: 404
+			});
+			await expect(publicInvoiceCheckout('malformed', 'test_not_real')).rejects.toMatchObject({
+				status: 404
+			});
+			vi.useFakeTimers();
+			try {
+				vi.setSystemTime(new Date('2027-01-01'));
+				const expired = invoiceToken(created.id);
+				vi.setSystemTime(new Date('2027-02-01'));
+				await expect(publicInvoiceCheckout(expired, 'test_not_real')).rejects.toMatchObject({
+					status: 404
+				});
+			} finally {
+				vi.useRealTimers();
+			}
+			await db.delete(invoice).where(eq(invoice.id, created.id));
 		});
 		it('foreign catalog IDs are rejected before creation, header edits, line replacement or invoice tax consumption', async () => {
 			await expect(

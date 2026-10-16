@@ -7,4 +7,8 @@ const client = postgres(DATABASE_URL, { max: 10, idle_timeout: 20, prepare: true
 
 export const db = drizzle(client, { schema });
 export type DB = typeof db;
+export type DbOrTx = Pick<
+	DB,
+	'select' | 'insert' | 'update' | 'delete' | 'execute' | 'transaction'
+>;
 export { schema };

@@ -1,8 +1,7 @@
 import { assertPricebookItems, assertReference } from './references.ts';
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm';
-import { BETTER_AUTH_SECRET } from '$app/env/private';
+import { publicToken, verifyPublicToken } from '#lib/server/public-token.ts';
 import { db } from '#lib/server/db/index.ts';
 import {
 	activity,
@@ -31,22 +30,13 @@ import type * as v from 'valibot';
 
 // ---------- Public approval link ----------
 
-function sign(payload: string) {
-	return createHmac('sha256', BETTER_AUTH_SECRET).update(`estimate:${payload}`).digest('base64url');
-}
-
-/** Stateless signed link to the public approve/decline page (`/e/<id>.<sig>`). */
+/** Signed approval link, valid for at most 30 days. */
 export function estimateToken(estimateId: string) {
-	return `${estimateId}.${sign(estimateId)}`;
+	return publicToken('estimate', estimateId);
 }
 
 export function verifyEstimateToken(token: string) {
-	const m = /^([0-9a-f-]{36})\.([\w-]+)$/.exec(token.trim());
-	if (!m) return null;
-	const [, estimateId, sig] = m;
-	const expected = Buffer.from(sign(estimateId!));
-	const given = Buffer.from(sig!);
-	return expected.length === given.length && timingSafeEqual(expected, given) ? estimateId! : null;
+	return verifyPublicToken('estimate', token);
 }
 
 export function estimateUrl(id: string) {
@@ -262,23 +252,24 @@ export async function updateEstimate(
 
 /** Creates revision N+1 of a sent/decided estimate as a new draft; the old one is marked superseded. */
 export async function reviseEstimate(ctx: OrgContext, id: string) {
-	const [e] = await db
-		.select()
-		.from(estimate)
-		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
-	if (!e) error(404, 'Estimate not found');
-	await assertReference(ctx.orgId, customer, e.customerId);
-	await assertReference(ctx.orgId, serviceLocation, e.serviceLocationId, e.customerId);
-	await assertReference(ctx.orgId, jobType, e.jobTypeId);
-	if (e.status !== 'sent' && e.status !== 'declined' && e.status !== 'expired')
-		error(409, 'Only sent, declined, or expired estimates can be revised');
-	const items = await db
-		.select()
-		.from(estimateItem)
-		.where(eq(estimateItem.estimateId, id))
-		.orderBy(asc(estimateItem.position));
-	await assertPricebookItems(ctx.orgId, items);
 	const row = await db.transaction(async (tx) => {
+		const [e] = await tx
+			.select()
+			.from(estimate)
+			.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)))
+			.for('update');
+		if (!e) error(404, 'Estimate not found');
+		await assertReference(ctx.orgId, customer, e.customerId, undefined, tx);
+		await assertReference(ctx.orgId, serviceLocation, e.serviceLocationId, e.customerId, tx);
+		await assertReference(ctx.orgId, jobType, e.jobTypeId, undefined, tx);
+		if (e.status !== 'sent' && e.status !== 'declined' && e.status !== 'expired')
+			error(409, 'Only sent, declined, or expired estimates can be revised');
+		const items = await tx
+			.select()
+			.from(estimateItem)
+			.where(eq(estimateItem.estimateId, id))
+			.orderBy(asc(estimateItem.position));
+		await assertPricebookItems(ctx.orgId, items, tx);
 		await tx
 			.update(estimate)
 			.set({ status: 'superseded', updatedAt: new Date() })
@@ -296,31 +287,31 @@ export async function reviseEstimate(ctx: OrgContext, id: string) {
 				supersedesId: e.id
 			})
 			.returning();
-		return inserted;
+		if (items.length)
+			await tx.insert(estimateItem).values(
+				items.map((it, i) => ({
+					estimateId: inserted!.id,
+					pricebookItemId: it.pricebookItemId,
+					name: it.name,
+					description: it.description,
+					qty: it.qty,
+					unitPrice: it.unitPrice,
+					optional: it.optional,
+					optionGroup: it.optionGroup,
+					position: i
+				}))
+			);
+		return { inserted, number: e.number, version: e.version };
 	});
-	if (items.length)
-		await db.insert(estimateItem).values(
-			items.map((it, i) => ({
-				estimateId: row!.id,
-				pricebookItemId: it.pricebookItemId,
-				name: it.name,
-				description: it.description,
-				qty: it.qty,
-				unitPrice: it.unitPrice,
-				optional: it.optional,
-				optionGroup: it.optionGroup,
-				position: i
-			}))
-		);
 	await emit({
 		orgId: ctx.orgId,
 		actorId: ctx.userId,
 		entityType: 'estimate',
-		entityId: row!.id,
+		entityId: row.inserted!.id,
 		action: 'revised',
-		summary: `Estimate E-${e.number} revised to v${e.version + 1}`
+		summary: `Estimate E-${row.number} revised to v${row.version + 1}`
 	});
-	return row;
+	return row.inserted;
 }
 
 /** Copies an estimate (any status) into a brand-new draft with a fresh E-number. */
@@ -606,7 +597,12 @@ export async function publicEstimate(id: string) {
 			orgPhone: companySettings.phone,
 			orgWebsite: companySettings.website,
 			estFooter: companySettings.estimateFooter,
-			location: serviceLocation
+			location: {
+				address1: serviceLocation.address1,
+				city: serviceLocation.city,
+				state: serviceLocation.state,
+				zip: serviceLocation.zip
+			}
 		})
 		.from(estimate)
 		.innerJoin(
@@ -627,9 +623,17 @@ export async function publicEstimate(id: string) {
 			)
 		)
 		.where(eq(estimate.id, id));
-	if (!row) error(404, 'Estimate not found');
+	if (!row || !publicEstimateAvailable(row.estimate)) error(404, 'Estimate not found');
 	const items = await db
-		.select()
+		.select({
+			id: estimateItem.id,
+			name: estimateItem.name,
+			description: estimateItem.description,
+			qty: estimateItem.qty,
+			unitPrice: estimateItem.unitPrice,
+			optional: estimateItem.optional,
+			optionGroup: estimateItem.optionGroup
+		})
 		.from(estimateItem)
 		.where(eq(estimateItem.estimateId, id))
 		.orderBy(asc(estimateItem.position));
@@ -666,9 +670,33 @@ export async function publicEstimate(id: string) {
 			);
 		}
 	}
-	// internal_notes is staff-only — strip it before serializing to the public page.
-	row.estimate.internalNotes = '';
-	return { ...row, items, currency: settings?.currency ?? 'usd' };
+	return {
+		estimate: {
+			number: row.estimate.number,
+			status: row.estimate.status,
+			notes: row.estimate.notes,
+			validUntil: row.estimate.validUntil,
+			acceptedOption: row.estimate.acceptedOption,
+			customerPo: row.estimate.customerPo,
+			jobId: row.estimate.jobId
+		},
+		customerName: row.customerName,
+		orgName: row.orgName,
+		orgLogoUrl: row.orgLogoUrl,
+		orgPhone: row.orgPhone,
+		orgWebsite: row.orgWebsite,
+		estFooter: row.estFooter,
+		location: row.location,
+		items,
+		currency: settings?.currency ?? 'usd'
+	};
+}
+
+export function publicEstimateAvailable(est: { status: string; validUntil: string | null }) {
+	return (
+		['sent', 'approved', 'declined', 'converted'].includes(est.status) &&
+		!(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
+	);
 }
 
 /**
@@ -684,21 +712,8 @@ export async function decideEstimate(
 	input: v.InferOutput<typeof s.estimateDecisionInput>
 ) {
 	const estimateId = verifyEstimateToken(token);
-	if (!estimateId) error(400, 'Invalid link');
-	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
-	if (!est) error(404, 'Estimate not found');
-	if (
-		est.status === 'expired' ||
-		(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
-	) {
-		error(409, 'This estimate has expired — ask for a new one');
-	}
-	if (est.status !== 'sent') error(409, 'This estimate has already been answered');
-
-	if (input.approve && !input.name) error(400, 'Type your name to approve');
-
-	const [c] = await db.select().from(customer).where(eq(customer.id, est.customerId));
-	return applyDecision(est, c, input, `ip ${ip}`);
+	if (!estimateId) error(404, 'Estimate not found');
+	return applyDecision(estimateId, input, `ip ${ip}`, { token });
 }
 
 /** Customer asks for changes on the public link — keeps status 'sent', logs the
@@ -709,14 +724,9 @@ export async function requestEstimateChanges(
 	input: { name?: string; note: string }
 ) {
 	const estimateId = verifyEstimateToken(token);
-	if (!estimateId) error(400, 'Invalid link');
+	if (!estimateId) error(404, 'Estimate not found');
 	const [est] = await db.select().from(estimate).where(eq(estimate.id, estimateId));
-	if (!est) error(404, 'Estimate not found');
-	if (
-		est.status === 'expired' ||
-		(est.status === 'sent' && est.validUntil && est.validUntil < todayIso())
-	)
-		error(409, 'This estimate has expired — ask for a new one');
+	if (!est || !publicEstimateAvailable(est)) error(404, 'Estimate not found');
 	if (est.status !== 'sent') error(409, 'This estimate has already been answered');
 	const req = `Changes requested by ${input.name || 'customer'} (ip ${ip}): ${input.note.slice(0, 400)}`;
 	await db
@@ -740,33 +750,13 @@ export async function decideEstimateStaff(
 	actor: string,
 	option?: string
 ) {
-	const [est] = await db
-		.select()
-		.from(estimate)
-		.where(and(eq(estimate.organizationId, ctx.orgId), eq(estimate.id, id)));
-	if (!est) error(404, 'Estimate not found');
-	if (est.status !== 'sent') error(409, 'Only sent estimates can be decided');
-	const [c] = await db.select().from(customer).where(eq(customer.id, est.customerId));
-	// Staff approvals bill as-quoted: every optional line stays included.
-	let items: string[] | undefined;
-	if (approve)
-		items = (
-			await db
-				.select({ id: estimateItem.id })
-				.from(estimateItem)
-				.where(and(eq(estimateItem.estimateId, id), eq(estimateItem.optional, true)))
-		).map((r) => r.id);
-	return applyDecision(
-		est,
-		c,
-		{ approve, name: approve ? actor : null, items, option },
-		`staff ${actor}`
-	);
+	return applyDecision(id, { approve, name: approve ? actor : null, option }, `staff ${actor}`, {
+		orgId: ctx.orgId
+	});
 }
 
 async function applyDecision(
-	est: typeof estimate.$inferSelect,
-	c: typeof customer.$inferSelect | undefined,
+	id: string,
 	input: {
 		approve: boolean;
 		name?: string | null;
@@ -775,119 +765,162 @@ async function applyDecision(
 		option?: string | null;
 		reason?: string | null;
 	},
-	via: string
+	via: string,
+	access: { token: string; orgId?: never } | { orgId: string; token?: never }
 ) {
-	let jobId: string | null = null;
-	const chosen = new Set(input.items ?? []);
-	let pickedOption: string | null = null;
-	if (input.approve) {
-		const all = await db
+	const afterCommit: (() => void)[] = [];
+	const result = await db.transaction(async (tx) => {
+		const [est] = await tx
 			.select()
-			.from(estimateItem)
-			.where(eq(estimateItem.estimateId, est.id))
-			.orderBy(asc(estimateItem.position));
-		const groups = [...new Set(all.map((i) => i.optionGroup).filter((g) => g))];
-		if (groups.length) {
-			pickedOption = input.option?.trim() || null;
-			if (!pickedOption || !groups.includes(pickedOption))
-				error(400, 'Pick one of the options to approve');
-		}
-		const items = all.filter(
-			(i) =>
-				(i.optionGroup === '' || i.optionGroup === pickedOption) &&
-				(!i.optional || chosen.has(i.id))
-		);
-		const description = [
-			`Approved estimate E-${est.number}${input.name ? ` by ${input.name}` : ''}${pickedOption ? ` — option "${pickedOption}"` : ''}.`,
-			est.notes,
-			'',
-			...items.map((i) => `${i.qty} × ${i.name}`)
-		]
-			.filter(Boolean)
-			.join('\n');
-		const created = await createJob(
-			{ orgId: est.organizationId, userId: null },
-			'UTC',
-			{
-				customerId: est.customerId,
-				serviceLocationId: est.serviceLocationId,
-				jobTypeId: est.jobTypeId,
-				summary: `From estimate E-${est.number}`,
-				description,
-				preferredTime: null,
-				priority: 'normal'
-			},
-			{ source: 'estimate' }
-		);
-		jobId = created!.id;
-		// Link back so invoicePrefill bills the estimate's items for this job.
-		await db.update(job).set({ estimateId: est.id }).where(eq(job.id, jobId));
-
-		// Deposit on approval: when the org collects a percentage up front, cut a
-		// deposit invoice for that share of the estimate total and email the pay link.
-		const settings = await getSettings(est.organizationId);
-		const pct = settings.estimateDepositPct;
-		const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-		if (pct > 0 && total > 0) {
-			const dep = await createInvoice(
-				{ orgId: est.organizationId, userId: null },
-				{
-					customerId: est.customerId,
-					dueDate: todayIso(),
-					notes: `Deposit for estimate E-${est.number}`,
-					items: [
-						{
-							pricebookItemId: null,
-							name: `Deposit — estimate E-${est.number} (${pct}%)`,
-							description: '',
-							qty: 1,
-							unitPrice: Math.round((total * pct) / 100)
-						}
-					]
-				}
+			.from(estimate)
+			.where(
+				and(
+					eq(estimate.id, id),
+					access.orgId ? eq(estimate.organizationId, access.orgId) : undefined
+				)
+			)
+			.for('update');
+		// Recheck the capability and eligibility after waiting for the row lock.
+		if (
+			!est ||
+			(access.token && (verifyEstimateToken(access.token) !== id || !publicEstimateAvailable(est)))
+		)
+			error(404, 'Estimate not found');
+		if (est.status !== 'sent') error(409, 'This estimate has already been answered');
+		if (input.approve && !input.name) error(400, 'Type your name to approve');
+		const [c] = await tx
+			.select()
+			.from(customer)
+			.where(and(eq(customer.id, est.customerId), eq(customer.organizationId, est.organizationId)));
+		if (!c) error(404, 'Customer not found');
+		let jobId: string | null = null;
+		const chosen = new Set(input.items ?? []);
+		let pickedOption: string | null = null;
+		if (input.approve) {
+			const all = await tx
+				.select()
+				.from(estimateItem)
+				.where(eq(estimateItem.estimateId, est.id))
+				.orderBy(asc(estimateItem.position));
+			// Staff decisions bill as quoted, including optional lines.
+			if (access.orgId) for (const item of all) if (item.optional) chosen.add(item.id);
+			const groups = [...new Set(all.map((i) => i.optionGroup).filter((g) => g))];
+			if (groups.length) {
+				pickedOption = input.option?.trim() || null;
+				if (!pickedOption || !groups.includes(pickedOption))
+					error(400, 'Pick one of the options to approve');
+			}
+			const items = all.filter(
+				(i) =>
+					(i.optionGroup === '' || i.optionGroup === pickedOption) &&
+					(!i.optional || chosen.has(i.id))
 			);
-			const { notifyInvoiceSent } = await import('./notifications.ts');
-			notifyInvoiceSent(est.organizationId, dep!.id).catch((err) =>
-				console.error('deposit invoice email failed', err)
-			);
-		}
-	}
-
-	const [row] = await db
-		.update(estimate)
-		.set({
-			status: input.approve ? 'converted' : 'declined',
-			respondedAt: new Date(),
-			decisionName: input.approve ? input.name : null,
-			declineReason:
-				!input.approve &&
-				input.reason &&
-				(DECLINE_REASONS as readonly string[]).includes(input.reason)
-					? input.reason
-					: '',
-			acceptedOption: input.approve ? pickedOption : null,
-			acceptedItems: input.approve ? [...chosen] : [],
-			decisionNote: [
-				input.approve ? 'approved' : 'declined',
-				via,
-				pickedOption ? `option: ${pickedOption}` : null,
-				input.note || null,
-				chosen.size ? `extras: ${[...chosen].join(',')}` : null
+			const description = [
+				`Approved estimate E-${est.number}${input.name ? ` by ${input.name}` : ''}${pickedOption ? ` — option "${pickedOption}"` : ''}.`,
+				est.notes,
+				'',
+				...items.map((i) => `${i.qty} × ${i.name}`)
 			]
 				.filter(Boolean)
-				.join(' · '),
-			jobId
-		})
-		.where(eq(estimate.id, est.id))
-		.returning();
+				.join('\n');
+			const created = await createJob(
+				{ orgId: est.organizationId, userId: null },
+				'UTC',
+				{
+					customerId: est.customerId,
+					serviceLocationId: est.serviceLocationId,
+					jobTypeId: est.jobTypeId,
+					summary: `From estimate E-${est.number}`,
+					description,
+					preferredTime: null,
+					priority: 'normal'
+				},
+				{ source: 'estimate', q: tx, afterCommit }
+			);
+			jobId = created!.id;
+			// Link back so invoicePrefill bills the estimate's items for this job.
+			await tx.update(job).set({ estimateId: est.id }).where(eq(job.id, jobId));
 
-	await emit({
-		orgId: est.organizationId,
-		entityType: 'estimate',
-		entityId: est.id,
-		action: input.approve ? 'approved' : 'declined',
-		summary: `E-${est.number} ${input.approve ? `approved by ${input.name}` : 'declined'} — ${c?.name ?? 'customer'}`,
-		data: { jobId }
+			// Deposit on approval: when the org collects a percentage up front, cut a
+			// deposit invoice for that share of the estimate total and email the pay link.
+			const settings = await getSettings(est.organizationId, tx);
+			const pct = settings.estimateDepositPct;
+			const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+			if (pct > 0 && total > 0) {
+				const dep = await createInvoice(
+					{ orgId: est.organizationId, userId: null },
+					{
+						customerId: est.customerId,
+						dueDate: todayIso(),
+						notes: `Deposit for estimate E-${est.number}`,
+						items: [
+							{
+								pricebookItemId: null,
+								name: `Deposit — estimate E-${est.number} (${pct}%)`,
+								description: '',
+								qty: 1,
+								unitPrice: Math.round((total * pct) / 100)
+							}
+						]
+					},
+					{ q: tx, afterCommit }
+				);
+				afterCommit.push(() => {
+					void import('./notifications.ts')
+						.then(({ notifyInvoiceSent }) => notifyInvoiceSent(est.organizationId, dep!.id))
+						.catch((err) => console.error('deposit invoice email failed', err));
+				});
+			}
+		}
+
+		const [row] = await tx
+			.update(estimate)
+			.set({
+				status: input.approve ? 'converted' : 'declined',
+				respondedAt: new Date(),
+				decisionName: input.approve ? input.name : null,
+				declineReason:
+					!input.approve &&
+					input.reason &&
+					(DECLINE_REASONS as readonly string[]).includes(input.reason)
+						? input.reason
+						: '',
+				acceptedOption: input.approve ? pickedOption : null,
+				acceptedItems: input.approve ? [...chosen] : [],
+				decisionNote: [
+					input.approve ? 'approved' : 'declined',
+					via,
+					pickedOption ? `option: ${pickedOption}` : null,
+					input.note || null,
+					chosen.size ? `extras: ${[...chosen].join(',')}` : null
+				]
+					.filter(Boolean)
+					.join(' · '),
+				jobId
+			})
+			.where(
+				and(
+					eq(estimate.id, est.id),
+					eq(estimate.organizationId, est.organizationId),
+					eq(estimate.status, 'sent')
+				)
+			)
+			.returning();
+		if (!row) error(409, 'This estimate has already been answered');
+
+		await emit(
+			{
+				orgId: est.organizationId,
+				entityType: 'estimate',
+				entityId: est.id,
+				action: input.approve ? 'approved' : 'declined',
+				summary: `E-${est.number} ${input.approve ? `approved by ${input.name}` : 'declined'} — ${c?.name ?? 'customer'}`,
+				data: { jobId }
+			},
+			{ q: tx, afterCommit }
+		);
+		return row;
 	});
-	return row;
+	for (const callback of afterCommit) callback();
+	return result;
 }

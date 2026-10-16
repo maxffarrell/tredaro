@@ -10,7 +10,7 @@ services:
     ports: ['3000:3000']
     volumes: ['uploads:/app/data']
     environment:
-      DATABASE_URL: postgres://tredaro:tredaro@db:5432/tredaro
+      DATABASE_URL: postgres://tredaro:${POSTGRES_PASSWORD:-tredaro}@db:5432/tredaro
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
       ORIGIN: ${ORIGIN:-http://localhost:3000}
       TREDARO_ENTERPRISE_KEY: ${TREDARO_ENTERPRISE_KEY:-}
@@ -21,7 +21,9 @@ services:
     image: postgres:18-alpine
     environment:
       POSTGRES_USER: tredaro
-      POSTGRES_PASSWORD: tredaro
+      # The fallback is local-development only. Set a persistent URL-safe random
+      # POSTGRES_PASSWORD before creating a production database volume.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tredaro}
       POSTGRES_DB: tredaro
     volumes: ['pgdata:/var/lib/postgresql']
     healthcheck:
