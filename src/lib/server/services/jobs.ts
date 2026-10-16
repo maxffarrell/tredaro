@@ -2850,7 +2850,10 @@ export async function publicServiceReport(id: string) {
 			summary: row.job.summary,
 			startsAt: row.job.startsAt,
 			completedAt: row.job.completedAt,
-			completionNotes: row.job.completionNotes
+			completionNotes: row.job.completionNotes,
+			signature: row.job.signature,
+			signedName: row.job.signedName,
+			signedAt: row.job.signedAt
 		},
 		customerName: row.customerName,
 		techName: row.techName,

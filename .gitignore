@@ -7,8 +7,10 @@ coverage/
 .vercel
 .netlify
 .wrangler
-/.svelte-kit
-/build
+/.svelte-kit/
+/build/
+__pycache__/
+*.pyc
 
 # OS
 .DS_Store

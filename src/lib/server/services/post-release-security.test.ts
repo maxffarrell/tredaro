@@ -257,8 +257,8 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 				'description',
 				'id',
 				'name',
-				'optional',
 				'optionGroup',
+				'optional',
 				'qty',
 				'unitPrice'
 			]);
@@ -293,6 +293,9 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 				'completedAt',
 				'completionNotes',
 				'number',
+				'signature',
+				'signedAt',
+				'signedName',
 				'startsAt',
 				'summary'
 			]);
@@ -306,18 +309,16 @@ describe.runIf(Boolean(process.env.DATABASE_URL))(
 		});
 		it('shared photo downloads reject incomplete/cancelled visits and unshared photos before reading storage', async () => {
 			const photoId = randomUUID();
-			await db
-				.insert(jobPhoto)
-				.values({
-					id: photoId,
-					jobId: jobs[0],
-					organizationId: orgs[0],
-					shared: true,
-					path: '/nonexistent-test-photo',
-					fileName: 'test.jpg',
-					mime: 'image/jpeg',
-					size: 1
-				});
+			await db.insert(jobPhoto).values({
+				id: photoId,
+				jobId: jobs[0],
+				organizationId: orgs[0],
+				shared: true,
+				path: '/nonexistent-test-photo',
+				fileName: 'test.jpg',
+				mime: 'image/jpeg',
+				size: 1
+			});
 			await expect(readSharedJobPhoto(jobs[0], photoId)).rejects.toMatchObject({ status: 404 });
 			await db
 				.update(job)

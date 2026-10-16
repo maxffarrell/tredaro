@@ -18,7 +18,8 @@ function signature(purpose: Purpose, payload: string) {
 }
 
 export function publicToken(purpose: Purpose, id: string, now = Date.now()) {
-	if (!new RegExp(`^${UUID}$`).test(id)) throw new Error('Invalid public link identifier');
+	if (id.length !== 36 || !new RegExp(`^${UUID}$`).test(id))
+		throw new Error('Invalid public link identifier');
 	const expires = Math.floor(now / 1000) + LIFETIME_SECONDS[purpose];
 	const payload = `v1.${id}.${expires}`;
 	return `${payload}.${signature(purpose, payload)}`;
