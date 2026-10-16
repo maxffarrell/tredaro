@@ -15,7 +15,7 @@ import {
 	or,
 	sql
 } from 'drizzle-orm';
-import { db } from '#lib/server/db/index.ts';
+import { db, type DbOrTx as TransactionDB } from '#lib/server/db/index.ts';
 import {
 	activity,
 	agreementPlan,
@@ -863,8 +863,8 @@ export async function getInvoice(orgId: string, id: string) {
  * `items` defaults to the job's approved estimate items when `fromEstimate` is set.
  */
 /** Highest member discount % across the customer's active agreements (0 = none). */
-async function activeDiscountPct(orgId: string, customerId: string) {
-	const [row] = await db
+async function activeDiscountPct(orgId: string, customerId: string, q: TransactionDB = db) {
+	const [row] = await q
 		.select({ pct: sql<number>`coalesce(max(${agreementPlan.discountPct}), 0)`.mapWith(Number) })
 		.from(serviceAgreement)
 		.innerJoin(agreementPlan, eq(serviceAgreement.planId, agreementPlan.id))
@@ -880,28 +880,30 @@ async function activeDiscountPct(orgId: string, customerId: string) {
 
 export async function createInvoice(
 	ctx: { orgId: string; userId?: string | null },
-	input: v.InferOutput<typeof s.invoiceInput>
+	input: v.InferOutput<typeof s.invoiceInput>,
+	opts: { q?: TransactionDB; afterCommit?: (() => void)[] } = {}
 ) {
-	const [c] = await db
+	const q = opts.q ?? db;
+	const [c] = await q
 		.select()
 		.from(customer)
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
 	if (!c) error(404, 'Customer not found');
 	if (input.jobId) {
-		const [j] = await db
+		const [j] = await q
 			.select({ id: job.id })
 			.from(job)
 			.where(and(eq(job.organizationId, ctx.orgId), eq(job.id, input.jobId)));
 		if (!j) error(404, 'Job not found');
 	}
 
-	await assertPricebookItems(ctx.orgId, input.items);
-	const number = await nextNumber(ctx.orgId, 'invoice');
-	const settings = await getSettings(ctx.orgId);
+	await assertPricebookItems(ctx.orgId, input.items, q);
+	const number = await nextNumber(ctx.orgId, 'invoice', q);
+	const settings = await getSettings(ctx.orgId, q);
 	const items = [...input.items];
 	// Membership perk: customers under an active agreement get the plan's % off work.
 	// Applied as a negative line BEFORE tax so tax is on the discounted amount.
-	const discountPct = await activeDiscountPct(ctx.orgId, input.customerId);
+	const discountPct = await activeDiscountPct(ctx.orgId, input.customerId, q);
 	if (discountPct > 0) {
 		const off = Math.round((lineTotal(items) * discountPct) / 100);
 		if (off > 0)
@@ -922,7 +924,7 @@ export async function createInvoice(
 	const taxableById = new Map(
 		linkedIds.length
 			? (
-					await db
+					await q
 						.select({ id: pricebookItem.id, taxable: pricebookItem.taxable })
 						.from(pricebookItem)
 						.where(
@@ -946,7 +948,7 @@ export async function createInvoice(
 			});
 	}
 	const total = lineTotal(items);
-	const inv = await db.transaction(async (tx) => {
+	const inv = await q.transaction(async (tx) => {
 		const [row] = await tx
 			.insert(invoice)
 			.values({
@@ -984,14 +986,17 @@ export async function createInvoice(
 		}
 		return row!;
 	});
-	await emit({
-		orgId: ctx.orgId,
-		actorId: ctx.userId,
-		entityType: 'invoice',
-		entityId: inv.id,
-		action: 'issued',
-		summary: `Invoice #${number} for ${c.name} — ${formatMoney(total)}`
-	});
+	await emit(
+		{
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'invoice',
+			entityId: inv.id,
+			action: 'issued',
+			summary: `Invoice #${number} for ${c.name} — ${formatMoney(total)}`
+		},
+		{ q, afterCommit: opts.afterCommit }
+	);
 	return inv;
 }
 

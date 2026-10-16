@@ -23,7 +23,7 @@ import {
 	sql
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { db } from '#lib/server/db/index.ts';
+import { db, type DbOrTx } from '#lib/server/db/index.ts';
 import { appOrigin } from '#lib/server/email.ts';
 import { createInvoice } from './billing.ts';
 import { listJobMaterials } from './inventory.ts';
@@ -494,8 +494,13 @@ async function depBlock(orgId: string, dependsOnJobId: string | null | undefined
 }
 
 /** Validate a depends_on choice: exists in org, isn't self, and doesn't loop back. */
-async function assertValidDependency(orgId: string, jobId: string | null, depId: string) {
-	const [dep] = await db
+async function assertValidDependency(
+	orgId: string,
+	jobId: string | null,
+	depId: string,
+	q: DbOrTx = db
+) {
+	const [dep] = await q
 		.select({ id: job.id, dependsOnJobId: job.dependsOnJobId })
 		.from(job)
 		.where(and(eq(job.organizationId, orgId), eq(job.id, depId)));
@@ -504,7 +509,7 @@ async function assertValidDependency(orgId: string, jobId: string | null, depId:
 	let cur: string | null = depId;
 	for (let i = 0; i < 30 && cur; i++) {
 		if (cur === jobId) error(409, 'That would create a dependency loop');
-		const [d] = await db
+		const [d] = await q
 			.select({ dependsOnJobId: job.dependsOnJobId })
 			.from(job)
 			.where(and(eq(job.organizationId, orgId), eq(job.id, cur)));
@@ -522,9 +527,12 @@ export async function createJob(
 		number?: number;
 		/** Explicit duration (min) — defaults to the job type's. Used by copy-week. */
 		durationMin?: number;
+		q?: DbOrTx;
+		afterCommit?: (() => void)[];
 	} = {}
 ) {
-	const [c] = await db
+	const q = opts.q ?? db;
+	const [c] = await q
 		.select()
 		.from(customer)
 		.where(and(eq(customer.organizationId, ctx.orgId), eq(customer.id, input.customerId)));
@@ -534,16 +542,16 @@ export async function createJob(
 
 	const jt = input.jobTypeId
 		? (
-				await db
+				await q
 					.select()
 					.from(jobType)
 					.where(and(eq(jobType.organizationId, ctx.orgId), eq(jobType.id, input.jobTypeId)))
 			)[0]
 		: null;
 	if (input.jobTypeId && !jt) error(404, 'Job type not found');
-	if (input.dependsOnJobId) await assertValidDependency(ctx.orgId, null, input.dependsOnJobId);
+	if (input.dependsOnJobId) await assertValidDependency(ctx.orgId, null, input.dependsOnJobId, q);
 
-	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job'));
+	const number = opts.number ?? (await nextNumber(ctx.orgId, 'job', q));
 	const start = input.startsAt ? zonedToUtc(input.startsAt, tz) : null;
 	if (start && jt?.requiresHelper && !input.helperId)
 		error(409, 'This job type needs a second tech — pick a helper before scheduling');
@@ -552,7 +560,7 @@ export async function createJob(
 	// the follow-up warranty work (no charge) unless the caller explicitly sets it.
 	let coveredBy: { number: number; warrantyUntil: Date | null } | null = null;
 	if (input.serviceLocationId && input.warranty == null) {
-		[coveredBy] = await db
+		[coveredBy] = await q
 			.select({ number: job.number, warrantyUntil: job.warrantyUntil })
 			.from(job)
 			.where(
@@ -568,20 +576,26 @@ export async function createJob(
 	}
 	// Tech resolution: explicit pick > job type default > the customer's preferred tech.
 	const technicianId = input.technicianId ?? jt?.technicianId ?? c.preferredMemberId ?? null;
-	await assertJobReferences(ctx.orgId, {
-		...input,
-		technicianId,
-		officeId: input.officeId ?? jt?.officeId ?? null
-	});
+	await assertJobReferences(
+		ctx.orgId,
+		{
+			...input,
+			technicianId,
+			officeId: input.officeId ?? jt?.officeId ?? null
+		},
+		q
+	);
 	if (start)
 		await assertTechAvailable(
 			ctx.orgId,
 			technicianId,
 			start,
 			tz,
-			new Date(start.getTime() + durationMin * 60_000)
+			new Date(start.getTime() + durationMin * 60_000),
+			undefined,
+			q
 		);
-	const [row] = await db
+	const [row] = await q
 		.insert(job)
 		.values({
 			organizationId: ctx.orgId,
@@ -607,23 +621,26 @@ export async function createJob(
 			endsAt: start ? new Date(start.getTime() + durationMin * 60_000) : null
 		})
 		.returning();
-	await emit({
-		orgId: ctx.orgId,
-		actorId: ctx.userId,
-		entityType: 'job',
-		entityId: row!.id,
-		action: 'created',
-		summary: `Job J-${number}: ${row!.summary || jt?.name || c.name}`
-	});
+	await emit(
+		{
+			orgId: ctx.orgId,
+			actorId: ctx.userId,
+			entityType: 'job',
+			entityId: row!.id,
+			action: 'created',
+			summary: `Job J-${number}: ${row!.summary || jt?.name || c.name}`
+		},
+		{ q, afterCommit: opts.afterCommit }
+	);
 	if (coveredBy)
-		await db.insert(jobEvent).values({
+		await q.insert(jobEvent).values({
 			organizationId: ctx.orgId,
 			jobId: row!.id,
 			kind: 'note',
 			note: `Auto-flagged warranty — this location is covered by J-${coveredBy.number} through ${coveredBy.warrantyUntil ? coveredBy.warrantyUntil.toISOString().slice(0, 10) : '—'}`
 		});
 	if (jt?.checklist?.length)
-		await db.insert(jobChecklistItem).values(
+		await q.insert(jobChecklistItem).values(
 			jt.checklist.map((label, i) => ({
 				organizationId: ctx.orgId,
 				jobId: row!.id,
@@ -2385,13 +2402,14 @@ export async function assertTechAvailable(
 	start: Date,
 	tz: string,
 	end?: Date | null,
-	excludeJobId?: string
+	excludeJobId?: string,
+	q: DbOrTx = db
 ) {
 	if (!memberId) return;
 	const day = localDate(start, tz);
 	// Time-off blocks when it covers the start day OR any later day in a multi-day span.
 	const endDay = end ? localDate(end, tz) : day;
-	const [block] = await db
+	const [block] = await q
 		.select({ startsOn: memberTimeOff.startsOn, endsOn: memberTimeOff.endsOn, name: user.name })
 		.from(memberTimeOff)
 		.innerJoin(member, eq(memberTimeOff.memberId, member.id))
@@ -2414,7 +2432,7 @@ export async function assertTechAvailable(
 
 	// Double-booking guard: another live job overlapping [start, end).
 	if (end && end > start) {
-		const [conflict] = await db
+		const [conflict] = await q
 			.select({ number: job.number, name: user.name })
 			.from(job)
 			.innerJoin(member, eq(job.technicianId, member.id))
@@ -2712,8 +2730,24 @@ export async function cancelBookedJob(jobId: string) {
 	const [updated] = await db
 		.update(job)
 		.set({ status: 'cancelled', cancelledAt: new Date(), cancelReason: 'Cancelled by customer' })
-		.where(eq(job.id, jobId))
+		.where(
+			and(
+				eq(job.id, jobId),
+				eq(job.organizationId, j.organizationId),
+				inArray(job.status, ['unscheduled', 'scheduled', 'dispatched']),
+				isNull(job.cancelledAt)
+			)
+		)
 		.returning();
+	if (!updated) {
+		const [current] = await db
+			.select()
+			.from(job)
+			.where(and(eq(job.id, jobId), eq(job.organizationId, j.organizationId)));
+		if (current && (current.status === 'cancelled' || current.cancelledAt))
+			return { job: current, already: true };
+		error(404, 'Visit not found');
+	}
 	await emit({
 		orgId: j.organizationId,
 		entityType: 'job',
@@ -2742,10 +2776,19 @@ export async function requestReschedule(
 	if (j.status === 'done' || j.status === 'in_progress')
 		error(409, 'This visit can no longer be changed online — please call us.');
 	const requested = [input.date, input.slot].filter(Boolean).join(' — ');
-	await db
+	const [updated] = await db
 		.update(job)
 		.set({ preferredTime: `Reschedule requested: ${requested}` })
-		.where(eq(job.id, jobId));
+		.where(
+			and(
+				eq(job.id, jobId),
+				eq(job.organizationId, j.organizationId),
+				inArray(job.status, ['unscheduled', 'scheduled', 'dispatched']),
+				isNull(job.cancelledAt)
+			)
+		)
+		.returning({ id: job.id });
+	if (!updated) error(404, 'Visit not found');
 	await db.insert(jobEvent).values({
 		organizationId: j.organizationId,
 		jobId,

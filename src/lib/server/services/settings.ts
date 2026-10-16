@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
-import { db } from '#lib/server/db/index.ts';
+import { db, type DB } from '#lib/server/db/index.ts';
 import {
 	companySettings,
 	estimate,
@@ -13,17 +13,17 @@ import type { OrgContext } from '#lib/server/context.ts';
 import type * as s from '#lib/schemas.ts';
 import type * as v from 'valibot';
 
-export async function getSettings(orgId: string) {
-	const [row] = await db
+export async function getSettings(orgId: string, q: Pick<DB, 'select' | 'insert'> = db) {
+	const [row] = await q
 		.select()
 		.from(companySettings)
 		.where(eq(companySettings.organizationId, orgId));
-	const [org] = await db
+	const [org] = await q
 		.select({ name: organization.name })
 		.from(organization)
 		.where(eq(organization.id, orgId));
 	if (row) return { ...row, orgName: org?.name ?? '' };
-	const [created] = await db
+	const [created] = await q
 		.insert(companySettings)
 		.values({ organizationId: orgId })
 		.onConflictDoNothing()
@@ -47,9 +47,9 @@ export async function updateSettings(
 export async function nextNumber(
 	orgId: string,
 	kind: 'job' | 'estimate' | 'invoice',
-	q: typeof db = db
+	q: Pick<DB, 'select' | 'insert' | 'update'> = db
 ): Promise<number> {
-	await getSettings(orgId);
+	await getSettings(orgId, q);
 	// The counter can drift behind reality (seeds/imports insert numbered rows
 	// directly), so allocate `greatest(counter, max(existing)+1)` and never issue
 	// a number that collides with the org's unique index.
