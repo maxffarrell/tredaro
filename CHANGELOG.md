@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.1.5
+
+### Patch Changes
+
+- 05e9a95: Apply the suite profile migration on databases upgraded from 0.1.2.
+
 ## 0.1.4
 
 ### Patch Changes
