@@ -7,7 +7,7 @@ server=importlib.util.module_from_spec(spec);spec.loader.exec_module(server)
 PAYLOAD=dict(image_digest='sha256:'+'a'*64,source_commit='b'*40,version='0.0.2',registry_user='maxffarrell',registry_token='test-only')
 class SenderTests(unittest.TestCase):
  def test_key_is_private_and_removed_after_success_or_failure(self):
-  env=dict(DEMO_SSH_KEY='test_not_real_ssh_key',IMAGE_DIGEST=PAYLOAD['image_digest'],GITHUB_ACTOR=PAYLOAD['registry_user'],GH_TOKEN='test_not_real_registry_token',SOURCE_COMMIT=PAYLOAD['source_commit'],RELEASE_VERSION=PAYLOAD['version'])
+  env=dict(DEMO_SSH_KEY='test_not_real_ssh_key',IMAGE_DIGEST=PAYLOAD['image_digest'],GITHUB_REPOSITORY_OWNER=PAYLOAD['registry_user'],GH_TOKEN='test_not_real_registry_token',SOURCE_COMMIT=PAYLOAD['source_commit'],RELEASE_VERSION=PAYLOAD['version'])
   for fail in (False,True):
    paths=[]
    def send(args,**kw):
