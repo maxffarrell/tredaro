@@ -1,5 +1,5 @@
 <script lang="ts">
-	/* Basic SSO and passkey management are included in the AGPL core. */
+	/* Basic SSO and passkey management are included in the MIT core. */
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { authClient } from '#lib/auth-client.ts';
