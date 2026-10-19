@@ -39,7 +39,7 @@ Webhooks + the REST API are the integration surface.
 
 ## Quick start
 
-Tredaro is open core: the core is licensed under AGPL-3.0 ([LICENSE-AGPL.txt](LICENSE-AGPL.txt)), with separately licensed enterprise features. Copy [.env.example](.env.example) to `.env` for self-hosted setup. Report vulnerabilities privately through [SECURITY.md](SECURITY.md).
+Tredaro is open core: the core is licensed under [MIT](LICENSE-MIT.txt), with separately licensed enterprise features. Copy [.env.example](.env.example) to `.env` for self-hosted setup. Report vulnerabilities privately through [SECURITY.md](SECURITY.md).
 
 ```sh
 cp .env.example .env           # set a persistent random BETTER_AUTH_SECRET (32+ characters)
@@ -101,7 +101,7 @@ Webhooks (Settings → Webhooks) are signed with HMAC-SHA256 in `x-tredaro-signa
 
 ## License
 
-AGPLv3 for the core, including basic SSO, passkeys and all current BYOK AI features. `packages/sdk` is MIT. The enterprise license in `ee/LICENSE` is reserved for future files under `src/lib/server/ee/` or marked `/* @license Enterprise */`; no current application feature requires an enterprise key.
+[MIT](LICENSE-MIT.txt) for the core, including basic SSO, passkeys and all current BYOK AI features. `packages/sdk` is MIT. The enterprise license in `ee/LICENSE` is reserved for future files under `src/lib/server/ee/` or marked `/* @license Enterprise */`; no current application feature requires an enterprise key.
 
 ## Release readiness
 
