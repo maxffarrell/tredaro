@@ -88,7 +88,7 @@ jobs:
         # AWS ECR Public mirror of the official image — anonymous pulls from
         # shared GitHub runner IPs keep tripping Docker Hub's unauthenticated
         # pull rate limit (429) and killing the build before tests run.
-        image: public.ecr.aws/docker/library/postgres:18-alpine
+        image: postgres:18-alpine
         env:
           # Isolated, disposable CI database credentials; never use in production.
           POSTGRES_USER: demo_test
