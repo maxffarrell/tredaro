@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.1.6
+
+### Patch Changes
+
+- 2167b50: Require patched Node.js runtimes for CVE-2026-111497 and rebuild containers with Node.js 26.12.1.
+
 ## 0.1.5
 
 ### Patch Changes
