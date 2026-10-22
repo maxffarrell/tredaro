@@ -10,6 +10,8 @@ Include the affected revision, installation mode, prerequisites, a minimal repro
 
 ## Operating an installation
 
+Use Node.js 26.12.1+ on the 26.x line for local and container installations. Vercel-managed installations may use Node.js 24.22.1+ on the 24.x line. These minimums include the [CVE-2026-111497 Brotli decoder fix](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases). Rebuild and redeploy existing containers after updating; a source change does not replace a running runtime. For Vercel, verify the provider has applied the patched runtime to the deployment; an inbound WAF rule does not protect outbound Brotli responses.
+
 Use HTTPS, persistent authentication secrets, restricted database access and tested backups. Keep dependencies and releases current. Enable demo mode only on a separate disposable installation. Basic SSO, passkeys and BYOK AI are available in the self-hosted core; operators must configure their identity and model providers.
 
 Public estimate/invoice/booking links expire after 30 days and service-report links after 90 days. Treat them as bearer credentials. See [the upgrade notes](README.md#public-link-security-upgrade) before upgrading: legacy links are invalidated. Reissue links rather than weakening expiry checks. Keep the existing PostgreSQL role password across deployments; Compose environment changes do not rotate an initialized database's credentials.
