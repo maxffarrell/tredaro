@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1
-# AWS ECR Public mirror — same Docker Hub 429 rate-limit workaround as CI's
-# postgres service (anonymous pulls from shared IPs get throttled).
-FROM public.ecr.aws/docker/library/node:26-alpine AS base
+FROM node:26.12.1-alpine AS base
 # Node 25+ no longer bundles Corepack.
 RUN npm install -g pnpm@12.4.1 && npm cache clean --force
 WORKDIR /app
@@ -9,6 +7,7 @@ WORKDIR /app
 FROM base AS build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages ./packages
+COPY scripts/check-node.mjs ./scripts/check-node.mjs
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 COPY . .
 # Placeholders satisfy route analysis at build time; real values are validated when the server starts.
