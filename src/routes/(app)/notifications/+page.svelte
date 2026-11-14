@@ -17,7 +17,7 @@
 	import { formatRelative } from '#lib/format.ts';
 	import Bell from '@lucide/svelte/icons/bell';
 	import { toast } from 'svelte-sonner';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
 	import { errMsg } from '#lib/format.ts';
@@ -239,21 +239,21 @@
 	</Card.Root>
 </div>
 
-<Dialog.Root
+<Modal.Root
 	open={replyTo !== null}
 	onOpenChange={(v) => {
 		if (!v) replyTo = null;
 	}}
 >
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Text the customer</Dialog.Title>
-			<Dialog.Description>Sends an SMS via the org's Twilio number.</Dialog.Description>
-		</Dialog.Header>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Text the customer</Modal.Title>
+			<Modal.Description>Sends an SMS via the org's Twilio number.</Modal.Description>
+		</Modal.Header>
 		<Textarea rows={3} bind:value={replyText} placeholder="Type a reply…" />
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (replyTo = null)}>Cancel</Button>
 			<Button onclick={sendReply} disabled={replyPending || !replyText.trim()}>Send</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>

@@ -7,7 +7,7 @@
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
@@ -954,11 +954,11 @@
 </div>
 
 <!-- visit rating dialog -->
-<Dialog.Root bind:open={rateOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>How was the visit?</Dialog.Title>
-		</Dialog.Header>
+<Modal.Root bind:open={rateOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>How was the visit?</Modal.Title>
+		</Modal.Header>
 		<div class="space-y-4">
 			<div class="flex gap-1">
 				{#each [1, 2, 3, 4, 5] as n (n)}
@@ -980,16 +980,16 @@
 				>{ratePending ? 'Saving…' : 'Submit rating'}</Button
 			>
 		</div>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- request service dialog -->
-<Dialog.Root bind:open={reqOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Request service</Dialog.Title>
-			<Dialog.Description>Tell us what you need and when works for you.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root bind:open={reqOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Request service</Modal.Title>
+			<Modal.Description>Tell us what you need and when works for you.</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitRequest}>
 			<Field.Field>
 				<Field.Label>Location</Field.Label>
@@ -1063,29 +1063,27 @@
 					A picture of the issue helps the tech arrive prepared.
 				</p>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={reqPending}
 					>{reqPending ? 'Sending…' : 'Send request'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- reschedule request dialog -->
-<Dialog.Root
+<Modal.Root
 	open={!!reschedJobId}
 	onOpenChange={(o: boolean) => {
 		if (!o) reschedJobId = '';
 	}}
 >
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Request a different time</Dialog.Title>
-			<Dialog.Description>
-				Tell us when works better and we'll confirm a new slot.
-			</Dialog.Description>
-		</Dialog.Header>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Request a different time</Modal.Title>
+			<Modal.Description>Tell us when works better and we'll confirm a new slot.</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitReschedule}>
 			<Field.Field>
 				<Field.Label for="resched-when">Preferred time</Field.Label>
@@ -1095,30 +1093,30 @@
 					placeholder="e.g. Friday afternoon, or after 3pm weekdays"
 				/>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={reschedPending || !reschedWhen.trim()}
 					>{reschedPending ? 'Sending…' : 'Send request'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- cancel request dialog -->
-<Dialog.Root
+<Modal.Root
 	open={!!cancelJobId}
 	onOpenChange={(o: boolean) => {
 		if (!o) cancelJobId = '';
 	}}
 >
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Request cancellation</Dialog.Title>
-			<Dialog.Description>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Request cancellation</Modal.Title>
+			<Modal.Description>
 				This sends a request to the office — the visit stays on the calendar until we confirm with
 				you.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitCancel}>
 			<Field.Field>
 				<Field.Label for="cancel-reason">Reason (optional)</Field.Label>
@@ -1128,29 +1126,29 @@
 					placeholder="e.g. plans changed, found someone else"
 				/>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" variant="destructive" disabled={cancelPending}
 					>{cancelPending ? 'Sending…' : 'Request cancellation'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- charge problem dialog -->
-<Dialog.Root
+<Modal.Root
 	open={!!reportChargeId}
 	onOpenChange={(o: boolean) => {
 		if (!o) reportChargeId = '';
 	}}
 >
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Report a problem</Dialog.Title>
-			<Dialog.Description>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Report a problem</Modal.Title>
+			<Modal.Description>
 				Tell us what's wrong with this charge — we'll hold off and follow up with you.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitReport}>
 			<Field.Field>
 				<Field.Label for="report-note">What looks wrong?</Field.Label>
@@ -1160,29 +1158,29 @@
 					placeholder="e.g. wrong amount, already paid, didn't authorize"
 				/>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={reportPending || !reportNote.trim()}
 					>{reportPending ? 'Sending…' : 'Report problem'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- message-us dialog -->
-<Dialog.Root
+<Modal.Root
 	open={msgOpen}
 	onOpenChange={(o: boolean) => {
 		if (!o) msgOpen = false;
 	}}
 >
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Message us</Dialog.Title>
-			<Dialog.Description>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Message us</Modal.Title>
+			<Modal.Description>
 				Questions about a visit or your bill? We'll reply by email or text.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={sendMsg}>
 			<Field.Field>
 				<Field.Label for="msg-body">Your message</Field.Label>
@@ -1194,11 +1192,11 @@
 					maxlength={1000}
 				/>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={msgPending || !msgBody.trim()}
 					>{msgPending ? 'Sending…' : 'Send message'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

@@ -16,7 +16,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -1902,14 +1902,14 @@
 </div>
 
 <!-- location dialog -->
-<Dialog.Root bind:open={locOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{locId ? 'Edit' : 'Add'} service location</Dialog.Title>
-			<Dialog.Description
-				>Where the work happens — an address plus optional on-site contact.</Dialog.Description
+<Modal.Root bind:open={locOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>{locId ? 'Edit' : 'Add'} service location</Modal.Title>
+			<Modal.Description
+				>Where the work happens — an address plus optional on-site contact.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveLocation}>
 			<Field.Field>
 				<Field.Label for="l-label">Label</Field.Label>
@@ -1928,21 +1928,21 @@
 				<Field.Label for="l-access">Access notes</Field.Label>
 				<Input id="l-access" bind:value={accessNotes} placeholder="Gate code, key location…" />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={locPending}>{locPending ? 'Saving…' : 'Save'}</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={fupOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>New follow-up</Dialog.Title>
-			<Dialog.Description
-				>A dated reminder — it shows here, on the dashboard when due, and in the assignee's inbox.</Dialog.Description
+<Modal.Root bind:open={fupOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>New follow-up</Modal.Title>
+			<Modal.Description
+				>A dated reminder — it shows here, on the dashboard when due, and in the assignee's inbox.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveFollowUp}>
 			<Field.Field>
 				<Field.Label for="fup-note">Note</Field.Label>
@@ -1968,22 +1968,21 @@
 					</Select.Root>
 				</Field.Field>
 			</div>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={fupPending || !fupNote.trim() || !fupDue}
 					>{fupPending ? 'Saving…' : 'Add follow-up'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={contactOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{contactId ? 'Edit contact' : 'New contact'}</Dialog.Title>
-			<Dialog.Description>A person at this account — office manager, tenant, AP.</Dialog.Description
-			>
-		</Dialog.Header>
+<Modal.Root bind:open={contactOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>{contactId ? 'Edit contact' : 'New contact'}</Modal.Title>
+			<Modal.Description>A person at this account — office manager, tenant, AP.</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveContact}>
 			<Field.Field>
 				<Field.Label for="ct-name">Name</Field.Label>
@@ -2006,23 +2005,23 @@
 			<label class="flex items-center gap-2 text-sm">
 				<Switch bind:checked={contactPrimary} /> Primary contact
 			</label>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={contactPending || !contactName.trim()}
 					>{contactPending ? 'Saving…' : 'Save contact'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={creditOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Add account credit</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={creditOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Add account credit</Modal.Title>
+			<Modal.Description>
 				A negative charge — lowers {c.customer.name}'s open balance automatically.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitCredit}>
 			<Field.Field>
 				<Field.Label for="cr-amt">Amount</Field.Label>
@@ -2040,26 +2039,26 @@
 				<Field.Label for="cr-note">Note</Field.Label>
 				<Input id="cr-note" bind:value={creditNote} placeholder="Optional — e.g. goodwill" />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={creditPending || creditCents <= 0}
 					>{creditPending
 						? 'Saving…'
 						: `Add ${creditCents ? formatMoney(creditCents, currency) : 'credit'}`}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- equipment dialog -->
-<Dialog.Root bind:open={eqOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{eqId ? 'Edit' : 'Add'} equipment</Dialog.Title>
-			<Dialog.Description
-				>Installed equipment at a site — jobs can link to it for service history.</Dialog.Description
+<Modal.Root bind:open={eqOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>{eqId ? 'Edit' : 'Add'} equipment</Modal.Title>
+			<Modal.Description
+				>Installed equipment at a site — jobs can link to it for service history.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveEquipment}>
 			<Field.Field>
 				<Field.Label for="eq-name">Name</Field.Label>
@@ -2182,7 +2181,7 @@
 					>
 				</div>
 			{/if}
-			<Dialog.Footer class="justify-between sm:justify-between">
+			<Modal.Footer class="justify-between sm:justify-between">
 				{#if eqId && eqActive}
 					<Button
 						variant="ghost"
@@ -2194,20 +2193,20 @@
 					<span></span>
 				{/if}
 				<Button type="submit" disabled={eqPending}>{eqPending ? 'Saving…' : 'Save'}</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- record payment dialog -->
-<Dialog.Root bind:open={payOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Record payment</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={payOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Record payment</Modal.Title>
+			<Modal.Description>
 				Collected outside Tredaro — applies to the oldest open charges first.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitPayment}>
 			<Field.Field>
 				<Field.Label for="p-amt">Amount</Field.Label>
@@ -2236,27 +2235,27 @@
 				<Field.Label for="p-note">Note</Field.Label>
 				<Input id="p-note" bind:value={payNote} placeholder="Optional" />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={payPending || payCents <= 0}
 					>{payPending
 						? 'Saving…'
 						: `Record ${payCents ? formatMoney(payCents, currency) : ''}`}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={mergeOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Merge into {c.customer.name}</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={mergeOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Merge into {c.customer.name}</Modal.Title>
+			<Modal.Description>
 				Pick the duplicate to merge. Its jobs, invoices, charges, payments, agreements, equipment
 				and locations move to {c.customer.name}, and the duplicate is deleted — this can't be
 				undone.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-2">
 			{#each dupes as d (d.customer.id)}
 				<button
@@ -2306,27 +2305,27 @@
 			{/if}
 		{/if}
 		{#if dupes.length}
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button variant="destructive" disabled={!mergeSource || mergePending} onclick={doMerge}>
 					{mergePending
 						? 'Merging…'
 						: `Merge ${mergeTarget?.customer.name ?? '…'} into this customer`}
 				</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- schedule agreement visits -->
-<Dialog.Root bind:open={visitsOpen}>
-	<Dialog.Content class="max-w-lg">
-		<Dialog.Header>
-			<Dialog.Title>Schedule agreement visits</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={visitsOpen}>
+	<Modal.Content class="max-w-lg">
+		<Modal.Header>
+			<Modal.Title>Schedule agreement visits</Modal.Title>
+			<Modal.Description>
 				{pendingVisits.length} unscheduled visit{pendingVisits.length === 1 ? '' : 's'} from service agreements
 				— set a start (and optionally a technician) for each.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="max-h-96 space-y-2 overflow-y-auto">
 			{#each visitRows as v, i (v.jobId)}
 				{@const j = pendingVisits[i]}
@@ -2361,23 +2360,23 @@
 				</div>
 			{/each}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button disabled={visitsPending || visitRows.some((v) => !v.startsAt)} onclick={saveVisits}>
 				{visitsPending ? 'Scheduling…' : `Schedule ${visitRows.length}`}
 			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- manual text -->
-<Dialog.Root bind:open={textOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Text {c.customer.name}</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={textOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Text {c.customer.name}</Modal.Title>
+			<Modal.Description>
 				Sends an SMS to {c.customer.phone} from your company's number.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={sendText}>
 			<Field.Field>
 				<Field.Label for="cust-text">Message</Field.Label>
@@ -2389,23 +2388,23 @@
 					placeholder="Running about 20 minutes behind — see you soon"
 				/>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={textPending || !textMsg.trim()}
 					>{textPending ? 'Sending…' : 'Send text'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={expOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Document expiry</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={expOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Document expiry</Modal.Title>
+			<Modal.Description>
 				Warranty, permit or insurance expiry — surfaces on the dashboard when it's within 30 days.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form
 			class="space-y-4"
 			onsubmit={(e) => {
@@ -2417,27 +2416,27 @@
 				<Field.Label for="doc-exp">Expires on</Field.Label>
 				<Input id="doc-exp" type="date" bind:value={expDate} />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="button" variant="outline" onclick={() => (expOpen = false)}>Cancel</Button>
 				<Button type="submit">Save</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- AI customer brief -->
-<Dialog.Root bind:open={briefOpen}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>AI brief — {c.customer.name}</Dialog.Title>
-			<Dialog.Description
-				>Skim before the call. Drafted from jobs, invoices, and agreements.</Dialog.Description
+<Modal.Root bind:open={briefOpen}>
+	<Modal.Content class="sm:max-w-md">
+		<Modal.Header>
+			<Modal.Title>AI brief — {c.customer.name}</Modal.Title>
+			<Modal.Description
+				>Skim before the call. Drafted from jobs, invoices, and agreements.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		{#if briefPending}
 			<p class="py-4 text-sm text-muted-foreground">Drafting…</p>
 		{:else}
 			<p class="text-sm leading-relaxed whitespace-pre-wrap">{briefText}</p>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

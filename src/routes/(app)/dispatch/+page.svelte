@@ -23,7 +23,7 @@
 	import { getOffices, getSettings } from '#lib/remote/workspace.remote.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { localDate, localTime } from '#lib/tz.ts';
 	import { addDays } from '#lib/tz.ts';
@@ -1199,12 +1199,12 @@
 </div>
 
 <!-- per-tech day note -->
-<Dialog.Root bind:open={noteOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Day note — {noteName}</Dialog.Title>
-			<Dialog.Description>Shown as a banner on their My Day.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root bind:open={noteOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Day note — {noteName}</Modal.Title>
+			<Modal.Description>Shown as a banner on their My Day.</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-3" onsubmit={saveDayNote}>
 			<Input
 				type="date"
@@ -1233,18 +1233,18 @@
 				>
 			</div>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- AI dispatch suggestions -->
-<Dialog.Root bind:open={suggestOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>AI assignment suggestions — {dayFilter || todayStr}</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={suggestOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>AI assignment suggestions — {dayFilter || todayStr}</Modal.Title>
+			<Modal.Description>
 				One pick per queued job — apply row by row, or close to keep the board as-is.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		{#if suggestions.length}
 			<div class="divide-y">
 				{#each suggestions as s (s.jobId)}
@@ -1269,5 +1269,5 @@
 				No suggestions — the queue is empty or nothing matched a tech's day.
 			</p>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

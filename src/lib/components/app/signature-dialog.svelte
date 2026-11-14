@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
@@ -96,12 +96,12 @@
 	}
 </script>
 
-<Dialog.Root bind:open>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Customer signature</Dialog.Title>
-			<Dialog.Description>Have the customer sign to confirm the work.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root bind:open>
+	<Modal.Content class="sm:max-w-md">
+		<Modal.Header>
+			<Modal.Title>Customer signature</Modal.Title>
+			<Modal.Description>Have the customer sign to confirm the work.</Modal.Description>
+		</Modal.Header>
 		<div class="grid gap-3">
 			<canvas
 				bind:this={canvas}
@@ -135,11 +135,11 @@
 				<Button variant="ghost" size="icon" onclick={clear} title="Clear"><Eraser /></Button>
 			</div>
 		</div>
-		<Dialog.Footer class="flex-col gap-2 sm:flex-row">
+		<Modal.Footer class="flex-col gap-2 sm:flex-row">
 			{#if onSkip}
 				<Button variant="ghost" disabled={pending} onclick={onSkip}>{skipLabel ?? 'Skip'}</Button>
 			{/if}
 			<Button disabled={pending || !drawn || !hasName} onclick={save}>Sign &amp; confirm</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>

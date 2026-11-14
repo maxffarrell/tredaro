@@ -7,7 +7,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
@@ -469,14 +469,14 @@
 	</div>
 </div>
 
-<Dialog.Root bind:open={expOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Document expiry</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={expOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Document expiry</Modal.Title>
+			<Modal.Description>
 				License, cert or insurance expiry — surfaces on the dashboard when it's within 30 days.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form
 			class="space-y-4"
 			onsubmit={(e) => {
@@ -485,10 +485,10 @@
 			}}
 		>
 			<Input type="date" bind:value={expDate} />
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="button" variant="outline" onclick={() => (expOpen = false)}>Cancel</Button>
 				<Button type="submit">Save</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

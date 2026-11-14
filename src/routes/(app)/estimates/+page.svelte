@@ -6,7 +6,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
@@ -359,14 +359,14 @@
 	</Card.Root>
 </div>
 
-<Dialog.Root bind:open>
-	<Dialog.Content class="sm:max-w-xl">
-		<Dialog.Header>
-			<Dialog.Title>New estimate</Dialog.Title>
-			<Dialog.Description
-				>Line items in {currency}. You can send it after it's created.</Dialog.Description
+<Modal.Root bind:open>
+	<Modal.Content class="sm:max-w-xl">
+		<Modal.Header>
+			<Modal.Title>New estimate</Modal.Title>
+			<Modal.Description
+				>Line items in {currency}. You can send it after it's created.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submit}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
@@ -494,11 +494,11 @@
 				<Field.Label for="e-notes">Notes</Field.Label>
 				<Textarea id="e-notes" rows={3} bind:value={notes} placeholder="Terms, exclusions, etc." />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={pending || !customerId}
 					>{pending ? 'Creating…' : 'Create estimate'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

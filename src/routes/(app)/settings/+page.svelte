@@ -12,7 +12,7 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -1958,9 +1958,9 @@
 	</Tabs.Root>
 </div>
 
-<Dialog.Root bind:open={locOpen}>
-	<Dialog.Content>
-		<Dialog.Header><Dialog.Title>Add office</Dialog.Title></Dialog.Header>
+<Modal.Root bind:open={locOpen}>
+	<Modal.Content>
+		<Modal.Header><Modal.Title>Add office</Modal.Title></Modal.Header>
 		<form class="space-y-4" onsubmit={addOffice}>
 			<Field.Field
 				><Field.Label for="loc-name">Name</Field.Label><Input
@@ -1971,17 +1971,17 @@
 					autofocus
 				/></Field.Field
 			>
-			<Dialog.Footer><Button type="submit" disabled={pending}>Add</Button></Dialog.Footer>
+			<Modal.Footer><Button type="submit" disabled={pending}>Add</Button></Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- job type editor -->
-<Dialog.Root bind:open={jtOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{jtEdit ? `Edit ${jtEdit.name}` : 'New job type'}</Dialog.Title>
-		</Dialog.Header>
+<Modal.Root bind:open={jtOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>{jtEdit ? `Edit ${jtEdit.name}` : 'New job type'}</Modal.Title>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveJt}>
 			<Field.Field>
 				<Field.Label for="jt-name">Name</Field.Label>
@@ -2131,22 +2131,22 @@
 				<label for="jt-active" class="text-sm font-medium">Active</label>
 				<Switch id="jt-active" checked={jtActive} onCheckedChange={(v) => (jtActive = v)} />
 			</div>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- material kit editor -->
-<Dialog.Root bind:open={kitOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Material kit — {kitType?.name}</Dialog.Title>
-			<Dialog.Description
-				>Default materials a tech can add to a job of this type in one tap (from warehouse stock).</Dialog.Description
+<Modal.Root bind:open={kitOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Material kit — {kitType?.name}</Modal.Title>
+			<Modal.Description
+				>Default materials a tech can add to a job of this type in one tap (from warehouse stock).</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<div class="space-y-2">
 			{#each kitRows as row, i (i)}
 				<div class="flex items-center gap-2">
@@ -2191,8 +2191,8 @@
 				><Plus class="size-4" /> Add item</Button
 			>
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button onclick={saveKit} disabled={kitPending}>{kitPending ? 'Saving…' : 'Save kit'}</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>

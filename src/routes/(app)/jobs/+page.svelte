@@ -6,7 +6,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
@@ -458,14 +458,14 @@
 	</Card.Root>
 </div>
 
-<Dialog.Root bind:open>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>New job</Dialog.Title>
-			<Dialog.Description
-				>Leave the time empty to park it in the unscheduled queue.</Dialog.Description
+<Modal.Root bind:open>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>New job</Modal.Title>
+			<Modal.Description
+				>Leave the time empty to park it in the unscheduled queue.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submit}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
@@ -580,25 +580,25 @@
 					</Select.Content>
 				</Select.Root>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={pending || !customerId}
 					>{pending ? 'Creating…' : 'Create job'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- AI job intake -->
-<Dialog.Root bind:open={intakeOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>AI job intake</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={intakeOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>AI job intake</Modal.Title>
+			<Modal.Description>
 				Paste call notes, a voicemail transcript, or a forwarded email — the model drafts the
 				customer and job for review.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			<Textarea
 				rows={6}
@@ -679,11 +679,11 @@
 			{/if}
 		</div>
 		{#if intakeDraft && intakeUsable}
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button disabled={intakeCreating} onclick={createIntakeJob}
 					>{intakeCreating ? 'Creating…' : 'Create job'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

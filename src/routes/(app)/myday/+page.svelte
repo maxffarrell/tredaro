@@ -28,7 +28,7 @@
 	import { getTruckStock, addJobMaterial } from '#lib/remote/inventory.remote.ts';
 	import Package from '@lucide/svelte/icons/package';
 	import SignatureDialog from '#lib/components/app/signature-dialog.svelte';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -950,38 +950,38 @@
 	{/if}
 </div>
 
-<Dialog.Root
+<Modal.Root
 	open={noteJobId !== null}
 	onOpenChange={(v) => {
 		if (!v) noteJobId = null;
 	}}
 >
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Job note</Dialog.Title>
-			<Dialog.Description>Logged to the job timeline — visible to the office.</Dialog.Description>
-		</Dialog.Header>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Job note</Modal.Title>
+			<Modal.Description>Logged to the job timeline — visible to the office.</Modal.Description>
+		</Modal.Header>
 		<Textarea rows={3} bind:value={noteText} placeholder="What should the office know?" />
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (noteJobId = null)}>Cancel</Button>
 			<Button onclick={saveNote} disabled={pending !== null || !noteText.trim()}>Save note</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root
+<Modal.Root
 	open={partJobId !== null}
 	onOpenChange={(v) => {
 		if (!v) partJobId = null;
 	}}
 >
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Log part used</Dialog.Title>
-			<Dialog.Description
-				>Comes off your truck stock — bill it on the invoice later.</Dialog.Description
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Log part used</Modal.Title>
+			<Modal.Description
+				>Comes off your truck stock — bill it on the invoice later.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<div class="grid gap-3">
 			<Select.Root type="single" value={partItemId} onValueChange={(v) => (partItemId = v ?? '')}>
 				<Select.Trigger class="w-full" data-testid="part-item"
@@ -1001,23 +1001,23 @@
 				<Input type="number" min="1" bind:value={partQty} data-testid="part-qty" />
 			</Label>
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (partJobId = null)}>Cancel</Button>
 			<Button onclick={logPart} disabled={pending !== null || !partItemId || partQty < 1}
 				>Log part</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={ptoOpen}>
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Request time off</Dialog.Title>
-			<Dialog.Description
-				>Blocked on the dispatch board immediately — the office is emailed a heads-up.</Dialog.Description
+<Modal.Root bind:open={ptoOpen}>
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Request time off</Modal.Title>
+			<Modal.Description
+				>Blocked on the dispatch board immediately — the office is emailed a heads-up.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<div class="grid gap-3">
 			<div class="grid gap-1.5">
 				<Label for="pto-start">From</Label>
@@ -1032,14 +1032,14 @@
 				<Input id="pto-reason" bind:value={ptoReason} placeholder="PTO, appointment…" />
 			</div>
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (ptoOpen = false)}>Cancel</Button>
 			<Button onclick={saveTimeOff} disabled={ptoPending || !ptoStart || !ptoEnd}
 				>{ptoPending ? 'Saving…' : 'Mark off'}</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <input
 	bind:this={photoInput}
@@ -1065,19 +1065,19 @@
 	}}
 />
 
-<Dialog.Root
+<Modal.Root
 	open={expJobId !== null}
 	onOpenChange={(v) => {
 		if (!v) expJobId = null;
 	}}
 >
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Job expense</Dialog.Title>
-			<Dialog.Description
-				>Permits, parking, subcontractors — billable on the job's invoice.</Dialog.Description
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Job expense</Modal.Title>
+			<Modal.Description
+				>Permits, parking, subcontractors — billable on the job's invoice.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<div class="space-y-3">
 			<div class="space-y-1.5">
 				<Label for="exp-desc">Description</Label>
@@ -1092,45 +1092,45 @@
 				<MoneyInput id="exp-amt" bind:value={expAmount} />
 			</div>
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (expJobId = null)}>Cancel</Button>
 			<Button onclick={saveExpense} disabled={!expDesc.trim() || expAmount <= 0}>Log expense</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root
+<Modal.Root
 	open={textCustomerId !== null}
 	onOpenChange={(v) => {
 		if (!v) textCustomerId = null;
 	}}
 >
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Text the customer</Dialog.Title>
-			<Dialog.Description
-				>Sends from your company's number — replies land in the inbox.</Dialog.Description
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Text the customer</Modal.Title>
+			<Modal.Description
+				>Sends from your company's number — replies land in the inbox.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<Textarea rows={3} bind:value={textMsg} placeholder="Running about 15 minutes behind…" />
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (textCustomerId = null)}>Cancel</Button>
 			<Button onclick={sendText} disabled={!textMsg.trim()}>Send text</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root
+<Modal.Root
 	open={collectCustomerId !== null}
 	onOpenChange={(v) => {
 		if (!v) collectCustomerId = null;
 	}}
 >
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Collect payment</Dialog.Title>
-			<Dialog.Description>
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Collect payment</Modal.Title>
+			<Modal.Description>
 				{#if collectBal?.count}
 					{collectBal.count} open charge{collectBal.count === 1 ? '' : 's'} — balance {formatMoney(
 						collectBal.open,
@@ -1139,8 +1139,8 @@
 				{:else}
 					Nothing owed — record anyway to log a prepayment credit.
 				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			<div class="space-y-1.5">
 				<Label for="collect-amt">Amount</Label>
@@ -1169,19 +1169,19 @@
 				<Input id="collect-notes" bind:value={collectNotes} placeholder="Check #1234" />
 			</div>
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (collectCustomerId = null)}>Cancel</Button>
 			<Button onclick={collect} disabled={collectAmount <= 0}>Record payment</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={wrapOpen}>
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Day wrap-up</Dialog.Title>
-			<Dialog.Description>{day.today} — your numbers for the office.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root bind:open={wrapOpen}>
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Day wrap-up</Modal.Title>
+			<Modal.Description>{day.today} — your numbers for the office.</Modal.Description>
+		</Modal.Header>
 		{@const doneJobs = day.jobs.filter((j) => j.job.status === 'done')}
 		<div class="space-y-2 text-sm">
 			<div class="flex justify-between">
@@ -1217,24 +1217,24 @@
 				</p>
 			{/if}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button onclick={() => (wrapOpen = false)}>Done</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- running-late dialog -->
-<Dialog.Root
+<Modal.Root
 	open={!!lateJobId}
 	onOpenChange={(o: boolean) => {
 		if (!o) lateJobId = null;
 	}}
 >
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Running late</Dialog.Title>
-			<Dialog.Description>Text the customer a new ETA — how far behind are you?</Dialog.Description>
-		</Dialog.Header>
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Running late</Modal.Title>
+			<Modal.Description>Text the customer a new ETA — how far behind are you?</Modal.Description>
+		</Modal.Header>
 		<div class="grid grid-cols-2 gap-2">
 			{#each [15, 30, 60, 90] as m (m)}
 				<Button
@@ -1244,5 +1244,5 @@
 				>
 			{/each}
 		</div>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
