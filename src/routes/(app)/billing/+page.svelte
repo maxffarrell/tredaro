@@ -8,7 +8,7 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -825,12 +825,12 @@
 </div>
 
 <!-- new invoice -->
-<Dialog.Root bind:open={invoiceOpen}>
-	<Dialog.Content class="sm:max-w-xl">
-		<Dialog.Header>
-			<Dialog.Title>New invoice</Dialog.Title>
-			<Dialog.Description>Issuing posts one receivable charge for the total.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root bind:open={invoiceOpen}>
+	<Modal.Content class="sm:max-w-xl">
+		<Modal.Header>
+			<Modal.Title>New invoice</Modal.Title>
+			<Modal.Description>Issuing posts one receivable charge for the total.</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitInvoice}>
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Field.Field>
@@ -941,22 +941,22 @@
 				<Field.Label for="i-due">Due date</Field.Label>
 				<Input id="i-due" type="date" bind:value={invDueDate} />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={invoicePending || !invCustomerId}
 					>{invoicePending ? 'Issuing…' : 'Issue invoice'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- post charge -->
-<Dialog.Root bind:open={chargeOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Post charge</Dialog.Title>
-			<Dialog.Description>One-off receivable against a customer.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root bind:open={chargeOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Post charge</Modal.Title>
+			<Modal.Description>One-off receivable against a customer.</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitCharge}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
@@ -983,22 +983,22 @@
 				<Field.Label for="ch-due">Due date</Field.Label>
 				<Input id="ch-due" type="date" bind:value={chDue} />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={chargePending || !chCustomerId || chCents <= 0}
 					>{chargePending ? 'Posting…' : 'Post charge'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- record payment -->
-<Dialog.Root bind:open={payOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Record payment</Dialog.Title>
-			<Dialog.Description>Applies to the customer's oldest open charges first.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root bind:open={payOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Record payment</Modal.Title>
+			<Modal.Description>Applies to the customer's oldest open charges first.</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitPayment}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
@@ -1036,25 +1036,25 @@
 				<Field.Label for="pp-note">Note</Field.Label>
 				<Input id="pp-note" bind:value={payNote} placeholder="Optional" />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={payPending || !payCustomerId || payCents <= 0}
 					>{payPending ? 'Saving…' : 'Record payment'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- payment plan -->
-<Dialog.Root bind:open={planOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Split into a payment plan</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={planOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Split into a payment plan</Modal.Title>
+			<Modal.Description>
 				Voids “{planLabel}” and replaces it with dated installments — the customer pays each one as
 				it comes due.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submitPlan}>
 			<Field.Field>
 				<Field.Label for="plan-count">Installments</Field.Label>
@@ -1068,11 +1068,11 @@
 				<Field.Label for="plan-days">Days between payments</Field.Label>
 				<Input id="plan-days" type="number" min="7" max="90" bind:value={planDays} />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={planPending}
 					>{#if planPending}<Spinner />{/if}Create plan</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

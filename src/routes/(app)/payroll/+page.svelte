@@ -2,7 +2,7 @@
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -490,14 +490,14 @@
 	{/each}
 </div>
 
-<Dialog.Root bind:open={editOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Edit time entry</Dialog.Title>
-			<Dialog.Description
-				>Correct the clock-in time or note — leave the end blank for a running timer.</Dialog.Description
+<Modal.Root bind:open={editOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Edit time entry</Modal.Title>
+			<Modal.Description
+				>Correct the clock-in time or note — leave the end blank for a running timer.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveEdit}>
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Field.Field>
@@ -515,23 +515,23 @@
 				<Field.Label for="pe-break">Unpaid break (minutes)</Field.Label>
 				<Input id="pe-break" type="number" min={0} max={720} bind:value={teBreak} />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="button" variant="outline" onclick={() => (editOpen = false)}>Cancel</Button>
 				<Button type="submit" disabled={!teStart}>Save</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={flagOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Flag for a fix</Dialog.Title>
-			<Dialog.Description
+<Modal.Root bind:open={flagOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Flag for a fix</Modal.Title>
+			<Modal.Description
 				>Tell the tech what's wrong — they get an inbox + email heads-up and the flag clears when
-				they edit the entry.</Dialog.Description
+				they edit the entry.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveFlag}>
 			<Field.Field>
 				<Field.Label for="pf-note">What needs fixing?</Field.Label>
@@ -542,12 +542,12 @@
 					required
 				/>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="button" variant="outline" onclick={() => (flagOpen = false)}>Cancel</Button>
 				<Button type="submit" disabled={flagPending || !flagNote}
 					>{flagPending ? 'Flagging…' : 'Flag'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

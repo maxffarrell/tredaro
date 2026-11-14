@@ -18,7 +18,7 @@
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -2367,14 +2367,14 @@
 </div>
 
 <!-- add follow-up -->
-<Dialog.Root bind:open={fupOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>New follow-up</Dialog.Title>
-			<Dialog.Description
-				>A dated reminder linked to this job — it shows on the dashboard when due.</Dialog.Description
+<Modal.Root bind:open={fupOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>New follow-up</Modal.Title>
+			<Modal.Description
+				>A dated reminder linked to this job — it shows on the dashboard when due.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveFollowUp}>
 			<Field.Field>
 				<Field.Label for="fup-note">Note</Field.Label>
@@ -2400,14 +2400,14 @@
 					</Select.Root>
 				</Field.Field>
 			</div>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={fupPending || !fupNote.trim() || !fupDue}
 					>{fupPending ? 'Saving…' : 'Add follow-up'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <SignatureDialog
 	bind:open={signOpen}
@@ -2423,14 +2423,14 @@
 />
 
 <!-- cancel reason -->
-<Dialog.Root bind:open={etaOpen}>
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Text an ETA</Dialog.Title>
-			<Dialog.Description
-				>Text {j.customerName} that you're on the way — roughly how many minutes out?</Dialog.Description
+<Modal.Root bind:open={etaOpen}>
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Text an ETA</Modal.Title>
+			<Modal.Description
+				>Text {j.customerName} that you're on the way — roughly how many minutes out?</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<div class="flex flex-wrap gap-2">
 			{#each [15, 30, 45, 60, 90] as m (m)}
 				<Button variant="outline" size="sm" disabled={etaPending} onclick={() => sendEta(m)}
@@ -2438,17 +2438,17 @@
 				>
 			{/each}
 		</div>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={cancelOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Cancel J-{j.job.number}?</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={cancelOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Cancel J-{j.job.number}?</Modal.Title>
+			<Modal.Description>
 				The job is removed from the schedule and any open timers are stopped.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={cancel}>
 			<Field.Field>
 				<Field.Label for="cancel-reason">Reason (optional)</Field.Label>
@@ -2458,25 +2458,25 @@
 					placeholder="e.g. customer rescheduled, duplicate job"
 				/>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" variant="destructive" disabled={cancelling}
 					>{cancelling ? 'Cancelling…' : 'Cancel job'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- repeat series -->
-<Dialog.Root bind:open={repeatOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>Repeat this job</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={repeatOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header>
+			<Modal.Title>Repeat this job</Modal.Title>
+			<Modal.Description>
 				Creates copies of J-{j.job.number}
 				{j.job.startsAt ? ' at the same time of day' : ' in the unscheduled queue'}.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={repeat}>
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
@@ -2488,19 +2488,19 @@
 					<Input id="rp-count" type="number" min={1} max={24} bind:value={repeatCount} />
 				</Field.Field>
 			</div>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={repeating}
 					>{repeating
 						? 'Booking…'
 						: `Book ${repeatCount} visit${repeatCount > 1 ? 's' : ''}`}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root open={!!lightbox} onOpenChange={(v) => !v && (lightbox = null)}>
-	<Dialog.Content class="max-w-3xl p-2 sm:p-4">
+<Modal.Root open={!!lightbox} onOpenChange={(v) => !v && (lightbox = null)}>
+	<Modal.Content class="max-w-3xl p-2 sm:p-4">
 		{#if lightbox}
 			<img
 				src="/files/job-photo/{lightbox.id}"
@@ -2513,18 +2513,18 @@
 					>{/if}
 			</p>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- AI material suggestions -->
-<Dialog.Root bind:open={aiMatOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Suggested materials — J-{j.job.number}</Dialog.Title>
-			<Dialog.Description
-				>Picked from in-stock inventory. Applying logs them on the job.</Dialog.Description
+<Modal.Root bind:open={aiMatOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Suggested materials — J-{j.job.number}</Modal.Title>
+			<Modal.Description
+				>Picked from in-stock inventory. Applying logs them on the job.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		{#if aiMats.length}
 			<div class="divide-y">
 				{#each aiMats as m (m.inventoryItemId)}
@@ -2536,15 +2536,15 @@
 					</div>
 				{/each}
 			</div>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button disabled={aiMatApplying} onclick={applyAiMats}
 					>{aiMatApplying
 						? 'Adding…'
 						: `Add ${aiMats.length} item${aiMats.length === 1 ? '' : 's'}`}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		{:else}
 			<p class="py-4 text-center text-sm text-muted-foreground">No suggestions.</p>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

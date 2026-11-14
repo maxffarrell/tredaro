@@ -7,7 +7,7 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -350,14 +350,14 @@
 </div>
 
 <!-- plan dialog -->
-<Dialog.Root bind:open={planOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{planId ? 'Edit' : 'New'} plan</Dialog.Title>
-			<Dialog.Description
-				>A recurring maintenance/contract tier customers subscribe to.</Dialog.Description
+<Modal.Root bind:open={planOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>{planId ? 'Edit' : 'New'} plan</Modal.Title>
+			<Modal.Description
+				>A recurring maintenance/contract tier customers subscribe to.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={savePlan}>
 			<Field.Field>
 				<Field.Label for="pl-name">Name</Field.Label>
@@ -416,23 +416,22 @@
 					>Each billing period auto-creates this many unscheduled jobs of this type for dispatch.</Field.Description
 				>
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={planPending}>{planPending ? 'Saving…' : 'Save plan'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- agreement dialog -->
-<Dialog.Root bind:open={agOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>New agreement</Dialog.Title>
-			<Dialog.Description
-				>Posts the initial fee plus the first billing period now.</Dialog.Description
+<Modal.Root bind:open={agOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>New agreement</Modal.Title>
+			<Modal.Description>Posts the initial fee plus the first billing period now.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveAgreement}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
@@ -492,11 +491,11 @@
 					Instead of completing, the agreement rolls into a new term and keeps billing.
 				</p>
 			{/if}
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={agPending || !agCustomerId || !agPlanId}
 					>{agPending ? 'Creating…' : 'Create agreement'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

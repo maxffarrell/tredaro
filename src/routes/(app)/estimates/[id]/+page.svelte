@@ -10,7 +10,7 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
@@ -738,14 +738,14 @@
 	</div>
 </div>
 
-<Dialog.Root bind:open={progOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Progress invoice</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={progOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Progress invoice</Modal.Title>
+			<Modal.Description>
 				Bill part of estimate E-{est.estimate.number} now; the remainder stays open for later invoices.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<p class="text-sm text-muted-foreground">
 			Already invoiced {formatMoney(prog.invoiced, currency)} of {formatMoney(
 				prog.total,
@@ -756,25 +756,25 @@
 			<Field.Label for="prog-pct">Percent to bill</Field.Label>
 			<Input id="prog-pct" type="number" min={1} max={100} bind:value={progPct} />
 		</Field.Field>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (progOpen = false)}>Cancel</Button>
 			<Button disabled={progBusy || !progPct} onclick={progressInvoice}
 				>{progBusy ? 'Creating…' : 'Create invoice'}</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- AI option tiers -->
-<Dialog.Root bind:open={tiersOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>AI option tiers</Dialog.Title>
-			<Dialog.Description
+<Modal.Root bind:open={tiersOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>AI option tiers</Modal.Title>
+			<Modal.Description
 				>Named groups the customer picks between on the approval page. Applying sets each line's
-				option group — review before saving.</Dialog.Description
+				option group — review before saving.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		{#if tierGroups.length}
 			<div class="space-y-3">
 				{#each tierGroups as g (g.name)}
@@ -789,11 +789,11 @@
 					</div>
 				{/each}
 			</div>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button onclick={applyTiers}>Apply tiers</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		{:else}
 			<p class="py-4 text-center text-sm text-muted-foreground">No tiers suggested.</p>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

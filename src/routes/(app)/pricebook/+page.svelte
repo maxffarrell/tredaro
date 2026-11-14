@@ -3,7 +3,7 @@
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
@@ -338,11 +338,11 @@
 	</Card.Root>
 </div>
 
-<Dialog.Root bind:open>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{itemId ? 'Edit' : 'New'} pricebook item</Dialog.Title>
-		</Dialog.Header>
+<Modal.Root bind:open>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>{itemId ? 'Edit' : 'New'} pricebook item</Modal.Title>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={save}>
 			<Field.Field>
 				<Field.Label for="pb-name">Name</Field.Label>
@@ -422,23 +422,23 @@
 					</Select.Root>
 				</Field.Field>
 			{/if}
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={importOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Import pricebook items</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={importOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Import pricebook items</Modal.Title>
+			<Modal.Description>
 				Paste CSV or pick a file — columns: name, kind (service|material), category, price,
 				duration_min, description, cost (all but name optional; header row optional). Items whose
 				name already exists are skipped.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			<Input type="file" accept=".csv,text/csv,text/plain" onchange={onImportFile} />
 			<Textarea
@@ -453,22 +453,22 @@
 				</p>
 			{/if}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button disabled={importPending || !importRows.length} onclick={runImport}
 				>{importPending ? 'Importing…' : 'Import'}</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={adjustOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Adjust prices</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={adjustOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Adjust prices</Modal.Title>
+			<Modal.Description>
 				Apply a percent change to active items — e.g. 5 for a 5% increase, -10 for a 10% discount.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			<Field.Field>
 				<Field.Label>Percent change</Field.Label>
@@ -499,24 +499,24 @@
 				</Field.Field>
 			{/if}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button disabled={adjustPending || adjustPct === 0} onclick={submitAdjust}
 				>{adjustPending ? 'Applying…' : 'Apply'}</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- AI draft -->
-<Dialog.Root bind:open={aiOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Draft items with AI</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={aiOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Draft items with AI</Modal.Title>
+			<Modal.Description>
 				Describe the services you offer or paste a vendor price list — the model drafts items
 				gaps-first against your catalog.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			<Textarea
 				rows={5}
@@ -556,13 +556,13 @@
 			{/if}
 		</div>
 		{#if aiRows.length}
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button disabled={aiAddPending} onclick={addAiRows}
 					>{aiAddPending
 						? 'Adding…'
 						: `Add ${aiRows.length} item${aiRows.length === 1 ? '' : 's'}`}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>

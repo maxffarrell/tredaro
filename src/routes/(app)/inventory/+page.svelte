@@ -5,7 +5,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -762,11 +762,11 @@
 	</Card.Root>
 </div>
 
-<Dialog.Root bind:open>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>{itemId ? 'Edit' : 'New'} inventory item</Dialog.Title>
-		</Dialog.Header>
+<Modal.Root bind:open>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>{itemId ? 'Edit' : 'New'} inventory item</Modal.Title>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={save}>
 			<Field.Field>
 				<Field.Label for="inv-name">Name</Field.Label>
@@ -847,42 +847,42 @@
 				</div>
 				<Switch bind:checked={billable} />
 			</div>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root
+<Modal.Root
 	open={adjusting != null}
 	onOpenChange={(o) => {
 		if (!o) adjusting = null;
 	}}
 >
-	<Dialog.Content class="sm:max-w-xs">
-		<Dialog.Header>
-			<Dialog.Title>Adjust stock · {adjusting?.item.name}</Dialog.Title>
-		</Dialog.Header>
+	<Modal.Content class="sm:max-w-xs">
+		<Modal.Header>
+			<Modal.Title>Adjust stock · {adjusting?.item.name}</Modal.Title>
+		</Modal.Header>
 		<Field.Field>
 			<Field.Label for="adj-qty">Quantity ({adjusting?.item.unit})</Field.Label>
 			<Input id="adj-qty" type="number" min={1} bind:value={adjQty} />
 		</Field.Field>
-		<Dialog.Footer class="gap-2 sm:justify-between">
+		<Modal.Footer class="gap-2 sm:justify-between">
 			<Button variant="outline" onclick={() => adjust('out')} disabled={adjQty < 1}
 				><Minus /> Remove</Button
 			>
 			<Button onclick={() => adjust('in')} disabled={adjQty < 1}><Plus /> Add</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- new purchase order -->
-<Dialog.Root bind:open={poOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>New purchase order</Dialog.Title>
-		</Dialog.Header>
+<Modal.Root bind:open={poOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>New purchase order</Modal.Title>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={savePo}>
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
@@ -948,25 +948,25 @@
 				<Field.Label for="po-notes">Notes</Field.Label>
 				<Input id="po-notes" bind:value={poNotes} placeholder="Optional" />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={poPending || poLines.some((l) => !l.inventoryItemId)}
 					>{poPending ? 'Saving…' : 'Create PO'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- purchase order detail -->
-<Dialog.Root
+<Modal.Root
 	open={poView != null}
 	onOpenChange={(o) => {
 		if (!o) poView = null;
 	}}
 >
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title class="flex items-center gap-2">
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title class="flex items-center gap-2">
 				PO-{poView?.po.number} · {poView?.po.supplier}
 				<StatusBadge status={poView?.po.status ?? 'draft'} />
 				<Button
@@ -976,8 +976,8 @@
 					onclick={() => window.open(`/purchase-orders/${poView?.po.id}/print`, '_blank')}
 					><Printer /></Button
 				>
-			</Dialog.Title>
-			<Dialog.Description>
+			</Modal.Title>
+			<Modal.Description>
 				{#if poView?.po.expectedOn}Expected {poView.po.expectedOn} ·
 				{/if}
 				Total {formatMoney(poView?.total ?? 0, currency)}
@@ -987,8 +987,8 @@
 					>
 				{/if}
 				{#if poView?.po.notes}<br />{poView.po.notes}{/if}
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<Table.Root>
 			<Table.Body>
 				{#each poView?.items ?? [] as i (i.id)}
@@ -1010,7 +1010,7 @@
 			</Table.Body>
 		</Table.Root>
 		{#if poView}
-			<Dialog.Footer class="gap-2 sm:justify-between">
+			<Modal.Footer class="gap-2 sm:justify-between">
 				{#if poView.po.status === 'draft'}
 					<Button variant="ghost" class="text-destructive" onclick={() => removePo(poView!.po.id)}
 						><Trash2 /> Delete</Button
@@ -1052,20 +1052,20 @@
 						<span></span>
 					{/if}
 				{/if}
-			</Dialog.Footer>
+			</Modal.Footer>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- receive stock (partial ok) -->
-<Dialog.Root bind:open={rcOpen}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Receive stock — PO-{poView?.po.number}</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={rcOpen}>
+	<Modal.Content class="sm:max-w-md">
+		<Modal.Header>
+			<Modal.Title>Receive stock — PO-{poView?.po.number}</Modal.Title>
+			<Modal.Description>
 				Enter how much of each line arrived. The PO stays open until every line is fully received.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			{#each rcLines as l (l.itemId)}
 				<div class="flex items-center gap-3">
@@ -1083,19 +1083,19 @@
 				</div>
 			{/each}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => rcLines.forEach((l) => (l.qty = 0))}>Clear</Button>
 			<Button onclick={doReceive} disabled={rcPending || rcLines.every((l) => l.qty <= 0)}
 				>{rcPending ? 'Receiving…' : 'Receive'}</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- transfer to truck -->
-<Dialog.Root bind:open={trOpen}>
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header><Dialog.Title>Transfer to truck</Dialog.Title></Dialog.Header>
+<Modal.Root bind:open={trOpen}>
+	<Modal.Content class="sm:max-w-sm">
+		<Modal.Header><Modal.Title>Transfer to truck</Modal.Title></Modal.Header>
 		<form class="space-y-4" onsubmit={saveTransfer}>
 			<Field.Field>
 				<Field.Label>Item</Field.Label>
@@ -1131,22 +1131,22 @@
 				<Field.Label for="tr-qty">Quantity</Field.Label>
 				<Input id="tr-qty" type="number" min={1} bind:value={trQty} />
 			</Field.Field>
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={trPending || !trItem || !trMember || trQty < 1}
 					>{trPending ? 'Transferring…' : 'Transfer'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- movement history -->
-<Dialog.Root open={!!historyItem} onOpenChange={(o: boolean) => !o && (historyItem = null)}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>{historyItem?.item.name} — history</Dialog.Title>
-			<Dialog.Description>Every stock movement and edit, newest first.</Dialog.Description>
-		</Dialog.Header>
+<Modal.Root open={!!historyItem} onOpenChange={(o: boolean) => !o && (historyItem = null)}>
+	<Modal.Content class="sm:max-w-md">
+		<Modal.Header>
+			<Modal.Title>{historyItem?.item.name} — history</Modal.Title>
+			<Modal.Description>Every stock movement and edit, newest first.</Modal.Description>
+		</Modal.Header>
 		<div class="max-h-96 divide-y overflow-y-auto">
 			{#each itemHistory as e (e.activity.id)}
 				<div class="flex items-baseline justify-between gap-3 py-2">
@@ -1169,20 +1169,20 @@
 				</Empty.Root>
 			{/each}
 		</div>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- csv import -->
-<Dialog.Root bind:open={importOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Import inventory items</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={importOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Import inventory items</Modal.Title>
+			<Modal.Description>
 				Paste CSV or pick a file — columns: name, sku, unit, qty, unit_cost, category, reorder_point
 				(all but name optional; header row optional; unit_cost in dollars). Items whose sku (or name
 				when no sku) already exists are skipped.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			<Input type="file" accept=".csv,text/csv,text/plain" onchange={onImportFile} />
 			<Textarea
@@ -1197,10 +1197,10 @@
 				</p>
 			{/if}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button disabled={importPending || !importRows.length} onclick={runImport}
 				>{importPending ? 'Importing…' : 'Import'}</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>

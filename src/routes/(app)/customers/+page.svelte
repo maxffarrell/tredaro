@@ -8,7 +8,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Modal from '#lib/components/ui/modal/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
@@ -489,14 +489,14 @@
 	</Card.Root>
 </div>
 
-<Dialog.Root bind:open>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Add customer</Dialog.Title>
-			<Dialog.Description
-				>A name is enough to start — contact details are optional.</Dialog.Description
+<Modal.Root bind:open>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Add customer</Modal.Title>
+			<Modal.Description
+				>A name is enough to start — contact details are optional.</Modal.Description
 			>
-		</Dialog.Header>
+		</Modal.Header>
 		<form class="space-y-4" onsubmit={submit}>
 			<Field.Field>
 				<Field.Label>Type</Field.Label>
@@ -539,24 +539,24 @@
 					</Alert.Description>
 				</Alert.Root>
 			{/if}
-			<Dialog.Footer>
+			<Modal.Footer>
 				<Button type="submit" disabled={pending}
 					>{pending ? 'Adding…' : dupMatches.length ? 'Create anyway' : 'Add customer'}</Button
 				>
-			</Dialog.Footer>
+			</Modal.Footer>
 		</form>
-	</Dialog.Content>
-</Dialog.Root>
+	</Modal.Content>
+</Modal.Root>
 
-<Dialog.Root bind:open={importOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Import customers</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={importOpen}>
+	<Modal.Content>
+		<Modal.Header>
+			<Modal.Title>Import customers</Modal.Title>
+			<Modal.Description>
 				Paste CSV or pick a file — columns: name, email, phone (header row optional). Customers
 				whose email is already in use are skipped.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-3">
 			<Input type="file" accept=".csv,text/csv,text/plain" onchange={onImportFile} />
 			<Textarea
@@ -571,25 +571,25 @@
 				</p>
 			{/if}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (importOpen = false)}>Cancel</Button>
 			<Button onclick={runImport} disabled={importPending || !importRows.length}>
 				{importPending ? 'Importing…' : `Import ${importRows.length || ''}`}
 			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
 
 <!-- announcement blast -->
-<Dialog.Root bind:open={announceOpen}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Customer announcement</Dialog.Title>
-			<Dialog.Description>
+<Modal.Root bind:open={announceOpen}>
+	<Modal.Content class="sm:max-w-md">
+		<Modal.Header>
+			<Modal.Title>Customer announcement</Modal.Title>
+			<Modal.Description>
 				Send a one-off message to a segment — opt-outs and quiet hours apply, and the same message
 				can't be sent twice.
-			</Dialog.Description>
-		</Dialog.Header>
+			</Modal.Description>
+		</Modal.Header>
 		<div class="space-y-4">
 			<div class="grid grid-cols-3 gap-3">
 				<Field.Field>
@@ -689,7 +689,7 @@
 				</p>
 			{/if}
 		</div>
-		<Dialog.Footer>
+		<Modal.Footer>
 			<Button variant="outline" onclick={() => (announceOpen = false)}>Cancel</Button>
 			<Button
 				onclick={runAnnounce}
@@ -698,6 +698,6 @@
 					(anChannel !== 'sms' && !anSubject.trim()) ||
 					!anPreview?.total}>Send</Button
 			>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</Modal.Footer>
+	</Modal.Content>
+</Modal.Root>
