@@ -1,5 +1,17 @@
 # tredaro
 
+## 0.2.0
+
+### Minor Changes
+
+- e63f623: Vendor the new shadcn-svelte chat/AI components (trace, code-block, message-scroller, highlighter, use-highlighted-code) for parity with the suite's shared component set.
+- 3e5667b: Reorganize the customer portal into tabs (Visits, Billing, Messages & documents, Account) with full-width cards instead of a crowded two-column grid.
+- 3ddea03: Float the demo banner as an absolute-positioned pill, add it to the customer portal, and convert dialogs to the responsive Modal (dialog on desktop, drawer on mobile).
+
+### Patch Changes
+
+- 2167b50: Require patched Node.js runtimes for CVE-2026-111497 and rebuild containers with Node.js 26.12.1.
+
 ## 0.1.5
 
 ### Patch Changes
