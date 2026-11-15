@@ -21,6 +21,7 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { textCustomerCmd } from '#lib/remote/customers.remote.ts';
 	import { errMsg } from '#lib/format.ts';
+	import { notificationHref, notificationLabel } from '#lib/notifications.ts';
 
 	let page = $state(50);
 	const rows = $derived(await getStaffNotifications({ limit: page }));
@@ -67,80 +68,17 @@
 			toast.error(errMsg(err, 'Could not mark notifications read'));
 		}
 	}
-
-	const KIND_LABELS: Record<string, string> = {
-		booking_staff_alert: 'Booking request',
-		estimate_viewed: 'Estimate viewed',
-		estimate_hot: 'Hot lead',
-		estimate_decision: 'Estimate answered',
-		low_stock: 'Low stock',
-		parts_delay: 'Parts delay',
-		tech_assigned: 'Tech assigned',
-		daily_digest: 'Daily digest',
-		weekly_digest: 'Weekly digest',
-		agreement_renewal: 'Agreement renewal',
-		job_completed: 'Job completed',
-		payment_receipt: 'Payment received',
-		inbound_sms_staff: 'Text from customer',
-		estimate_changes: 'Change request',
-		quote_request: 'Quote request',
-		auto_charge_failed: 'auto-charge failed',
-		follow_up_due: 'Follow-up due',
-		time_approved: 'Time approved',
-		time_auto_ended: 'Timer auto-ended',
-		time_flagged: 'Time entry flagged',
-		charge_dispute: 'Charge dispute',
-		visit_cancel_request: 'Cancel request',
-		portal_message: 'Portal message'
-	};
-
-	/** Where each kind's entity usually lives. */
-	function href(kind: string, entityId: string) {
-		if (kind === 'booking_staff_alert' || kind === 'daily_digest') return '/dispatch';
-		if (kind === 'weekly_digest') return '/dashboard';
-		if (kind === 'time_approved') return '/myday';
-		if (kind === 'time_auto_ended' || kind === 'time_flagged')
-			return `/jobs/${entityId.split(':')[0]}`;
-		if (kind === 'low_stock') return '/inventory';
-		if (
-			kind === 'estimate_viewed' ||
-			kind === 'estimate_decision' ||
-			kind === 'estimate_changes' ||
-			kind === 'estimate_hot' ||
-			kind === 'quote_request'
-		)
-			return `/estimates/${entityId}`;
-		if (
-			kind === 'parts_delay' ||
-			kind === 'tech_assigned' ||
-			kind === 'job_unblocked' ||
-			kind === 'visit_rated'
-		)
-			return `/jobs/${entityId}`;
-		if (kind === 'agreement_renewal') return '/agreements';
-		if (kind === 'payment_receipt' || kind === 'job_completed') return `/jobs/${entityId}`;
-		if (
-			kind === 'inbound_sms_staff' ||
-			kind === 'auto_charge_failed' ||
-			kind === 'charge_dispute' ||
-			kind === 'portal_message'
-		)
-			return `/customers/${entityId.split(':')[0]}`;
-		if (kind === 'visit_cancel_request') return `/jobs/${entityId}`;
-		if (kind === 'follow_up_due') return entityId.split(':')[1] || '/dashboard';
-		return null;
-	}
 </script>
 
 <PageHeader title="Notifications" crumbs={[{ label: 'Home', href: '/dashboard' }]}>
 	{#snippet actions()}
 		<Select.Root type="single" value={kindFilter} onValueChange={(v) => (kindFilter = v ?? 'all')}>
 			<Select.Trigger class="h-8 w-40 text-sm">
-				{kindFilter === 'all' ? 'All types' : (KIND_LABELS[kindFilter] ?? kindFilter)}
+				{kindFilter === 'all' ? 'All types' : notificationLabel(kindFilter)}
 			</Select.Trigger>
 			<Select.Content>
 				<Select.Item value="all">All types</Select.Item>
-				{#each kinds as k (k)}<Select.Item value={k}>{KIND_LABELS[k] ?? k}</Select.Item>{/each}
+				{#each kinds as k (k)}<Select.Item value={k}>{notificationLabel(k)}</Select.Item>{/each}
 			</Select.Content>
 		</Select.Root>
 		<Button
@@ -170,7 +108,7 @@
 				</Table.Header>
 				<Table.Body>
 					{#each shown as n (n.id)}
-						{@const link = href(n.kind, n.entityId)}
+						{@const link = notificationHref(n.kind, n.entityId)}
 						<Table.Row class={n.readAt ? '' : 'bg-primary/5'}>
 							<Table.Cell class="pl-6 text-muted-foreground">
 								{#if !n.readAt}<span
@@ -179,9 +117,7 @@
 								{formatRelative(n.createdAt)}
 							</Table.Cell>
 							<Table.Cell>
-								<Badge variant="secondary" class="mr-2"
-									>{KIND_LABELS[n.kind] ?? n.kind.replaceAll('_', ' ')}</Badge
-								>
+								<Badge variant="secondary" class="mr-2">{notificationLabel(n.kind)}</Badge>
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell"
 								>{n.recipient}</Table.Cell

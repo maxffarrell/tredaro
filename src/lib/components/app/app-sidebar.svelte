@@ -11,7 +11,7 @@
 	import { initials } from '#lib/format.ts';
 	import Logo from './logo.svelte';
 	import { mainNav, secondaryNav } from './nav.ts';
-	import { getUnreadNotificationCount } from '#lib/remote/workspace.remote.js';
+	import InboxBell from './inbox-bell.svelte';
 	import { tour } from './tour.svelte.ts';
 	import Search from '@lucide/svelte/icons/search';
 	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
@@ -27,7 +27,6 @@
 		onsearch: () => void;
 	};
 	let { user, org, onsearch }: Props = $props();
-	const unreadN = $derived(await getUnreadNotificationCount());
 
 	const sidebar = Sidebar.useSidebar();
 	$effect(() => {
@@ -65,17 +64,20 @@
 				</Sidebar.MenuButton>
 			</Sidebar.MenuItem>
 			<Sidebar.MenuItem>
-				<Sidebar.MenuButton
-					variant="outline"
-					onclick={onsearch}
-					tooltipContent="Search (⌘K)"
-					data-tour="search"
-					class="text-muted-foreground"
-				>
-					<Search />
-					<span>Search or jump to…</span>
-					<Kbd class="ml-auto group-data-[collapsible=icon]:hidden">⌘K</Kbd>
-				</Sidebar.MenuButton>
+				<div class="flex gap-1">
+					<Sidebar.MenuButton
+						variant="outline"
+						onclick={onsearch}
+						tooltipContent="Search (⌘K)"
+						data-tour="search"
+						class="flex-1 text-muted-foreground"
+					>
+						<Search />
+						<span>Search or jump to…</span>
+						<Kbd class="ml-auto group-data-[collapsible=icon]:hidden">⌘K</Kbd>
+					</Sidebar.MenuButton>
+					<InboxBell />
+				</div>
 			</Sidebar.MenuItem>
 		</Sidebar.Menu>
 	</Sidebar.Header>
@@ -90,11 +92,7 @@
 						>
 							{#snippet child({ props })}
 								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}"
-									><item.icon /><span>{item.label}</span
-									>{#if item.href === '/notifications' && unreadN > 0}<span
-											class="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground"
-											>{unreadN > 99 ? '99+' : unreadN}</span
-										>{/if}</a
+									><item.icon /><span>{item.label}</span></a
 								>
 							{/snippet}
 						</Sidebar.MenuButton>

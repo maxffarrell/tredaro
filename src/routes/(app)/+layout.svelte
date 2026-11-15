@@ -27,7 +27,7 @@
 				deployUrl="https://github.com/maxffarrell/tredaro#quick-start"
 			/>
 		{/if}
-		<main class="min-w-0 flex-1">
+		<main class="min-w-0 flex-1 {data.demo && data.demoExpiresAt ? 'max-sm:pt-10' : ''}">
 			{@render children()}
 		</main>
 	</Sidebar.Inset>
