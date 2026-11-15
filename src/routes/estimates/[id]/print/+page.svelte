@@ -61,7 +61,7 @@
 					<div class="grid grid-cols-[8rem_1fr] gap-x-4">
 						<dt class="text-sm text-neutral-400">Prepared for</dt>
 						<dd class="text-sm">
-							{#each preparedFor as line}
+							{#each preparedFor as line (line)}
 								{line}<br />
 							{/each}
 						</dd>
