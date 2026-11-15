@@ -11,7 +11,7 @@
 	// PWA: prod-only service worker so dev/QA never fights a stale cache.
 	onMount(() => {
 		if (browser && !dev && 'serviceWorker' in navigator)
-			void navigator.serviceWorker.register('/sw.js');
+			void navigator.serviceWorker.register('/service-worker.js');
 	});
 </script>
 

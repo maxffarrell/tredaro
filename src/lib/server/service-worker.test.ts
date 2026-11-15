@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { runInNewContext } from 'node:vm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const script = readFileSync(new URL('../../../static/sw.js', import.meta.url), 'utf8');
+const script = ts.transpileModule(
+	readFileSync(new URL('../../service-worker.ts', import.meta.url), 'utf8'),
+	{ compilerOptions: { module: ts.ModuleKind.None } }
+).outputText;
 const callbacks = new Map<string, (event: object) => void>();
 const cache = { match: vi.fn(), put: vi.fn() };
 const cachesMock = { open: vi.fn(), keys: vi.fn(), delete: vi.fn(), match: vi.fn() };
