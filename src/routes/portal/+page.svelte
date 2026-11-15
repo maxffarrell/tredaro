@@ -6,6 +6,7 @@
 	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Modal from '#lib/components/ui/modal/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -431,238 +432,155 @@
 	</div>
 </div>
 
-<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-	<!-- upcoming jobs -->
-	<Card.Root>
-		<Card.Header><Card.Title class="text-base">Scheduled visits</Card.Title></Card.Header>
-		<Card.Content class="overflow-x-auto px-0">
-			<Table.Root>
-				<Table.Body>
-					{#each d.upcoming as j (j.job.id)}
-						<Table.Row>
-							<Table.Cell class="pl-6">
-								<p class="font-medium">{j.job.summary || j.jobTypeName || 'Service visit'}</p>
-								<p class="text-xs text-muted-foreground">
-									{#if j.address1}{j.address1}, {j.city} ·
-									{/if}
-									{j.technicianName ? `Tech: ${j.technicianName}` : 'Tech TBD'}
-								</p>
-							</Table.Cell>
-							<Table.Cell class="text-muted-foreground">
-								{j.job.startsAt
-									? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
-									: 'Scheduling'}
-								{#if j.job.arrivalWindow}
-									<p class="text-xs">Arrival {j.job.arrivalWindow}</p>
-								{/if}
-							</Table.Cell>
-							<Table.Cell class="pr-6 text-right">
-								<div class="flex items-center justify-end gap-1">
-									{#if j.job.startsAt}
-										<Button
-											size="sm"
-											variant="ghost"
-											href="/api/portal/ics?job={j.job.id}"
-											title="Add to calendar"><CalendarPlus class="size-4" /></Button
-										>
-									{/if}
-									{#if j.cancelRequested}
-										<StatusBadge status="expired" label="Cancellation requested" />
-									{:else if j.confirmed}
-										<StatusBadge status="approved" label="Confirmed" />
-									{:else if j.job.status === 'scheduled' && j.job.startsAt}
-										<Button
-											size="sm"
-											variant="outline"
-											disabled={confirmingId === j.job.id}
-											onclick={() => confirm(j.job.id)}
-											>{confirmingId === j.job.id ? 'Confirming…' : 'Confirm'}</Button
-										>
-										<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}
-											>Different time</Button
-										>
-										<Button
-											size="sm"
-											variant="ghost"
-											class="text-destructive"
-											onclick={() => (cancelJobId = j.job.id)}>Cancel</Button
-										>
-									{:else}
-										<StatusBadge status={j.job.status} />
-									{/if}
-								</div>
-							</Table.Cell>
-						</Table.Row>
-					{:else}
-						<Table.Row
-							><Table.Cell class="pl-6 text-muted-foreground">Nothing scheduled.</Table.Cell
-							></Table.Row
-						>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		</Card.Content>
-	</Card.Root>
-
-	<!-- visit history -->
-	<Card.Root>
-		<Card.Header><Card.Title class="text-base">Past visits</Card.Title></Card.Header>
-		<Card.Content class="overflow-x-auto px-0">
-			<Table.Root>
-				<Table.Body>
-					{#each d.history as j (j.job.id)}
-						<Table.Row>
-							<Table.Cell class="pl-6">
-								<p class="font-medium">{j.job.summary || j.jobTypeName || 'Service visit'}</p>
-								<p class="text-xs text-muted-foreground">
-									{j.job.completedAt ? formatDate(j.job.completedAt) : ''}
-								</p>
-								{#if j.job.warrantyUntil && new Date(j.job.warrantyUntil) > new Date()}
-									<p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-										Labor warranty through {formatDate(j.job.warrantyUntil)}
-									</p>
-								{/if}
-								{#if j.job.completionNotes}
-									<p class="mt-1 text-xs text-muted-foreground">{j.job.completionNotes}</p>
-								{/if}
-								{#if j.photos?.length}
-									<div class="mt-2 flex flex-wrap gap-2">
-										{#each j.photos as pid (pid)}
-											<a
-												href="/files/portal-job-photo/{pid}"
-												target="_blank"
-												rel="noreferrer"
-												aria-label="Open photo from your visit"
-											>
-												<img
-													src="/files/portal-job-photo/{pid}"
-													alt=""
-													class="size-16 rounded-md border object-cover"
-												/>
-											</a>
-										{/each}
-									</div>
-								{/if}
-							</Table.Cell>
-							<Table.Cell class="pr-6 text-right text-sm text-muted-foreground">
-								{#if j.job.rating}
-									<span class="inline-flex items-center gap-0.5" title={j.job.ratingNote ?? ''}>
-										{#each [1, 2, 3, 4, 5] as n (n)}
-											<Star
-												class="size-3.5 {n <= j.job.rating!
-													? 'fill-amber-400 text-amber-400'
-													: 'text-muted-foreground/40'}"
-											/>
-										{/each}
-									</span>
-								{:else}
-									<Button size="sm" variant="outline" onclick={() => openRate(j.job.id)}
-										>Rate visit</Button
-									>
-								{/if}
-								<p>{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}</p>
-							</Table.Cell>
-						</Table.Row>
-					{:else}
-						<Table.Row
-							><Table.Cell class="pl-6 text-muted-foreground">No visits yet.</Table.Cell></Table.Row
-						>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		</Card.Content>
-	</Card.Root>
-
-	<div class="space-y-6">
-		<PortalProfile />
-
-		<!-- balance / pay -->
+<Tabs.Root value="visits" class="space-y-4">
+	<Tabs.List class="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+		<Tabs.Trigger value="visits">Visits</Tabs.Trigger>
+		<Tabs.Trigger value="billing">Billing</Tabs.Trigger>
+		<Tabs.Trigger value="messages">Messages &amp; documents</Tabs.Trigger>
+		<Tabs.Trigger value="account">Account</Tabs.Trigger>
+	</Tabs.List>
+	<Tabs.Content value="visits" class="space-y-6">
+		<!-- upcoming jobs -->
 		<Card.Root>
-			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base">Balance</Card.Title>
-				<span class="text-xl font-semibold tabular-nums">{formatMoney(d.balance, currency)}</span>
-			</Card.Header>
-			<Card.Content class="px-6">
-				{#if d.openCharges.length}
-					<ul class="space-y-2 text-sm">
-						{#each d.openCharges as row (row.charge.id)}
-							<li class="flex items-center justify-between gap-2">
-								<label class="flex min-w-0 items-center gap-2">
-									{#if d.openCharges.length > 1}
-										<Checkbox
-											checked={chargeChecked(row.charge.id)}
-											onCheckedChange={(v) => toggleCharge(row.charge.id, v === true)}
-											aria-label="Include this charge in the payment"
-										/>
+			<Card.Header><Card.Title class="text-base">Scheduled visits</Card.Title></Card.Header>
+			<Card.Content class="overflow-x-auto px-0">
+				<Table.Root>
+					<Table.Body>
+						{#each d.upcoming as j (j.job.id)}
+							<Table.Row>
+								<Table.Cell class="pl-6">
+									<p class="font-medium">{j.job.summary || j.jobTypeName || 'Service visit'}</p>
+									<p class="text-xs text-muted-foreground">
+										{#if j.address1}{j.address1}, {j.city} ·
+										{/if}
+										{j.technicianName ? `Tech: ${j.technicianName}` : 'Tech TBD'}
+									</p>
+								</Table.Cell>
+								<Table.Cell class="text-muted-foreground">
+									{j.job.startsAt
+										? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
+										: 'Scheduling'}
+									{#if j.job.arrivalWindow}
+										<p class="text-xs">Arrival {j.job.arrivalWindow}</p>
 									{/if}
-									<span class="truncate">
-										{row.charge.description || 'Charge'}
-										{#if row.invoiceNumber}<span class="text-xs text-muted-foreground"
-												>· INV-{row.invoiceNumber}</span
-											>{/if}
-									</span>
-								</label>
-								{#if row.charge.disputedAt}
-									<span
-										class="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-400"
-										title={row.charge.disputeNote ?? ''}>Issue reported</span
-									>
-								{:else}
-									<Button
-										variant="ghost"
-										size="sm"
-										class="h-auto shrink-0 px-1.5 py-0.5 text-xs text-muted-foreground"
-										onclick={() => (reportChargeId = row.charge.id)}>Problem?</Button
-									>
-								{/if}
-								<span class="shrink-0 tabular-nums"
-									>{formatMoney(row.charge.amount - row.paid, currency)}</span
-								>
-							</li>
+								</Table.Cell>
+								<Table.Cell class="pr-6 text-right">
+									<div class="flex items-center justify-end gap-1">
+										{#if j.job.startsAt}
+											<Button
+												size="sm"
+												variant="ghost"
+												href="/api/portal/ics?job={j.job.id}"
+												title="Add to calendar"><CalendarPlus class="size-4" /></Button
+											>
+										{/if}
+										{#if j.cancelRequested}
+											<StatusBadge status="expired" label="Cancellation requested" />
+										{:else if j.confirmed}
+											<StatusBadge status="approved" label="Confirmed" />
+										{:else if j.job.status === 'scheduled' && j.job.startsAt}
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={confirmingId === j.job.id}
+												onclick={() => confirm(j.job.id)}
+												>{confirmingId === j.job.id ? 'Confirming…' : 'Confirm'}</Button
+											>
+											<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}
+												>Different time</Button
+											>
+											<Button
+												size="sm"
+												variant="ghost"
+												class="text-destructive"
+												onclick={() => (cancelJobId = j.job.id)}>Cancel</Button
+											>
+										{:else}
+											<StatusBadge status={j.job.status} />
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{:else}
+							<Table.Row
+								><Table.Cell class="pl-6 text-muted-foreground">Nothing scheduled.</Table.Cell
+								></Table.Row
+							>
 						{/each}
-					</ul>
-					{#if providers.length}
-						<div class="mt-4 flex gap-2">
-							{#each providers as p (p.id)}
-								<Button
-									variant="secondary"
-									disabled={paying || !selectedTotal}
-									onclick={() => pay(p.id)}
-								>
-									<CreditCard />
-									Pay {formatMoney(selectedTotal, currency)} with {p.name}
-								</Button>
-							{/each}
-						</div>
-					{/if}
-				{:else}
-					<p class="text-sm text-muted-foreground">You're all paid up.</p>
-				{/if}
-				<div class="mt-4 border-t pt-3">
-					{#if d.customer.savedCardLabel}
-						<p class="flex items-center gap-2 text-sm text-muted-foreground">
-							<CreditCard class="size-4" />
-							{d.customer.savedCardLabel} on file — recurring charges are collected automatically.
-						</p>
-					{:else if providers.some((p) => p.canSaveCard)}
-						{#each providers as p (p.id)}
-							{#if p.canSaveCard}
-								<Button
-									variant="ghost"
-									size="sm"
-									class="px-0 text-muted-foreground"
-									disabled={savingCard}
-									onclick={() => saveCard(p.id)}
-								>
-									<CreditCard /> Save a card for automatic payments
-								</Button>
-							{/if}
-						{/each}
-					{/if}
-				</div>
+					</Table.Body>
+				</Table.Root>
 			</Card.Content>
 		</Card.Root>
 
+		<!-- visit history -->
+		<Card.Root>
+			<Card.Header><Card.Title class="text-base">Past visits</Card.Title></Card.Header>
+			<Card.Content class="overflow-x-auto px-0">
+				<Table.Root>
+					<Table.Body>
+						{#each d.history as j (j.job.id)}
+							<Table.Row>
+								<Table.Cell class="pl-6">
+									<p class="font-medium">{j.job.summary || j.jobTypeName || 'Service visit'}</p>
+									<p class="text-xs text-muted-foreground">
+										{j.job.completedAt ? formatDate(j.job.completedAt) : ''}
+									</p>
+									{#if j.job.warrantyUntil && new Date(j.job.warrantyUntil) > new Date()}
+										<p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+											Labor warranty through {formatDate(j.job.warrantyUntil)}
+										</p>
+									{/if}
+									{#if j.job.completionNotes}
+										<p class="mt-1 text-xs text-muted-foreground">{j.job.completionNotes}</p>
+									{/if}
+									{#if j.photos?.length}
+										<div class="mt-2 flex flex-wrap gap-2">
+											{#each j.photos as pid (pid)}
+												<a
+													href="/files/portal-job-photo/{pid}"
+													target="_blank"
+													rel="noreferrer"
+													aria-label="Open photo from your visit"
+												>
+													<img
+														src="/files/portal-job-photo/{pid}"
+														alt=""
+														class="size-16 rounded-md border object-cover"
+													/>
+												</a>
+											{/each}
+										</div>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="pr-6 text-right text-sm text-muted-foreground">
+									{#if j.job.rating}
+										<span class="inline-flex items-center gap-0.5" title={j.job.ratingNote ?? ''}>
+											{#each [1, 2, 3, 4, 5] as n (n)}
+												<Star
+													class="size-3.5 {n <= j.job.rating!
+														? 'fill-amber-400 text-amber-400'
+														: 'text-muted-foreground/40'}"
+												/>
+											{/each}
+										</span>
+									{:else}
+										<Button size="sm" variant="outline" onclick={() => openRate(j.job.id)}
+											>Rate visit</Button
+										>
+									{/if}
+									<p>{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}</p>
+								</Table.Cell>
+							</Table.Row>
+						{:else}
+							<Table.Row
+								><Table.Cell class="pl-6 text-muted-foreground">No visits yet.</Table.Cell
+								></Table.Row
+							>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</Card.Content>
+		</Card.Root>
 		<!-- agreements -->
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Service agreement</Card.Title></Card.Header>
@@ -750,6 +668,94 @@
 				</Card.Content>
 			</Card.Root>
 		{/if}
+	</Tabs.Content>
+	<Tabs.Content value="billing" class="space-y-6">
+		<!-- balance / pay -->
+		<Card.Root>
+			<Card.Header class="flex-row items-center justify-between">
+				<Card.Title class="text-base">Balance</Card.Title>
+				<span class="text-xl font-semibold tabular-nums">{formatMoney(d.balance, currency)}</span>
+			</Card.Header>
+			<Card.Content class="px-6">
+				{#if d.openCharges.length}
+					<ul class="space-y-2 text-sm">
+						{#each d.openCharges as row (row.charge.id)}
+							<li class="flex items-center justify-between gap-2">
+								<label class="flex min-w-0 items-center gap-2">
+									{#if d.openCharges.length > 1}
+										<Checkbox
+											checked={chargeChecked(row.charge.id)}
+											onCheckedChange={(v) => toggleCharge(row.charge.id, v === true)}
+											aria-label="Include this charge in the payment"
+										/>
+									{/if}
+									<span class="truncate">
+										{row.charge.description || 'Charge'}
+										{#if row.invoiceNumber}<span class="text-xs text-muted-foreground"
+												>· INV-{row.invoiceNumber}</span
+											>{/if}
+									</span>
+								</label>
+								{#if row.charge.disputedAt}
+									<span
+										class="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-400"
+										title={row.charge.disputeNote ?? ''}>Issue reported</span
+									>
+								{:else}
+									<Button
+										variant="ghost"
+										size="sm"
+										class="h-auto shrink-0 px-1.5 py-0.5 text-xs text-muted-foreground"
+										onclick={() => (reportChargeId = row.charge.id)}>Problem?</Button
+									>
+								{/if}
+								<span class="shrink-0 tabular-nums"
+									>{formatMoney(row.charge.amount - row.paid, currency)}</span
+								>
+							</li>
+						{/each}
+					</ul>
+					{#if providers.length}
+						<div class="mt-4 flex gap-2">
+							{#each providers as p (p.id)}
+								<Button
+									variant="secondary"
+									disabled={paying || !selectedTotal}
+									onclick={() => pay(p.id)}
+								>
+									<CreditCard />
+									Pay {formatMoney(selectedTotal, currency)} with {p.name}
+								</Button>
+							{/each}
+						</div>
+					{/if}
+				{:else}
+					<p class="text-sm text-muted-foreground">You're all paid up.</p>
+				{/if}
+				<div class="mt-4 border-t pt-3">
+					{#if d.customer.savedCardLabel}
+						<p class="flex items-center gap-2 text-sm text-muted-foreground">
+							<CreditCard class="size-4" />
+							{d.customer.savedCardLabel} on file — recurring charges are collected automatically.
+						</p>
+					{:else if providers.some((p) => p.canSaveCard)}
+						{#each providers as p (p.id)}
+							{#if p.canSaveCard}
+								<Button
+									variant="ghost"
+									size="sm"
+									class="px-0 text-muted-foreground"
+									disabled={savingCard}
+									onclick={() => saveCard(p.id)}
+								>
+									<CreditCard /> Save a card for automatic payments
+								</Button>
+							{/if}
+						{/each}
+					{/if}
+				</div>
+			</Card.Content>
+		</Card.Root>
 
 		<!-- pending estimates -->
 		{#if d.pendingEstimates.length}
@@ -853,7 +859,8 @@
 				</Card.Content>
 			</Card.Root>
 		{/if}
-
+	</Tabs.Content>
+	<Tabs.Content value="messages" class="grid gap-6 md:grid-cols-2">
 		{#if d.recentMessages?.length}
 			<Card.Root>
 				<Card.Header><Card.Title class="text-base">Messages from us</Card.Title></Card.Header>
@@ -910,6 +917,9 @@
 				{/each}
 			</Card.Content>
 		</Card.Root>
+	</Tabs.Content>
+	<Tabs.Content value="account" class="grid items-start gap-6 md:grid-cols-2">
+		<PortalProfile />
 
 		<!-- contact info -->
 		<Card.Root>
@@ -950,8 +960,8 @@
 				</p>
 			</Card.Content>
 		</Card.Root>
-	</div>
-</div>
+	</Tabs.Content>
+</Tabs.Root>
 
 <!-- visit rating dialog -->
 <Modal.Root bind:open={rateOpen}>
