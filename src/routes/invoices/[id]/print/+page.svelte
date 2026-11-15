@@ -13,114 +13,148 @@
 	const total = inv.items.reduce((sum, i) => sum + i.qty * i.unitPrice, 0);
 	const paid = inv.charges.reduce((sum, c) => sum + c.paid, 0);
 	const balance = total - paid;
+	const status = $derived(
+		balance <= 0
+			? 'paid'
+			: new Date(inv.invoice.dueDate) < new Date()
+				? 'overdue'
+				: inv.invoice.status
+	);
+
+	const billTo = [
+		inv.customer.companyName
+			? `${inv.customer.companyName} — ${inv.customer.name}`
+			: inv.customer.name,
+		inv.customer.email,
+		inv.customer.phone
+	].filter(Boolean) as string[];
 </script>
 
 <svelte:head><title>Invoice INV-{inv.invoice.number}</title></svelte:head>
 
-<div class="min-h-screen bg-white text-neutral-900">
-	<div class="mx-auto max-w-3xl p-6 print:p-0">
-		<div class="flex items-start justify-between print:hidden">
+<div class="min-h-screen bg-neutral-100 text-neutral-900 print:bg-white">
+	<div class="mx-auto max-w-4xl px-6 py-10 print:p-0">
+		<div class="mb-6 flex items-start justify-between print:hidden">
 			<Button variant="outline" onclick={() => history.back()}>Back</Button>
 			<Button onclick={() => window.print()}><Printer /> Print</Button>
 		</div>
 
-		<header class="mt-4 border-b-2 border-neutral-800 pb-4 print:mt-0">
-			<div class="flex items-start justify-between">
+		<div class="bg-white px-14 py-14 print:px-0 print:py-0">
+			<header class="flex items-start justify-between">
 				<div>
-					{#if settings.logoUrl}
-						<img src={settings.logoUrl} alt={settings.orgName} class="mb-2 h-12 object-contain" />
+					<p class="text-lg font-semibold">{settings.orgName}</p>
+					<p class="mt-1 text-neutral-500">Invoice INV-{inv.invoice.number}</p>
+				</div>
+				<dl class="w-72 space-y-5">
+					<div class="grid grid-cols-[8rem_1fr] gap-x-4">
+						<dt class="text-sm text-neutral-400">From</dt>
+						<dd class="text-sm">
+							{settings.orgName}
+							{#if settings.address}<br />{settings.address}{/if}
+							{#if settings.phone}<br />{settings.phone}{/if}
+							{#if settings.licenseNumber}<br />Lic. #{settings.licenseNumber}{/if}
+						</dd>
+					</div>
+					<div class="grid grid-cols-[8rem_1fr] gap-x-4">
+						<dt class="text-sm text-neutral-400">Billed to</dt>
+						<dd class="text-sm">
+							{#each billTo as line}
+								{line}<br />
+							{/each}
+						</dd>
+					</div>
+					<div class="grid grid-cols-[8rem_1fr] gap-x-4">
+						<dt class="text-sm text-neutral-400">Billing date</dt>
+						<dd class="text-sm">{formatDate(inv.invoice.issuedAt)}</dd>
+						<dt class="text-sm text-neutral-400">Due date</dt>
+						<dd class="text-sm">{formatDate(inv.invoice.dueDate)}</dd>
+						{#if inv.jobNumber}
+							<dt class="text-sm text-neutral-400">Job</dt>
+							<dd class="text-sm">J-{inv.jobNumber}</dd>
+						{/if}
+						<dt class="text-sm text-neutral-400">Status</dt>
+						<dd class="text-sm capitalize">{status}</dd>
+					</div>
+				</dl>
+			</header>
+
+			<h1 class="mt-16 text-right text-7xl font-bold tracking-tight">Invoice</h1>
+
+			<table class="mt-12 w-full border-t border-neutral-200 text-sm">
+				<thead>
+					<tr>
+						<th class="py-3 text-left font-medium">Service</th>
+						<th class="py-3 text-left font-medium">Quantity × rate</th>
+						<th class="w-40 py-3 text-right font-medium">
+							Amount {settings.currency.toUpperCase()}
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each inv.items as i (i.id)}
+						<tr>
+							<td class="py-2">
+								{i.name}
+								{#if i.description}
+									<span class="block text-neutral-500">{i.description}</span>
+								{/if}
+							</td>
+							<td class="py-2 text-neutral-500">
+								{i.qty} × {formatMoney(i.unitPrice, settings.currency)}
+							</td>
+							<td class="py-2 text-right tabular-nums">
+								{formatMoney(i.qty * i.unitPrice, settings.currency)}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+
+			<div class="mt-8 flex justify-end">
+				<dl class="w-72 space-y-1.5 text-sm">
+					<div class="grid grid-cols-2 gap-x-4">
+						<dt class="text-neutral-500">Subtotal</dt>
+						<dd class="text-right tabular-nums">{formatMoney(total, settings.currency)}</dd>
+						{#if paid > 0}
+							<dt class="text-neutral-500">Paid</dt>
+							<dd class="text-right tabular-nums">
+								-{formatMoney(paid, settings.currency)}
+							</dd>
+						{/if}
+					</div>
+					<div class="grid grid-cols-2 gap-x-4 border-t border-neutral-200 pt-2 text-lg">
+						<dt>Total {settings.currency.toUpperCase()}</dt>
+						<dd class="text-right font-semibold tabular-nums">
+							{formatMoney(paid > 0 ? balance : total, settings.currency)}
+						</dd>
+					</div>
+				</dl>
+			</div>
+
+			{#if inv.invoice.notes}
+				<p class="mt-12 text-sm whitespace-pre-wrap text-neutral-500">
+					{inv.invoice.notes}
+				</p>
+			{/if}
+
+			<footer class="mt-14 text-sm">
+				<p class="font-semibold">Payment details</p>
+				<dl class="mt-3 grid grid-cols-[10rem_1fr] gap-y-1">
+					{#if settings.phone}
+						<dt class="text-neutral-500">Phone</dt>
+						<dd>{settings.phone}</dd>
 					{/if}
-					<p class="text-lg font-bold">{settings.orgName}</p>
-					{#if settings.address}<p class="text-sm">{settings.address}</p>{/if}
-					{#if settings.phone}<p class="text-sm">{settings.phone}</p>{/if}
-					{#if settings.licenseNumber}<p class="text-sm">Lic. #{settings.licenseNumber}</p>{/if}
-				</div>
-				<div class="text-right">
-					<h1 class="text-2xl font-bold tracking-tight">Invoice</h1>
-					<p class="text-lg font-semibold">INV-{inv.invoice.number}</p>
-				</div>
-			</div>
-		</header>
-
-		<div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-			<div>
-				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Bill to</p>
-				<p class="font-medium">
-					{inv.customer.companyName ? `${inv.customer.companyName} — ` : ''}{inv.customer.name}
+					<dt class="text-neutral-500">Reference</dt>
+					<dd>INV-{inv.invoice.number}</dd>
+				</dl>
+				<p class="mt-10 text-xs text-neutral-500">
+					Payment is due by {formatDate(inv.invoice.dueDate)}. Please reference INV-{inv.invoice
+						.number} on your payment.
 				</p>
-				{#if inv.customer.email}<p>{inv.customer.email}</p>{/if}
-				{#if inv.customer.phone}<p>{inv.customer.phone}</p>{/if}
-			</div>
-			<div class="text-right">
-				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Details</p>
-				<p>Issued {formatDate(inv.invoice.issuedAt)}</p>
-				<p>Due {formatDate(inv.invoice.dueDate)}</p>
-				{#if inv.jobNumber}<p>Job J-{inv.jobNumber}</p>{/if}
-				<p class="capitalize">
-					Status: {balance <= 0
-						? 'paid'
-						: new Date(inv.invoice.dueDate) < new Date()
-							? 'overdue'
-							: inv.invoice.status}
-				</p>
-			</div>
-		</div>
-
-		<table class="mt-6 w-full text-sm">
-			<thead>
-				<tr class="border-b-2 border-neutral-800 text-left">
-					<th class="py-1">Item</th>
-					<th class="w-16 py-1 text-right">Qty</th>
-					<th class="w-24 py-1 text-right">Unit</th>
-					<th class="w-28 py-1 text-right">Amount</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each inv.items as i (i.id)}
-					<tr class="border-b border-neutral-200">
-						<td class="py-1.5">
-							{i.name}
-							{#if i.description}
-								<span class="block text-xs text-neutral-500">{i.description}</span>
-							{/if}
-						</td>
-						<td class="py-1.5 text-right">{i.qty}</td>
-						<td class="py-1.5 text-right tabular-nums"
-							>{formatMoney(i.unitPrice, settings.currency)}</td
-						>
-						<td class="py-1.5 text-right tabular-nums"
-							>{formatMoney(i.qty * i.unitPrice, settings.currency)}</td
-						>
-					</tr>
-				{/each}
-				<tr>
-					<td colspan="3" class="py-2 text-right font-semibold">Total</td>
-					<td class="py-2 text-right font-semibold tabular-nums"
-						>{formatMoney(total, settings.currency)}</td
-					>
-				</tr>
-				{#if paid > 0}
-					<tr>
-						<td colspan="3" class="py-1 text-right text-neutral-600">Paid</td>
-						<td class="py-1 text-right text-neutral-600 tabular-nums"
-							>-{formatMoney(paid, settings.currency)}</td
-						>
-					</tr>
-					<tr>
-						<td colspan="3" class="py-1 text-right font-semibold">Balance due</td>
-						<td class="py-1 text-right font-semibold tabular-nums"
-							>{formatMoney(balance, settings.currency)}</td
-						>
-					</tr>
+				{#if settings.logoUrl}
+					<img src={settings.logoUrl} alt={settings.orgName} class="mt-6 h-8 object-contain" />
 				{/if}
-			</tbody>
-		</table>
-
-		{#if inv.invoice.notes}
-			<div class="mt-4 text-sm">
-				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Notes</p>
-				<p class="mt-1 whitespace-pre-wrap">{inv.invoice.notes}</p>
-			</div>
-		{/if}
+			</footer>
+		</div>
 	</div>
 </div>

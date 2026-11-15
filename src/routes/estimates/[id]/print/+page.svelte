@@ -19,112 +19,141 @@
 		.filter(Boolean)
 		.join(' ');
 	const total = est.items.reduce((sum, i) => sum + i.item.qty * i.item.unitPrice, 0);
+
+	const preparedFor = [
+		est.customer.companyName
+			? `${est.customer.companyName} — ${est.customer.name}`
+			: est.customer.name,
+		addr,
+		est.customer.email
+	].filter(Boolean) as string[];
 </script>
 
 <svelte:head><title>Estimate E-{est.estimate.number}</title></svelte:head>
 
-<div class="min-h-screen bg-white text-neutral-900">
-	<div class="mx-auto max-w-3xl p-6 print:p-0">
-		<div class="flex items-start justify-between print:hidden">
+<div class="min-h-screen bg-neutral-100 text-neutral-900 print:bg-white">
+	<div class="mx-auto max-w-4xl px-6 py-10 print:p-0">
+		<div class="mb-6 flex items-start justify-between print:hidden">
 			<Button variant="outline" onclick={() => history.back()}>Back</Button>
 			<Button onclick={() => window.print()}><Printer /> Print</Button>
 		</div>
 
-		<header class="mt-4 border-b-2 border-neutral-800 pb-4 print:mt-0">
-			<div class="flex items-start justify-between">
+		<div class="bg-white px-14 py-14 print:px-0 print:py-0">
+			<header class="flex items-start justify-between">
 				<div>
-					{#if settings.logoUrl}
-						<img src={settings.logoUrl} alt={settings.orgName} class="mb-2 h-12 object-contain" />
-					{/if}
-					<p class="text-lg font-bold">{settings.orgName}</p>
-					{#if settings.address}<p class="text-sm">{settings.address}</p>{/if}
-					{#if settings.phone}<p class="text-sm">{settings.phone}</p>{/if}
-					{#if settings.licenseNumber}<p class="text-sm">Lic. #{settings.licenseNumber}</p>{/if}
-				</div>
-				<div class="text-right">
-					<h1 class="text-2xl font-bold tracking-tight">Estimate</h1>
-					<p class="text-lg font-semibold">
-						E-{est.estimate.number}{est.estimate.version > 1 ? ` v${est.estimate.version}` : ''}
+					<p class="text-lg font-semibold">{settings.orgName}</p>
+					<p class="mt-1 text-neutral-500">
+						Estimate E-{est.estimate.number}{est.estimate.version > 1
+							? ` v${est.estimate.version}`
+							: ''}
 					</p>
 				</div>
-			</div>
-		</header>
+				<dl class="w-72 space-y-5">
+					<div class="grid grid-cols-[8rem_1fr] gap-x-4">
+						<dt class="text-sm text-neutral-400">From</dt>
+						<dd class="text-sm">
+							{settings.orgName}
+							{#if settings.address}<br />{settings.address}{/if}
+							{#if settings.phone}<br />{settings.phone}{/if}
+							{#if settings.licenseNumber}<br />Lic. #{settings.licenseNumber}{/if}
+						</dd>
+					</div>
+					<div class="grid grid-cols-[8rem_1fr] gap-x-4">
+						<dt class="text-sm text-neutral-400">Prepared for</dt>
+						<dd class="text-sm">
+							{#each preparedFor as line}
+								{line}<br />
+							{/each}
+						</dd>
+					</div>
+					<div class="grid grid-cols-[8rem_1fr] gap-x-4">
+						<dt class="text-sm text-neutral-400">Issued</dt>
+						<dd class="text-sm">{formatDate(est.estimate.createdAt)}</dd>
+						{#if est.estimate.validUntil}
+							<dt class="text-sm text-neutral-400">Valid until</dt>
+							<dd class="text-sm">{formatDate(est.estimate.validUntil)}</dd>
+						{/if}
+						{#if est.estimate.customerPo}
+							<dt class="text-sm text-neutral-400">PO</dt>
+							<dd class="text-sm">{est.estimate.customerPo}</dd>
+						{/if}
+						<dt class="text-sm text-neutral-400">Status</dt>
+						<dd class="text-sm capitalize">{est.estimate.status}</dd>
+					</div>
+				</dl>
+			</header>
 
-		<div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-			<div>
-				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Prepared for</p>
-				<p class="font-medium">
-					{est.customer.companyName ? `${est.customer.companyName} — ` : ''}{est.customer.name}
-				</p>
-				{#if addr}<p>{addr}</p>{/if}
-				{#if est.customer.email}<p>{est.customer.email}</p>{/if}
-			</div>
-			<div class="text-right">
-				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Details</p>
-				<p>Issued {formatDate(est.estimate.createdAt)}</p>
-				{#if est.estimate.validUntil}<p>Valid until {formatDate(est.estimate.validUntil)}</p>{/if}
-				{#if est.estimate.customerPo}<p>PO: {est.estimate.customerPo}</p>{/if}
-				<p class="capitalize">Status: {est.estimate.status}</p>
-			</div>
-		</div>
+			<h1 class="mt-16 text-right text-7xl font-bold tracking-tight">Estimate</h1>
 
-		<table class="mt-6 w-full text-sm">
-			<thead>
-				<tr class="border-b-2 border-neutral-800 text-left">
-					<th class="py-1">Item</th>
-					<th class="w-16 py-1 text-right">Qty</th>
-					<th class="w-24 py-1 text-right">Unit</th>
-					<th class="w-28 py-1 text-right">Amount</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each est.items as i (i.item.id)}
-					<tr class="border-b border-neutral-200">
-						<td class="py-1.5">
-							{i.item.name}
-							{#if i.item.description}
-								<span class="block text-xs text-neutral-500">{i.item.description}</span>
-							{/if}
-						</td>
-						<td class="py-1.5 text-right">{i.item.qty}</td>
-						<td class="py-1.5 text-right tabular-nums"
-							>{formatMoney(i.item.unitPrice, settings.currency)}</td
-						>
-						<td class="py-1.5 text-right tabular-nums"
-							>{formatMoney(i.item.qty * i.item.unitPrice, settings.currency)}</td
-						>
+			<table class="mt-12 w-full border-t border-neutral-200 text-sm">
+				<thead>
+					<tr>
+						<th class="py-3 text-left font-medium">Service</th>
+						<th class="py-3 text-left font-medium">Quantity × rate</th>
+						<th class="w-40 py-3 text-right font-medium">
+							Amount {settings.currency.toUpperCase()}
+						</th>
 					</tr>
-				{/each}
-				<tr>
-					<td colspan="3" class="py-2 text-right font-semibold">Total</td>
-					<td class="py-2 text-right font-semibold tabular-nums"
-						>{formatMoney(total, settings.currency)}</td
-					>
-				</tr>
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					{#each est.items as i (i.item.id)}
+						<tr>
+							<td class="py-2">
+								{i.item.name}
+								{#if i.item.description}
+									<span class="block text-neutral-500">{i.item.description}</span>
+								{/if}
+							</td>
+							<td class="py-2 text-neutral-500">
+								{i.item.qty} × {formatMoney(i.item.unitPrice, settings.currency)}
+							</td>
+							<td class="py-2 text-right tabular-nums">
+								{formatMoney(i.item.qty * i.item.unitPrice, settings.currency)}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 
-		{#if est.estimate.notes}
-			<div class="mt-4 text-sm">
-				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Notes</p>
-				<p class="mt-1 whitespace-pre-wrap">{est.estimate.notes}</p>
+			<div class="mt-8 flex justify-end">
+				<dl class="w-72 text-sm">
+					<div class="grid grid-cols-2 gap-x-4 border-t border-neutral-200 pt-2 text-lg">
+						<dt>Total {settings.currency.toUpperCase()}</dt>
+						<dd class="text-right font-semibold tabular-nums">
+							{formatMoney(total, settings.currency)}
+						</dd>
+					</div>
+				</dl>
 			</div>
-		{/if}
 
-		{#if settings.estimateFooter}
-			<div class="mt-4 text-xs whitespace-pre-wrap text-neutral-600">
-				{settings.estimateFooter}
-			</div>
-		{/if}
-
-		<div class="mt-10 text-sm">
-			<p class="font-semibold tracking-wide text-neutral-500 uppercase">Approval</p>
-			{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
-				<p class="mt-4">Approved by {est.estimate.decisionName ?? 'customer'}</p>
-			{:else}
-				<p class="mt-8 w-64 border-b border-neutral-400 pb-1">Signature</p>
-				<p class="mt-4 w-64 border-b border-neutral-400 pb-1">Printed name / date</p>
+			{#if est.estimate.notes}
+				<p class="mt-12 text-sm whitespace-pre-wrap text-neutral-500">
+					{est.estimate.notes}
+				</p>
 			{/if}
+
+			{#if settings.estimateFooter}
+				<p class="mt-8 text-xs whitespace-pre-wrap text-neutral-500">
+					{settings.estimateFooter}
+				</p>
+			{/if}
+
+			<footer class="mt-14 text-sm">
+				<p class="font-semibold">Approval</p>
+				{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
+					<p class="mt-4">Approved by {est.estimate.decisionName ?? 'customer'}</p>
+				{:else}
+					<dl class="mt-8 grid grid-cols-[10rem_1fr] gap-y-10">
+						<dt class="text-neutral-500">Signature</dt>
+						<dd class="w-64 border-b border-neutral-300"></dd>
+						<dt class="text-neutral-500">Printed name / date</dt>
+						<dd class="w-64 border-b border-neutral-300"></dd>
+					</dl>
+				{/if}
+				{#if settings.logoUrl}
+					<img src={settings.logoUrl} alt={settings.orgName} class="mt-10 h-8 object-contain" />
+				{/if}
+			</footer>
 		</div>
 	</div>
 </div>
