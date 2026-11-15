@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.2.1
+
+### Patch Changes
+
+- 199e9d3: Fix deploy tooling (known_hosts resolution) and lint on print pages.
+
 ## 0.2.0
 
 ### Minor Changes
