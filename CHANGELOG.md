@@ -1,5 +1,15 @@
 # tredaro
 
+## 0.3.0
+
+### Minor Changes
+
+- fe3bdc1: Add `TREDARO_AI_PROVIDER` / `TREDARO_AI_DECISION_PROVIDER` (`openai` or `anthropic`) so AI features and decision calls work against any OpenAI-compatible `/chat/completions` endpoint or the Anthropic Messages API.
+
+### Patch Changes
+
+- fe3bdc1: Fix deploy tooling (known_hosts resolution) and lint on print pages.
+
 ## 0.2.1
 
 ### Patch Changes
