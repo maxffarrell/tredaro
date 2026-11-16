@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.3.1
+
+### Patch Changes
+
+- 52b33b9: Preserve all Anthropic text blocks and system instructions, and report the resolved default model in generated-content metadata.
+
 ## 0.3.0
 
 ### Minor Changes
