@@ -6,9 +6,11 @@ vi.mock('$app/env/private', () => env);
 beforeEach(() => {
 	vi.resetModules();
 	Object.assign(env, {
+		TREDARO_AI_PROVIDER: undefined,
 		TREDARO_AI_API_KEY: undefined,
 		TREDARO_AI_MODEL: 'test-model',
 		TREDARO_AI_BASE_URL: undefined,
+		TREDARO_AI_DECISION_PROVIDER: undefined,
 		TREDARO_AI_DECISION_API_KEY: undefined,
 		TREDARO_AI_DECISION_MODEL: undefined,
 		TREDARO_AI_DECISION_BASE_URL: undefined
@@ -55,5 +57,22 @@ describe('BYOK AI without a Cloud flag or enterprise key', () => {
 		const ai = await import('./ai.ts');
 		expect(ai.aiAvailable()).toBe(false);
 		expect(ai.aiDecisionAvailable()).toBe(true);
+	});
+
+	it('calls the Anthropic messages API when the provider is anthropic', async () => {
+		env.TREDARO_AI_PROVIDER = 'anthropic';
+		env.TREDARO_AI_API_KEY = 'sk-ant-test';
+		env.TREDARO_AI_MODEL = undefined;
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(Response.json({ content: [{ type: 'text', text: 'claude draft' }] }));
+		vi.stubGlobal('fetch', fetchMock);
+		const ai = await import('./ai.ts');
+		expect(ai.aiAvailable()).toBe(true);
+		expect(ai.aiDecisionAvailable()).toBe(true);
+		expect(await ai.aiChat([{ role: 'user', content: 'hello' }])).toBe('claude draft');
+		expect(fetchMock.mock.calls[0][0]).toBe('https://api.anthropic.com/v1/messages');
+		expect(fetchMock.mock.calls[0][1].headers['x-api-key']).toBe('sk-ant-test');
+		expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).model).toBe('claude-sonnet-4-5');
 	});
 });
