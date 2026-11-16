@@ -61,6 +61,11 @@ export const variables = defineEnvVars({
 			'Set to `true` on Tredaro Cloud. Enables enterprise features and cloud-only behaviour.',
 		schema: (value) => value === 'true'
 	},
+	TREDARO_AI_PROVIDER: {
+		description:
+			'AI provider API to call: `openai` (default — any OpenAI-compatible `/chat/completions` endpoint: OpenAI, Ollama, OpenRouter, vLLM, LiteLLM) or `anthropic` (Claude Messages API).',
+		schema: (value) => value || undefined
+	},
 	TREDARO_AI_BASE_URL: {
 		description:
 			'OpenAI-compatible API base for BYOK AI features, e.g. `https://api.openai.com/v1` or a self-hosted gateway. Defaults to OpenAI.',
@@ -72,6 +77,11 @@ export const variables = defineEnvVars({
 	},
 	TREDARO_AI_MODEL: {
 		description: 'Chat model name the endpoint should run, e.g. `gpt-5-mini`.',
+		schema: (value) => value || undefined
+	},
+	TREDARO_AI_DECISION_PROVIDER: {
+		description:
+			'Optional separate provider API for structured decision calls (`openai` or `anthropic`). Falls back to `TREDARO_AI_PROVIDER`.',
 		schema: (value) => value || undefined
 	},
 	TREDARO_AI_DECISION_BASE_URL: {
