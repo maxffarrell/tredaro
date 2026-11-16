@@ -99,16 +99,21 @@ async function anthropicChat(cfg: AiConfig, messages: ChatMessage[], maxTokens: 
 			model: cfg.model,
 			temperature: 0.2,
 			max_tokens: maxTokens,
-			system: messages.find((m) => m.role === 'system')?.content,
+			system:
+				messages
+					.filter((m) => m.role === 'system')
+					.map((m) => m.content)
+					.join('\n\n') || undefined,
 			messages: messages.filter((m) => m.role !== 'system')
 		}),
 		signal: AbortSignal.timeout(30_000)
 	});
 	if (!res.ok) throw new Error(`AI endpoint returned ${res.status}`);
 	const data: unknown = await res.json();
-	const text = (
-		data as { content?: { type: string; text?: unknown }[] } | undefined
-	)?.content?.find((b) => b.type === 'text')?.text;
+	const text = (data as { content?: { type: string; text?: unknown }[] } | undefined)?.content
+		?.filter((b) => b.type === 'text' && typeof b.text === 'string')
+		.map((b) => b.text)
+		.join('');
 	if (typeof text !== 'string' || !text.trim()) throw new Error('Empty response from AI endpoint');
 	return text;
 }
@@ -175,7 +180,7 @@ export async function aiDecision<S extends v.GenericSchema>(
 }
 
 export function aiModel(): string {
-	return TREDARO_AI_MODEL || '';
+	return featureConfig().model;
 }
 
 /** The model decision calls resolve to (decision var, else feature var). */

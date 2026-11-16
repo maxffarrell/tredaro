@@ -70,9 +70,65 @@ describe('BYOK AI without a Cloud flag or enterprise key', () => {
 		const ai = await import('./ai.ts');
 		expect(ai.aiAvailable()).toBe(true);
 		expect(ai.aiDecisionAvailable()).toBe(true);
+		expect(ai.aiModel()).toBe('claude-sonnet-4-5');
 		expect(await ai.aiChat([{ role: 'user', content: 'hello' }])).toBe('claude draft');
 		expect(fetchMock.mock.calls[0][0]).toBe('https://api.anthropic.com/v1/messages');
 		expect(fetchMock.mock.calls[0][1].headers['x-api-key']).toBe('sk-ant-test');
 		expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).model).toBe('claude-sonnet-4-5');
+	});
+});
+
+describe('Anthropic message integrity', () => {
+	beforeEach(() => {
+		env.TREDARO_AI_PROVIDER = 'anthropic';
+	});
+	it('preserves every system instruction and conversational role in order', async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
+		vi.stubGlobal('fetch', fetchMock);
+		const { aiChat } = await import('./ai.ts');
+		await aiChat([
+			{ role: 'system', content: 'first' },
+			{ role: 'user', content: 'hello' },
+			{ role: 'system', content: 'second' },
+			{ role: 'assistant', content: 'hi' }
+		]);
+		const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+		expect(body.system).toBe('first\n\nsecond');
+		expect(body.messages).toEqual([
+			{ role: 'user', content: 'hello' },
+			{ role: 'assistant', content: 'hi' }
+		]);
+	});
+	it('joins text blocks without truncating structured decisions', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				Response.json({
+					content: [
+						{ type: 'text', text: '' },
+						{ type: 'text', text: '{"ok":' },
+						{ type: 'thinking', thinking: 'ignored' },
+						{ type: 'text', text: 'true}' }
+					]
+				})
+			)
+		);
+		const { aiDecision } = await import('./ai.ts');
+		const v = await import('valibot');
+		expect(await aiDecision(v.object({ ok: v.boolean() }), 'return json', 'input')).toEqual({
+			ok: true
+		});
+	});
+	it.each([
+		[],
+		[{ type: 'text', text: ' ' }],
+		[{ type: 'thinking', thinking: 'hidden' }],
+		[{ type: 'text', text: 42 }]
+	])('rejects a response without usable text: %j', async (...blocks) => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ content: blocks })));
+		const { aiChat } = await import('./ai.ts');
+		await expect(aiChat([{ role: 'user', content: 'hi' }])).rejects.toThrow('Empty response');
 	});
 });
