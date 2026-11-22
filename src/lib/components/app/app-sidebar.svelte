@@ -91,9 +91,9 @@
 							tooltipContent={`${item.label}  G ${item.key.toUpperCase()}`}
 						>
 							{#snippet child({ props })}
-								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}"
-									><item.icon /><span>{item.label}</span></a
-								>
+								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}">
+									<item.icon /><span>{item.label}</span>
+								</a>
 							{/snippet}
 						</Sidebar.MenuButton>
 					</Sidebar.MenuItem>
@@ -105,9 +105,9 @@
 				<Sidebar.MenuItem>
 					<Sidebar.MenuButton tooltipContent="Customer portal">
 						{#snippet child({ props })}
-							<a href="/portal" target="_blank" {...props} data-tour="nav-portal"
-								><ExternalLink /><span>Customer portal</span></a
-							>
+							<a href="/portal" target="_blank" {...props} data-tour="nav-portal">
+								<ExternalLink /><span>Customer portal</span>
+							</a>
 						{/snippet}
 					</Sidebar.MenuButton>
 				</Sidebar.MenuItem>
@@ -115,9 +115,9 @@
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton isActive={isActive(item.href)} tooltipContent={item.label}>
 							{#snippet child({ props })}
-								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}"
-									><item.icon /><span>{item.label}</span></a
-								>
+								<a href={item.href} {...props} data-tour="nav-{item.label.toLowerCase()}">
+									<item.icon /><span>{item.label}</span>
+								</a>
 							{/snippet}
 						</Sidebar.MenuButton>
 					</Sidebar.MenuItem>
@@ -152,9 +152,9 @@
 						<DropdownMenu.Item onclick={toggleMode}>
 							{#if mode.current === 'dark'}<Sun /> Light mode{:else}<Moon /> Dark mode{/if}
 						</DropdownMenu.Item>
-						<DropdownMenu.Item onclick={() => tour.start()}
-							><GraduationCap /> Replay guided tour</DropdownMenu.Item
-						>
+						<DropdownMenu.Item onclick={() => tour.start()}>
+							<GraduationCap /> Replay guided tour
+						</DropdownMenu.Item>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item onclick={signOut}><LogOut /> Sign out</DropdownMenu.Item>
 					</DropdownMenu.Content>

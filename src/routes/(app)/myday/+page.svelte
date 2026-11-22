@@ -437,8 +437,9 @@
 						target="_blank"
 						title="Print work order"
 						class="ml-1 inline-flex align-middle text-muted-foreground hover:text-foreground"
-						><Printer class="size-3.5" /></a
 					>
+						<Printer class="size-3.5" />
+					</a>
 					<p class="truncate text-sm text-muted-foreground">
 						{j.companyName ?? j.customerName}{#if j.locationLabel}
 							· {j.locationLabel}{/if}
@@ -455,8 +456,10 @@
 								`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`
 							)}"
 							target="_blank"
-							rel="noreferrer"><MapPin class="size-3" /> Directions</a
+							rel="noreferrer"
 						>
+							<MapPin class="size-3" /> Directions
+						</a>
 					{/if}
 					{#if j.job.arrivalWindow}
 						<p class="truncate text-xs font-medium">Arrive {j.job.arrivalWindow}</p>
@@ -468,8 +471,10 @@
 						<a
 							class="inline-flex items-center gap-1 text-primary hover:underline"
 							href="tel:{j.customerPhone}"
-							title="Call {j.customerName}"><Phone class="size-3" /> Call</a
+							title="Call {j.customerName}"
 						>
+							<Phone class="size-3" /> Call
+						</a>
 					{/if}
 					{#if j.accessNotes}
 						<p class="truncate text-xs font-medium text-amber-600 dark:text-amber-500">
@@ -481,9 +486,10 @@
 							href="/files/job-document/{doc.id}"
 							target="_blank"
 							class="inline-flex max-w-full items-center gap-1 text-xs text-primary hover:underline"
-							><Paperclip class="size-3 shrink-0" />
-							<span class="truncate">{doc.fileName}</span></a
 						>
+							<Paperclip class="size-3 shrink-0" />
+							<span class="truncate">{doc.fileName}</span>
+						</a>
 					{/each}
 				</div>
 				<StatusBadge status={j.job.status} />
@@ -543,9 +549,9 @@
 					</div>
 				{/if}
 				{#if claimable}
-					<Button size="sm" disabled={pending !== null} onclick={() => claim(j.job.id)}
-						><Hand /> Take</Button
-					>
+					<Button size="sm" disabled={pending !== null} onclick={() => claim(j.job.id)}>
+						<Hand /> Take
+					</Button>
 				{/if}
 				{#each NEXT[j.job.status] ?? [] as action (action.kind)}
 					{@const Icon = ICONS[action.kind]}
@@ -555,46 +561,58 @@
 						disabled={pending !== null}
 						onclick={() =>
 							action.kind === 'completed' ? (signJobId = j.job.id) : advance(j.job.id, action.kind)}
-						><Icon /> {action.label}</Button
 					>
+						<Icon />
+						{action.label}
+					</Button>
 				{/each}
 				{#if j.job.status !== 'done' && j.job.status !== 'cancelled'}
 					<Button
 						size="sm"
 						variant="ghost"
 						disabled={pending !== null}
-						onclick={() => (noteJobId = j.job.id)}><StickyNote /> Note</Button
+						onclick={() => (noteJobId = j.job.id)}
 					>
+						<StickyNote /> Note
+					</Button>
 					<Button
 						size="sm"
 						variant="ghost"
 						disabled={pending !== null}
 						title="Log a job expense (permit, parking, misc)"
-						onclick={() => (expJobId = j.job.id)}><Receipt /> Expense</Button
+						onclick={() => (expJobId = j.job.id)}
 					>
+						<Receipt /> Expense
+					</Button>
 					{#if j.customerPhone}
 						<Button
 							size="sm"
 							variant="ghost"
 							disabled={pending !== null}
 							title="Text the customer"
-							onclick={() => (textCustomerId = j.job.customerId)}><MessageSquare /> Text</Button
+							onclick={() => (textCustomerId = j.job.customerId)}
 						>
+							<MessageSquare /> Text
+						</Button>
 						<Button
 							size="sm"
 							variant="ghost"
 							disabled={pending !== null}
 							title="Text the customer a new ETA"
-							onclick={() => (lateJobId = j.job.id)}><Clock /> Late</Button
+							onclick={() => (lateJobId = j.job.id)}
 						>
+							<Clock /> Late
+						</Button>
 					{/if}
 					<Button
 						size="sm"
 						variant="ghost"
 						disabled={pending !== null}
 						title="Collect a payment on site"
-						onclick={() => (collectCustomerId = j.job.customerId)}><HandCoins /> Collect</Button
+						onclick={() => (collectCustomerId = j.job.customerId)}
 					>
+						<HandCoins /> Collect
+					</Button>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							{#snippet child({ props })}
@@ -610,15 +628,15 @@
 							{/snippet}
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="start">
-							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'before')}
-								>Before photo</DropdownMenu.Item
-							>
-							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'during')}
-								>During photo</DropdownMenu.Item
-							>
-							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'after')}
-								>After photo</DropdownMenu.Item
-							>
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'before')}>
+								Before photo
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'during')}>
+								During photo
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onclick={() => pickPhoto(j.job.id, 'after')}>
+								After photo
+							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 					{#if myTruck.length}
@@ -626,8 +644,10 @@
 							size="sm"
 							variant="ghost"
 							disabled={pending !== null}
-							onclick={() => openPart(j.job.id)}><Package /> Part</Button
+							onclick={() => openPart(j.job.id)}
 						>
+							<Package /> Part
+						</Button>
 					{/if}
 					<Button
 						size="sm"
@@ -710,13 +730,13 @@
 			class="border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"
 		>
 			<CalendarX2 />
-			<Alert.Title
-				>You're off today{day.offToday.reason ? `: ${day.offToday.reason}` : ''}.</Alert.Title
-			>
-			<Alert.Description
-				>Anything below was already on your schedule — coordinate with the office if it needs
-				reassigning.</Alert.Description
-			>
+			<Alert.Title>
+				You're off today{day.offToday.reason ? `: ${day.offToday.reason}` : ''}.
+			</Alert.Title>
+			<Alert.Description>
+				Anything below was already on your schedule — coordinate with the office if it needs
+				reassigning.
+			</Alert.Description>
 		</Alert.Root>
 	{/if}
 
@@ -746,112 +766,116 @@
 			<span class="tabular-nums"><span class="font-semibold">{done}</span> done</span>
 			<span class="tabular-nums"><span class="font-semibold">{left}</span> left</span>
 			{#if day.jobs.filter((j) => j.job.equipmentId).length}
-				<span class="text-muted-foreground tabular-nums"
-					>{day.jobs.filter((j) => j.job.equipmentId).length} on equipment</span
-				>
+				<span class="text-muted-foreground tabular-nums">
+					{day.jobs.filter((j) => j.job.equipmentId).length} on equipment
+				</span>
 			{/if}
 			{#if day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length}
-				<span class="font-medium text-red-600 tabular-nums dark:text-red-400"
-					>{day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length} urgent/high</span
-				>
+				<span class="font-medium text-red-600 tabular-nums dark:text-red-400">
+					{day.jobs.filter((j) => j.job.priority === 'urgent' || j.job.priority === 'high').length} urgent/high
+				</span>
 			{/if}
 			{#if stops.length > 1}
 				<a
 					class="inline-flex items-center gap-1 font-medium text-primary hover:underline"
 					href="https://www.google.com/maps/dir/{stops.join('/')}"
 					target="_blank"
-					rel="noreferrer"><Navigation class="size-3.5" /> Route {stops.length} stops</a
+					rel="noreferrer"
 				>
+					<Navigation class="size-3.5" /> Route {stops.length} stops
+				</a>
 			{/if}
 			{#if day.materials?.length}
-				<span class="text-muted-foreground tabular-nums"
-					>pull {day.materials.reduce((m, x) => m + x.qty, 0)} item{day.materials.reduce(
+				<span class="text-muted-foreground tabular-nums">
+					pull {day.materials.reduce((m, x) => m + x.qty, 0)} item{day.materials.reduce(
 						(m, x) => m + x.qty,
 						0
 					) === 1
 						? ''
-						: 's'}</span
-				>
+						: 's'}
+				</span>
 			{/if}
 			{#if day.jobs.filter((j) => j.confirmed).length}
-				<span class="text-muted-foreground tabular-nums"
-					>{day.jobs.filter((j) => j.confirmed).length} confirmed</span
-				>
+				<span class="text-muted-foreground tabular-nums">
+					{day.jobs.filter((j) => j.confirmed).length} confirmed
+				</span>
 			{/if}
 			{#if day.truckLow?.length}
 				<a
 					class="inline-flex items-center gap-1 font-medium text-amber-600 tabular-nums hover:underline dark:text-amber-400"
 					href="/inventory"
-					>{day.truckLow.length} truck item{day.truckLow.length === 1 ? '' : 's'} low</a
 				>
+					{day.truckLow.length} truck item{day.truckLow.length === 1 ? '' : 's'} low
+				</a>
 			{/if}
 			{#if next?.job.startsAt}
-				<span class="text-muted-foreground tabular-nums"
-					>next {localTime(next.job.startsAt, tz)}</span
-				>
+				<span class="text-muted-foreground tabular-nums">
+					next {localTime(next.job.startsAt, tz)}
+				</span>
 			{/if}
 			{#if schedMin > 0}
-				<span class="text-muted-foreground tabular-nums"
-					>{Math.floor(schedMin / 60)}h {Math.round(schedMin % 60)}m scheduled{#if day.jobs.length > 1}
+				<span class="text-muted-foreground tabular-nums">
+					{Math.floor(schedMin / 60)}h {Math.round(schedMin % 60)}m scheduled{#if day.jobs.length > 1}
 						· avg {Math.round(schedMin / day.jobs.length / 60)}h {Math.round(
 							(schedMin / day.jobs.length) % 60
-						)}m/job{/if}</span
-				>
+						)}m/job{/if}
+				</span>
 			{/if}
 			{#if lastEnd}
-				<span class="text-muted-foreground tabular-nums"
-					>ends ~{localTime(new Date(lastEnd), tz)}</span
-				>
+				<span class="text-muted-foreground tabular-nums">
+					ends ~{localTime(new Date(lastEnd), tz)}
+				</span>
 			{/if}
-			<span class="text-muted-foreground tabular-nums"
-				>{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged</span
-			>
+			<span class="text-muted-foreground tabular-nums">
+				{Math.floor(day.minutesLogged / 60)}h {day.minutesLogged % 60}m logged
+			</span>
 			{#if day.pendingApprovalMin > 0}
-				<span class="text-amber-600 tabular-nums dark:text-amber-400"
-					>· {Math.floor(day.pendingApprovalMin / 60)}h {day.pendingApprovalMin % 60}m awaiting
-					approval</span
-				>
+				<span class="text-amber-600 tabular-nums dark:text-amber-400">
+					· {Math.floor(day.pendingApprovalMin / 60)}h {day.pendingApprovalMin % 60}m awaiting
+					approval
+				</span>
 			{/if}
 			{#if day.flaggedTime?.length}
 				<a
 					href="/jobs/{day.flaggedTime[0].jobId}"
 					class="text-amber-600 tabular-nums hover:underline dark:text-amber-400"
 					title={day.flaggedTime.map((f) => `J-${f.jobNumber}: ${f.note}`).join('\n')}
-					>· {day.flaggedTime.length} entr{day.flaggedTime.length === 1 ? 'y' : 'ies'} flagged — fix J-{day
-						.flaggedTime[0].jobNumber}</a
 				>
+					· {day.flaggedTime.length} entr{day.flaggedTime.length === 1 ? 'y' : 'ies'} flagged — fix J-{day
+						.flaggedTime[0].jobNumber}
+				</a>
 			{/if}
 			{#if day.weekLoggedMin > 0}
-				<span class="text-muted-foreground tabular-nums"
-					>· this week {Math.floor(day.weekLoggedMin / 60)}h {day.weekLoggedMin %
+				<span class="text-muted-foreground tabular-nums">
+					· this week {Math.floor(day.weekLoggedMin / 60)}h {day.weekLoggedMin %
 						60}m{#if day.weekApprovedMin > 0}
-						<span class="text-emerald-600 dark:text-emerald-400"
-							>({Math.floor(day.weekApprovedMin / 60)}h {day.weekApprovedMin % 60}m approved)</span
-						>{/if}</span
-				>
+						<span class="text-emerald-600 dark:text-emerald-400">
+							({Math.floor(day.weekApprovedMin / 60)}h {day.weekApprovedMin % 60}m approved)
+						</span>{/if}
+				</span>
 			{/if}
 			{#if day.tipsToday.total > 0}
-				<span class="text-muted-foreground tabular-nums"
-					>· tips: <span class="font-semibold text-emerald-600 dark:text-emerald-400"
-						>{formatMoney(day.tipsToday.total, currency)}</span
-					> today</span
-				>
+				<span class="text-muted-foreground tabular-nums">
+					· tips: <span class="font-semibold text-emerald-600 dark:text-emerald-400">
+						{formatMoney(day.tipsToday.total, currency)}
+					</span> today
+				</span>
 			{/if}
 			{#if day.monthCommissionCents > 0}
-				<span class="text-muted-foreground tabular-nums"
-					>· commission: <span class="font-semibold text-emerald-600 dark:text-emerald-400"
-						>{formatMoney(day.monthCommissionCents, currency)}</span
-					> this month</span
-				>
+				<span class="text-muted-foreground tabular-nums">
+					· commission: <span class="font-semibold text-emerald-600 dark:text-emerald-400">
+						{formatMoney(day.monthCommissionCents, currency)}
+					</span> this month
+				</span>
 			{/if}
 			{#if day.tomorrow.length}
 				{@const first = day.tomorrow.find((j) => j.job.startsAt)}
-				<span class="text-muted-foreground tabular-nums"
-					>· tomorrow: <span class="font-semibold text-foreground">{day.tomorrow.length}</span>
+				<span class="text-muted-foreground tabular-nums">
+					· tomorrow: <span class="font-semibold text-foreground">{day.tomorrow.length}</span>
 					job{day.tomorrow.length === 1 ? '' : 's'}{#if first?.job.startsAt}
 						— first at {localTime(first.job.startsAt, tz)}{/if}{#if tomorrowSchedMin > 0}
-						· {Math.floor(tomorrowSchedMin / 60)}h {Math.round(tomorrowSchedMin % 60)}m sched{/if}</span
-				>
+						· {Math.floor(tomorrowSchedMin / 60)}h {Math.round(tomorrowSchedMin % 60)}m sched{/if}
+				</span>
 			{/if}
 		</div>
 	{/if}
@@ -874,8 +898,10 @@
 						size="sm"
 						variant="outline"
 						disabled={pending !== null}
-						onclick={() => clock(day.openEntry!.entry.jobId)}><Square /> Clock out</Button
+						onclick={() => clock(day.openEntry!.entry.jobId)}
 					>
+						<Square /> Clock out
+					</Button>
 				</Card.Content>
 			</Card.Root>
 		{/if}
@@ -917,10 +943,10 @@
 						<Table.Body>
 							{#each day.materials as m (m.name)}
 								<Table.Row>
-									<Table.Cell class="pl-6 font-medium"
-										>{m.name}{#if m.sku}
-											<span class="text-muted-foreground">· {m.sku}</span>{/if}</Table.Cell
-									>
+									<Table.Cell class="pl-6 font-medium">
+										{m.name}{#if m.sku}
+											<span class="text-muted-foreground">· {m.sku}</span>{/if}
+									</Table.Cell>
 									<Table.Cell class="pr-6 text-right tabular-nums">{m.qty} {m.unit}</Table.Cell>
 								</Table.Row>
 							{/each}
@@ -978,21 +1004,21 @@
 	<Modal.Content class="sm:max-w-xs">
 		<Modal.Header>
 			<Modal.Title>Log part used</Modal.Title>
-			<Modal.Description
-				>Comes off your truck stock — bill it on the invoice later.</Modal.Description
-			>
+			<Modal.Description>
+				Comes off your truck stock — bill it on the invoice later.
+			</Modal.Description>
 		</Modal.Header>
 		<div class="grid gap-3">
 			<Select.Root type="single" value={partItemId} onValueChange={(v) => (partItemId = v ?? '')}>
-				<Select.Trigger class="w-full" data-testid="part-item"
-					>{myTruck.find((t) => t.stock.inventoryItemId === partItemId)?.itemName ??
-						'Pick a part'}</Select.Trigger
-				>
+				<Select.Trigger class="w-full" data-testid="part-item">
+					{myTruck.find((t) => t.stock.inventoryItemId === partItemId)?.itemName ?? 'Pick a part'}
+				</Select.Trigger>
 				<Select.Content>
 					{#each myTruck as t (t.stock.id)}
-						<Select.Item value={t.stock.inventoryItemId}
-							>{t.itemName} — {t.stock.qty} {t.itemUnit} on truck</Select.Item
-						>
+						<Select.Item value={t.stock.inventoryItemId}>
+							{t.itemName} — {t.stock.qty}
+							{t.itemUnit} on truck
+						</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>
@@ -1003,9 +1029,9 @@
 		</div>
 		<Modal.Footer>
 			<Button variant="outline" onclick={() => (partJobId = null)}>Cancel</Button>
-			<Button onclick={logPart} disabled={pending !== null || !partItemId || partQty < 1}
-				>Log part</Button
-			>
+			<Button onclick={logPart} disabled={pending !== null || !partItemId || partQty < 1}>
+				Log part
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>
@@ -1014,9 +1040,9 @@
 	<Modal.Content class="sm:max-w-xs">
 		<Modal.Header>
 			<Modal.Title>Request time off</Modal.Title>
-			<Modal.Description
-				>Blocked on the dispatch board immediately — the office is emailed a heads-up.</Modal.Description
-			>
+			<Modal.Description>
+				Blocked on the dispatch board immediately — the office is emailed a heads-up.
+			</Modal.Description>
 		</Modal.Header>
 		<div class="grid gap-3">
 			<div class="grid gap-1.5">
@@ -1034,9 +1060,9 @@
 		</div>
 		<Modal.Footer>
 			<Button variant="outline" onclick={() => (ptoOpen = false)}>Cancel</Button>
-			<Button onclick={saveTimeOff} disabled={ptoPending || !ptoStart || !ptoEnd}
-				>{ptoPending ? 'Saving…' : 'Mark off'}</Button
-			>
+			<Button onclick={saveTimeOff} disabled={ptoPending || !ptoStart || !ptoEnd}>
+				{ptoPending ? 'Saving…' : 'Mark off'}
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>
@@ -1074,9 +1100,9 @@
 	<Modal.Content class="sm:max-w-xs">
 		<Modal.Header>
 			<Modal.Title>Job expense</Modal.Title>
-			<Modal.Description
-				>Permits, parking, subcontractors — billable on the job's invoice.</Modal.Description
-			>
+			<Modal.Description>
+				Permits, parking, subcontractors — billable on the job's invoice.
+			</Modal.Description>
 		</Modal.Header>
 		<div class="space-y-3">
 			<div class="space-y-1.5">
@@ -1094,8 +1120,9 @@
 		</div>
 		<Modal.Footer>
 			<Button variant="outline" onclick={() => (expJobId = null)}>Cancel</Button>
-			<Button onclick={saveExpense} disabled={!expDesc.trim() || expAmount <= 0}>Log expense</Button
-			>
+			<Button onclick={saveExpense} disabled={!expDesc.trim() || expAmount <= 0}>
+				Log expense
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>
@@ -1109,9 +1136,9 @@
 	<Modal.Content class="sm:max-w-xs">
 		<Modal.Header>
 			<Modal.Title>Text the customer</Modal.Title>
-			<Modal.Description
-				>Sends from your company's number — replies land in the inbox.</Modal.Description
-			>
+			<Modal.Description>
+				Sends from your company's number — replies land in the inbox.
+			</Modal.Description>
 		</Modal.Header>
 		<Textarea rows={3} bind:value={textMsg} placeholder="Running about 15 minutes behind…" />
 		<Modal.Footer>
@@ -1149,8 +1176,10 @@
 					<Button
 						variant="link"
 						class="h-auto p-0 text-xs"
-						onclick={() => (collectAmount = collectBal!.open)}>Fill full balance</Button
+						onclick={() => (collectAmount = collectBal!.open)}
 					>
+						Fill full balance
+					</Button>
 				{/if}
 			</div>
 			<div class="space-y-1.5">
@@ -1190,15 +1219,15 @@
 			</div>
 			<div class="flex justify-between">
 				<span class="text-muted-foreground">Time logged</span>
-				<span class="font-medium tabular-nums"
-					>{Math.floor((day.minutesLogged ?? 0) / 60)}h {(day.minutesLogged ?? 0) % 60}m</span
-				>
+				<span class="font-medium tabular-nums">
+					{Math.floor((day.minutesLogged ?? 0) / 60)}h {(day.minutesLogged ?? 0) % 60}m
+				</span>
 			</div>
 			<div class="flex justify-between">
 				<span class="text-muted-foreground">Timer still running</span>
-				<span class="font-medium"
-					>{day.openEntry ? 'Yes — J-' + day.openEntry.jobNumber : 'No'}</span
-				>
+				<span class="font-medium">
+					{day.openEntry ? 'Yes — J-' + day.openEntry.jobNumber : 'No'}
+				</span>
 			</div>
 			{#if day.materials?.length}
 				<div class="border-t pt-2">
@@ -1240,8 +1269,10 @@
 				<Button
 					variant="outline"
 					disabled={pending !== null}
-					onclick={() => sendLate(lateJobId!, m)}>~{m} min</Button
+					onclick={() => sendLate(lateJobId!, m)}
 				>
+					~{m} min
+				</Button>
 			{/each}
 		</div>
 	</Modal.Content>

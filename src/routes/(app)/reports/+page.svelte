@@ -81,9 +81,9 @@
 
 <PageHeader title="Reports">
 	{#snippet actions()}
-		<Button size="sm" variant="outline" href="/api/export/time-entries.csv" download
-			><Download /> Time entries CSV</Button
-		>
+		<Button size="sm" variant="outline" href="/api/export/time-entries.csv" download>
+			<Download /> Time entries CSV
+		</Button>
 	{/snippet}
 </PageHeader>
 
@@ -168,16 +168,16 @@
 			{/if}
 			{#if r.avgTicket != null}
 				<p class="pt-2 text-sm text-muted-foreground">
-					Avg invoice (90d): <span class="font-medium text-foreground"
-						>{formatMoney(r.avgTicket, currency)}</span
-					>
+					Avg invoice (90d): <span class="font-medium text-foreground">
+						{formatMoney(r.avgTicket, currency)}
+					</span>
 				</p>
 			{/if}
 			{#if r.avgDaysToInvoice != null}
 				<p class="pt-1 text-sm text-muted-foreground">
-					Avg days to invoice (90d): <span class="font-medium text-foreground"
-						>{r.avgDaysToInvoice < 1 ? 'same day' : r.avgDaysToInvoice.toFixed(1) + ' days'}</span
-					> after completion
+					Avg days to invoice (90d): <span class="font-medium text-foreground">
+						{r.avgDaysToInvoice < 1 ? 'same day' : r.avgDaysToInvoice.toFixed(1) + ' days'}
+					</span> after completion
 				</p>
 			{/if}
 		</Card.Content>
@@ -216,9 +216,9 @@
 			{/if}
 			{#if r.churnedAgreements > 0}
 				<p class="pt-2 text-sm text-muted-foreground">
-					Cancelled in last 90d: <span class="font-medium text-foreground"
-						>{r.churnedAgreements}</span
-					>
+					Cancelled in last 90d: <span class="font-medium text-foreground">
+						{r.churnedAgreements}
+					</span>
 				</p>
 			{/if}
 		</Card.Content>
@@ -227,12 +227,12 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Estimate funnel</Card.Title>
-			<Card.Description
-				>{approvalRate}% approval on decided estimates{#if r.estimateDecisionDays != null}
+			<Card.Description>
+				{approvalRate}% approval on decided estimates{#if r.estimateDecisionDays != null}
 					· avg {r.estimateDecisionDays.toFixed(1)}d to decision{/if}{#if avgSent != null}
 					· avg {formatMoney(avgSent, currency, true)} per sent{/if}{#if r.avgItemsPerQuote}
-					· avg {r.avgItemsPerQuote.toFixed(1)} items per quote{/if}</Card.Description
-			>
+					· avg {r.avgItemsPerQuote.toFixed(1)} items per quote{/if}
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -241,15 +241,14 @@
 						<Table.Row>
 							<Table.Cell class="pl-6"><StatusBadge status={e.status} /></Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{e.count}</Table.Cell>
-							<Table.Cell class="pr-6 text-right text-muted-foreground tabular-nums"
-								>{formatMoney(e.total, currency, true)}</Table.Cell
-							>
+							<Table.Cell class="pr-6 text-right text-muted-foreground tabular-nums">
+								{formatMoney(e.total, currency, true)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell class="pl-6 text-muted-foreground">No estimates yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell class="pl-6 text-muted-foreground">No estimates yet.</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -259,9 +258,9 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Lost deals by reason</Card.Title>
-			<Card.Description
-				>Declined estimates by why the customer passed — picklist on the public quote page</Card.Description
-			>
+			<Card.Description>
+				Declined estimates by why the customer passed — picklist on the public quote page
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -270,15 +269,14 @@
 						<Table.Row>
 							<Table.Cell class="pl-6 font-medium">{reasonLabels[l.reason] ?? l.reason}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{l.count}</Table.Cell>
-							<Table.Cell class="pr-6 text-right text-muted-foreground tabular-nums"
-								>{formatMoney(l.total, currency, true)}</Table.Cell
-							>
+							<Table.Cell class="pr-6 text-right text-muted-foreground tabular-nums">
+								{formatMoney(l.total, currency, true)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell class="pl-6 text-muted-foreground">No declined estimates yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell class="pl-6 text-muted-foreground">No declined estimates yet.</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -288,12 +286,12 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Jobs by type</Card.Title>
-			<Card.Description
-				>Last 30 days, excluding cancelled{#if r.avgJobValue != null}
+			<Card.Description>
+				Last 30 days, excluding cancelled{#if r.avgJobValue != null}
 					· avg {formatMoney(r.avgJobValue, currency, true)} invoiced per job (90d){/if}{#if r.avgJobMinutes != null}
 					· avg {fmtHours(r.avgJobMinutes)} per done job{/if}{#if r.cancelRate != null}
-					· {Math.round(r.cancelRate)}% cancelled (30d){/if}</Card.Description
-			>
+					· {Math.round(r.cancelRate)}% cancelled (30d){/if}
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -315,11 +313,11 @@
 							<Table.Cell class="text-right tabular-nums">{t.done}</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={3} class="text-muted-foreground"
-								>No jobs in the last 30 days.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={3} class="text-muted-foreground">
+								No jobs in the last 30 days.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -329,10 +327,10 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Technician workload</Card.Title>
-			<Card.Description
-				>Last 30 days{#if r.repeatRate}
-					· {r.repeatRate.repeats}/{r.repeatRate.customers} repeat customers (90d){/if}</Card.Description
-			>
+			<Card.Description>
+				Last 30 days{#if r.repeatRate}
+					· {r.repeatRate.repeats}/{r.repeatRate.customers} repeat customers (90d){/if}
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -351,11 +349,11 @@
 							<Table.Cell class="text-right tabular-nums">{t.done}</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={3} class="text-muted-foreground"
-								>No assigned jobs in the last 30 days.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={3} class="text-muted-foreground">
+								No assigned jobs in the last 30 days.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -382,9 +380,9 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Technician performance</Card.Title>
-			<Card.Description
-				>Jobs completed, hours logged, revenue collected on their jobs — last 90 days</Card.Description
-			>
+			<Card.Description>
+				Jobs completed, hours logged, revenue collected on their jobs — last 90 days
+			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<Table.Root>
@@ -405,27 +403,27 @@
 							<Table.Cell class="font-medium">{t.name}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{t.jobsDone}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{fmtHours(t.minutes)}</Table.Cell>
-							<Table.Cell class="text-right tabular-nums"
-								>{t.jobsDone ? fmtHours(t.avgMinPerJob) : '—'}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(t.revenue, currency, true)}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{t.commissionPct
+							<Table.Cell class="text-right tabular-nums">
+								{t.jobsDone ? fmtHours(t.avgMinPerJob) : '—'}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(t.revenue, currency, true)}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{t.commissionPct
 									? `${formatMoney(t.commission, currency, true)} (${t.commissionPct}%)`
-									: '—'}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{t.avgRating ? `${t.avgRating.toFixed(1)}★` : '—'}</Table.Cell
-							>
+									: '—'}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{t.avgRating ? `${t.avgRating.toFixed(1)}★` : '—'}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={7} class="text-muted-foreground"
-								>No technician activity in the last 90 days.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={7} class="text-muted-foreground">
+								No technician activity in the last 90 days.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -435,8 +433,8 @@
 	<Card.Root class="lg:col-span-2">
 		<Card.Header>
 			<Card.Title class="text-base">Job profitability</Card.Title>
-			<Card.Description
-				>Completed jobs, last 90 days — invoiced vs labor, materials, and expense cost{#if r.expenses90d}
+			<Card.Description>
+				Completed jobs, last 90 days — invoiced vs labor, materials, and expense cost{#if r.expenses90d}
 					· {formatMoney(r.expenses90d, currency)} expenses logged (90d){/if}{#if r.materialsMargin}
 					· materials margin {formatMoney(
 						r.materialsMargin.sell - r.materialsMargin.cost,
@@ -449,8 +447,8 @@
 						r.profit.reduce((a, j) => a + j.billed, 0) /
 							(r.profit.reduce((a, j) => a + j.schedMin, 0) / 60 || 1),
 						currency
-					)}/sched-hr{/if}</Card.Description
-			>
+					)}/sched-hr{/if}
+			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<Table.Root>
@@ -469,41 +467,38 @@
 				<Table.Body>
 					{#each r.profit as j (j.id)}
 						<Table.Row>
-							<Table.Cell class="font-medium"
-								><a class="hover:underline" href="/jobs/{j.id}">J-{j.number}</a>
-								{j.summary}</Table.Cell
-							>
+							<Table.Cell class="font-medium">
+								<a class="hover:underline" href="/jobs/{j.id}">J-{j.number}</a>
+								{j.summary}
+							</Table.Cell>
 							<Table.Cell>{j.customerName}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{fmtHours(j.laborMin)}</Table.Cell>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(j.laborCost, currency, true)}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(j.matCost, currency, true)}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(j.expCost, currency, true)}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(j.billed, currency, true)}</Table.Cell
-							>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(j.laborCost, currency, true)}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(j.matCost, currency, true)}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(j.expCost, currency, true)}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(j.billed, currency, true)}
+							</Table.Cell>
 							<Table.Cell
 								class="text-right tabular-nums {j.billed - j.matCost - j.expCost - j.laborCost < 0
 									? 'text-destructive'
 									: ''}"
-								>{formatMoney(
-									j.billed - j.matCost - j.expCost - j.laborCost,
-									currency,
-									true
-								)}</Table.Cell
 							>
+								{formatMoney(j.billed - j.matCost - j.expCost - j.laborCost, currency, true)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={8} class="text-muted-foreground"
-								>No completed jobs in the last 90 days.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={8} class="text-muted-foreground">
+								No completed jobs in the last 90 days.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -527,15 +522,17 @@
 				<Table.Body>
 					{#each r.aging as a (a.bucket)}
 						<Table.Row>
-							<Table.Cell class="font-medium"
-								>{a.bucket === 'current' ? 'Current / not due' : `${a.bucket} days`}</Table.Cell
-							>
+							<Table.Cell class="font-medium">
+								{a.bucket === 'current' ? 'Current / not due' : `${a.bucket} days`}
+							</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{a.count}</Table.Cell>
 							<Table.Cell
 								class="text-right tabular-nums {a.bucket !== 'current' && a.balance > 0
 									? 'text-destructive'
-									: ''}">{formatMoney(a.balance, currency, true)}</Table.Cell
+									: ''}"
 							>
+								{formatMoney(a.balance, currency, true)}
+							</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
@@ -549,24 +546,24 @@
 			{/if}
 			{#if r.openPOs.pos > 0}
 				<p class="pt-1 text-sm text-muted-foreground">
-					Open POs: <span class="font-medium text-foreground"
-						>{formatMoney(r.openPOs.total, currency)}</span
-					>
+					Open POs: <span class="font-medium text-foreground">
+						{formatMoney(r.openPOs.total, currency)}
+					</span>
 					across {r.openPOs.pos} purchase order{r.openPOs.pos === 1 ? '' : 's'}
 				</p>
 			{/if}
 			{#if r.refunds < 0}
 				<p class="pt-1 text-sm text-muted-foreground">
-					Refunds issued (90d): <span class="font-medium text-foreground"
-						>{formatMoney(r.refunds, currency)}</span
-					>
+					Refunds issued (90d): <span class="font-medium text-foreground">
+						{formatMoney(r.refunds, currency)}
+					</span>
 				</p>
 			{/if}
 			{#if r.tips.n > 0}
 				<p class="pt-1 text-sm text-muted-foreground">
-					Tips collected (30d): <span class="font-medium text-foreground"
-						>{formatMoney(r.tips.total, currency)}</span
-					>
+					Tips collected (30d): <span class="font-medium text-foreground">
+						{formatMoney(r.tips.total, currency)}
+					</span>
 					across {r.tips.n} tip{r.tips.n === 1 ? '' : 's'}
 				</p>
 				{#if r.tips.byTech?.length}
@@ -587,10 +584,10 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Leads by source</Card.Title>
-			<Card.Description
-				>Customers and revenue collected by where they came from — set a lead source on the customer
-				record</Card.Description
-			>
+			<Card.Description>
+				Customers and revenue collected by where they came from — set a lead source on the customer
+				record
+			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<Table.Root>
@@ -606,15 +603,14 @@
 						<Table.Row>
 							<Table.Cell class="font-medium">{l.source}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{l.customers}</Table.Cell>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(l.collected, currency, true)}</Table.Cell
-							>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(l.collected, currency, true)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={3} class="text-muted-foreground">No customers yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={3} class="text-muted-foreground">No customers yet.</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -626,9 +622,9 @@
 					{#each r.revByCustomerType as t (t.type)}
 						<div class="flex items-center justify-between text-sm">
 							<span class="capitalize">{t.type}</span>
-							<span class="tabular-nums"
-								>{formatMoney(t.total, currency, true)} · {t.n} customer{t.n === 1 ? '' : 's'}</span
-							>
+							<span class="tabular-nums">
+								{formatMoney(t.total, currency, true)} · {t.n} customer{t.n === 1 ? '' : 's'}
+							</span>
 						</div>
 					{/each}
 				</div>
@@ -641,9 +637,9 @@
 					{#each r.revByZip as z (z.zip)}
 						<div class="flex items-center justify-between text-sm">
 							<span class="tabular-nums">{z.zip}</span>
-							<span class="tabular-nums"
-								>{formatMoney(z.total, currency, true)} · {z.n} payment{z.n === 1 ? '' : 's'}</span
-							>
+							<span class="tabular-nums">
+								{formatMoney(z.total, currency, true)} · {z.n} payment{z.n === 1 ? '' : 's'}
+							</span>
 						</div>
 					{/each}
 				</div>
@@ -667,19 +663,19 @@
 				<Table.Body>
 					{#each r.topCustomers as cu (cu.id)}
 						<Table.Row>
-							<Table.Cell class="font-medium"
-								><a class="hover:underline" href="/customers/{cu.id}">{cu.name}</a></Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(cu.collected, currency, true)}</Table.Cell
-							>
+							<Table.Cell class="font-medium">
+								<a class="hover:underline" href="/customers/{cu.id}">{cu.name}</a>
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(cu.collected, currency, true)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={2} class="text-muted-foreground"
-								>No payments collected yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={2} class="text-muted-foreground">
+								No payments collected yet.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -737,9 +733,9 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Technician utilization</Card.Title>
-			<Card.Description
-				>Scheduled hours booked over the next 7 days vs an 8 hr/day capacity</Card.Description
-			>
+			<Card.Description>
+				Scheduled hours booked over the next 7 days vs an 8 hr/day capacity
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="space-y-1.5">
 			{#if r.utilization.length}
@@ -775,9 +771,9 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Scheduled vs logged</Card.Title>
-			<Card.Description
-				>Last 30 days — hours on the schedule vs time entries; sorted by biggest gap</Card.Description
-			>
+			<Card.Description>
+				Last 30 days — hours on the schedule vs time entries; sorted by biggest gap
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -801,15 +797,16 @@
 									: t.varianceH < -1
 										? 'text-amber-600 dark:text-amber-400'
 										: 'text-muted-foreground'}"
-								>{t.varianceH > 0 ? '+' : ''}{t.varianceH}h</Table.Cell
 							>
+								{t.varianceH > 0 ? '+' : ''}{t.varianceH}h
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={4} class="text-muted-foreground"
-								>No scheduled or logged hours yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={4} class="text-muted-foreground">
+								No scheduled or logged hours yet.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -837,16 +834,16 @@
 							<Table.Cell class="font-medium">{o.name}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{o.jobs}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{o.done}</Table.Cell>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(o.revenue, currency)}</Table.Cell
-							>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(o.revenue, currency)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={4} class="text-muted-foreground"
-								>No offices or jobs yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={4} class="text-muted-foreground">
+								No offices or jobs yet.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -856,9 +853,9 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Sales by job type</Card.Title>
-			<Card.Description
-				>Completed jobs and revenue collected by job type — all time</Card.Description
-			>
+			<Card.Description>
+				Completed jobs and revenue collected by job type — all time
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -874,16 +871,16 @@
 						<Table.Row>
 							<Table.Cell class="font-medium">{t.type}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{t.jobs}</Table.Cell>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(t.collected, currency)}</Table.Cell
-							>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(t.collected, currency)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={3} class="text-muted-foreground"
-								>No completed jobs yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={3} class="text-muted-foreground">
+								No completed jobs yet.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -892,10 +889,10 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="text-base">Payments by method</Card.Title>
-			<Card.Description
-				>Collected revenue per payment method — all time{#if r.refunds}
-					· {formatMoney(r.refunds, currency)} refunded in 90d{/if}</Card.Description
-			>
+			<Card.Description>
+				Collected revenue per payment method — all time{#if r.refunds}
+					· {formatMoney(r.refunds, currency)} refunded in 90d{/if}
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -911,16 +908,16 @@
 						<Table.Row>
 							<Table.Cell class="font-medium capitalize">{m.method}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{m.count}</Table.Cell>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(m.total, currency)}</Table.Cell
-							>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(m.total, currency)}
+							</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={3} class="text-muted-foreground"
-								>No payments recorded yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={3} class="text-muted-foreground">
+								No payments recorded yet.
+							</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -946,10 +943,9 @@
 							<Table.Cell class="text-right tabular-nums">{j.done}</Table.Cell>
 						</Table.Row>
 					{:else}
-						<Table.Row
-							><Table.Cell colspan={3} class="text-muted-foreground">No jobs yet.</Table.Cell
-							></Table.Row
-						>
+						<Table.Row>
+							<Table.Cell colspan={3} class="text-muted-foreground">No jobs yet.</Table.Cell>
+						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
@@ -957,9 +953,9 @@
 	</Card.Root>
 
 	<Card.Root>
-		<Card.Header
-			><Card.Title class="text-base">Completion rate — last 90 days</Card.Title></Card.Header
-		>
+		<Card.Header>
+			<Card.Title class="text-base">Completion rate — last 90 days</Card.Title>
+		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
 				<Table.Header>
@@ -973,46 +969,44 @@
 					<Table.Row>
 						<Table.Cell class="font-medium">Completed</Table.Cell>
 						<Table.Cell class="text-right tabular-nums">{r.completion.done}</Table.Cell>
-						<Table.Cell class="text-right tabular-nums"
-							>{r.completion.total
-								? Math.round((r.completion.done / r.completion.total) * 100)
-								: 0}%</Table.Cell
-						>
+						<Table.Cell class="text-right tabular-nums">
+							{r.completion.total ? Math.round((r.completion.done / r.completion.total) * 100) : 0}%
+						</Table.Cell>
 					</Table.Row>
 					<Table.Row>
 						<Table.Cell class="font-medium">Cancelled</Table.Cell>
 						<Table.Cell class="text-right tabular-nums">{r.completion.cancelled}</Table.Cell>
-						<Table.Cell class="text-right tabular-nums"
-							>{r.completion.total
+						<Table.Cell class="text-right tabular-nums">
+							{r.completion.total
 								? Math.round((r.completion.cancelled / r.completion.total) * 100)
-								: 0}%</Table.Cell
-						>
+								: 0}%
+						</Table.Cell>
 					</Table.Row>
 					<Table.Row>
 						<Table.Cell class="font-medium">No-show</Table.Cell>
 						<Table.Cell class="text-right tabular-nums">{r.completion.noShow}</Table.Cell>
-						<Table.Cell class="text-right tabular-nums"
-							>{r.completion.total
+						<Table.Cell class="text-right tabular-nums">
+							{r.completion.total
 								? Math.round((r.completion.noShow / r.completion.total) * 100)
-								: 0}%</Table.Cell
-						>
+								: 0}%
+						</Table.Cell>
 					</Table.Row>
 					<Table.Row>
 						<Table.Cell class="font-medium text-muted-foreground">All jobs</Table.Cell>
-						<Table.Cell class="text-right text-muted-foreground tabular-nums"
-							>{r.completion.total}</Table.Cell
-						>
+						<Table.Cell class="text-right text-muted-foreground tabular-nums">
+							{r.completion.total}
+						</Table.Cell>
 						<Table.Cell class="text-right text-muted-foreground tabular-nums">100%</Table.Cell>
 					</Table.Row>
 				</Table.Body>
 			</Table.Root>
 			{#if r.completion.avgDaysToComplete != null}
 				<p class="px-6 pt-2 text-sm text-muted-foreground">
-					Avg time to complete: <span class="font-medium text-foreground"
-						>{r.completion.avgDaysToComplete < 1
+					Avg time to complete: <span class="font-medium text-foreground">
+						{r.completion.avgDaysToComplete < 1
 							? 'same day'
-							: `${r.completion.avgDaysToComplete.toFixed(1)} days`}</span
-					>
+							: `${r.completion.avgDaysToComplete.toFixed(1)} days`}
+					</span>
 				</p>
 			{/if}
 		</Card.Content>
@@ -1020,18 +1014,18 @@
 
 	{#if r.ratings.n}
 		<Card.Root>
-			<Card.Header
-				><Card.Title class="text-base">Visit ratings — last 90 days</Card.Title></Card.Header
-			>
+			<Card.Header>
+				<Card.Title class="text-base">Visit ratings — last 90 days</Card.Title>
+			</Card.Header>
 			<Card.Content>
 				<p class="text-3xl font-semibold tabular-nums">
 					{r.ratings.avg?.toFixed(1)}<span class="text-base text-muted-foreground">/5</span>
 				</p>
 				<p class="text-sm text-muted-foreground">
 					{r.ratings.n} rating{r.ratings.n === 1 ? '' : 's'} from customers{#if r.ratings.low}
-						· <span class="text-amber-600 dark:text-amber-400"
-							>{r.ratings.low} at 3 stars or less</span
-						>{/if}
+						· <span class="text-amber-600 dark:text-amber-400">
+							{r.ratings.low} at 3 stars or less
+						</span>{/if}
 				</p>
 			</Card.Content>
 		</Card.Root>
@@ -1039,10 +1033,9 @@
 
 	{#if r.estAccuracy.count}
 		<Card.Root>
-			<Card.Header
-				><Card.Title class="text-base">Estimate accuracy — converted quotes</Card.Title
-				></Card.Header
-			>
+			<Card.Header>
+				<Card.Title class="text-base">Estimate accuracy — converted quotes</Card.Title>
+			</Card.Header>
 			<Card.Content>
 				{#if r.estAccuracy.avgVariancePct != null}
 					<p class="text-3xl font-semibold tabular-nums">
@@ -1066,9 +1059,9 @@
 
 	{#if r.callbacks.done}
 		<Card.Root>
-			<Card.Header
-				><Card.Title class="text-base">Callback rate — last 12 months</Card.Title></Card.Header
-			>
+			<Card.Header>
+				<Card.Title class="text-base">Callback rate — last 12 months</Card.Title>
+			</Card.Header>
 			<Card.Content>
 				<p class="text-3xl font-semibold tabular-nums">{r.callbacks.pct}%</p>
 				<p class="text-sm text-muted-foreground">
@@ -1101,9 +1094,9 @@
 
 	{#if r.topMaterials.length}
 		<Card.Root>
-			<Card.Header
-				><Card.Title class="text-base">Top materials used — last 90 days</Card.Title></Card.Header
-			>
+			<Card.Header>
+				<Card.Title class="text-base">Top materials used — last 90 days</Card.Title>
+			</Card.Header>
 			<Card.Content class="overflow-x-auto px-0">
 				<Table.Root>
 					<Table.Header>

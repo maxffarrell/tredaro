@@ -53,8 +53,8 @@
 			<Field.Label for="org">Company name</Field.Label>
 			<Input id="org" placeholder="Hill Country HVAC" required bind:value={name} autofocus />
 		</Field.Field>
-		<Button type="submit" class="w-full" disabled={pending || !name.trim()}
-			>{pending ? 'Creating…' : 'Continue'}</Button
-		>
+		<Button type="submit" class="w-full" disabled={pending || !name.trim()}>
+			{pending ? 'Creating…' : 'Continue'}
+		</Button>
 	</form>
 </div>

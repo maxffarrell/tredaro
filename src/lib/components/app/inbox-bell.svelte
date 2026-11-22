@@ -58,8 +58,9 @@
 				{#if unread}
 					<span
 						class="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground"
-						>{unread > 9 ? '9+' : unread}</span
 					>
+						{unread > 9 ? '9+' : unread}
+					</span>
 				{/if}
 			</Sidebar.MenuButton>
 		{/snippet}
@@ -93,11 +94,13 @@
 								<span
 									class="block truncate text-sm {n.readAt
 										? 'text-muted-foreground'
-										: 'font-medium'}">{notificationLabel(n.kind)}</span
+										: 'font-medium'}"
 								>
-								<span class="mt-1 block text-[11px] text-muted-foreground/70"
-									>{formatRelative(n.createdAt)}</span
-								>
+									{notificationLabel(n.kind)}
+								</span>
+								<span class="mt-1 block text-[11px] text-muted-foreground/70">
+									{formatRelative(n.createdAt)}
+								</span>
 							</span>
 						</button>
 					</li>
@@ -108,8 +111,10 @@
 			<a
 				href="/notifications"
 				class="text-xs text-muted-foreground hover:text-foreground"
-				onclick={() => (open = false)}>View all notifications</a
+				onclick={() => (open = false)}
 			>
+				View all notifications
+			</a>
 		</div>
 	</Popover.Content>
 </Popover.Root>

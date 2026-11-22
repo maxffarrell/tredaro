@@ -377,8 +377,10 @@
 			onclick={() => {
 				chCustomerId = customerFilter;
 				chargeOpen = true;
-			}}><Plus /> Post charge</Button
+			}}
 		>
+			<Plus /> Post charge
+		</Button>
 		<Button size="sm" variant="outline" onclick={() => (payOpen = true)}>Record payment</Button>
 		<Button
 			size="sm"
@@ -386,8 +388,9 @@
 			disabled={bulkSending || openUnpaid.length === 0}
 			onclick={emailAllOpen}
 			title="Email every open, unpaid invoice to its customer"
-			><Mail /> Email open ({openUnpaid.length})</Button
 		>
+			<Mail /> Email open ({openUnpaid.length})
+		</Button>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
@@ -395,18 +398,18 @@
 				{/snippet}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end" class="w-52">
-				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/invoices.csv')}
-					>Invoices (CSV)</DropdownMenu.Item
-				>
-				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/quickbooks.csv')}
-					>QuickBooks invoices</DropdownMenu.Item
-				>
-				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/xero.csv')}
-					>Xero invoices</DropdownMenu.Item
-				>
-				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/payments.csv')}
-					>Payments (CSV)</DropdownMenu.Item
-				>
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/invoices.csv')}>
+					Invoices (CSV)
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/quickbooks.csv')}>
+					QuickBooks invoices
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/xero.csv')}>
+					Xero invoices
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => (window.location.href = '/api/export/payments.csv')}>
+					Payments (CSV)
+				</DropdownMenu.Item>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 		<Button size="sm" onclick={openInvoice}><Plus /> New invoice</Button>
@@ -416,15 +419,17 @@
 <div class="space-y-4 p-4 md:p-6">
 	{#if customerFilter}
 		<p class="text-sm">
-			Filtered to <a href="/customers/{customerFilter}" class="font-medium hover:underline"
-				>{customers.find((x) => x.id === customerFilter)?.name ?? 'customer'}</a
-			>
+			Filtered to <a href="/customers/{customerFilter}" class="font-medium hover:underline">
+				{customers.find((x) => x.id === customerFilter)?.name ?? 'customer'}
+			</a>
 			·
 			<Button
 				variant="link"
 				class="h-auto p-0 text-muted-foreground"
-				onclick={() => goto('/billing')}>clear</Button
+				onclick={() => goto('/billing')}
 			>
+				clear
+			</Button>
 		</p>
 	{/if}
 
@@ -441,12 +446,12 @@
 			)}
 			{#if openRows.length}
 				<p class="mb-2 text-sm text-muted-foreground">
-					Open receivables: <span class="font-medium text-foreground"
-						>{formatMoney(
+					Open receivables: <span class="font-medium text-foreground">
+						{formatMoney(
 							openRows.reduce((sum, i) => sum + i.total - i.paid, 0),
 							currency
-						)}</span
-					>
+						)}
+					</span>
 					across {openRows.length} invoice{openRows.length === 1 ? '' : 's'} · avg
 					{formatMoney(
 						openRows.reduce((sum, i) => sum + i.total - i.paid, 0) / openRows.length,
@@ -474,12 +479,12 @@
 			{#if statusParam === 'overdue' && invoices.length}
 				<p class="mb-2 text-sm text-muted-foreground">
 					{invoices.length} overdue invoice{invoices.length === 1 ? '' : 's'} ·
-					<span class="font-medium text-amber-600 dark:text-amber-400"
-						>{formatMoney(
+					<span class="font-medium text-amber-600 dark:text-amber-400">
+						{formatMoney(
 							invoices.reduce((sum, i) => sum + i.total - i.paid, 0),
 							currency
-						)}</span
-					>{#if invoices.filter((i) => i.invoice.dueDate).length}
+						)}
+					</span>{#if invoices.filter((i) => i.invoice.dueDate).length}
 						· oldest {Math.max(
 							...invoices.map((i) =>
 								Math.round((Date.now() - new Date(i.invoice.dueDate!).getTime()) / 86400_000)
@@ -492,8 +497,10 @@
 					<Button
 						size="sm"
 						variant={statusParam === s ? 'default' : 'outline'}
-						onclick={() => setStatus(s)}>{label}</Button
+						onclick={() => setStatus(s)}
 					>
+						{label}
+					</Button>
 				{/each}
 			</div>
 			<Card.Root class="py-0">
@@ -513,34 +520,34 @@
 						<Table.Body>
 							{#each invoices.filter((i) => !customerFilter || i.invoice.customerId === customerFilter) as inv (inv.invoice.id)}
 								<Table.Row>
-									<Table.Cell class="font-medium"
-										>INV-{inv.invoice.number}{#if inv.viewed}
+									<Table.Cell class="font-medium">
+										INV-{inv.invoice.number}{#if inv.viewed}
 											<Badge variant="outline" class="ml-1 text-xs">viewed</Badge>
-										{/if}</Table.Cell
-									>
-									<Table.Cell>
-										<a href="/customers/{inv.invoice.customerId}" class="hover:underline"
-											>{inv.customerName}</a
-										>
+										{/if}
 									</Table.Cell>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{formatDate(inv.invoice.issuedAt)}</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{inv.invoice.dueDate ? formatDate(inv.invoice.dueDate) : '—'}
+									<Table.Cell>
+										<a href="/customers/{inv.invoice.customerId}" class="hover:underline">
+											{inv.customerName}
+										</a>
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{formatDate(inv.invoice.issuedAt)}
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{inv.invoice.dueDate ? formatDate(inv.invoice.dueDate) : '—'}
 										{#if inv.invoice.status === 'open' && inv.invoice.dueDate && inv.invoice.dueDate < todayStr && inv.total - inv.paid > 0}
-											<span class="text-amber-600"
-												>({Math.ceil(
+											<span class="text-amber-600">
+												({Math.ceil(
 													(Date.now() - new Date(inv.invoice.dueDate).getTime()) / 86400000
-												)}d)</span
-											>
-										{/if}</Table.Cell
-									>
-									<Table.Cell class="text-right tabular-nums"
-										>{formatMoney(inv.total - inv.paid, currency)}</Table.Cell
-									>
-									<Table.Cell class="text-right"
-										><StatusBadge
+												)}d)
+											</span>
+										{/if}
+									</Table.Cell>
+									<Table.Cell class="text-right tabular-nums">
+										{formatMoney(inv.total - inv.paid, currency)}
+									</Table.Cell>
+									<Table.Cell class="text-right">
+										<StatusBadge
 											status={inv.invoice.status === 'open' &&
 											inv.total > 0 &&
 											inv.total - inv.paid <= 0
@@ -548,8 +555,8 @@
 												: inv.invoice.status === 'open' && inv.paid > 0
 													? 'partial'
 													: inv.invoice.status}
-										/></Table.Cell
-									>
+										/>
+									</Table.Cell>
 									<Table.Cell class="text-right">
 										{#if inv.invoice.status === 'open'}
 											<Button
@@ -560,8 +567,10 @@
 												onclick={(e: MouseEvent) => {
 													e.stopPropagation();
 													sendInvoice(inv.invoice.id);
-												}}><Send class="size-4" /></Button
+												}}
 											>
+												<Send class="size-4" />
+											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
@@ -570,8 +579,10 @@
 												onclick={(e: MouseEvent) => {
 													e.stopPropagation();
 													textInvoiceCmd(inv.invoice.id);
-												}}><MessageSquare class="size-4" /></Button
+												}}
 											>
+												<MessageSquare class="size-4" />
+											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
@@ -580,8 +591,10 @@
 												onclick={(e: MouseEvent) => {
 													e.stopPropagation();
 													window.open(`/invoices/${inv.invoice.id}/print`, '_blank');
-												}}><Printer class="size-4" /></Button
+												}}
 											>
+												<Printer class="size-4" />
+											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
@@ -589,17 +602,19 @@
 												onclick={(e: MouseEvent) => {
 													e.stopPropagation();
 													voidInvoice(inv.invoice.id);
-												}}><Ban class="size-4" /></Button
+												}}
 											>
+												<Ban class="size-4" />
+											</Button>
 										{/if}
 									</Table.Cell>
 								</Table.Row>
 							{:else}
-								<Table.Row
-									><Table.Cell colspan={7} class="text-center text-muted-foreground"
-										>No invoices.</Table.Cell
-									></Table.Row
-								>
+								<Table.Row>
+									<Table.Cell colspan={7} class="text-center text-muted-foreground">
+										No invoices.
+									</Table.Cell>
+								</Table.Row>
 							{/each}
 						</Table.Body>
 					</Table.Root>
@@ -614,21 +629,21 @@
 					visibleCharges.reduce((sum, ch) => sum + (ch.charge.amount - ch.paid), 0),
 					currency
 				)} remaining{#if visibleCharges.filter((ch) => ch.charge.dueDate && ch.charge.dueDate < todayStr && ch.charge.amount - ch.paid > 0).length}
-					· <span class="text-amber-600 dark:text-amber-400"
-						>{visibleCharges.filter(
+					· <span class="text-amber-600 dark:text-amber-400">
+						{visibleCharges.filter(
 							(ch) =>
 								ch.charge.dueDate && ch.charge.dueDate < todayStr && ch.charge.amount - ch.paid > 0
-						).length} overdue</span
-					>{/if}{#if visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length}
+						).length} overdue
+					</span>{/if}{#if visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length}
 					· {visibleCharges.filter((ch) => ch.paid > 0 && ch.charge.amount - ch.paid > 0).length} partial{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate && ch.charge.dueDate >= todayStr && ch.charge.dueDate <= weekStr).length}
 					· {visibleCharges.filter(
 						(ch) =>
 							ch.charge.dueDate && ch.charge.dueDate >= todayStr && ch.charge.dueDate <= weekStr
 					).length} due this week{/if}{#if visibleCharges.filter((ch) => !ch.charge.dueDate && ch.charge.amount - ch.paid > 0).length}
-					· <span class="text-amber-600 dark:text-amber-400"
-						>{visibleCharges.filter((ch) => !ch.charge.dueDate && ch.charge.amount - ch.paid > 0)
-							.length} no due date</span
-					>{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0).length}
+					· <span class="text-amber-600 dark:text-amber-400">
+						{visibleCharges.filter((ch) => !ch.charge.dueDate && ch.charge.amount - ch.paid > 0)
+							.length} no due date
+					</span>{/if}{#if visibleCharges.filter((ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0).length}
 					· {visibleCharges.filter(
 						(ch) => ch.charge.dueDate === todayStr && ch.charge.amount - ch.paid > 0
 					).length} due today{/if}{#if new Set(visibleCharges
@@ -663,23 +678,23 @@
 						<Table.Body>
 							{#each visibleCharges as ch (ch.charge.id)}
 								<Table.Row>
-									<Table.Cell class="font-medium"
-										>{ch.charge.description || `Invoice #${ch.invoiceNumber}`}</Table.Cell
-									>
-									<Table.Cell
-										><a href="/customers/{ch.charge.customerId}" class="hover:underline"
-											>{ch.customerName}</a
-										></Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{formatDate(ch.charge.dueDate)}</Table.Cell
-									>
-									<Table.Cell class="text-right tabular-nums"
-										>{formatMoney(ch.charge.amount - ch.paid, currency)}</Table.Cell
-									>
-									<Table.Cell class="text-right"
-										><StatusBadge status={ch.charge.status} /></Table.Cell
-									>
+									<Table.Cell class="font-medium">
+										{ch.charge.description || `Invoice #${ch.invoiceNumber}`}
+									</Table.Cell>
+									<Table.Cell>
+										<a href="/customers/{ch.charge.customerId}" class="hover:underline">
+											{ch.customerName}
+										</a>
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{formatDate(ch.charge.dueDate)}
+									</Table.Cell>
+									<Table.Cell class="text-right tabular-nums">
+										{formatMoney(ch.charge.amount - ch.paid, currency)}
+									</Table.Cell>
+									<Table.Cell class="text-right">
+										<StatusBadge status={ch.charge.status} />
+									</Table.Cell>
 									<Table.Cell class="text-right">
 										{#if ch.charge.status === 'open'}
 											<div class="flex justify-end">
@@ -689,8 +704,9 @@
 													class="size-8 text-amber-600"
 													title="Write off as uncollectible"
 													onclick={() => writeOffCharge(ch.charge.id)}
-													><FileX class="size-4" /></Button
 												>
+													<FileX class="size-4" />
+												</Button>
 												<Button
 													variant="ghost"
 													size="icon"
@@ -700,25 +716,29 @@
 														openPlan(
 															ch.charge.id,
 															ch.charge.description || `Invoice #${ch.invoiceNumber}`
-														)}><CalendarClock class="size-4" /></Button
+														)}
 												>
+													<CalendarClock class="size-4" />
+												</Button>
 												<Button
 													variant="ghost"
 													size="icon"
 													class="size-8 text-destructive"
 													title="Void (created in error)"
-													onclick={() => voidCharge(ch.charge.id)}><Ban class="size-4" /></Button
+													onclick={() => voidCharge(ch.charge.id)}
 												>
+													<Ban class="size-4" />
+												</Button>
 											</div>
 										{/if}
 									</Table.Cell>
 								</Table.Row>
 							{:else}
-								<Table.Row
-									><Table.Cell colspan={6} class="text-center text-muted-foreground"
-										>No open charges.</Table.Cell
-									></Table.Row
-								>
+								<Table.Row>
+									<Table.Cell colspan={6} class="text-center text-muted-foreground">
+										No open charges.
+									</Table.Cell>
+								</Table.Row>
 							{/each}
 						</Table.Body>
 					</Table.Root>
@@ -733,8 +753,9 @@
 					value={payMethodFilter}
 					onValueChange={(v: string) => (payMethodFilter = v)}
 				>
-					<Select.Trigger class="w-40 capitalize">{payMethodFilter || 'All methods'}</Select.Trigger
-					>
+					<Select.Trigger class="w-40 capitalize">
+						{payMethodFilter || 'All methods'}
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All methods</Select.Item>
 						{#each payMethods as m (m)}
@@ -770,30 +791,29 @@
 						<Table.Body>
 							{#each visiblePayments as p (p.payment.id)}
 								<Table.Row>
-									<Table.Cell class="font-medium"
-										><a href="/customers/{p.payment.customerId}" class="hover:underline"
-											>{p.customerName}</a
-										></Table.Cell
-									>
-									<Table.Cell class="capitalize"
-										>{p.payment.method}{#if p.payment.reference}
-											<span class="text-muted-foreground">
-												· {p.payment.reference}</span
-											>{/if}</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{formatDate(p.payment.paidAt)}</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{p.payment.notes || '—'}
+									<Table.Cell class="font-medium">
+										<a href="/customers/{p.payment.customerId}" class="hover:underline">
+											{p.customerName}
+										</a>
+									</Table.Cell>
+									<Table.Cell class="capitalize">
+										{p.payment.method}{#if p.payment.reference}
+											<span class="text-muted-foreground"> · {p.payment.reference}</span>{/if}
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{formatDate(p.payment.paidAt)}
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{p.payment.notes || '—'}
 										{#if p.payment.refundedAt}
 											<Badge variant="secondary" class="ml-1">refunded</Badge>
-										{/if}</Table.Cell
-									>
+										{/if}
+									</Table.Cell>
 									<Table.Cell
 										class="text-right tabular-nums {p.payment.amount < 0 ? 'text-destructive' : ''}"
-										>{formatMoney(p.payment.amount, currency)}</Table.Cell
 									>
+										{formatMoney(p.payment.amount, currency)}
+									</Table.Cell>
 									<Table.Cell class="text-right">
 										{#if p.payment.amount > 0 && !p.payment.refundedAt}
 											<Button
@@ -804,17 +824,19 @@
 												onclick={(e: MouseEvent) => {
 													e.stopPropagation();
 													refundPaymentCmd(p.payment.id);
-												}}><Undo2 class="size-4" /></Button
+												}}
 											>
+												<Undo2 class="size-4" />
+											</Button>
 										{/if}
 									</Table.Cell>
 								</Table.Row>
 							{:else}
-								<Table.Row
-									><Table.Cell colspan={6} class="text-center text-muted-foreground"
-										>No payments yet.</Table.Cell
-									></Table.Row
-								>
+								<Table.Row>
+									<Table.Cell colspan={6} class="text-center text-muted-foreground">
+										No payments yet.
+									</Table.Cell>
+								</Table.Row>
 							{/each}
 						</Table.Body>
 					</Table.Root>
@@ -843,16 +865,17 @@
 							prefill(v);
 						}}
 					>
-						<Select.Trigger class="w-full"
-							>{invJobId
+						<Select.Trigger class="w-full">
+							{invJobId
 								? `J-${doneJobs.find((j) => j.job.id === invJobId)?.job.number}`
-								: 'Pick a completed job'}</Select.Trigger
-						>
+								: 'Pick a completed job'}
+						</Select.Trigger>
 						<Select.Content>
 							{#each doneJobs as j (j.job.id)}
-								<Select.Item value={j.job.id}
-									>J-{j.job.number} {j.job.summary || j.jobTypeName} — {j.customerName}</Select.Item
-								>
+								<Select.Item value={j.job.id}>
+									J-{j.job.number}
+									{j.job.summary || j.jobTypeName} — {j.customerName}
+								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
@@ -861,9 +884,9 @@
 				<Field.Field>
 					<Field.Label>Customer</Field.Label>
 					<Select.Root type="single" bind:value={invCustomerId}>
-						<Select.Trigger class="w-full"
-							>{customers.find((c) => c.id === invCustomerId)?.name ?? 'Choose'}</Select.Trigger
-						>
+						<Select.Trigger class="w-full">
+							{customers.find((c) => c.id === invCustomerId)?.name ?? 'Choose'}
+						</Select.Trigger>
 						<Select.Content>
 							{#each customers as c (c.id)}
 								<Select.Item value={c.id}>{c.name}</Select.Item>
@@ -903,8 +926,10 @@
 									const [it] = invItems.splice(i, 1);
 									invItems.splice(i - 1, 0, it);
 									invItems = invItems;
-								}}><ChevronUp class="size-3" /></Button
+								}}
 							>
+								<ChevronUp class="size-3" />
+							</Button>
 							<Button
 								variant="ghost"
 								size="icon"
@@ -914,8 +939,10 @@
 									const [it] = invItems.splice(i, 1);
 									invItems.splice(i + 1, 0, it);
 									invItems = invItems;
-								}}><ChevronDown class="size-3" /></Button
+								}}
 							>
+								<ChevronDown class="size-3" />
+							</Button>
 						</div>
 						<Button
 							variant="ghost"
@@ -923,8 +950,9 @@
 							class="size-8"
 							disabled={invItems.length === 1}
 							onclick={() => invItems.splice(i, 1) && (invItems = invItems)}
-							><Trash2 class="size-4" /></Button
 						>
+							<Trash2 class="size-4" />
+						</Button>
 					</div>
 				{/each}
 				<div class="flex items-center justify-between">
@@ -932,8 +960,9 @@
 						variant="outline"
 						size="sm"
 						onclick={() => (invItems = [...invItems, { name: '', qty: 1, unitPrice: 0 }])}
-						><Plus /> Add item</Button
 					>
+						<Plus /> Add item
+					</Button>
 					<span class="text-sm font-medium tabular-nums">{formatMoney(invTotal, currency)}</span>
 				</div>
 			</div>
@@ -942,9 +971,9 @@
 				<Input id="i-due" type="date" bind:value={invDueDate} />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={invoicePending || !invCustomerId}
-					>{invoicePending ? 'Issuing…' : 'Issue invoice'}</Button
-				>
+				<Button type="submit" disabled={invoicePending || !invCustomerId}>
+					{invoicePending ? 'Issuing…' : 'Issue invoice'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -961,9 +990,9 @@
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
 				<Select.Root type="single" bind:value={chCustomerId}>
-					<Select.Trigger class="w-full"
-						>{customers.find((c) => c.id === chCustomerId)?.name ?? 'Choose'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{customers.find((c) => c.id === chCustomerId)?.name ?? 'Choose'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each customers as c (c.id)}
 							<Select.Item value={c.id}>{c.name}</Select.Item>
@@ -984,9 +1013,9 @@
 				<Input id="ch-due" type="date" bind:value={chDue} />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={chargePending || !chCustomerId || chCents <= 0}
-					>{chargePending ? 'Posting…' : 'Post charge'}</Button
-				>
+				<Button type="submit" disabled={chargePending || !chCustomerId || chCents <= 0}>
+					{chargePending ? 'Posting…' : 'Post charge'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -1003,9 +1032,9 @@
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
 				<Select.Root type="single" bind:value={payCustomerId}>
-					<Select.Trigger class="w-full"
-						>{customers.find((c) => c.id === payCustomerId)?.name ?? 'Choose'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{customers.find((c) => c.id === payCustomerId)?.name ?? 'Choose'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each customers as c (c.id)}
 							<Select.Item value={c.id}>{c.name}</Select.Item>
@@ -1037,9 +1066,9 @@
 				<Input id="pp-note" bind:value={payNote} placeholder="Optional" />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={payPending || !payCustomerId || payCents <= 0}
-					>{payPending ? 'Saving…' : 'Record payment'}</Button
-				>
+				<Button type="submit" disabled={payPending || !payCustomerId || payCents <= 0}>
+					{payPending ? 'Saving…' : 'Record payment'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -1069,9 +1098,9 @@
 				<Input id="plan-days" type="number" min="7" max="90" bind:value={planDays} />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={planPending}
-					>{#if planPending}<Spinner />{/if}Create plan</Button
-				>
+				<Button type="submit" disabled={planPending}>
+					{#if planPending}<Spinner />{/if}Create plan
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>

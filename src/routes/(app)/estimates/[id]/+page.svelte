@@ -311,8 +311,9 @@
 		{#if est.viewedAt}<Badge
 				variant="secondary"
 				title="Customer opened this estimate{est.viewCount > 1 ? ` (${est.viewCount} times)` : ''}"
-				><Eye /> Viewed{est.viewCount > 1 ? ` ×${est.viewCount}` : ''}</Badge
-			>{/if}
+			>
+				<Eye /> Viewed{est.viewCount > 1 ? ` ×${est.viewCount}` : ''}
+			</Badge>{/if}
 		{#if est.estimate.status === 'sent' && est.estimate.validUntil}
 			{@const daysLeft = Math.ceil(
 				(new Date(`${est.estimate.validUntil}T00:00:00Z`).getTime() - Date.now()) / 86400_000
@@ -323,14 +324,16 @@
 					? 'border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500'
 					: ''}
 				title="Public link stops accepting answers after this date"
-				>{daysLeft > 0 ? `Expires in ${daysLeft}d` : 'Expires today'}</Badge
 			>
+				{daysLeft > 0 ? `Expires in ${daysLeft}d` : 'Expires today'}
+			</Badge>
 		{/if}
 		{#if est.estimate.version > 1}<Badge variant="secondary">v{est.estimate.version}</Badge>{/if}
 		{#if draft}
-			<Button size="sm" onclick={send} disabled={sending}
-				><Send /> {sending ? 'Sending…' : 'Send'}</Button
-			>
+			<Button size="sm" onclick={send} disabled={sending}>
+				<Send />
+				{sending ? 'Sending…' : 'Send'}
+			</Button>
 		{:else if shareUrl}
 			<Button size="sm" variant="outline" onclick={copyLink}><Link2 /> Copy link</Button>
 		{/if}
@@ -340,13 +343,16 @@
 				variant="outline"
 				class="hidden md:inline-flex"
 				onclick={resend}
-				disabled={resending}><Mail /> {resending ? 'Resending…' : 'Resend'}</Button
+				disabled={resending}
 			>
+				<Mail />
+				{resending ? 'Resending…' : 'Resend'}
+			</Button>
 			{#if optionGroups.length}
 				<Select.Root type="single" bind:value={pickedOption}>
-					<Select.Trigger class="h-8 w-36" title="Approve as this option"
-						>{pickedOption || optionGroups[0]}</Select.Trigger
-					>
+					<Select.Trigger class="h-8 w-36" title="Approve as this option">
+						{pickedOption || optionGroups[0]}
+					</Select.Trigger>
 					<Select.Content>
 						{#each optionGroups as g (g)}
 							<Select.Item value={g}>{g}</Select.Item>
@@ -358,9 +364,9 @@
 			<Button size="sm" variant="outline" onclick={() => decide(false)}><X /> Decline</Button>
 		{/if}
 		{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
-			<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={revise}
-				><FilePen /> Revise</Button
-			>
+			<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={revise}>
+				<FilePen /> Revise
+			</Button>
 		{/if}
 		{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
 			<Button size="sm" variant="outline" onclick={invoice}><Receipt /> Invoice</Button>
@@ -368,15 +374,17 @@
 				size="sm"
 				variant="outline"
 				disabled={prog.total <= prog.invoiced}
-				onclick={openProgress}><Percent /> Invoice %</Button
+				onclick={openProgress}
 			>
+				<Percent /> Invoice %
+			</Button>
 		{/if}
-		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={duplicate}
-			><CopyPlus /> Duplicate</Button
-		>
-		<Button size="sm" variant="outline" class="hidden md:inline-flex" href="/estimates/{id}/print"
-			><Printer /> Print</Button
-		>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={duplicate}>
+			<CopyPlus /> Duplicate
+		</Button>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" href="/estimates/{id}/print">
+			<Printer /> Print
+		</Button>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
 				class="inline-flex size-8 items-center justify-center rounded-md border hover:bg-accent md:hidden"
@@ -385,22 +393,22 @@
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end">
 				{#if est.estimate.status === 'sent'}
-					<DropdownMenu.Item disabled={resending} onclick={resend}
-						><Mail /> Resend</DropdownMenu.Item
-					>
+					<DropdownMenu.Item disabled={resending} onclick={resend}>
+						<Mail /> Resend
+					</DropdownMenu.Item>
 				{/if}
 				{#if est.estimate.status === 'sent' || est.estimate.status === 'declined' || est.estimate.status === 'expired'}
 					<DropdownMenu.Item onclick={revise}><FilePen /> Revise</DropdownMenu.Item>
 				{/if}
 				{#if est.estimate.status === 'approved' || est.estimate.status === 'converted'}
-					<DropdownMenu.Item disabled={prog.total <= prog.invoiced} onclick={openProgress}
-						><Percent /> Invoice %</DropdownMenu.Item
-					>
+					<DropdownMenu.Item disabled={prog.total <= prog.invoiced} onclick={openProgress}>
+						<Percent /> Invoice %
+					</DropdownMenu.Item>
 				{/if}
 				<DropdownMenu.Item onclick={duplicate}><CopyPlus /> Duplicate</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => window.open(`/estimates/${id}/print`, '_blank')}
-					><Printer /> Print</DropdownMenu.Item
-				>
+				<DropdownMenu.Item onclick={() => window.open(`/estimates/${id}/print`, '_blank')}>
+					<Printer /> Print
+				</DropdownMenu.Item>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 	{/snippet}
@@ -418,8 +426,11 @@
 					class="h-7 text-muted-foreground"
 					title="Group line items into named option tiers (good/better/best)"
 					disabled={tiersPending}
-					onclick={aiTier}><Sparkles /> {tiersPending ? 'Tiering…' : 'AI tiers'}</Button
+					onclick={aiTier}
 				>
+					<Sparkles />
+					{tiersPending ? 'Tiering…' : 'AI tiers'}
+				</Button>
 			{/if}
 		</Card.Header>
 		<Card.Content>
@@ -451,8 +462,10 @@
 										const [it] = items.splice(i, 1);
 										items.splice(i - 1, 0, it);
 										items = items;
-									}}><ChevronUp class="size-3" /></Button
+									}}
 								>
+									<ChevronUp class="size-3" />
+								</Button>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -462,8 +475,10 @@
 										const [it] = items.splice(i, 1);
 										items.splice(i + 1, 0, it);
 										items = items;
-									}}><ChevronDown class="size-3" /></Button
+									}}
 								>
+									<ChevronDown class="size-3" />
+								</Button>
 							</div>
 							<Button
 								variant="ghost"
@@ -471,8 +486,9 @@
 								class="size-8"
 								disabled={items.length === 1}
 								onclick={() => items.splice(i, 1) && (items = items)}
-								><Trash2 class="size-4" /></Button
 							>
+								<Trash2 class="size-4" />
+							</Button>
 						</div>
 					{/each}
 					<div class="flex items-center justify-between">
@@ -490,23 +506,25 @@
 										optional: false,
 										optionGroup: ''
 									}
-								])}><Plus /> Add item</Button
+								])}
 						>
+							<Plus /> Add item
+						</Button>
 						<span class="font-medium tabular-nums">Total {formatMoney(totalCents, currency)}</span>
 						{#if estCostCents > 0 && totalCents > 0}
-							<span class="text-xs text-muted-foreground"
-								>~{formatMoney(totalCents - estCostCents, currency)} margin ({Math.round(
+							<span class="text-xs text-muted-foreground">
+								~{formatMoney(totalCents - estCostCents, currency)} margin ({Math.round(
 									((totalCents - estCostCents) / totalCents) * 100
-								)}%)</span
-							>
+								)}%)
+							</span>
 						{/if}
 					</div>
 					<Field.Field>
 						<Field.Label>Job type</Field.Label>
 						<Select.Root type="single" bind:value={jobTypeId}>
-							<Select.Trigger class="w-full"
-								>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}
+							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="">None</Select.Item>
 								{#each jobTypes.filter((t) => t.active) as t (t.id)}
@@ -514,9 +532,9 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<Field.Description
-							>Drives suggested items below and the job type on approval.</Field.Description
-						>
+						<Field.Description>
+							Drives suggested items below and the job type on approval.
+						</Field.Description>
 					</Field.Field>
 					{#if suggestions.length}
 						<div class="flex flex-wrap items-center gap-2 text-sm">
@@ -536,8 +554,10 @@
 												optional: false,
 												optionGroup: ''
 											}
-										])}>{sg.name}</Button
+										])}
 								>
+									{sg.name}
+								</Button>
 							{/each}
 						</div>
 					{/if}
@@ -552,8 +572,11 @@
 									class="h-7 text-muted-foreground"
 									title="Draft a customer-facing cover note with AI"
 									disabled={aiNotePending}
-									onclick={draftNote}><Sparkles /> {aiNotePending ? 'Drafting…' : 'Draft'}</Button
+									onclick={draftNote}
 								>
+									<Sparkles />
+									{aiNotePending ? 'Drafting…' : 'Draft'}
+								</Button>
 							{/if}
 						</div>
 						<Textarea id="ed-notes" rows={3} bind:value={notes} />
@@ -577,9 +600,9 @@
 					<Field.Field>
 						<Field.Label for="ed-valid">Valid until</Field.Label>
 						<Input id="ed-valid" type="date" bind:value={validUntil} />
-						<Field.Description
-							>Defaults to the workspace validity window (Settings → Invoicing).</Field.Description
-						>
+						<Field.Description>
+							Defaults to the workspace validity window (Settings → Invoicing).
+						</Field.Description>
 					</Field.Field>
 					<Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button>
 				</form>
@@ -596,23 +619,26 @@
 					<Table.Body>
 						{#each est.items as i (i.item.id)}
 							<Table.Row>
-								<Table.Cell
-									>{i.item.name}{#if i.item.optional}<Badge
+								<Table.Cell>
+									{i.item.name}{#if i.item.optional}<Badge
 											variant="secondary"
-											class="mx-1 font-normal">Optional</Badge
-										>{/if}{#if i.item.optionGroup}<Badge variant="outline" class="mx-1 font-normal"
-											>{i.item.optionGroup}</Badge
-										>{/if}<span class="text-muted-foreground">
-										{i.item.description}</span
-									></Table.Cell
-								>
+											class="mx-1 font-normal"
+										>
+											Optional
+										</Badge>{/if}{#if i.item.optionGroup}<Badge
+											variant="outline"
+											class="mx-1 font-normal"
+										>
+											{i.item.optionGroup}
+										</Badge>{/if}<span class="text-muted-foreground"> {i.item.description}</span>
+								</Table.Cell>
 								<Table.Cell class="text-right">{i.item.qty}</Table.Cell>
-								<Table.Cell class="text-right tabular-nums"
-									>{formatMoney(i.item.unitPrice, currency)}</Table.Cell
-								>
-								<Table.Cell class="text-right tabular-nums"
-									>{formatMoney(i.item.qty * i.item.unitPrice, currency)}</Table.Cell
-								>
+								<Table.Cell class="text-right tabular-nums">
+									{formatMoney(i.item.unitPrice, currency)}
+								</Table.Cell>
+								<Table.Cell class="text-right tabular-nums">
+									{formatMoney(i.item.qty * i.item.unitPrice, currency)}
+								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -652,9 +678,9 @@
 			<Card.Content class="space-y-2 px-4 text-sm">
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Customer</span>
-					<a href="/customers/{est.estimate.customerId}" class="font-medium hover:underline"
-						>{est.customer.name}</a
-					>
+					<a href="/customers/{est.estimate.customerId}" class="font-medium hover:underline">
+						{est.customer.name}
+					</a>
 				</div>
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Status</span><StatusBadge
@@ -662,42 +688,42 @@
 					/>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Created</span><span
-						>{formatDate(est.estimate.createdAt)}</span
-					>
+					<span class="text-muted-foreground">Created</span><span>
+						{formatDate(est.estimate.createdAt)}
+					</span>
 				</div>
 				{#if est.estimate.sentAt}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">Sent</span><span
-							>{formatDate(est.estimate.sentAt)} · {Math.max(
+						<span class="text-muted-foreground">Sent</span><span>
+							{formatDate(est.estimate.sentAt)} · {Math.max(
 								0,
 								Math.round((Date.now() - new Date(est.estimate.sentAt).getTime()) / 86400_000)
-							)}d ago</span
-						>
+							)}d ago
+						</span>
 					</div>
 				{/if}
 				{#if est.estimate.validUntil}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">Valid until</span><span
-							>{formatDate(est.estimate.validUntil)}</span
-						>
+						<span class="text-muted-foreground">Valid until</span><span>
+							{formatDate(est.estimate.validUntil)}
+						</span>
 					</div>
 				{/if}
 				{#if est.estimate.respondedAt}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">Decided</span><span
-							>{formatDate(est.estimate.respondedAt)}</span
-						>
+						<span class="text-muted-foreground">Decided</span><span>
+							{formatDate(est.estimate.respondedAt)}
+						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">By</span><span
-							>{est.estimate.decisionName || '—'}</span
-						>
+						<span class="text-muted-foreground">By</span><span>
+							{est.estimate.decisionName || '—'}
+						</span>
 					</div>
 					{#if est.estimate.declineReason}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Reason</span><span
-								>{(
+							<span class="text-muted-foreground">Reason</span><span>
+								{(
 									{
 										price: 'Price too high',
 										scope: "Scope doesn't fit",
@@ -705,22 +731,24 @@
 										competitor: 'Went with another company',
 										other: 'Other'
 									} as Record<string, string>
-								)[est.estimate.declineReason] ?? est.estimate.declineReason}</span
-							>
+								)[est.estimate.declineReason] ?? est.estimate.declineReason}
+							</span>
 						</div>
 					{/if}
 					{#if est.estimate.acceptedOption}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Option</span><span
-								>{est.estimate.acceptedOption}</span
-							>
+							<span class="text-muted-foreground">Option</span><span>
+								{est.estimate.acceptedOption}
+							</span>
 						</div>
 					{/if}
 					{#if est.estimate.decisionNote}
 						<div class="flex justify-between gap-4">
 							<span class="text-muted-foreground">Note</span><span
-								class="text-right text-muted-foreground">{est.estimate.decisionNote}</span
+								class="text-right text-muted-foreground"
 							>
+								{est.estimate.decisionNote}
+							</span>
 						</div>
 					{/if}
 				{/if}
@@ -728,9 +756,9 @@
 					<Separator />
 					<div class="flex items-center justify-between">
 						<span class="text-muted-foreground">Job</span>
-						<a href="/jobs/{linkedJob.id}" class="flex items-center gap-1 hover:underline"
-							><CircleCheck class="size-4 text-emerald-600" /> J-{linkedJob.number}</a
-						>
+						<a href="/jobs/{linkedJob.id}" class="flex items-center gap-1 hover:underline">
+							<CircleCheck class="size-4 text-emerald-600" /> J-{linkedJob.number}
+						</a>
 					</div>
 				{/if}
 			</Card.Content>
@@ -758,9 +786,9 @@
 		</Field.Field>
 		<Modal.Footer>
 			<Button variant="outline" onclick={() => (progOpen = false)}>Cancel</Button>
-			<Button disabled={progBusy || !progPct} onclick={progressInvoice}
-				>{progBusy ? 'Creating…' : 'Create invoice'}</Button
-			>
+			<Button disabled={progBusy || !progPct} onclick={progressInvoice}>
+				{progBusy ? 'Creating…' : 'Create invoice'}
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>
@@ -770,10 +798,10 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>AI option tiers</Modal.Title>
-			<Modal.Description
-				>Named groups the customer picks between on the approval page. Applying sets each line's
-				option group — review before saving.</Modal.Description
-			>
+			<Modal.Description>
+				Named groups the customer picks between on the approval page. Applying sets each line's
+				option group — review before saving.
+			</Modal.Description>
 		</Modal.Header>
 		{#if tierGroups.length}
 			<div class="space-y-3">

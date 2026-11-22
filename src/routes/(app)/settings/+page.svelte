@@ -673,9 +673,9 @@
 										{/each}
 									</Select.Content>
 								</Select.Root>
-								<Field.Description
-									>Job times and agreement billing run in this zone.</Field.Description
-								>
+								<Field.Description>
+									Job times and agreement billing run in this zone.
+								</Field.Description>
 							</Field.Field>
 							<Field.Field>
 								<Field.Label>Currency</Field.Label>
@@ -721,9 +721,9 @@
 						<Field.Field>
 							<Field.Label for="logo">Logo URL</Field.Label>
 							<Input id="logo" type="url" bind:value={logoUrl} placeholder="https://…/logo.png" />
-							<Field.Description
-								>Shown on print documents and the public estimate page.</Field.Description
-							>
+							<Field.Description>
+								Shown on print documents and the public estimate page.
+							</Field.Description>
 						</Field.Field>
 						<Field.Field>
 							<Field.Label for="hours">Business hours</Field.Label>
@@ -805,15 +805,17 @@
 										class="mt-1"
 									/>
 								</div>
-								<Button variant="outline" size="sm" disabled={testPending} onclick={testEmail}
-									>Email me</Button
-								>
+								<Button variant="outline" size="sm" disabled={testPending} onclick={testEmail}>
+									Email me
+								</Button>
 								<Button
 									variant="outline"
 									size="sm"
 									disabled={testPending || !testSmsTo.trim()}
-									onclick={testSms}>Text this number</Button
+									onclick={testSms}
 								>
+									Text this number
+								</Button>
 							</div>
 							<p class="text-xs text-muted-foreground">
 								Manual Send buttons on invoices and estimates always work.
@@ -875,8 +877,10 @@
 														? 'secondary'
 														: m.status === 'failed' || m.status === 'undelivered'
 															? 'destructive'
-															: 'outline'}>{m.status}</Badge
+															: 'outline'}
 												>
+													{m.status}
+												</Badge>
 											</div>
 										{/each}
 									</div>
@@ -1053,8 +1057,10 @@
 										size="sm"
 										variant="outline"
 										href="{page.url.origin}/book/{page.data.org.slug}"
-										target="_blank"><ExternalLink class="size-4" /> Preview</Button
+										target="_blank"
 									>
+										<ExternalLink class="size-4" /> Preview
+									</Button>
 								</div>
 								<p class="text-xs text-muted-foreground">
 									Link customers to your booking page or drop the iframe into any site.
@@ -1069,8 +1075,9 @@
 										size="sm"
 										variant="outline"
 										onclick={() => copyText(bookUrl, 'Booking link copied')}
-										><Copy class="size-4" /></Button
 									>
+										<Copy class="size-4" />
+									</Button>
 								</div>
 								<div class="flex items-center gap-2">
 									<Input readonly class="font-mono text-xs" value={embedSnippet} />
@@ -1078,8 +1085,9 @@
 										size="sm"
 										variant="outline"
 										onclick={() => copyText(embedSnippet, 'Embed snippet copied')}
-										><Copy class="size-4" /></Button
 									>
+										<Copy class="size-4" />
+									</Button>
 								</div>
 							</div>
 							<div class="flex items-center justify-between">
@@ -1200,8 +1208,10 @@
 									size="sm"
 									variant={userPrefersMode.current === m.id ? 'default' : 'outline'}
 									onclick={() => setMode(m.id as 'light' | 'dark' | 'system')}
-									title={m.label}><m.icon /></Button
+									title={m.label}
 								>
+									<m.icon />
+								</Button>
 							{/each}
 						</div>
 					</div>
@@ -1212,9 +1222,9 @@
 								Walk through the main screens again — runs automatically on first login.
 							</p>
 						</div>
-						<Button size="sm" variant="outline" onclick={() => tour.start()}
-							><GraduationCap /> Replay tour</Button
-						>
+						<Button size="sm" variant="outline" onclick={() => tour.start()}>
+							<GraduationCap /> Replay tour
+						</Button>
 					</div>
 					<div class="flex items-center justify-between rounded-lg border p-3 text-sm">
 						<div>
@@ -1228,8 +1238,9 @@
 							size="sm"
 							variant="outline"
 							onclick={() => (window.location.href = '/api/export/workspace.json')}
-							><Download /> Download</Button
 						>
+							<Download /> Download
+						</Button>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -1257,8 +1268,9 @@
 									size="sm"
 									class="h-7 px-2 text-xs"
 									onclick={() => archiveOffice(l.id, !l.archivedAt)}
-									>{l.archivedAt ? 'Restore' : 'Archive'}</Button
 								>
+									{l.archivedAt ? 'Restore' : 'Archive'}
+								</Button>
 							</li>
 						{:else}
 							<li class="list-none">
@@ -1384,8 +1396,10 @@
 												variant="ghost"
 												class="size-6 px-0 text-muted-foreground"
 												title="Clear dispatch color"
-												onclick={() => saveMemberColor(s, '')}>×</Button
+												onclick={() => saveMemberColor(s, '')}
 											>
+												×
+											</Button>
 										{/if}
 									</span>
 									<label
@@ -1411,19 +1425,18 @@
 											}}
 										/>
 										{#if s.licenseExpiry && s.licenseExpiry <= thirtyDaysOut}
-											<Badge variant={s.licenseExpiry < todayStr ? 'destructive' : 'secondary'}
-												>{s.licenseExpiry < todayStr ? 'expired' : 'expiring'}</Badge
-											>
+											<Badge variant={s.licenseExpiry < todayStr ? 'destructive' : 'secondary'}>
+												{s.licenseExpiry < todayStr ? 'expired' : 'expiring'}
+											</Badge>
 										{/if}
 									</label>
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger
 											class="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-accent"
 											title="Qualified job types — dispatch flags assignments outside them"
-											>skills{skillIds(s).length
-												? ` ${skillIds(s).length}`
-												: ''}</DropdownMenu.Trigger
 										>
+											skills{skillIds(s).length ? ` ${skillIds(s).length}` : ''}
+										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end" class="max-h-64 w-52 overflow-y-auto">
 											<DropdownMenu.Label class="text-xs">Qualified job types</DropdownMenu.Label>
 											{#each jobTypes as t (t.id)}
@@ -1431,26 +1444,30 @@
 													checked={skillIds(s).includes(t.id)}
 													closeOnSelect={false}
 													onCheckedChange={() => toggleSkill(s, t.id)}
-													>{t.name}</DropdownMenu.CheckboxItem
 												>
+													{t.name}
+												</DropdownMenu.CheckboxItem>
 											{/each}
 											<DropdownMenu.Separator />
-											<DropdownMenu.Item class="text-xs" onclick={() => setSkills(s, [])}
-												>Clear — qualified for all</DropdownMenu.Item
-											>
+											<DropdownMenu.Item class="text-xs" onclick={() => setSkills(s, [])}>
+												Clear — qualified for all
+											</DropdownMenu.Item>
 										</DropdownMenu.Content>
 									</DropdownMenu.Root>
 									<Badge
 										variant={s.role === 'owner' || s.role === 'admin' ? 'default' : 'secondary'}
-										>{s.role}</Badge
 									>
+										{s.role}
+									</Badge>
 									{#if s.role !== 'owner'}
 										<Button
 											variant="ghost"
 											size="icon"
 											class="size-7"
-											onclick={() => removeStaff(s.id)}><Trash class="size-4" /></Button
+											onclick={() => removeStaff(s.id)}
 										>
+											<Trash class="size-4" />
+										</Button>
 									{/if}
 								</div>
 							</li>
@@ -1479,9 +1496,9 @@
 			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Time off</Card.Title>
-					<Card.Description
-						>Days a technician is unavailable — scheduling a job on those days is blocked.</Card.Description
-					>
+					<Card.Description>
+						Days a technician is unavailable — scheduling a job on those days is blocked.
+					</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4 px-6">
 					<ul class="divide-y">
@@ -1502,14 +1519,16 @@
 											variant="outline"
 											size="sm"
 											onclick={() => setTimeOff({ id: t.timeOff.id, status: 'approved' })}
-											>Approve</Button
 										>
+											Approve
+										</Button>
 										<Button
 											variant="ghost"
 											size="sm"
 											onclick={() => setTimeOff({ id: t.timeOff.id, status: 'denied' })}
-											>Deny</Button
 										>
+											Deny
+										</Button>
 									{:else if t.timeOff.status === 'denied'}
 										<Badge variant="outline">denied</Badge>
 									{/if}
@@ -1517,8 +1536,10 @@
 										variant="ghost"
 										size="icon"
 										class="size-7"
-										onclick={() => removeTimeOff(t.timeOff.id)}><Trash class="size-4" /></Button
+										onclick={() => removeTimeOff(t.timeOff.id)}
 									>
+										<Trash class="size-4" />
+									</Button>
 								</div>
 							</li>
 						{:else}
@@ -1541,9 +1562,9 @@
 							value={toMember}
 							onValueChange={(v: string) => (toMember = v)}
 						>
-							<Select.Trigger class="w-full"
-								>{techs.find((t) => t.id === toMember)?.name ?? 'Technician…'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{techs.find((t) => t.id === toMember)?.name ?? 'Technician…'}
+							</Select.Trigger>
 							<Select.Content>
 								{#each techs as t (t.id)}
 									<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -1587,15 +1608,15 @@
 							{#each jobTypes as t (t.id)}
 								<Table.Row class="cursor-pointer" onclick={() => openJt(t)}>
 									<Table.Cell class="font-medium">{t.name}</Table.Cell>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{t.durationMin} min</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{t.checklist?.length ? `${t.checklist.length} steps` : '—'}</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{techs.find((x) => x.id === t.technicianId)?.name ?? '—'}</Table.Cell
-									>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{t.durationMin} min
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{t.checklist?.length ? `${t.checklist.length} steps` : '—'}
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{techs.find((x) => x.id === t.technicianId)?.name ?? '—'}
+									</Table.Cell>
 									<Table.Cell
 										class="hidden md:table-cell"
 										onclick={(e) => {
@@ -1604,13 +1625,13 @@
 										}}
 									>
 										{#if kitCount[t.id]}
-											<Button variant="ghost" size="sm" class="h-6 px-1.5"
-												>{kitCount[t.id]} item{kitCount[t.id] === 1 ? '' : 's'}</Button
-											>
+											<Button variant="ghost" size="sm" class="h-6 px-1.5">
+												{kitCount[t.id]} item{kitCount[t.id] === 1 ? '' : 's'}
+											</Button>
 										{:else}
-											<Button variant="ghost" size="sm" class="h-6 px-1.5 text-muted-foreground"
-												>Set kit</Button
-											>
+											<Button variant="ghost" size="sm" class="h-6 px-1.5 text-muted-foreground">
+												Set kit
+											</Button>
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="text-right" onclick={(e) => e.stopPropagation()}>
@@ -1670,8 +1691,9 @@
 										size="icon"
 										class="size-7"
 										onclick={() => copy(`${page.url.origin}${p.webhookPath}`)}
-										><Copy class="size-3.5" /></Button
 									>
+										<Copy class="size-3.5" />
+									</Button>
 								</div>
 								<p class="text-xs">Events: {p.webhookEvents.join(', ')}. {p.webhookNote ?? ''}</p>
 								{#if p.canConnect && !p.ready}
@@ -1681,8 +1703,10 @@
 										onclick={async () => {
 											const res = await connectProvider(p.id);
 											if (res?.url) location.href = res.url;
-										}}><ExternalLink /> Connect {p.name} account</Button
+										}}
 									>
+										<ExternalLink /> Connect {p.name} account
+									</Button>
 								{/if}
 								{#if p.accountId && !p.accountReady}
 									<Button
@@ -1691,8 +1715,10 @@
 										onclick={async () => {
 											await refreshProvider(p.id);
 											providerList = await getPaymentProviders();
-										}}>Refresh status</Button
+										}}
 									>
+										Refresh status
+									</Button>
 								{/if}
 							{/if}
 						</Card.Content>
@@ -1717,9 +1743,9 @@
 								class="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3"
 							>
 								<code class="min-w-0 flex-1 truncate font-mono text-xs">{newKey}</code>
-								<Button variant="ghost" size="icon" class="size-7" onclick={() => copy(newKey!)}
-									><Copy class="size-3.5" /></Button
-								>
+								<Button variant="ghost" size="icon" class="size-7" onclick={() => copy(newKey!)}>
+									<Copy class="size-3.5" />
+								</Button>
 							</div>
 						{/if}
 						<Table.Root>
@@ -1727,25 +1753,27 @@
 								{#each apiKeys as k (k.id)}
 									<Table.Row>
 										<Table.Cell class="font-medium">{k.name}</Table.Cell>
-										<Table.Cell class="font-mono text-xs text-muted-foreground"
-											>{k.start ?? k.prefix}…</Table.Cell
-										>
-										<Table.Cell class="text-xs text-muted-foreground"
-											>{formatDate(k.createdAt)}</Table.Cell
-										>
+										<Table.Cell class="font-mono text-xs text-muted-foreground">
+											{k.start ?? k.prefix}…
+										</Table.Cell>
+										<Table.Cell class="text-xs text-muted-foreground">
+											{formatDate(k.createdAt)}
+										</Table.Cell>
 										<Table.Cell class="text-right">
 											<Button
 												variant="ghost"
 												size="icon"
 												class="size-7"
-												onclick={() => removeKey(k.id)}><Trash class="size-4" /></Button
+												onclick={() => removeKey(k.id)}
 											>
+												<Trash class="size-4" />
+											</Button>
 										</Table.Cell>
 									</Table.Row>
 								{:else}
-									<Table.Row
-										><Table.Cell class="text-muted-foreground">No keys yet.</Table.Cell></Table.Row
-									>
+									<Table.Row>
+										<Table.Cell class="text-muted-foreground">No keys yet.</Table.Cell>
+									</Table.Row>
 								{/each}
 							</Table.Body>
 						</Table.Root>
@@ -1784,9 +1812,9 @@
 					<Card.Header>
 						<Card.Title class="text-base">Webhooks</Card.Title>
 						<Card.Description>
-							Signed POSTs (HMAC header <code class="rounded bg-muted px-1"
-								>x-tredaro-signature</code
-							>) for workspace events.
+							Signed POSTs (HMAC header <code class="rounded bg-muted px-1">
+								x-tredaro-signature
+							</code>) for workspace events.
 						</Card.Description>
 					</Card.Header>
 					<Card.Content class="space-y-4 px-6">
@@ -1795,16 +1823,18 @@
 								{#each webhooks as w (w.id)}
 									<Table.Row>
 										<Table.Cell class="min-w-0 truncate font-mono text-xs">{w.url}</Table.Cell>
-										<Table.Cell class="text-xs text-muted-foreground"
-											>{w.events.length} events</Table.Cell
-										>
+										<Table.Cell class="text-xs text-muted-foreground">
+											{w.events.length} events
+										</Table.Cell>
 										<Table.Cell class="text-xs text-muted-foreground">
 											{#if w.lastDeliveryAt}
 												<span
 													class={w.lastDeliveryStatus && w.lastDeliveryStatus < 400
 														? 'text-green-600'
-														: 'text-destructive'}>{w.lastDeliveryStatus || 'failed'}</span
+														: 'text-destructive'}
 												>
+													{w.lastDeliveryStatus || 'failed'}
+												</span>
 											{:else}
 												never
 											{/if}
@@ -1815,8 +1845,10 @@
 												size="icon"
 												class="size-7"
 												title="Delivery history"
-												onclick={() => toggleHookHistory(w.id)}><History class="size-4" /></Button
+												onclick={() => toggleHookHistory(w.id)}
 											>
+												<History class="size-4" />
+											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
@@ -1837,18 +1869,20 @@
 														toast.error(errMsg(err, 'Test failed'));
 													}
 													testingHook = '';
-												}}><Send class="size-4" /></Button
+												}}
 											>
+												<Send class="size-4" />
+											</Button>
 										</Table.Cell>
-										<Table.Cell
-											><Switch
+										<Table.Cell>
+											<Switch
 												checked={w.enabled}
 												onCheckedChange={async (v) => {
 													await toggleWebhook({ id: w.id, enabled: v });
 													webhooks = await getWebhooks();
 												}}
-											/></Table.Cell
-										>
+											/>
+										</Table.Cell>
 										<Table.Cell class="text-right">
 											<Button
 												variant="ghost"
@@ -1857,8 +1891,10 @@
 												onclick={async () => {
 													await deleteWebhook(w.id);
 													webhooks = await getWebhooks();
-												}}><Trash class="size-4" /></Button
+												}}
 											>
+												<Trash class="size-4" />
+											</Button>
 										</Table.Cell>
 									</Table.Row>
 									{#if hookHistory[w.id]}
@@ -1871,19 +1907,23 @@
 															<span
 																class={d.status > 0 && d.status < 400
 																	? 'text-green-600'
-																	: 'text-destructive'}>{d.status || 'failed'}</span
+																	: 'text-destructive'}
 															>
-															<span class="text-muted-foreground"
-																>{formatRelative(d.createdAt)}</span
-															>
+																{d.status || 'failed'}
+															</span>
+															<span class="text-muted-foreground">
+																{formatRelative(d.createdAt)}
+															</span>
 															{#if d.canRetry && !(d.status > 0 && d.status < 400)}
 																<Button
 																	variant="ghost"
 																	size="sm"
 																	class="h-6 px-2 text-xs"
 																	disabled={retryingDelivery === d.id}
-																	onclick={() => retryDelivery(w.id, d.id)}>Retry</Button
+																	onclick={() => retryDelivery(w.id, d.id)}
 																>
+																	Retry
+																</Button>
 															{/if}
 														</li>
 													{:else}
@@ -1896,9 +1936,9 @@
 										</Table.Row>
 									{/if}
 								{:else}
-									<Table.Row
-										><Table.Cell class="text-muted-foreground">No webhooks.</Table.Cell></Table.Row
-									>
+									<Table.Row>
+										<Table.Cell class="text-muted-foreground">No webhooks.</Table.Cell>
+									</Table.Row>
 								{/each}
 							</Table.Body>
 						</Table.Root>
@@ -1916,9 +1956,9 @@
 							<Field.Field>
 								<Field.Label for="hook-events">Events (comma-separated, or *)</Field.Label>
 								<Input id="hook-events" bind:value={hookEvents} />
-								<Field.Description
-									>e.g. job.created, estimate.approved, payment.recorded</Field.Description
-								>
+								<Field.Description>
+									e.g. job.created, estimate.approved, payment.recorded
+								</Field.Description>
 							</Field.Field>
 							<Button type="submit" variant="secondary" disabled={pending}>Add webhook</Button>
 						</form>
@@ -1931,10 +1971,10 @@
 			<Card.Root class="max-w-3xl">
 				<Card.Header>
 					<Card.Title class="text-base">Demo data</Card.Title>
-					<Card.Description
-						>Load a realistic HVAC company — customers, agreement plans, a week of jobs, an estimate
-						and paid invoices. Only on an empty workspace.</Card.Description
-					>
+					<Card.Description>
+						Load a realistic HVAC company — customers, agreement plans, a week of jobs, an estimate
+						and paid invoices. Only on an empty workspace.
+					</Card.Description>
 				</Card.Header>
 				<Card.Content class="px-6">
 					<Button
@@ -1950,8 +1990,10 @@
 								toast.error(errMsg(err, 'Could not seed'));
 							}
 							pending = false;
-						}}><Sparkles /> Load demo data</Button
+						}}
 					>
+						<Sparkles /> Load demo data
+					</Button>
 				</Card.Content>
 			</Card.Root>
 		</Tabs.Content>
@@ -1962,15 +2004,15 @@
 	<Modal.Content>
 		<Modal.Header><Modal.Title>Add office</Modal.Title></Modal.Header>
 		<form class="space-y-4" onsubmit={addOffice}>
-			<Field.Field
-				><Field.Label for="loc-name">Name</Field.Label><Input
+			<Field.Field>
+				<Field.Label for="loc-name">Name</Field.Label><Input
 					id="loc-name"
 					required
 					bind:value={locName}
 					placeholder="Austin HQ"
 					autofocus
-				/></Field.Field
-			>
+				/>
+			</Field.Field>
 			<Modal.Footer><Button type="submit" disabled={pending}>Add</Button></Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2017,9 +2059,9 @@
 				<Field.Field>
 					<Field.Label>Default tech</Field.Label>
 					<Select.Root type="single" value={jtTech} onValueChange={(v: string) => (jtTech = v)}>
-						<Select.Trigger class="w-full"
-							>{techs.find((t) => t.id === jtTech)?.name ?? 'None'}</Select.Trigger
-						>
+						<Select.Trigger class="w-full">
+							{techs.find((t) => t.id === jtTech)?.name ?? 'None'}
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="">None</Select.Item>
 							{#each techs as t (t.id)}
@@ -2040,8 +2082,11 @@
 							class="h-7 text-muted-foreground"
 							title="Draft steps with AI from the job-type name"
 							disabled={jtAiPending || jtName.trim().length < 2}
-							onclick={draftJtChecklist}><Sparkles /> {jtAiPending ? 'Drafting…' : 'Draft'}</Button
+							onclick={draftJtChecklist}
 						>
+							<Sparkles />
+							{jtAiPending ? 'Drafting…' : 'Draft'}
+						</Button>
 					{/if}
 				</div>
 				<Textarea
@@ -2050,15 +2095,15 @@
 					placeholder="Inspect unit, check refrigerant… (one per line)"
 					bind:value={jtChecklist}
 				/>
-				<Field.Description
-					>New jobs of this type get these steps on their Checklist card.</Field.Description
-				>
+				<Field.Description>
+					New jobs of this type get these steps on their Checklist card.
+				</Field.Description>
 			</Field.Field>
 			<div class="flex items-center justify-between">
 				<div>
-					<label for="jt-req-checklist" class="text-sm font-medium"
-						>Require checklist to complete</label
-					>
+					<label for="jt-req-checklist" class="text-sm font-medium">
+						Require checklist to complete
+					</label>
 					<p class="text-xs text-muted-foreground">Job can't be completed with open steps.</p>
 				</div>
 				<Switch
@@ -2076,9 +2121,9 @@
 			</div>
 			<div class="flex items-center justify-between">
 				<div>
-					<label for="jt-req-signature" class="text-sm font-medium"
-						>Require signature to complete</label
-					>
+					<label for="jt-req-signature" class="text-sm font-medium">
+						Require signature to complete
+					</label>
 					<p class="text-xs text-muted-foreground">Customer sign-off before completion.</p>
 				</div>
 				<Switch
@@ -2143,9 +2188,9 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>Material kit — {kitType?.name}</Modal.Title>
-			<Modal.Description
-				>Default materials a tech can add to a job of this type in one tap (from warehouse stock).</Modal.Description
-			>
+			<Modal.Description>
+				Default materials a tech can add to a job of this type in one tap (from warehouse stock).
+			</Modal.Description>
 		</Modal.Header>
 		<div class="space-y-2">
 			{#each kitRows as row, i (i)}
@@ -2155,17 +2200,15 @@
 						value={row.inventoryItemId}
 						onValueChange={(v) => (row.inventoryItemId = v)}
 					>
-						<Select.Trigger class="min-w-0 flex-1"
-							>{invRows.find((r) => r.item.id === row.inventoryItemId)?.item.name ??
-								'Pick an item…'}</Select.Trigger
-						>
+						<Select.Trigger class="min-w-0 flex-1">
+							{invRows.find((r) => r.item.id === row.inventoryItemId)?.item.name ?? 'Pick an item…'}
+						</Select.Trigger>
 						<Select.Content>
 							{#each invRows as r (r.item.id)}
-								<Select.Item value={r.item.id}
-									>{r.item.name}
-									<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span
-									></Select.Item
-								>
+								<Select.Item value={r.item.id}>
+									{r.item.name}
+									<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span>
+								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
@@ -2180,16 +2223,19 @@
 						variant="ghost"
 						size="icon"
 						class="size-8 shrink-0 text-muted-foreground"
-						onclick={() => kitRows.splice(i, 1)}><Trash class="size-4" /></Button
+						onclick={() => kitRows.splice(i, 1)}
 					>
+						<Trash class="size-4" />
+					</Button>
 				</div>
 			{/each}
 			<Button
 				size="sm"
 				variant="outline"
 				onclick={() => kitRows.push({ inventoryItemId: '', qty: 1 })}
-				><Plus class="size-4" /> Add item</Button
 			>
+				<Plus class="size-4" /> Add item
+			</Button>
 		</div>
 		<Modal.Footer>
 			<Button onclick={saveKit} disabled={kitPending}>{kitPending ? 'Saving…' : 'Save kit'}</Button>

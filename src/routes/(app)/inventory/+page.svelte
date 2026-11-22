@@ -419,10 +419,10 @@
 		<Button size="sm" variant="outline" href="/api/export/inventory.csv" download>
 			<Download /> Export CSV
 		</Button>
-		<Badge variant="secondary" class="mr-2 hidden md:inline-flex"
-			>{items.length} item{items.length === 1 ? '' : 's'} ·
-			{formatMoney(totalValue, currency)} on hand</Badge
-		>
+		<Badge variant="secondary" class="mr-2 hidden md:inline-flex">
+			{items.length} item{items.length === 1 ? '' : 's'} ·
+			{formatMoney(totalValue, currency)} on hand
+		</Badge>
 		{@const lowCount = items.filter((i) => i.low).length}
 		{@const outCount = items.filter((i) => i.item.qtyOnHand === 0).length}
 		{@const unusedCount = items.filter((i) => !i.used).length}
@@ -434,70 +434,73 @@
 			(p) => p.po.expectedOn && p.po.expectedOn < new Date().toISOString().slice(0, 10)
 		)}
 		{#if openPos.length}
-			<Badge variant="outline" class="mr-2 hidden md:inline-flex"
-				>{openPos.length} open PO{openPos.length === 1 ? '' : 's'} ·
+			<Badge variant="outline" class="mr-2 hidden md:inline-flex">
+				{openPos.length} open PO{openPos.length === 1 ? '' : 's'} ·
 				{formatMoney(
 					openPos.reduce((m, p) => m + p.total, 0),
 					currency
-				)} on order</Badge
-			>
+				)} on order
+			</Badge>
 		{/if}
 		{@const draftPos = openPos.filter((p) => p.po.status === 'draft')}
 		{#if draftPos.length}
-			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
-				>{draftPos.length} PO draft · {formatMoney(
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex">
+				{draftPos.length} PO draft · {formatMoney(
 					draftPos.reduce((m, p) => m + p.total, 0),
 					currency
-				)}</Badge
-			>
+				)}
+			</Badge>
 		{/if}
 		{#if orderedPos.length}
-			<Badge variant="outline" class="mr-2 hidden md:inline-flex"
-				>{orderedPos.length} awaiting delivery</Badge
-			>
+			<Badge variant="outline" class="mr-2 hidden md:inline-flex">
+				{orderedPos.length} awaiting delivery
+			</Badge>
 		{/if}
 		{#if latePos.length}
-			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400"
-				>{latePos.length} PO late</Badge
-			>
+			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400">
+				{latePos.length} PO late
+			</Badge>
 		{/if}
 		{@const truckedTotal = items.reduce((m, r) => m + (r.trucked ?? 0), 0)}
 		{#if truckedTotal}
-			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
-				>{truckedTotal} in trucks{#if items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0)}
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex">
+				{truckedTotal} in trucks{#if items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0)}
 					· {formatMoney(
 						items.reduce((m, r) => m + (r.trucked ?? 0) * (r.item.unitCost ?? 0), 0),
 						currency
-					)}{/if}</Badge
-			>
+					)}{/if}
+			</Badge>
 		{/if}
 		{#if lowCount}
-			<Badge variant="outline" class="mr-2 hidden text-amber-600 md:inline-flex dark:text-amber-400"
-				>{lowCount} low</Badge
+			<Badge
+				variant="outline"
+				class="mr-2 hidden text-amber-600 md:inline-flex dark:text-amber-400"
 			>
-			<Button size="sm" variant="outline" onclick={openPoLow}
-				><ShoppingCart /> Order low stock</Button
-			>
+				{lowCount} low
+			</Badge>
+			<Button size="sm" variant="outline" onclick={openPoLow}>
+				<ShoppingCart /> Order low stock
+			</Button>
 		{/if}
 		{#if outCount}
-			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400"
-				>{outCount} out</Badge
-			>
+			<Badge variant="outline" class="mr-2 hidden text-red-600 md:inline-flex dark:text-red-400">
+				{outCount} out
+			</Badge>
 		{/if}
 		{#if noCostCount}
-			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
-				>{noCostCount} no cost</Badge
-			>
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex">
+				{noCostCount} no cost
+			</Badge>
 		{/if}
 		{#if unusedCount}
-			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
-				>{unusedCount} unused</Badge
-			>
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex">
+				{unusedCount} unused
+			</Badge>
 		{/if}
 		{#if unmonitoredCount}
-			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex"
-				>{unmonitoredCount} no reorder pt</Badge
-			>
+			<Badge variant="outline" class="mr-2 hidden text-muted-foreground md:inline-flex">
+				{unmonitoredCount} no reorder pt
+			</Badge>
 		{/if}
 		<Button size="sm" onclick={() => openItem()}><Plus /> New item</Button>
 	{/snippet}
@@ -544,41 +547,41 @@
 									<StatusBadge status="overdue" class="ml-2" />
 								{/if}
 								{#if i.trucked}
-									<span class="ml-2 text-xs font-normal text-muted-foreground"
-										>{i.trucked} on {i.truckCount} truck{i.truckCount === 1 ? '' : 's'}</span
-									>
+									<span class="ml-2 text-xs font-normal text-muted-foreground">
+										{i.trucked} on {i.truckCount} truck{i.truckCount === 1 ? '' : 's'}
+									</span>
 								{/if}
 								{#if i.onOrder}
-									<span class="ml-1 text-xs font-normal text-muted-foreground"
-										>· {i.onOrder} on order</span
-									>
+									<span class="ml-1 text-xs font-normal text-muted-foreground">
+										· {i.onOrder} on order
+									</span>
 								{/if}
 							</Table.Cell>
-							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{i.item.sku || '—'}</Table.Cell
-							>
-							<Table.Cell class="hidden text-muted-foreground lg:table-cell"
-								>{i.item.location || '—'}{i.item.category ? ` · ${i.item.category}` : ''}{i.item
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{i.item.sku || '—'}
+							</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+								{i.item.location || '—'}{i.item.category ? ` · ${i.item.category}` : ''}{i.item
 									.supplierSku
 									? ` · ${i.item.supplierSku}`
-									: ''}</Table.Cell
+									: ''}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{i.item.qtyOnHand}
+								{i.item.unit}
+							</Table.Cell>
+							<Table.Cell
+								class="hidden text-right text-muted-foreground tabular-nums md:table-cell"
 							>
-							<Table.Cell class="text-right tabular-nums"
-								>{i.item.qtyOnHand} {i.item.unit}</Table.Cell
-							>
-							<Table.Cell class="hidden text-right text-muted-foreground tabular-nums md:table-cell"
-								>{i.item.reorderPoint ?? '—'}{#if i.item.parLevel != null}
-									<span title="Restock to {i.item.parLevel}">→{i.item.parLevel}</span
-									>{/if}</Table.Cell
-							>
-							<Table.Cell class="hidden text-right tabular-nums md:table-cell"
-								>{i.item.unitCost ? formatMoney(i.item.unitCost, currency) : '—'}</Table.Cell
-							>
-							<Table.Cell class="hidden text-right tabular-nums md:table-cell"
-								>{i.item.unitCost
-									? formatMoney(i.item.qtyOnHand * i.item.unitCost, currency)
-									: '—'}</Table.Cell
-							>
+								{i.item.reorderPoint ?? '—'}{#if i.item.parLevel != null}
+									<span title="Restock to {i.item.parLevel}">→{i.item.parLevel}</span>{/if}
+							</Table.Cell>
+							<Table.Cell class="hidden text-right tabular-nums md:table-cell">
+								{i.item.unitCost ? formatMoney(i.item.unitCost, currency) : '—'}
+							</Table.Cell>
+							<Table.Cell class="hidden text-right tabular-nums md:table-cell">
+								{i.item.unitCost ? formatMoney(i.item.qtyOnHand * i.item.unitCost, currency) : '—'}
+							</Table.Cell>
 							<Table.Cell class="text-right" onclick={(e: MouseEvent) => e.stopPropagation()}>
 								<div class="flex justify-end gap-1">
 									{#if i.low}
@@ -632,13 +635,14 @@
 									<Empty.Header>
 										<Empty.Media><Package /></Empty.Media>
 										<Empty.Title>No stock yet</Empty.Title>
-										<Empty.Description
-											>Track parts and materials — they can be logged on jobs and alert here when
-											they run low.</Empty.Description
-										>
+										<Empty.Description>
+											Track parts and materials — they can be logged on jobs and alert here when
+											they run low.
+										</Empty.Description>
 									</Empty.Header>
-									<Empty.Content><Button onclick={() => openItem()}>New item</Button></Empty.Content
-									>
+									<Empty.Content>
+										<Button onclick={() => openItem()}>New item</Button>
+									</Empty.Content>
 								</Empty.Root>
 							</Table.Cell>
 						</Table.Row>
@@ -649,12 +653,12 @@
 	</Card.Root>
 	<Card.Root class="py-0">
 		<Card.Header class="flex-row items-center justify-between space-y-0">
-			<Card.Title class="flex items-center gap-2 text-base"
-				><Truck class="size-4" /> Truck stock</Card.Title
-			>
-			<Button size="sm" variant="outline" onclick={() => (trOpen = true)}
-				><Plus /> Transfer to truck</Button
-			>
+			<Card.Title class="flex items-center gap-2 text-base">
+				<Truck class="size-4" /> Truck stock
+			</Card.Title>
+			<Button size="sm" variant="outline" onclick={() => (trOpen = true)}>
+				<Plus /> Transfer to truck
+			</Button>
 		</Card.Header>
 		<Card.Content class="overflow-x-auto px-0">
 			<Table.Root>
@@ -678,8 +682,10 @@
 									size="icon"
 									class="size-7 text-muted-foreground"
 									title="Return all to warehouse"
-									onclick={() => returnToWarehouse(r)}><Undo2 class="size-3.5" /></Button
+									onclick={() => returnToWarehouse(r)}
 								>
+									<Undo2 class="size-3.5" />
+								</Button>
 							</Table.Cell>
 						</Table.Row>
 					{:else}
@@ -721,25 +727,27 @@
 									<a
 										href="/jobs/{p.po.jobId}"
 										class="hover:underline"
-										onclick={(e) => e.stopPropagation()}>J-{p.jobNumber}</a
+										onclick={(e) => e.stopPropagation()}
 									>
+										J-{p.jobNumber}
+									</a>
 								{:else}—{/if}
 							</Table.Cell>
-							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{p.po.expectedOn ?? '—'}</Table.Cell
-							>
-							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{p.items.length} item{p.items.length > 1 ? 's' : ''}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(p.total, currency)}</Table.Cell
-							>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{p.po.expectedOn ?? '—'}
+							</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{p.items.length} item{p.items.length > 1 ? 's' : ''}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(p.total, currency)}
+							</Table.Cell>
 							<Table.Cell>
 								<StatusBadge status={p.po.status} />
 								{#if (p.po.status === 'ordered' || p.po.status === 'received') && !p.po.paidAt}
-									<Badge variant="outline" class="ml-1 text-amber-600 dark:text-amber-400"
-										>unpaid</Badge
-									>
+									<Badge variant="outline" class="ml-1 text-amber-600 dark:text-amber-400">
+										unpaid
+									</Badge>
 								{/if}
 							</Table.Cell>
 						</Table.Row>
@@ -869,9 +877,9 @@
 			<Input id="adj-qty" type="number" min={1} bind:value={adjQty} />
 		</Field.Field>
 		<Modal.Footer class="gap-2 sm:justify-between">
-			<Button variant="outline" onclick={() => adjust('out')} disabled={adjQty < 1}
-				><Minus /> Remove</Button
-			>
+			<Button variant="outline" onclick={() => adjust('out')} disabled={adjQty < 1}>
+				<Minus /> Remove
+			</Button>
 			<Button onclick={() => adjust('in')} disabled={adjQty < 1}><Plus /> Add</Button>
 		</Modal.Footer>
 	</Modal.Content>
@@ -908,11 +916,10 @@
 							</Select.Trigger>
 							<Select.Content>
 								{#each rows as r (r.item.id)}
-									<Select.Item value={r.item.id}
-										>{r.item.name}
-										<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span
-										></Select.Item
-									>
+									<Select.Item value={r.item.id}>
+										{r.item.name}
+										<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span>
+									</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -949,9 +956,9 @@
 				<Input id="po-notes" bind:value={poNotes} placeholder="Optional" />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={poPending || poLines.some((l) => !l.inventoryItemId)}
-					>{poPending ? 'Saving…' : 'Create PO'}</Button
-				>
+				<Button type="submit" disabled={poPending || poLines.some((l) => !l.inventoryItemId)}>
+					{poPending ? 'Saving…' : 'Create PO'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -974,17 +981,18 @@
 					variant="ghost"
 					title="Print PO"
 					onclick={() => window.open(`/purchase-orders/${poView?.po.id}/print`, '_blank')}
-					><Printer /></Button
 				>
+					<Printer />
+				</Button>
 			</Modal.Title>
 			<Modal.Description>
 				{#if poView?.po.expectedOn}Expected {poView.po.expectedOn} ·
 				{/if}
 				Total {formatMoney(poView?.total ?? 0, currency)}
 				{#if poView?.po.jobId && poView.jobNumber}
-					<br /><a href="/jobs/{poView.po.jobId}" class="font-medium hover:underline"
-						>For job J-{poView.jobNumber}</a
-					>
+					<br /><a href="/jobs/{poView.po.jobId}" class="font-medium hover:underline">
+						For job J-{poView.jobNumber}
+					</a>
 				{/if}
 				{#if poView?.po.notes}<br />{poView.po.notes}{/if}
 			</Modal.Description>
@@ -993,18 +1001,18 @@
 			<Table.Body>
 				{#each poView?.items ?? [] as i (i.id)}
 					<Table.Row>
-						<Table.Cell class="font-medium"
-							>{i.name}
+						<Table.Cell class="font-medium">
+							{i.name}
 							{#if i.receivedQty > 0}
-								<span class="ml-1 text-xs text-muted-foreground"
-									>{i.receivedQty}/{i.qty} received</span
-								>
-							{/if}</Table.Cell
-						>
+								<span class="ml-1 text-xs text-muted-foreground">
+									{i.receivedQty}/{i.qty} received
+								</span>
+							{/if}
+						</Table.Cell>
 						<Table.Cell class="text-right tabular-nums">{i.qty} {i.unit}</Table.Cell>
-						<Table.Cell class="text-right tabular-nums"
-							>{i.unitCost ? formatMoney(i.qty * i.unitCost, currency) : '—'}</Table.Cell
-						>
+						<Table.Cell class="text-right tabular-nums">
+							{i.unitCost ? formatMoney(i.qty * i.unitCost, currency) : '—'}
+						</Table.Cell>
 					</Table.Row>
 				{/each}
 			</Table.Body>
@@ -1012,41 +1020,41 @@
 		{#if poView}
 			<Modal.Footer class="gap-2 sm:justify-between">
 				{#if poView.po.status === 'draft'}
-					<Button variant="ghost" class="text-destructive" onclick={() => removePo(poView!.po.id)}
-						><Trash2 /> Delete</Button
-					>
+					<Button variant="ghost" class="text-destructive" onclick={() => removePo(poView!.po.id)}>
+						<Trash2 /> Delete
+					</Button>
 					<div class="flex gap-2">
-						<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}
-							>Cancel</Button
-						>
+						<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}>
+							Cancel
+						</Button>
 						<Button onclick={() => transitionPo(poView!.po.id, 'ordered')}>Mark ordered</Button>
 					</div>
 				{:else if poView.po.status === 'ordered'}
-					<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}
-						>Cancel PO</Button
-					>
+					<Button variant="outline" onclick={() => transitionPo(poView!.po.id, 'cancelled')}>
+						Cancel PO
+					</Button>
 					<div class="flex gap-2">
 						{#if poView.po.paidAt}
-							<Button variant="ghost" onclick={() => togglePoPaid(poView!.po.id, false)}
-								>Mark unpaid</Button
-							>
+							<Button variant="ghost" onclick={() => togglePoPaid(poView!.po.id, false)}>
+								Mark unpaid
+							</Button>
 						{:else}
-							<Button variant="outline" onclick={() => togglePoPaid(poView!.po.id, true)}
-								>Mark paid</Button
-							>
+							<Button variant="outline" onclick={() => togglePoPaid(poView!.po.id, true)}>
+								Mark paid
+							</Button>
 						{/if}
 						<Button onclick={openReceive}><ClipboardList /> Receive stock</Button>
 					</div>
 				{:else}
 					{#if poView.po.status === 'received'}
 						{#if poView.po.paidAt}
-							<Button variant="ghost" onclick={() => togglePoPaid(poView!.po.id, false)}
-								>Mark unpaid</Button
-							>
+							<Button variant="ghost" onclick={() => togglePoPaid(poView!.po.id, false)}>
+								Mark unpaid
+							</Button>
 						{:else}
-							<Button variant="outline" onclick={() => togglePoPaid(poView!.po.id, true)}
-								>Mark paid</Button
-							>
+							<Button variant="outline" onclick={() => togglePoPaid(poView!.po.id, true)}>
+								Mark paid
+							</Button>
 						{/if}
 					{:else}
 						<span></span>
@@ -1085,9 +1093,9 @@
 		</div>
 		<Modal.Footer>
 			<Button variant="outline" onclick={() => rcLines.forEach((l) => (l.qty = 0))}>Clear</Button>
-			<Button onclick={doReceive} disabled={rcPending || rcLines.every((l) => l.qty <= 0)}
-				>{rcPending ? 'Receiving…' : 'Receive'}</Button
-			>
+			<Button onclick={doReceive} disabled={rcPending || rcLines.every((l) => l.qty <= 0)}>
+				{rcPending ? 'Receiving…' : 'Receive'}
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>
@@ -1100,16 +1108,15 @@
 			<Field.Field>
 				<Field.Label>Item</Field.Label>
 				<Select.Root type="single" bind:value={trItem}>
-					<Select.Trigger class="w-full"
-						>{rows.find((r) => r.item.id === trItem)?.item.name ?? 'Pick an item…'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{rows.find((r) => r.item.id === trItem)?.item.name ?? 'Pick an item…'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each rows as r (r.item.id)}
-							<Select.Item value={r.item.id}
-								>{r.item.name}
-								<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span
-								></Select.Item
-							>
+							<Select.Item value={r.item.id}>
+								{r.item.name}
+								<span class="text-muted-foreground">({r.item.qtyOnHand} {r.item.unit})</span>
+							</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
@@ -1117,9 +1124,9 @@
 			<Field.Field>
 				<Field.Label>Technician</Field.Label>
 				<Select.Root type="single" bind:value={trMember}>
-					<Select.Trigger class="w-full"
-						>{techs.find((t) => t.id === trMember)?.name ?? 'Pick a tech…'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{techs.find((t) => t.id === trMember)?.name ?? 'Pick a tech…'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each techs as t (t.id)}
 							<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -1132,9 +1139,9 @@
 				<Input id="tr-qty" type="number" min={1} bind:value={trQty} />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={trPending || !trItem || !trMember || trQty < 1}
-					>{trPending ? 'Transferring…' : 'Transfer'}</Button
-				>
+				<Button type="submit" disabled={trPending || !trItem || !trMember || trQty < 1}>
+					{trPending ? 'Transferring…' : 'Transfer'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -1156,9 +1163,9 @@
 							<span class="text-muted-foreground">· {e.actorName}</span>
 						{/if}
 					</div>
-					<span class="shrink-0 text-xs text-muted-foreground"
-						>{formatRelative(e.activity.createdAt)}</span
-					>
+					<span class="shrink-0 text-xs text-muted-foreground">
+						{formatRelative(e.activity.createdAt)}
+					</span>
 				</div>
 			{:else}
 				<Empty.Root class="border-0 py-4">
@@ -1198,9 +1205,9 @@
 			{/if}
 		</div>
 		<Modal.Footer>
-			<Button disabled={importPending || !importRows.length} onclick={runImport}
-				>{importPending ? 'Importing…' : 'Import'}</Button
-			>
+			<Button disabled={importPending || !importRows.length} onclick={runImport}>
+				{importPending ? 'Importing…' : 'Import'}
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>

@@ -84,12 +84,14 @@
 		<Button
 			size="sm"
 			variant={unreadOnly ? 'secondary' : 'ghost'}
-			onclick={() => (unreadOnly = !unreadOnly)}><Filter /> Unread</Button
+			onclick={() => (unreadOnly = !unreadOnly)}
 		>
+			<Filter /> Unread
+		</Button>
 		{#if unread > 0}
-			<Button size="sm" variant="outline" onclick={markAllRead}
-				><CheckCheck /> Mark all read ({unread})</Button
-			>
+			<Button size="sm" variant="outline" onclick={markAllRead}>
+				<CheckCheck /> Mark all read ({unread})
+			</Button>
 		{/if}
 	{/snippet}
 </PageHeader>
@@ -119,9 +121,9 @@
 							<Table.Cell>
 								<Badge variant="secondary" class="mr-2">{notificationLabel(n.kind)}</Badge>
 							</Table.Cell>
-							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{n.recipient}</Table.Cell
-							>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{n.recipient}
+							</Table.Cell>
 							<Table.Cell class="pr-6 text-right">
 								{#if n.kind === 'inbound_sms_staff'}
 									<Button
@@ -130,15 +132,19 @@
 										onclick={() => {
 											replyTo = n.entityId.split(':')[0] ?? null;
 											replyText = '';
-										}}>Reply</Button
+										}}
 									>
+										Reply
+									</Button>
 								{/if}
 								{#if !n.readAt}
 									<Button
 										variant="link"
 										class="mr-3 h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
-										onclick={() => markRead(n.id)}>Mark read</Button
+										onclick={() => markRead(n.id)}
 									>
+										Mark read
+									</Button>
 								{/if}
 								{#if link}
 									<a
@@ -146,8 +152,10 @@
 										href={link}
 										onclick={() => {
 											if (!n.readAt) void markRead(n.id);
-										}}>Open</a
+										}}
 									>
+										Open
+									</a>
 								{/if}
 							</Table.Cell>
 						</Table.Row>

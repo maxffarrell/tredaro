@@ -96,16 +96,18 @@
 									type="button"
 									size="sm"
 									variant={slot === s ? 'default' : 'outline'}
-									onclick={() => (slot = slot === s ? '' : s)}>{s}</Button
+									onclick={() => (slot = slot === s ? '' : s)}
 								>
+									{s}
+								</Button>
 							{/each}
 						</div>
 						<input type="hidden" name="slot" value={slot} />
 					</div>
 					<div class="space-y-1.5">
-						<Label for="note"
-							>Anything else? <span class="text-muted-foreground">(optional)</span></Label
-						>
+						<Label for="note">
+							Anything else? <span class="text-muted-foreground">(optional)</span>
+						</Label>
 						<Input id="note" name="note" placeholder="e.g. after 3pm works best" />
 					</div>
 					{#if form?.message}

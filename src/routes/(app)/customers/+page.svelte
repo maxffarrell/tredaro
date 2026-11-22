@@ -264,9 +264,9 @@
 <PageHeader title="Customers">
 	{#snippet actions()}
 		<Button size="sm" variant="outline" onclick={openAnnounce}><Megaphone /> Announce</Button>
-		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
-			><Upload /> Import</Button
-		>
+		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}>
+			<Upload /> Import
+		</Button>
 		<Button size="sm" variant="outline" onclick={exportCsv}><Download /> Export</Button>
 		<Button size="sm" onclick={() => (open = true)}><Plus /> Add customer</Button>
 	{/snippet}
@@ -300,9 +300,9 @@
 				value={officeFilter}
 				onValueChange={(v: string) => (officeFilter = v)}
 			>
-				<Select.Trigger class="w-44"
-					>{officeOptions.find(([id]) => id === officeFilter)?.[1] ?? 'All offices'}</Select.Trigger
-				>
+				<Select.Trigger class="w-44">
+					{officeOptions.find(([id]) => id === officeFilter)?.[1] ?? 'All offices'}
+				</Select.Trigger>
 				<Select.Content>
 					<Select.Item value="">All offices</Select.Item>
 					{#each officeOptions as [id, name] (id)}
@@ -351,59 +351,66 @@
 	</div>
 
 	<div class="flex flex-wrap items-center gap-1.5">
-		<Badge variant="secondary" class="font-normal"
-			>{visible.length} customer{visible.length === 1 ? '' : 's'}</Badge
-		>
-		<Badge variant="secondary" class="font-normal"
-			>{formatMoney(totalBalance, currency)} open balance</Badge
-		>
-		{#if newThisMonth}<Badge variant="outline" class="font-normal"
-				>{newThisMonth} new this month</Badge
-			>{/if}
-		{#if withBalance}<Badge variant="outline" class="font-normal"
-				>{withBalance} with balance (avg {formatMoney(totalBalance / withBalance, currency)})</Badge
-			>{/if}
-		{#if onHoldCount}<Badge variant="outline" class="font-normal text-red-600 dark:text-red-400"
-				>{onHoldCount} on hold</Badge
-			>{/if}
-		{#if withPortal}<Badge variant="outline" class="font-normal">{withPortal} with portal</Badge
-			>{/if}
+		<Badge variant="secondary" class="font-normal">
+			{visible.length} customer{visible.length === 1 ? '' : 's'}
+		</Badge>
+		<Badge variant="secondary" class="font-normal">
+			{formatMoney(totalBalance, currency)} open balance
+		</Badge>
+		{#if newThisMonth}<Badge variant="outline" class="font-normal">
+				{newThisMonth} new this month
+			</Badge>{/if}
+		{#if withBalance}<Badge variant="outline" class="font-normal">
+				{withBalance} with balance (avg {formatMoney(totalBalance / withBalance, currency)})
+			</Badge>{/if}
+		{#if onHoldCount}<Badge variant="outline" class="font-normal text-red-600 dark:text-red-400">
+				{onHoldCount} on hold
+			</Badge>{/if}
+		{#if withPortal}<Badge variant="outline" class="font-normal">
+				{withPortal} with portal
+			</Badge>{/if}
 		{#if missingEmail}<Badge
 				variant="outline"
-				class="font-normal text-amber-600 dark:text-amber-400">{missingEmail} missing email</Badge
-			>{/if}
+				class="font-normal text-amber-600 dark:text-amber-400"
+			>
+				{missingEmail} missing email
+			</Badge>{/if}
 		{#if missingPhone}<Badge
 				variant="outline"
-				class="font-normal text-amber-600 dark:text-amber-400">{missingPhone} missing phone</Badge
-			>{/if}
-		{#if companyCount}<Badge variant="outline" class="font-normal">{companyCount} companies</Badge
-			>{/if}
-		{#if residentialCount}<Badge variant="outline" class="font-normal"
-				>{residentialCount} residential</Badge
-			>{/if}
-		{#if noUpcoming}<Badge variant="outline" class="font-normal"
-				>{noUpcoming} without upcoming visit</Badge
-			>{/if}
-		{#if underAgreement}<Badge variant="outline" class="font-normal"
-				>{underAgreement} under agreement</Badge
-			>{/if}
-		{#if withEquipment}<Badge variant="outline" class="font-normal"
-				>{withEquipment} with equipment</Badge
-			>{/if}
-		{#if neverServiced}<Badge variant="outline" class="font-normal"
-				>{neverServiced} never serviced</Badge
-			>{/if}
-		{#if withOpenQuote}<Badge variant="outline" class="font-normal"
-				>{withOpenQuote} with open quote</Badge
-			>{/if}
+				class="font-normal text-amber-600 dark:text-amber-400"
+			>
+				{missingPhone} missing phone
+			</Badge>{/if}
+		{#if companyCount}<Badge variant="outline" class="font-normal">
+				{companyCount} companies
+			</Badge>{/if}
+		{#if residentialCount}<Badge variant="outline" class="font-normal">
+				{residentialCount} residential
+			</Badge>{/if}
+		{#if noUpcoming}<Badge variant="outline" class="font-normal">
+				{noUpcoming} without upcoming visit
+			</Badge>{/if}
+		{#if underAgreement}<Badge variant="outline" class="font-normal">
+				{underAgreement} under agreement
+			</Badge>{/if}
+		{#if withEquipment}<Badge variant="outline" class="font-normal">
+				{withEquipment} with equipment
+			</Badge>{/if}
+		{#if neverServiced}<Badge variant="outline" class="font-normal">
+				{neverServiced} never serviced
+			</Badge>{/if}
+		{#if withOpenQuote}<Badge variant="outline" class="font-normal">
+				{withOpenQuote} with open quote
+			</Badge>{/if}
 		{#if leadOnly}<Badge variant="outline" class="font-normal">{leadOnly} lead-only</Badge>{/if}
-		{#if inactiveCount}<Badge variant="outline" class="font-normal">{inactiveCount} inactive</Badge
-			>{/if}
+		{#if inactiveCount}<Badge variant="outline" class="font-normal">
+				{inactiveCount} inactive
+			</Badge>{/if}
 		{#if taggedCount}<Badge variant="outline" class="font-normal">{taggedCount} tagged</Badge>{/if}
 		{#if optedOut}<Badge variant="outline" class="font-normal">{optedOut} opted out</Badge>{/if}
-		{#if withPreferred}<Badge variant="outline" class="font-normal"
-				>{withPreferred} preferred tech</Badge
-			>{/if}
+		{#if withPreferred}<Badge variant="outline" class="font-normal">
+				{withPreferred} preferred tech
+			</Badge>{/if}
 	</div>
 
 	<Card.Root class="py-0">
@@ -424,31 +431,34 @@
 							<Table.Cell class="font-medium">
 								{c.name}
 								{#if c.portalLinked}
-									<Badge variant="outline" class="ml-1 px-1 py-0 text-[10px] font-normal"
-										>portal</Badge
-									>
+									<Badge variant="outline" class="ml-1 px-1 py-0 text-[10px] font-normal">
+										portal
+									</Badge>
 								{/if}
 								{#if c.onHold}
 									<Badge
 										variant="outline"
-										class="ml-1 px-1 py-0 text-[10px] text-red-600 dark:text-red-400">hold</Badge
+										class="ml-1 px-1 py-0 text-[10px] text-red-600 dark:text-red-400"
 									>
+										hold
+									</Badge>
 								{/if}
 								{#if c.doNotService}
-									<Badge variant="destructive" class="ml-1 px-1 py-0 text-[10px]"
-										>do not service</Badge
-									>
+									<Badge variant="destructive" class="ml-1 px-1 py-0 text-[10px]">
+										do not service
+									</Badge>
 								{/if}
 								{#if c.companyName}<span class="text-muted-foreground">
-										· {c.companyName}</span
-									>{/if}
+										· {c.companyName}
+									</span>{/if}
 								{#if c.hasUpcoming}
 									<CalendarCheck class="ml-1 inline size-3.5 align-text-top text-primary" />
 								{/if}
 								{#if c.tags?.length}
 									<span class="ml-1 inline-flex gap-1 align-middle">
-										{#each c.tags as t (t)}<Badge variant="secondary" class="font-normal">{t}</Badge
-											>{/each}
+										{#each c.tags as t (t)}<Badge variant="secondary" class="font-normal">
+												{t}
+											</Badge>{/each}
 									</span>
 								{/if}
 							</Table.Cell>
@@ -472,13 +482,13 @@
 									<Empty.Header>
 										<Empty.Media><Users /></Empty.Media>
 										<Empty.Title>No customers yet</Empty.Title>
-										<Empty.Description
-											>Add your first customer, or load the demo data to look around.</Empty.Description
-										>
+										<Empty.Description>
+											Add your first customer, or load the demo data to look around.
+										</Empty.Description>
 									</Empty.Header>
-									<Empty.Content
-										><Button onclick={() => (open = true)}>Add customer</Button></Empty.Content
-									>
+									<Empty.Content>
+										<Button onclick={() => (open = true)}>Add customer</Button>
+									</Empty.Content>
 								</Empty.Root>
 							</Table.Cell>
 						</Table.Row>
@@ -493,9 +503,9 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>Add customer</Modal.Title>
-			<Modal.Description
-				>A name is enough to start — contact details are optional.</Modal.Description
-			>
+			<Modal.Description>
+				A name is enough to start — contact details are optional.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={submit}>
 			<Field.Field>
@@ -540,9 +550,9 @@
 				</Alert.Root>
 			{/if}
 			<Modal.Footer>
-				<Button type="submit" disabled={pending}
-					>{pending ? 'Adding…' : dupMatches.length ? 'Create anyway' : 'Add customer'}</Button
-				>
+				<Button type="submit" disabled={pending}>
+					{pending ? 'Adding…' : dupMatches.length ? 'Create anyway' : 'Add customer'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -602,9 +612,9 @@
 							void refreshAnnounce();
 						}}
 					>
-						<Select.Trigger class="w-full capitalize"
-							>{anType === 'any' ? 'All types' : anType}</Select.Trigger
-						>
+						<Select.Trigger class="w-full capitalize">
+							{anType === 'any' ? 'All types' : anType}
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="any">All types</Select.Item>
 							<Select.Item value="residential">Residential</Select.Item>
@@ -641,9 +651,9 @@
 							void refreshAnnounce();
 						}}
 					>
-						<Select.Trigger class="w-full capitalize"
-							>{anStatus === 'any' ? 'Any' : anStatus}</Select.Trigger
-						>
+						<Select.Trigger class="w-full capitalize">
+							{anStatus === 'any' ? 'Any' : anStatus}
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="any">Any</Select.Item>
 							<Select.Item value="active">Active</Select.Item>
@@ -696,8 +706,10 @@
 				disabled={anPending ||
 					!anBody.trim() ||
 					(anChannel !== 'sms' && !anSubject.trim()) ||
-					!anPreview?.total}>Send</Button
+					!anPreview?.total}
 			>
+				Send
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>

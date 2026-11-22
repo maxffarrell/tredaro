@@ -59,15 +59,16 @@
 			<thead>
 				<tr class="border-b text-left">
 					<th class="py-1 font-semibold tracking-wide text-neutral-500 uppercase">Item</th>
-					<th class="py-1 text-right font-semibold tracking-wide text-neutral-500 uppercase">Qty</th
-					>
+					<th class="py-1 text-right font-semibold tracking-wide text-neutral-500 uppercase">
+						Qty
+					</th>
 					<th class="py-1 pl-4 font-semibold tracking-wide text-neutral-500 uppercase">Unit</th>
-					<th class="py-1 text-right font-semibold tracking-wide text-neutral-500 uppercase"
-						>Unit cost</th
-					>
-					<th class="py-1 pr-1 text-right font-semibold tracking-wide text-neutral-500 uppercase"
-						>Total</th
-					>
+					<th class="py-1 text-right font-semibold tracking-wide text-neutral-500 uppercase">
+						Unit cost
+					</th>
+					<th class="py-1 pr-1 text-right font-semibold tracking-wide text-neutral-500 uppercase">
+						Total
+					</th>
 				</tr>
 			</thead>
 			<tbody>

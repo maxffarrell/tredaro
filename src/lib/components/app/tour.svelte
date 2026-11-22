@@ -100,26 +100,28 @@
 						size="icon"
 						class="-mt-1 -mr-2 size-7 text-muted-foreground"
 						title="End tour"
-						onclick={() => tour.finish()}><X class="size-4" /></Button
+						onclick={() => tour.finish()}
 					>
+						<X class="size-4" />
+					</Button>
 				</div>
 			</Card.Header>
 			<Card.Content class="pb-3">
 				<p class="text-sm text-muted-foreground">{tour.step.body}</p>
 			</Card.Content>
 			<Card.Footer class="flex items-center justify-between">
-				<span class="text-xs text-muted-foreground tabular-nums"
-					>{tour.index + 1} / {tour.total}</span
-				>
+				<span class="text-xs text-muted-foreground tabular-nums">
+					{tour.index + 1} / {tour.total}
+				</span>
 				<div class="flex gap-2">
 					{#if tour.index > 0}
-						<Button variant="ghost" size="sm" onclick={() => tour.back()}
-							><ChevronLeft class="size-4" /> Back</Button
-						>
+						<Button variant="ghost" size="sm" onclick={() => tour.back()}>
+							<ChevronLeft class="size-4" /> Back
+						</Button>
 					{/if}
-					<Button size="sm" onclick={() => tour.next()}
-						>{tour.index + 1 === tour.total ? 'Done' : 'Next'}</Button
-					>
+					<Button size="sm" onclick={() => tour.next()}>
+						{tour.index + 1 === tour.total ? 'Done' : 'Next'}
+					</Button>
 				</div>
 			</Card.Footer>
 		</Card.Root>

@@ -70,8 +70,10 @@
 							class="hover:underline"
 							href={orgWebsite.startsWith('http') ? orgWebsite : `https://${orgWebsite}`}
 							target="_blank"
-							rel="noreferrer">{orgWebsite.replace(/^https?:\/\//, '')}</a
-						>{/if}
+							rel="noreferrer"
+						>
+							{orgWebsite.replace(/^https?:\/\//, '')}
+						</a>{/if}
 				</span>
 			{/if}
 		</div>
@@ -94,9 +96,9 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<StatusBadge status={inv.status === 'void' ? 'void' : paidOff ? 'paid' : inv.status} />
-				<Button size="sm" variant="outline" class="print:hidden" onclick={() => window.print()}
-					><Printer /> Print</Button
-				>
+				<Button size="sm" variant="outline" class="print:hidden" onclick={() => window.print()}>
+					<Printer /> Print
+				</Button>
 			</div>
 		</div>
 
@@ -114,16 +116,16 @@
 					<Table.Body>
 						{#each items as i (i.id)}
 							<Table.Row>
-								<Table.Cell class="pl-6"
-									>{i.name}<span class="text-muted-foreground"> {i.description}</span></Table.Cell
-								>
+								<Table.Cell class="pl-6">
+									{i.name}<span class="text-muted-foreground"> {i.description}</span>
+								</Table.Cell>
 								<Table.Cell class="text-right">{i.qty}</Table.Cell>
-								<Table.Cell class="text-right tabular-nums"
-									>{formatMoney(i.unitPrice, currency)}</Table.Cell
-								>
-								<Table.Cell class="pr-6 text-right tabular-nums"
-									>{formatMoney(i.qty * i.unitPrice, currency)}</Table.Cell
-								>
+								<Table.Cell class="text-right tabular-nums">
+									{formatMoney(i.unitPrice, currency)}
+								</Table.Cell>
+								<Table.Cell class="pr-6 text-right tabular-nums">
+									{formatMoney(i.qty * i.unitPrice, currency)}
+								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -151,13 +153,13 @@
 					<ul class="divide-y text-sm">
 						{#each payments as p (p.paidAt)}
 							<li class="flex justify-between gap-3 py-1.5">
-								<span class="text-muted-foreground"
-									>{new Date(p.paidAt).toLocaleDateString('en-US', {
+								<span class="text-muted-foreground">
+									{new Date(p.paidAt).toLocaleDateString('en-US', {
 										month: 'short',
 										day: 'numeric',
 										year: 'numeric'
-									})} · {p.method}{p.isTip ? ' · tip' : ''}</span
-								>
+									})} · {p.method}{p.isTip ? ' · tip' : ''}
+								</span>
 								<span class="font-medium tabular-nums">{formatMoney(p.amount, currency)}</span>
 							</li>
 						{/each}
@@ -191,9 +193,9 @@
 						</p>
 					{/if}
 					{#if reviewUrl}
-						<Button class="mt-3" size="sm" variant="outline" href={reviewUrl} target="_blank"
-							>Loved the work? Leave a review</Button
-						>
+						<Button class="mt-3" size="sm" variant="outline" href={reviewUrl} target="_blank">
+							Loved the work? Leave a review
+						</Button>
 					{/if}
 				</Card.Content>
 			</Card.Root>
@@ -211,14 +213,16 @@
 								<Button
 									size="sm"
 									variant={tipPct === pct ? 'default' : 'outline'}
-									onclick={() => (tipPct = pct)}>{pct === 0 ? 'No tip' : `${pct}%`}</Button
+									onclick={() => (tipPct = pct)}
 								>
+									{pct === 0 ? 'No tip' : `${pct}%`}
+								</Button>
 							{/each}
 							{#if tipAmount > 0}
-								<span class="self-center text-sm text-muted-foreground"
-									>+{formatMoney(tipAmount, currency)} tip · total
-									{formatMoney(balance + tipAmount, currency)}</span
-								>
+								<span class="self-center text-sm text-muted-foreground">
+									+{formatMoney(tipAmount, currency)} tip · total
+									{formatMoney(balance + tipAmount, currency)}
+								</span>
 							{/if}
 						</div>
 					</div>

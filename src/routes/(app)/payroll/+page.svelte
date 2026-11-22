@@ -275,20 +275,26 @@
 				size="icon"
 				variant="ghost"
 				aria-label={isMonth ? 'Previous month' : 'Previous period'}
-				onclick={() => nav(-1)}><ChevronLeft /></Button
+				onclick={() => nav(-1)}
 			>
+				<ChevronLeft />
+			</Button>
 			<Button
 				size="sm"
 				variant="outline"
 				disabled={thisWeek}
-				onclick={() => pick(mondayOf(todayStr), addDays(mondayOf(todayStr), 6))}>This week</Button
+				onclick={() => pick(mondayOf(todayStr), addDays(mondayOf(todayStr), 6))}
 			>
+				This week
+			</Button>
 			<Button
 				size="icon"
 				variant="ghost"
 				aria-label={isMonth ? 'Next month' : 'Next period'}
-				onclick={() => nav(1)}><ChevronRight /></Button
+				onclick={() => nav(1)}
 			>
+				<ChevronRight />
+			</Button>
 			<Button
 				size="sm"
 				variant="outline"
@@ -296,35 +302,41 @@
 				title={pendingAll
 					? `Approve every finished entry in this period`
 					: 'Nothing waiting for approval'}
-				onclick={approveAll}>Approve all{pendingAll ? ` ${pendingAll}` : ''}</Button
+				onclick={approveAll}
 			>
+				Approve all{pendingAll ? ` ${pendingAll}` : ''}
+			</Button>
 			{#if closeable > 0}
 				<Button
 					size="sm"
 					disabled={busy}
 					title="Approve pending entries, then lock the period — locked hours can't be edited or deleted"
-					onclick={closePeriod}>Close period</Button
+					onclick={closePeriod}
 				>
+					Close period
+				</Button>
 			{:else if lockedAll > 0}
 				<Button
 					size="sm"
 					variant="outline"
 					disabled={busy}
 					title="Unlock this period so entries can be edited again"
-					onclick={reopenPeriod}>Reopen</Button
+					onclick={reopenPeriod}
 				>
+					Reopen
+				</Button>
 			{/if}
-			<Button size="sm" variant="outline" href="/api/export/payroll.csv?from={start}&to={end}"
-				><Download /> Export</Button
-			>
+			<Button size="sm" variant="outline" href="/api/export/payroll.csv?from={start}&to={end}">
+				<Download /> Export
+			</Button>
 		</div>
 	{/snippet}
 </PageHeader>
 
 <div class="space-y-4 p-4">
 	<div class="flex flex-wrap items-center gap-2">
-		<Badge variant="secondary" class="font-normal"
-			>{new Date(`${start}T12:00:00Z`).toLocaleDateString('en-US', {
+		<Badge variant="secondary" class="font-normal">
+			{new Date(`${start}T12:00:00Z`).toLocaleDateString('en-US', {
 				month: 'short',
 				day: 'numeric',
 				timeZone: 'UTC'
@@ -332,17 +344,17 @@
 				month: 'short',
 				day: 'numeric',
 				timeZone: 'UTC'
-			})}</Badge
-		>
+			})}
+		</Badge>
 		{#if rows.length}
 			<Badge variant="outline" class="font-normal">{fmtDur(totalMin)} logged</Badge>
-			<Badge variant="outline" class="font-normal text-emerald-600 dark:text-emerald-400"
-				>{fmtDur(approvedMin)} approved</Badge
-			>
+			<Badge variant="outline" class="font-normal text-emerald-600 dark:text-emerald-400">
+				{fmtDur(approvedMin)} approved
+			</Badge>
 			{#if totalCost > 0}
-				<Badge variant="outline" class="font-normal"
-					>≈ {formatMoney(totalCost, settings.currency, true)} est. labor</Badge
-				>
+				<Badge variant="outline" class="font-normal">
+					≈ {formatMoney(totalCost, settings.currency, true)} est. labor
+				</Badge>
 			{/if}
 		{/if}
 		<span class="w-full sm:hidden"></span>
@@ -351,8 +363,10 @@
 				size="sm"
 				variant={start === p.from && end === p.to ? 'secondary' : 'ghost'}
 				class="h-7 px-2 text-xs"
-				onclick={() => pick(p.from, p.to)}>{p.label}</Button
+				onclick={() => pick(p.from, p.to)}
 			>
+				{p.label}
+			</Button>
 		{/each}
 	</div>
 
@@ -378,8 +392,9 @@
 							variant="outline"
 							class="font-normal"
 							title="Estimated labor cost at this member's loaded rate"
-							>≈ {formatMoney(costOf(g.rows), settings.currency, true)}</Badge
 						>
+							≈ {formatMoney(costOf(g.rows), settings.currency, true)}
+						</Badge>
 					{/if}
 					{#if sumMin(g.rows) > 40 * 60}
 						<Badge
@@ -388,8 +403,10 @@
 							title="{fmtDur(
 								sumMin(g.rows) - 40 * 60
 							)} over a 40-hour week — est. labor priced at {g.rows[0]?.overtimePct ??
-								150}% of the base rate">OT</Badge
+								150}% of the base rate"
 						>
+							OT
+						</Badge>
 					{/if}
 					{#if pending > 0 && memberId}
 						<Button
@@ -397,8 +414,10 @@
 							variant="outline"
 							class="h-7 text-xs"
 							disabled={busy}
-							onclick={() => approveMember(memberId)}>Approve {pending}</Button
+							onclick={() => approveMember(memberId)}
 						>
+							Approve {pending}
+						</Button>
 					{/if}
 				</div>
 			</Card.Header>
@@ -410,8 +429,8 @@
 								<p>
 									<a href="/jobs/{r.jobId}" class="font-medium hover:underline">J-{r.jobNumber}</a>
 									<span class="text-muted-foreground">
-										· {r.customerName ?? ''}{r.jobSummary ? ` · ${r.jobSummary}` : ''}</span
-									>
+										· {r.customerName ?? ''}{r.jobSummary ? ` · ${r.jobSummary}` : ''}
+									</span>
 								</p>
 								<p class="text-xs text-muted-foreground">
 									{localDate(r.entry.startedAt, tz)}
@@ -426,18 +445,21 @@
 									<Badge
 										variant="outline"
 										class="mt-1 font-normal text-amber-600 dark:text-amber-400"
-										>needs fix{r.entry.flagNote ? `: ${r.entry.flagNote}` : ''}</Badge
 									>
+										needs fix{r.entry.flagNote ? `: ${r.entry.flagNote}` : ''}
+									</Badge>
 								{/if}
 								{#if r.entry.lockedAt}
 									<Badge variant="secondary" class="mt-1 font-normal">period closed</Badge>
 								{/if}
 							</div>
-							<span class="shrink-0 text-muted-foreground tabular-nums"
-								>{fmtDur(minutesOf(r.entry))}{#if r.entry.breakMin > 0}&nbsp;<span
-										class="text-muted-foreground">(−{r.entry.breakMin}m break)</span
-									>{/if}</span
-							>
+							<span class="shrink-0 text-muted-foreground tabular-nums">
+								{fmtDur(minutesOf(r.entry))}{#if r.entry.breakMin > 0}&nbsp;<span
+										class="text-muted-foreground"
+									>
+										(−{r.entry.breakMin}m break)
+									</span>{/if}
+							</span>
 							{#if r.entry.endedAt && !r.entry.lockedAt}
 								<Button
 									variant="ghost"
@@ -494,9 +516,9 @@
 	<Modal.Content class="sm:max-w-sm">
 		<Modal.Header>
 			<Modal.Title>Edit time entry</Modal.Title>
-			<Modal.Description
-				>Correct the clock-in time or note — leave the end blank for a running timer.</Modal.Description
-			>
+			<Modal.Description>
+				Correct the clock-in time or note — leave the end blank for a running timer.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveEdit}>
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -527,10 +549,10 @@
 	<Modal.Content class="sm:max-w-sm">
 		<Modal.Header>
 			<Modal.Title>Flag for a fix</Modal.Title>
-			<Modal.Description
-				>Tell the tech what's wrong — they get an inbox + email heads-up and the flag clears when
-				they edit the entry.</Modal.Description
-			>
+			<Modal.Description>
+				Tell the tech what's wrong — they get an inbox + email heads-up and the flag clears when
+				they edit the entry.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveFlag}>
 			<Field.Field>
@@ -544,9 +566,9 @@
 			</Field.Field>
 			<Modal.Footer>
 				<Button type="button" variant="outline" onclick={() => (flagOpen = false)}>Cancel</Button>
-				<Button type="submit" disabled={flagPending || !flagNote}
-					>{flagPending ? 'Flagging…' : 'Flag'}</Button
-				>
+				<Button type="submit" disabled={flagPending || !flagNote}>
+					{flagPending ? 'Flagging…' : 'Flag'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>

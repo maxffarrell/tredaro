@@ -426,8 +426,10 @@
 			onclick={() => {
 				reqType = 'visit';
 				reqOpen = true;
-			}}><Wrench /> Request service</Button
+			}}
 		>
+			<Wrench /> Request service
+		</Button>
 		<Button variant="outline" onclick={() => (msgOpen = true)}><MessageSquare /> Message us</Button>
 	</div>
 </div>
@@ -471,8 +473,10 @@
 												size="sm"
 												variant="ghost"
 												href="/api/portal/ics?job={j.job.id}"
-												title="Add to calendar"><CalendarPlus class="size-4" /></Button
+												title="Add to calendar"
 											>
+												<CalendarPlus class="size-4" />
+											</Button>
 										{/if}
 										{#if j.cancelRequested}
 											<StatusBadge status="expired" label="Cancellation requested" />
@@ -484,17 +488,20 @@
 												variant="outline"
 												disabled={confirmingId === j.job.id}
 												onclick={() => confirm(j.job.id)}
-												>{confirmingId === j.job.id ? 'Confirming…' : 'Confirm'}</Button
 											>
-											<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}
-												>Different time</Button
-											>
+												{confirmingId === j.job.id ? 'Confirming…' : 'Confirm'}
+											</Button>
+											<Button size="sm" variant="ghost" onclick={() => (reschedJobId = j.job.id)}>
+												Different time
+											</Button>
 											<Button
 												size="sm"
 												variant="ghost"
 												class="text-destructive"
-												onclick={() => (cancelJobId = j.job.id)}>Cancel</Button
+												onclick={() => (cancelJobId = j.job.id)}
 											>
+												Cancel
+											</Button>
 										{:else}
 											<StatusBadge status={j.job.status} />
 										{/if}
@@ -502,10 +509,9 @@
 								</Table.Cell>
 							</Table.Row>
 						{:else}
-							<Table.Row
-								><Table.Cell class="pl-6 text-muted-foreground">Nothing scheduled.</Table.Cell
-								></Table.Row
-							>
+							<Table.Row>
+								<Table.Cell class="pl-6 text-muted-foreground">Nothing scheduled.</Table.Cell>
+							</Table.Row>
 						{/each}
 					</Table.Body>
 				</Table.Root>
@@ -564,18 +570,17 @@
 											{/each}
 										</span>
 									{:else}
-										<Button size="sm" variant="outline" onclick={() => openRate(j.job.id)}
-											>Rate visit</Button
-										>
+										<Button size="sm" variant="outline" onclick={() => openRate(j.job.id)}>
+											Rate visit
+										</Button>
 									{/if}
 									<p>{j.invoiceNumber ? `Invoice INV-${j.invoiceNumber}` : ''}</p>
 								</Table.Cell>
 							</Table.Row>
 						{:else}
-							<Table.Row
-								><Table.Cell class="pl-6 text-muted-foreground">No visits yet.</Table.Cell
-								></Table.Row
-							>
+							<Table.Row>
+								<Table.Cell class="pl-6 text-muted-foreground">No visits yet.</Table.Cell>
+							</Table.Row>
 						{/each}
 					</Table.Body>
 				</Table.Root>
@@ -644,18 +649,20 @@
 												variant="ghost"
 												size="sm"
 												class="h-7 px-2 text-xs"
-												onclick={() => requestFor(u)}>Request service</Button
+												onclick={() => requestFor(u)}
 											>
+												Request service
+											</Button>
 										{/if}
 										{#if u.equipment.warrantyUntil}
 											{#if u.equipment.warrantyUntil < todayIso}
-												<span class="text-xs text-destructive"
-													>Warranty ended {formatDate(u.equipment.warrantyUntil)}</span
-												>
+												<span class="text-xs text-destructive">
+													Warranty ended {formatDate(u.equipment.warrantyUntil)}
+												</span>
 											{:else}
-												<span class="text-xs text-muted-foreground"
-													>Warranty until {formatDate(u.equipment.warrantyUntil)}</span
-												>
+												<span class="text-xs text-muted-foreground">
+													Warranty until {formatDate(u.equipment.warrantyUntil)}
+												</span>
 											{/if}
 										{:else}
 											<span class="text-xs text-muted-foreground">—</span>
@@ -691,27 +698,31 @@
 									{/if}
 									<span class="truncate">
 										{row.charge.description || 'Charge'}
-										{#if row.invoiceNumber}<span class="text-xs text-muted-foreground"
-												>· INV-{row.invoiceNumber}</span
-											>{/if}
+										{#if row.invoiceNumber}<span class="text-xs text-muted-foreground">
+												· INV-{row.invoiceNumber}
+											</span>{/if}
 									</span>
 								</label>
 								{#if row.charge.disputedAt}
 									<span
 										class="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-400"
-										title={row.charge.disputeNote ?? ''}>Issue reported</span
+										title={row.charge.disputeNote ?? ''}
 									>
+										Issue reported
+									</span>
 								{:else}
 									<Button
 										variant="ghost"
 										size="sm"
 										class="h-auto shrink-0 px-1.5 py-0.5 text-xs text-muted-foreground"
-										onclick={() => (reportChargeId = row.charge.id)}>Problem?</Button
+										onclick={() => (reportChargeId = row.charge.id)}
 									>
+										Problem?
+									</Button>
 								{/if}
-								<span class="shrink-0 tabular-nums"
-									>{formatMoney(row.charge.amount - row.paid, currency)}</span
-								>
+								<span class="shrink-0 tabular-nums">
+									{formatMoney(row.charge.amount - row.paid, currency)}
+								</span>
 							</li>
 						{/each}
 					</ul>
@@ -760,9 +771,9 @@
 		<!-- pending estimates -->
 		{#if d.pendingEstimates.length}
 			<Card.Root>
-				<Card.Header
-					><Card.Title class="text-base">Estimates waiting on you</Card.Title></Card.Header
-				>
+				<Card.Header>
+					<Card.Title class="text-base">Estimates waiting on you</Card.Title>
+				</Card.Header>
 				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
@@ -788,23 +799,24 @@
 					<a
 						class="text-xs text-muted-foreground underline underline-offset-2"
 						href="/api/portal/statement?customer={d.customer.id}"
-						download>Download statement</a
+						download
 					>
+						Download statement
+					</a>
 				</Card.Header>
 				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
 						<Table.Body>
 							{#each d.recentInvoices as inv (inv.invoice.id)}
 								<Table.Row>
-									<Table.Cell class="pl-6 font-medium"
-										><a href={inv.url} class="hover:underline">INV-{inv.invoice.number}</a
-										></Table.Cell
-									>
-									<Table.Cell class="text-muted-foreground"
-										>{formatDate(inv.invoice.createdAt)}</Table.Cell
-									>
-									<Table.Cell
-										><StatusBadge
+									<Table.Cell class="pl-6 font-medium">
+										<a href={inv.url} class="hover:underline">INV-{inv.invoice.number}</a>
+									</Table.Cell>
+									<Table.Cell class="text-muted-foreground">
+										{formatDate(inv.invoice.createdAt)}
+									</Table.Cell>
+									<Table.Cell>
+										<StatusBadge
 											status={inv.invoice.status === 'open' &&
 											inv.total > 0 &&
 											inv.total - inv.paid <= 0
@@ -812,11 +824,11 @@
 												: inv.invoice.status === 'open' && inv.paid > 0
 													? 'partial'
 													: inv.invoice.status}
-										/></Table.Cell
-									>
-									<Table.Cell class="pr-6 text-right tabular-nums"
-										>{formatMoney(inv.total, currency)}</Table.Cell
-									>
+										/>
+									</Table.Cell>
+									<Table.Cell class="pr-6 text-right tabular-nums">
+										{formatMoney(inv.total, currency)}
+									</Table.Cell>
 								</Table.Row>
 							{/each}
 						</Table.Body>
@@ -836,22 +848,20 @@
 									<Table.Cell class="pl-6 font-medium">
 										{formatMoney(p.payment.amount, currency)}
 										{#if p.payment.amount < 0}
-											<Badge variant="secondary" class="ml-1"
-												>{p.payment.reference?.startsWith('applied:')
-													? 'credit applied'
-													: 'refund'}</Badge
-											>
+											<Badge variant="secondary" class="ml-1">
+												{p.payment.reference?.startsWith('applied:') ? 'credit applied' : 'refund'}
+											</Badge>
 										{/if}
 									</Table.Cell>
-									<Table.Cell class="text-muted-foreground capitalize"
-										>{p.payment.method}</Table.Cell
-									>
-									<Table.Cell class="text-muted-foreground"
-										>{p.invoiceNumber ? `INV-${p.invoiceNumber}` : '—'}</Table.Cell
-									>
-									<Table.Cell class="pr-6 text-right text-muted-foreground"
-										>{formatDate(p.payment.paidAt)}</Table.Cell
-									>
+									<Table.Cell class="text-muted-foreground capitalize">
+										{p.payment.method}
+									</Table.Cell>
+									<Table.Cell class="text-muted-foreground">
+										{p.invoiceNumber ? `INV-${p.invoiceNumber}` : '—'}
+									</Table.Cell>
+									<Table.Cell class="pr-6 text-right text-muted-foreground">
+										{formatDate(p.payment.paidAt)}
+									</Table.Cell>
 								</Table.Row>
 							{/each}
 						</Table.Body>
@@ -951,9 +961,9 @@
 						<label for="p-emails">Email me updates</label>
 						<Switch id="p-emails" bind:checked={contactEmailUpdates} />
 					</div>
-					<Button type="submit" size="sm" disabled={contactPending}
-						>{contactPending ? 'Saving…' : 'Save details'}</Button
-					>
+					<Button type="submit" size="sm" disabled={contactPending}>
+						{contactPending ? 'Saving…' : 'Save details'}
+					</Button>
 				</form>
 				<p class="mt-3 text-xs text-muted-foreground">
 					Used for appointment reminders, invoices, and estimate links.
@@ -986,9 +996,9 @@
 				{/each}
 			</div>
 			<Textarea rows={3} bind:value={rateNote} placeholder="Anything we should know? (optional)" />
-			<Button class="w-full" disabled={!rateValue || ratePending} onclick={submitRating}
-				>{ratePending ? 'Saving…' : 'Submit rating'}</Button
-			>
+			<Button class="w-full" disabled={!rateValue || ratePending} onclick={submitRating}>
+				{ratePending ? 'Saving…' : 'Submit rating'}
+			</Button>
 		</div>
 	</Modal.Content>
 </Modal.Root>
@@ -1004,32 +1014,31 @@
 			<Field.Field>
 				<Field.Label>Location</Field.Label>
 				<Select.Root type="single" bind:value={reqLocationId}>
-					<Select.Trigger class="w-full"
-						>{d.locations.find((l) => l.id === reqLocationId)
+					<Select.Trigger class="w-full">
+						{d.locations.find((l) => l.id === reqLocationId)
 							? `${d.locations.find((l) => l.id === reqLocationId)!.label || d.locations.find((l) => l.id === reqLocationId)!.address1} ${d.locations.find((l) => l.id === reqLocationId)!.city}`
-							: 'Pick an address'}</Select.Trigger
-					>
+							: 'Pick an address'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each d.locations as l (l.id)}
-							<Select.Item value={l.id}
-								>{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}</Select.Item
-							>
+							<Select.Item value={l.id}>
+								{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}
+							</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
 			</Field.Field>
 			{#if d.techs.length > 1}
 				<Field.Field>
-					<Field.Label
-						>Preferred technician <span class="text-muted-foreground">(optional)</span></Field.Label
-					>
+					<Field.Label>
+						Preferred technician <span class="text-muted-foreground">(optional)</span>
+					</Field.Label>
 					<Select.Root type="single" bind:value={reqMemberId}>
-						<Select.Trigger class="w-full"
-							>{reqMemberId === 'any'
+						<Select.Trigger class="w-full">
+							{reqMemberId === 'any'
 								? 'No preference'
-								: (d.techs.find((t) => t.id === reqMemberId)?.name ??
-									'No preference')}</Select.Trigger
-						>
+								: (d.techs.find((t) => t.id === reqMemberId)?.name ?? 'No preference')}
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="any">No preference</Select.Item>
 							{#each d.techs as t (t.id)}
@@ -1046,9 +1055,9 @@
 			<Field.Field>
 				<Field.Label>What do you need?</Field.Label>
 				<Select.Root type="single" bind:value={reqType}>
-					<Select.Trigger class="w-full"
-						>{reqType === 'quote' ? 'A written quote first' : 'A service visit'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{reqType === 'quote' ? 'A written quote first' : 'A service visit'}
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="visit">A service visit</Select.Item>
 						<Select.Item value="quote">A written quote first</Select.Item>
@@ -1060,9 +1069,9 @@
 				<Textarea id="r-desc" rows={3} bind:value={reqDescription} />
 			</Field.Field>
 			<Field.Field>
-				<Field.Label for="r-photo"
-					>Photo <span class="text-muted-foreground">(optional)</span></Field.Label
-				>
+				<Field.Label for="r-photo">
+					Photo <span class="text-muted-foreground">(optional)</span>
+				</Field.Label>
 				<Input
 					id="r-photo"
 					type="file"
@@ -1074,9 +1083,9 @@
 				</p>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={reqPending}
-					>{reqPending ? 'Sending…' : 'Send request'}</Button
-				>
+				<Button type="submit" disabled={reqPending}>
+					{reqPending ? 'Sending…' : 'Send request'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -1104,9 +1113,9 @@
 				/>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={reschedPending || !reschedWhen.trim()}
-					>{reschedPending ? 'Sending…' : 'Send request'}</Button
-				>
+				<Button type="submit" disabled={reschedPending || !reschedWhen.trim()}>
+					{reschedPending ? 'Sending…' : 'Send request'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -1137,9 +1146,9 @@
 				/>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" variant="destructive" disabled={cancelPending}
-					>{cancelPending ? 'Sending…' : 'Request cancellation'}</Button
-				>
+				<Button type="submit" variant="destructive" disabled={cancelPending}>
+					{cancelPending ? 'Sending…' : 'Request cancellation'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -1169,9 +1178,9 @@
 				/>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={reportPending || !reportNote.trim()}
-					>{reportPending ? 'Sending…' : 'Report problem'}</Button
-				>
+				<Button type="submit" disabled={reportPending || !reportNote.trim()}>
+					{reportPending ? 'Sending…' : 'Report problem'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -1203,9 +1212,9 @@
 				/>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={msgPending || !msgBody.trim()}
-					>{msgPending ? 'Sending…' : 'Send message'}</Button
-				>
+				<Button type="submit" disabled={msgPending || !msgBody.trim()}>
+					{msgPending ? 'Sending…' : 'Send message'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>

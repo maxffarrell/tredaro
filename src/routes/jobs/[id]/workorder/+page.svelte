@@ -95,11 +95,12 @@
 						<li class="flex items-center gap-2">
 							<span
 								class="inline-flex size-4 items-center justify-center rounded-sm border border-neutral-500 text-[10px]"
-								>{#if item.done}✓{/if}</span
 							>
-							<span class:line-through={item.done} class:text-neutral-400={item.done}
-								>{item.label}</span
-							>
+								{#if item.done}✓{/if}
+							</span>
+							<span class:line-through={item.done} class:text-neutral-400={item.done}>
+								{item.label}
+							</span>
 						</li>
 					{/each}
 				</ul>
@@ -111,20 +112,22 @@
 				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Materials used</p>
 				<table class="mt-1 w-full">
 					<thead>
-						<tr class="border-b text-left"
-							><th class="py-1">Item</th><th class="w-16 py-1 text-right">Qty</th><th
-								class="w-24 py-1 text-right">Amount</th
-							></tr
-						>
+						<tr class="border-b text-left">
+							<th class="py-1">Item</th><th class="w-16 py-1 text-right">Qty</th><th
+								class="w-24 py-1 text-right"
+							>
+								Amount
+							</th>
+						</tr>
 					</thead>
 					<tbody>
 						{#each materials as m (m.material.id)}
 							<tr class="border-b border-neutral-200">
 								<td class="py-1">{m.itemName}</td>
 								<td class="py-1 text-right">{m.material.qty} {m.itemUnit}</td>
-								<td class="py-1 text-right tabular-nums"
-									>{formatMoney(m.material.qty * m.material.unitPrice, settings.currency)}</td
-								>
+								<td class="py-1 text-right tabular-nums">
+									{formatMoney(m.material.qty * m.material.unitPrice, settings.currency)}
+								</td>
 							</tr>
 						{/each}
 					</tbody>

@@ -882,65 +882,65 @@
 	{#snippet actions()}
 		<StatusBadge status={j.job.status} />
 		{#if j.job.warrantyUntil && new Date(j.job.warrantyUntil) > new Date()}
-			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
-				>labor warranty through {formatDate(j.job.warrantyUntil)}</Badge
-			>
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400">
+				labor warranty through {formatDate(j.job.warrantyUntil)}
+			</Badge>
 		{/if}
 		{#if j.job.source && j.job.source !== 'manual'}
 			<Badge variant="secondary" class="capitalize">via {j.job.source}</Badge>
 		{/if}
 		{#if j.depOpen}
-			<a href="/jobs/{j.job.dependsOnJobId}"
-				><Badge variant="outline" class="text-amber-600 dark:text-amber-400"
-					>blocked by J-{j.depNumber}</Badge
-				></a
-			>
+			<a href="/jobs/{j.job.dependsOnJobId}">
+				<Badge variant="outline" class="text-amber-600 dark:text-amber-400">
+					blocked by J-{j.depNumber}
+				</Badge>
+			</a>
 		{/if}
 		{#each j.depJobs as d (d.id)}
-			<a href="/jobs/{d.id}"
-				><Badge variant="outline" class="text-blue-600 dark:text-blue-400"
-					>blocks J-{d.number}</Badge
-				></a
-			>
+			<a href="/jobs/{d.id}">
+				<Badge variant="outline" class="text-blue-600 dark:text-blue-400">
+					blocks J-{d.number}
+				</Badge>
+			</a>
 		{/each}
 		{#if j.job.rating}
 			<Badge variant="secondary" title={j.job.ratingNote ?? ''}>★ {j.job.rating}/5</Badge>
 		{/if}
 		{#if j.sameDay}
-			<Badge variant="outline" class="hidden text-amber-600 sm:inline-flex dark:text-amber-400"
-				>{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today</Badge
-			>
+			<Badge variant="outline" class="hidden text-amber-600 sm:inline-flex dark:text-amber-400">
+				{j.sameDay} other visit{j.sameDay === 1 ? '' : 's'} today
+			</Badge>
 		{/if}
 		{#if j.techDay}
-			<Badge variant="outline" class="hidden text-muted-foreground sm:inline-flex"
-				>{j.techDay + 1} on {matTechName}'s day</Badge
-			>
+			<Badge variant="outline" class="hidden text-muted-foreground sm:inline-flex">
+				{j.techDay + 1} on {matTechName}'s day
+			</Badge>
 		{/if}
 		{#each j.locJobs as l (l.id)}
-			<a href="/jobs/{l.id}" class="hidden lg:inline"
-				><Badge variant="outline" class="text-muted-foreground" title="Also at this location"
-					>also here: J-{l.number}</Badge
-				></a
-			>
+			<a href="/jobs/{l.id}" class="hidden lg:inline">
+				<Badge variant="outline" class="text-muted-foreground" title="Also at this location">
+					also here: J-{l.number}
+				</Badge>
+			</a>
 		{/each}
 		{#if j.job.status === 'scheduled'}
-			<Button size="sm" variant="outline" onclick={() => event('dispatched')}
-				><Truck /> Dispatch</Button
-			>
+			<Button size="sm" variant="outline" onclick={() => event('dispatched')}>
+				<Truck /> Dispatch
+			</Button>
 		{:else if j.job.status === 'dispatched'}
-			<Button size="sm" variant="outline" onclick={() => event('en_route')}
-				><Navigation /> En route</Button
-			>
-			<Button size="sm" variant="outline" onclick={() => event('on_site')}
-				><MapPin /> On site</Button
-			>
+			<Button size="sm" variant="outline" onclick={() => event('en_route')}>
+				<Navigation /> En route
+			</Button>
+			<Button size="sm" variant="outline" onclick={() => event('on_site')}>
+				<MapPin /> On site
+			</Button>
 		{:else if j.job.status === 'in_progress'}
 			<Button size="sm" onclick={() => openSign(true)}><CircleCheck /> Complete</Button>
 		{/if}
 		{#if j.job.status === 'done' || j.job.status === 'unscheduled' || j.job.status === 'scheduled'}
-			<Button size="sm" variant="outline" onclick={() => (repeatOpen = true)}
-				><Repeat /> Repeat…</Button
-			>
+			<Button size="sm" variant="outline" onclick={() => (repeatOpen = true)}>
+				<Repeat /> Repeat…
+			</Button>
 		{/if}
 		{#if j.job.status === 'done'}
 			<Button size="sm" variant="outline" disabled={rebooking} onclick={rebook}>Book again</Button>
@@ -950,36 +950,42 @@
 				class="hidden md:inline-flex"
 				title="Send service report — emails/texts the customer their visit summary"
 				disabled={reportSending}
-				onclick={sendReport}><ClipboardCheck /></Button
+				onclick={sendReport}
 			>
+				<ClipboardCheck />
+			</Button>
 		{/if}
 		{#if j.job.status === 'done' && j.openBalance === 0}
 			<Button size="sm" href="/billing?invoiceFor={id}"><FileText /> Invoice</Button>
 		{/if}
 		{#if j.job.status !== 'cancelled'}
-			<Button size="sm" variant="outline" class="hidden md:inline-flex" href="/estimates?job={id}"
-				><FilePen /> Quote</Button
-			>
+			<Button size="sm" variant="outline" class="hidden md:inline-flex" href="/estimates?job={id}">
+				<FilePen /> Quote
+			</Button>
 		{/if}
-		<Button size="sm" variant="outline" onclick={() => window.open(`/jobs/${id}/print`, '_blank')}
-			><Printer /> Work order</Button
-		>
+		<Button size="sm" variant="outline" onclick={() => window.open(`/jobs/${id}/print`, '_blank')}>
+			<Printer /> Work order
+		</Button>
 		<Button
 			class="hidden md:inline-flex"
 			size="sm"
 			variant="ghost"
 			title="Copy job — same details, new unscheduled job"
 			disabled={duplicating}
-			onclick={dupe}><Copy /></Button
+			onclick={dupe}
 		>
+			<Copy />
+		</Button>
 		<Button
 			class="hidden md:inline-flex"
 			size="sm"
 			variant="ghost"
 			href="/jobs/{id}/workorder"
 			target="_blank"
-			title="Print work order"><Printer /></Button
+			title="Print work order"
 		>
+			<Printer />
+		</Button>
 		{#if j.address1}
 			<Button
 				class="hidden md:inline-flex"
@@ -989,8 +995,10 @@
 					`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`
 				)}"
 				target="_blank"
-				title="Directions"><Navigation2 /></Button
+				title="Directions"
 			>
+				<Navigation2 />
+			</Button>
 		{/if}
 		{#if j.customerPhone}
 			<Button
@@ -998,8 +1006,10 @@
 				size="sm"
 				variant="ghost"
 				title="Text the customer an ETA"
-				onclick={() => (etaOpen = true)}><MessageSquare /></Button
+				onclick={() => (etaOpen = true)}
 			>
+				<MessageSquare />
+			</Button>
 		{/if}
 		{#if !locked}
 			<Button
@@ -1008,15 +1018,19 @@
 				class="hidden text-amber-600 md:inline-flex dark:text-amber-500"
 				title="Customer no-show — cancel and rebook as unscheduled"
 				disabled={noShowing}
-				onclick={noShow}><UserX /></Button
+				onclick={noShow}
 			>
+				<UserX />
+			</Button>
 			<Button
 				size="sm"
 				variant="ghost"
 				class="hidden text-destructive md:inline-flex"
 				title="Cancel job"
-				onclick={() => (cancelOpen = true)}><Ban /></Button
+				onclick={() => (cancelOpen = true)}
 			>
+				<Ban />
+			</Button>
 		{/if}
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
@@ -1025,12 +1039,12 @@
 				<EllipsisVertical class="size-4" />
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end">
-				<DropdownMenu.Item disabled={duplicating} onclick={dupe}
-					><Copy /> Copy job</DropdownMenu.Item
-				>
-				<DropdownMenu.Item onclick={() => window.open(`/jobs/${id}/workorder`, '_blank')}
-					><Printer /> Print work order</DropdownMenu.Item
-				>
+				<DropdownMenu.Item disabled={duplicating} onclick={dupe}>
+					<Copy /> Copy job
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => window.open(`/jobs/${id}/workorder`, '_blank')}>
+					<Printer /> Print work order
+				</DropdownMenu.Item>
 				{#if j.address1}
 					<DropdownMenu.Item
 						onclick={() =>
@@ -1039,27 +1053,29 @@
 									`${j.address1}, ${j.city ?? ''} ${j.state ?? ''} ${j.zip ?? ''}`
 								)}`,
 								'_blank'
-							)}><Navigation2 /> Directions</DropdownMenu.Item
+							)}
 					>
+						<Navigation2 /> Directions
+					</DropdownMenu.Item>
 				{/if}
 				{#if j.job.status === 'done'}
-					<DropdownMenu.Item disabled={reportSending} onclick={sendReport}
-						><ClipboardCheck /> Send service report</DropdownMenu.Item
-					>
+					<DropdownMenu.Item disabled={reportSending} onclick={sendReport}>
+						<ClipboardCheck /> Send service report
+					</DropdownMenu.Item>
 				{/if}
 				{#if j.customerPhone}
-					<DropdownMenu.Item onclick={() => (etaOpen = true)}
-						><MessageSquare /> Text customer ETA</DropdownMenu.Item
-					>
+					<DropdownMenu.Item onclick={() => (etaOpen = true)}>
+						<MessageSquare /> Text customer ETA
+					</DropdownMenu.Item>
 				{/if}
 				{#if !locked}
 					<DropdownMenu.Separator />
-					<DropdownMenu.Item disabled={noShowing} onclick={noShow}
-						><UserX /> Customer no-show</DropdownMenu.Item
-					>
-					<DropdownMenu.Item variant="destructive" onclick={() => (cancelOpen = true)}
-						><Ban /> Cancel job</DropdownMenu.Item
-					>
+					<DropdownMenu.Item disabled={noShowing} onclick={noShow}>
+						<UserX /> Customer no-show
+					</DropdownMenu.Item>
+					<DropdownMenu.Item variant="destructive" onclick={() => (cancelOpen = true)}>
+						<Ban /> Cancel job
+					</DropdownMenu.Item>
 				{/if}
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
@@ -1074,11 +1090,11 @@
 			<Globe />
 			<Alert.Title>Online booking — needs review</Alert.Title>
 			<Alert.Description class="flex flex-wrap items-center gap-x-4 gap-y-2">
-				<span
-					>This came in through the booking page{j.job.preferredTime
+				<span>
+					This came in through the booking page{j.job.preferredTime
 						? ` — asked for ${j.job.preferredTime}`
-						: ''}. Accept it into the queue or decline it.</span
-				>
+						: ''}. Accept it into the queue or decline it.
+				</span>
 				<span class="flex gap-2">
 					<Button size="sm" disabled={reviewing} onclick={() => review(true)}>Accept</Button>
 					<Button
@@ -1086,8 +1102,10 @@
 						variant="outline"
 						class="text-destructive"
 						disabled={reviewing}
-						onclick={() => review(false)}>Decline</Button
+						onclick={() => review(false)}
 					>
+						Decline
+					</Button>
 				</span>
 			</Alert.Description>
 		</Alert.Root>
@@ -1104,15 +1122,17 @@
 			<Alert.Description class="flex flex-wrap items-center gap-x-4 gap-y-2">
 				<span>Approve the request to cancel the job, or decline it and keep the visit.</span>
 				<span class="flex gap-2">
-					<Button size="sm" disabled={cancelReviewing} onclick={() => answerCancel(true)}
-						>Approve &amp; cancel</Button
-					>
+					<Button size="sm" disabled={cancelReviewing} onclick={() => answerCancel(true)}>
+						Approve &amp; cancel
+					</Button>
 					<Button
 						size="sm"
 						variant="outline"
 						disabled={cancelReviewing}
-						onclick={() => answerCancel(false)}>Keep scheduled</Button
+						onclick={() => answerCancel(false)}
 					>
+						Keep scheduled
+					</Button>
 				</span>
 			</Alert.Description>
 		</Alert.Root>
@@ -1129,34 +1149,37 @@
 					<Field.Field>
 						<Field.Label>Customer</Field.Label>
 						<p class="pt-2 text-sm">
-							<a href="/customers/{j.job.customerId}" class="font-medium hover:underline"
-								>{j.customerName}</a
-							>
+							<a href="/customers/{j.job.customerId}" class="font-medium hover:underline">
+								{j.customerName}
+							</a>
 							{#if j.companyName}<span class="text-muted-foreground"> · {j.companyName}</span>{/if}
 							{#if j.customerPhone}
 								<a
 									href="tel:{j.customerPhone}"
 									class="ml-1 inline-flex items-center gap-0.5 text-xs text-primary hover:underline"
-									title="Call {j.customerPhone}"><Phone class="size-3" /> {j.customerPhone}</a
+									title="Call {j.customerPhone}"
 								>
+									<Phone class="size-3" />
+									{j.customerPhone}
+								</a>
 							{/if}
 						</p>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label>Location</Field.Label>
 						<Select.Root type="single" bind:value={serviceLocationId}>
-							<Select.Trigger class="w-full"
-								>{c.locations.find((l) => l.id === serviceLocationId)
+							<Select.Trigger class="w-full">
+								{c.locations.find((l) => l.id === serviceLocationId)
 									? `${c.locations.find((l) => l.id === serviceLocationId)!.address1} ${c.locations.find((l) => l.id === serviceLocationId)!.city}`
 									: j.address1
 										? `${j.address1} ${j.city}`
-										: 'On file'}</Select.Trigger
-							>
+										: 'On file'}
+							</Select.Trigger>
 							<Select.Content>
 								{#each c.locations as l (l.id)}
-									<Select.Item value={l.id}
-										>{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}</Select.Item
-									>
+									<Select.Item value={l.id}>
+										{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}
+									</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -1171,10 +1194,9 @@
 					<Field.Field>
 						<Field.Label>Equipment</Field.Label>
 						<Select.Root type="single" bind:value={equipmentId}>
-							<Select.Trigger class="w-full"
-								>{c.equipment.find((e) => e.equipment.id === equipmentId)?.equipment.name ??
-									'None'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{c.equipment.find((e) => e.equipment.id === equipmentId)?.equipment.name ?? 'None'}
+							</Select.Trigger>
 							<Select.Content>
 								{#each c.equipment.filter((e) => e.equipment.active || e.equipment.id === equipmentId) as e (e.equipment.id)}
 									<Select.Item value={e.equipment.id}>
@@ -1189,9 +1211,9 @@
 							{@const unit = c.equipment.find((e) => e.equipment.id === equipmentId)?.equipment}
 							{#if unit}
 								<p class="pt-1 text-xs text-muted-foreground">
-									<a href="/customers/{j.job.customerId}" class="hover:underline"
-										>{[unit.brand, unit.model].filter(Boolean).join(' ') || 'Unit'}</a
-									>
+									<a href="/customers/{j.job.customerId}" class="hover:underline">
+										{[unit.brand, unit.model].filter(Boolean).join(' ') || 'Unit'}
+									</a>
 									{#if unit.serial}· s/n {unit.serial}{/if}
 								</p>
 							{/if}
@@ -1200,8 +1222,9 @@
 									Last visits:
 									{#each unitHistory as h, i (h.job.id)}<!--
 										-->{#if i > 0},
-										{/if}<a href="/jobs/{h.job.id}" class="hover:underline">J-{h.job.number}</a
-										><!--
+										{/if}<a href="/jobs/{h.job.id}" class="hover:underline">
+											J-{h.job.number}
+										</a><!--
 									-->{/each}
 								</p>
 							{/if}
@@ -1210,9 +1233,9 @@
 					<Field.Field>
 						<Field.Label>Job type</Field.Label>
 						<Select.Root type="single" bind:value={jobTypeId}>
-							<Select.Trigger class="w-full"
-								>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}
+							</Select.Trigger>
 							<Select.Content>
 								{#each jobTypes.filter((t) => t.active) as t (t.id)}
 									<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -1223,12 +1246,12 @@
 					<Field.Field>
 						<Field.Label>Depends on</Field.Label>
 						<Select.Root type="single" bind:value={dependsOnJobId}>
-							<Select.Trigger class="w-full"
-								>{(() => {
+							<Select.Trigger class="w-full">
+								{(() => {
 									const d = j.depOptions.find((x) => x.id === dependsOnJobId);
 									return d ? `J-${d.number} ${d.summary || ''}` : 'None';
-								})()}</Select.Trigger
-							>
+								})()}
+							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="">None</Select.Item>
 								{#each j.depOptions as d (d.id)}
@@ -1236,17 +1259,16 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<Field.Description
-							>Can't be dispatched or completed until that job is done.</Field.Description
-						>
+						<Field.Description>
+							Can't be dispatched or completed until that job is done.
+						</Field.Description>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label>Technician</Field.Label>
 						<Select.Root type="single" bind:value={technicianId}>
-							<Select.Trigger class="w-full"
-								>{technicians.find((t) => t.id === technicianId)?.name ??
-									'Unassigned'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{technicians.find((t) => t.id === technicianId)?.name ?? 'Unassigned'}
+							</Select.Trigger>
 							<Select.Content>
 								{#each technicians as t (t.id)}
 									<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -1257,9 +1279,9 @@
 					<Field.Field>
 						<Field.Label>Helper</Field.Label>
 						<Select.Root type="single" bind:value={helperId}>
-							<Select.Trigger class="w-full"
-								>{technicians.find((t) => t.id === helperId)?.name ?? 'None'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{technicians.find((t) => t.id === helperId)?.name ?? 'None'}
+							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="">None</Select.Item>
 								{#each technicians.filter((t) => t.id !== technicianId) as t (t.id)}
@@ -1272,9 +1294,9 @@
 					<Field.Field>
 						<Field.Label>Office</Field.Label>
 						<Select.Root type="single" bind:value={officeId}>
-							<Select.Trigger class="w-full"
-								>{offices.find((o) => o.id === officeId)?.name ?? 'None'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{offices.find((o) => o.id === officeId)?.name ?? 'None'}
+							</Select.Trigger>
 							<Select.Content>
 								{#each offices.filter((o) => !o.archivedAt) as o (o.id)}
 									<Select.Item value={o.id}>{o.name}</Select.Item>
@@ -1296,9 +1318,9 @@
 					<Field.Field>
 						<Field.Label for="d-start">Starts ({tz})</Field.Label>
 						<Input id="d-start" type="datetime-local" bind:value={startsAt} disabled={locked} />
-						<Field.Description
-							>Clear the time to send this back to the unscheduled queue.</Field.Description
-						>
+						<Field.Description>
+							Clear the time to send this back to the unscheduled queue.
+						</Field.Description>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="d-window">Arrival window</Field.Label>
@@ -1323,9 +1345,9 @@
 					<Field.Field>
 						<Field.Label for="d-end">Ends ({tz})</Field.Label>
 						<Input id="d-end" type="datetime-local" bind:value={endsAt} disabled={locked} />
-						<Field.Description
-							>Overrides duration — set a later date for multi-day jobs.</Field.Description
-						>
+						<Field.Description>
+							Overrides duration — set a later date for multi-day jobs.
+						</Field.Description>
 					</Field.Field>
 					<Field.Field class="sm:col-span-2">
 						<Field.Label for="d-summary">Summary</Field.Label>
@@ -1365,11 +1387,11 @@
 				<div class="flex justify-between">
 					<span class="text-muted-foreground">Priority</span><StatusBadge status={j.job.priority} />
 					{#if j.job.rating}
-						<span class="text-muted-foreground">Rating</span><span
-							>{'★'.repeat(j.job.rating)}{'☆'.repeat(5 - j.job.rating)}{j.job.ratingNote
+						<span class="text-muted-foreground">Rating</span><span>
+							{'★'.repeat(j.job.rating)}{'☆'.repeat(5 - j.job.rating)}{j.job.ratingNote
 								? ` — ${j.job.ratingNote}`
-								: ''}</span
-						>
+								: ''}
+						</span>
 					{/if}
 				</div>
 				{#if j.job.status !== 'done' && !j.job.cancelledAt}
@@ -1401,81 +1423,81 @@
 					</div>
 				{/if}
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Source</span><span class="capitalize"
-						>{j.job.source}</span
-					>
+					<span class="text-muted-foreground">Source</span><span class="capitalize">
+						{j.job.source}
+					</span>
 				</div>
 				{#if j.job.preferredTime}
 					<div class="flex justify-between gap-3">
-						<span class="text-muted-foreground"
-							>{j.job.preferredTime.startsWith('Reschedule requested:')
+						<span class="text-muted-foreground">
+							{j.job.preferredTime.startsWith('Reschedule requested:')
 								? 'Reschedule requested'
-								: 'Customer asked for'}</span
-						><span class="text-right"
-							>{j.job.preferredTime.replace(/^Reschedule requested:\s*/, '')}</span
-						>
+								: 'Customer asked for'}
+						</span><span class="text-right">
+							{j.job.preferredTime.replace(/^Reschedule requested:\s*/, '')}
+						</span>
 					</div>
 				{/if}
 				{#if j.job.arrivalWindow}
 					<div class="flex justify-between gap-3">
-						<span class="text-muted-foreground">Arrival window</span><span class="text-right"
-							>{j.job.arrivalWindow}</span
-						>
+						<span class="text-muted-foreground">Arrival window</span><span class="text-right">
+							{j.job.arrivalWindow}
+						</span>
 					</div>
 				{/if}
 				{#if j.job.completionNotes}
 					<div class="flex justify-between gap-3">
-						<span class="text-muted-foreground">Work performed</span><span class="text-right"
-							>{j.job.completionNotes}</span
-						>
+						<span class="text-muted-foreground">Work performed</span><span class="text-right">
+							{j.job.completionNotes}
+						</span>
 					</div>
 				{/if}
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Scheduled</span><span
-						>{j.job.startsAt
+					<span class="text-muted-foreground">Scheduled</span><span>
+						{j.job.startsAt
 							? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
-							: '—'}</span
-					>
+							: '—'}
+					</span>
 				</div>
 				{#if j.job.completedAt}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">Completed</span><span
-							>{formatDate(j.job.completedAt)}</span
-						>
+						<span class="text-muted-foreground">Completed</span><span>
+							{formatDate(j.job.completedAt)}
+						</span>
 					</div>
 				{/if}
 				{#if pings.enRoute}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">En route</span><span
-							>{localDate(pings.enRoute, tz)} {localTime(pings.enRoute, tz)}</span
-						>
+						<span class="text-muted-foreground">En route</span><span>
+							{localDate(pings.enRoute, tz)}
+							{localTime(pings.enRoute, tz)}
+						</span>
 					</div>
 				{/if}
 				{#if pings.onSite}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">On site</span><span
-							>{localDate(pings.onSite, tz)} {localTime(pings.onSite, tz)}</span
-						>
+						<span class="text-muted-foreground">On site</span><span>
+							{localDate(pings.onSite, tz)}
+							{localTime(pings.onSite, tz)}
+						</span>
 					</div>
 				{/if}
 				{#if pings.onSiteMin != null}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">Time on site</span><span
-							>{fmtDur(pings.onSiteMin)}{pings.onSite &&
+						<span class="text-muted-foreground">Time on site</span><span>
+							{fmtDur(pings.onSiteMin)}{pings.onSite &&
 							!j.job.completedAt &&
 							j.job.status === 'in_progress'
 								? ' so far'
-								: ''}</span
-						>
+								: ''}
+						</span>
 					</div>
 				{/if}
 				{#if j.job.cancelledAt}
 					<div class="flex justify-between gap-4">
-						<span class="text-muted-foreground">Cancelled</span><span
-							>{formatDate(j.job.cancelledAt)}{j.job.cancelReason
-								? ` — ${j.job.cancelReason}`
-								: ''}</span
-						>
+						<span class="text-muted-foreground">Cancelled</span><span>
+							{formatDate(j.job.cancelledAt)}{j.job.cancelReason ? ` — ${j.job.cancelReason}` : ''}
+						</span>
 					</div>
 				{/if}
 				{#if j.job.estimateId}
@@ -1498,9 +1520,10 @@
 				<Card.Header class="flex-row items-center justify-between space-y-0">
 					<Card.Title class="text-base">Signature</Card.Title>
 					{#if j.job.status !== 'cancelled'}
-						<Button size="sm" variant="ghost" onclick={() => openSign(false)}
-							><PenLine class="size-4" /> {j.job.signature ? 'Re-capture' : 'Capture'}</Button
-						>
+						<Button size="sm" variant="ghost" onclick={() => openSign(false)}>
+							<PenLine class="size-4" />
+							{j.job.signature ? 'Re-capture' : 'Capture'}
+						</Button>
 					{/if}
 				</Card.Header>
 				<Card.Content class="space-y-2">
@@ -1527,31 +1550,31 @@
 			<Card.Header><Card.Title class="text-base">Costing</Card.Title></Card.Header>
 			<Card.Content class="space-y-2 text-sm">
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Labor</span><span class="tabular-nums"
-						>{fmtDur(j.costing.laborMin)}{#if j.costing.laborCost > 0}
-							· {formatMoney(j.costing.laborCost, settings.currency)}{/if}</span
-					>
+					<span class="text-muted-foreground">Labor</span><span class="tabular-nums">
+						{fmtDur(j.costing.laborMin)}{#if j.costing.laborCost > 0}
+							· {formatMoney(j.costing.laborCost, settings.currency)}{/if}
+					</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Materials (cost)</span><span class="tabular-nums"
-						>{formatMoney(j.costing.matCost, settings.currency)}</span
-					>
+					<span class="text-muted-foreground">Materials (cost)</span><span class="tabular-nums">
+						{formatMoney(j.costing.matCost, settings.currency)}
+					</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Materials (sell)</span><span class="tabular-nums"
-						>{formatMoney(j.costing.matSell, settings.currency)}</span
-					>
+					<span class="text-muted-foreground">Materials (sell)</span><span class="tabular-nums">
+						{formatMoney(j.costing.matSell, settings.currency)}
+					</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Expenses</span><span class="tabular-nums"
-						>{formatMoney(j.costing.expCost, settings.currency)}</span
-					>
+					<span class="text-muted-foreground">Expenses</span><span class="tabular-nums">
+						{formatMoney(j.costing.expCost, settings.currency)}
+					</span>
 				</div>
 				<Separator />
 				<div class="flex justify-between">
-					<span class="text-muted-foreground">Invoiced</span><span class="tabular-nums"
-						>{formatMoney(j.costing.billed, settings.currency)}</span
-					>
+					<span class="text-muted-foreground">Invoiced</span><span class="tabular-nums">
+						{formatMoney(j.costing.billed, settings.currency)}
+					</span>
 				</div>
 				<div class="flex justify-between font-medium">
 					<span>Margin</span><span
@@ -1562,20 +1585,21 @@
 						0
 							? 'text-destructive'
 							: ''}"
-						>{formatMoney(
+					>
+						{formatMoney(
 							j.costing.billed - j.costing.laborCost - j.costing.matCost - j.costing.expCost,
 							settings.currency
-						)}</span
-					>
+						)}
+					</span>
 				</div>
 			</Card.Content>
 		</Card.Root>
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
-				<Card.Title class="flex items-center gap-2 text-base"
-					><Timer class="size-4" /> Time</Card.Title
-				>
+				<Card.Title class="flex items-center gap-2 text-base">
+					<Timer class="size-4" /> Time
+				</Card.Title>
 				<div class="flex items-center gap-2">
 					{#if time.isAdmin && unapprovedCount > 0}
 						<Button
@@ -1588,10 +1612,10 @@
 							Approve {unapprovedCount}
 						</Button>
 					{/if}
-					<span class="text-sm text-muted-foreground tabular-nums"
-						>{fmtDur(totalMin)}{#if time.entries.length > 1}
-							· {time.entries.length} entries{/if}</span
-					>
+					<span class="text-sm text-muted-foreground tabular-nums">
+						{fmtDur(totalMin)}{#if time.entries.length > 1}
+							· {time.entries.length} entries{/if}
+					</span>
 				</div>
 			</Card.Header>
 			<Card.Content class="space-y-3 px-4">
@@ -1630,16 +1654,20 @@
 												href="https://www.google.com/maps/search/{e.entry.startLat},{e.entry
 													.startLng}"
 												target="_blank"
-												rel="noreferrer">Clock-in map</a
+												rel="noreferrer"
 											>
+												Clock-in map
+											</a>
 										{/if}
 										{#if e.entry.endLat != null && e.entry.endLng != null}
 											<a
 												class="text-primary hover:underline"
 												href="https://www.google.com/maps/search/{e.entry.endLat},{e.entry.endLng}"
 												target="_blank"
-												rel="noreferrer">· Clock-out map</a
+												rel="noreferrer"
 											>
+												· Clock-out map
+											</a>
 										{/if}
 									</p>
 								{/if}
@@ -1709,9 +1737,9 @@
 						<form class="grid gap-2 border-t pt-3" onsubmit={logTime}>
 							{#if time.isAdmin && !editTimeId}
 								<Select.Root type="single" bind:value={teMember}>
-									<Select.Trigger class="w-full"
-										>{technicians.find((t) => t.id === teMember)?.name ?? 'Me'}</Select.Trigger
-									>
+									<Select.Trigger class="w-full">
+										{technicians.find((t) => t.id === teMember)?.name ?? 'Me'}
+									</Select.Trigger>
 									<Select.Content>
 										{#each technicians as t (t.id)}
 											<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -1740,9 +1768,9 @@
 							</label>
 							<div class="flex gap-2">
 								<Button type="submit" size="sm" disabled={!teStart}>Save</Button>
-								<Button type="button" size="sm" variant="ghost" onclick={resetTimeForm}
-									>Cancel</Button
-								>
+								<Button type="button" size="sm" variant="ghost" onclick={resetTimeForm}>
+									Cancel
+								</Button>
 							</div>
 						</form>
 					{:else}
@@ -1756,9 +1784,9 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
-				<Card.Title class="flex items-center gap-2 text-base"
-					><Package class="size-4" /> Materials</Card.Title
-				>
+				<Card.Title class="flex items-center gap-2 text-base">
+					<Package class="size-4" /> Materials
+				</Card.Title>
 				{#if materials.length}
 					<span class="text-sm text-muted-foreground tabular-nums">
 						{formatMoney(
@@ -1820,20 +1848,18 @@
 					{#if addingMat}
 						<form class="grid gap-2 border-t pt-3" onsubmit={logMaterial}>
 							<Select.Root type="single" value={matItem} onValueChange={pickMat}>
-								<Select.Trigger class="w-full"
-									>{matItem === '__custom'
+								<Select.Trigger class="w-full">
+									{matItem === '__custom'
 										? 'Custom — not in inventory'
-										: (stock.find((s) => s.item.id === matItem)?.item.name ??
-											'Pick an item…')}</Select.Trigger
-								>
+										: (stock.find((s) => s.item.id === matItem)?.item.name ?? 'Pick an item…')}
+								</Select.Trigger>
 								<Select.Content>
 									<Select.Item value="__custom">Custom — not in inventory</Select.Item>
 									{#each stock as s (s.item.id)}
-										<Select.Item value={s.item.id}
-											>{s.item.name}
-											<span class="text-muted-foreground">({s.item.qtyOnHand} {s.item.unit})</span
-											></Select.Item
-										>
+										<Select.Item value={s.item.id}>
+											{s.item.name}
+											<span class="text-muted-foreground">({s.item.qtyOnHand} {s.item.unit})</span>
+										</Select.Item>
 									{/each}
 								</Select.Content>
 							</Select.Root>
@@ -1860,18 +1886,16 @@
 									value={matSource}
 									onValueChange={(v) => (matSource = v as 'warehouse' | 'truck')}
 								>
-									<Select.Trigger class="w-full"
-										>From: {matSource === 'truck'
-											? `${matTechName}'s truck`
-											: 'Warehouse'}</Select.Trigger
-									>
+									<Select.Trigger class="w-full">
+										From: {matSource === 'truck' ? `${matTechName}'s truck` : 'Warehouse'}
+									</Select.Trigger>
 									<Select.Content>
-										<Select.Item value="warehouse"
-											>Warehouse ({stock.find((s) => s.item.id === matItem)?.item.qtyOnHand ?? 0} on hand)</Select.Item
-										>
-										<Select.Item value="truck" disabled={truckQty < 1}
-											>{matTechName}'s truck ({truckQty})</Select.Item
-										>
+										<Select.Item value="warehouse">
+											Warehouse ({stock.find((s) => s.item.id === matItem)?.item.qtyOnHand ?? 0} on hand)
+										</Select.Item>
+										<Select.Item value="truck" disabled={truckQty < 1}>
+											{matTechName}'s truck ({truckQty})
+										</Select.Item>
 									</Select.Content>
 								</Select.Root>
 							{/if}
@@ -1880,11 +1904,12 @@
 									type="submit"
 									size="sm"
 									disabled={!matItem || matQty < 1 || (matItem === '__custom' && !matCustom.trim())}
-									>Log</Button
 								>
-								<Button type="button" size="sm" variant="ghost" onclick={() => (addingMat = false)}
-									>Cancel</Button
-								>
+									Log
+								</Button>
+								<Button type="button" size="sm" variant="ghost" onclick={() => (addingMat = false)}>
+									Cancel
+								</Button>
 							</div>
 						</form>
 					{:else}
@@ -1944,9 +1969,9 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
-				<Card.Title class="flex items-center gap-2 text-base"
-					><ReceiptText class="size-4" /> Expenses</Card.Title
-				>
+				<Card.Title class="flex items-center gap-2 text-base">
+					<ReceiptText class="size-4" /> Expenses
+				</Card.Title>
 				{#if expenses.length}
 					<span class="text-sm text-muted-foreground tabular-nums">
 						{formatMoney(
@@ -2008,9 +2033,9 @@
 							</div>
 							<div class="flex gap-2">
 								<Button type="submit" size="sm" disabled={!expDesc.trim()}>Log</Button>
-								<Button type="button" size="sm" variant="ghost" onclick={() => (addingExp = false)}
-									>Cancel</Button
-								>
+								<Button type="button" size="sm" variant="ghost" onclick={() => (addingExp = false)}>
+									Cancel
+								</Button>
 							</div>
 						</form>
 					{:else}
@@ -2024,9 +2049,9 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
-				<Card.Title class="flex items-center gap-2 text-base"
-					><Camera class="size-4" /> Photos</Card.Title
-				>
+				<Card.Title class="flex items-center gap-2 text-base">
+					<Camera class="size-4" /> Photos
+				</Card.Title>
 				{#if photos.length}
 					<span class="text-sm text-muted-foreground tabular-nums">{photos.length}</span>
 				{/if}
@@ -2071,15 +2096,16 @@
 										</Button>
 									</div>
 									{#if p.phase}
-										<Badge class="absolute bottom-1 left-1 bg-background/90 text-[10px] capitalize"
-											>{p.phase}</Badge
-										>
+										<Badge class="absolute bottom-1 left-1 bg-background/90 text-[10px] capitalize">
+											{p.phase}
+										</Badge>
 									{/if}
 									{#if p.shared}
 										<Badge
 											class="absolute top-1 left-1 bg-primary text-[10px] text-primary-foreground"
-											>Portal</Badge
 										>
+											Portal
+										</Badge>
 									{/if}
 								{/if}
 							</li>
@@ -2124,9 +2150,9 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
-				<Card.Title class="flex items-center gap-2 text-base"
-					><Paperclip class="size-4" /> Documents</Card.Title
-				>
+				<Card.Title class="flex items-center gap-2 text-base">
+					<Paperclip class="size-4" /> Documents
+				</Card.Title>
 				{#if jobDocs.length}
 					<span class="text-sm text-muted-foreground tabular-nums">{jobDocs.length}</span>
 				{/if}
@@ -2140,12 +2166,14 @@
 								<a
 									href="/files/job-document/{doc.id}"
 									target="_blank"
-									class="min-w-0 flex-1 truncate font-medium hover:underline">{doc.fileName}</a
+									class="min-w-0 flex-1 truncate font-medium hover:underline"
 								>
+									{doc.fileName}
+								</a>
 								{#if doc.shared}
-									<Badge class="shrink-0 bg-primary text-[10px] text-primary-foreground"
-										>Portal</Badge
-									>
+									<Badge class="shrink-0 bg-primary text-[10px] text-primary-foreground">
+										Portal
+									</Badge>
 								{/if}
 								<span class="shrink-0 text-xs text-muted-foreground">{docSize(doc.size)}</span>
 								{#if !locked}
@@ -2195,15 +2223,15 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
-				<Card.Title class="flex items-center gap-2 text-base"
-					><ListChecks class="size-4" /> Checklist</Card.Title
-				>
+				<Card.Title class="flex items-center gap-2 text-base">
+					<ListChecks class="size-4" /> Checklist
+				</Card.Title>
 				{#if checklist.length}
 					<div class="flex items-center gap-2">
 						<Progress value={checkDone} max={checklist.length} class="h-1.5 w-16" />
-						<span class="text-sm text-muted-foreground tabular-nums"
-							>{checkDone}/{checklist.length} done</span
-						>
+						<span class="text-sm text-muted-foreground tabular-nums">
+							{checkDone}/{checklist.length} done
+						</span>
 					</div>
 				{/if}
 			</Card.Header>
@@ -2216,9 +2244,9 @@
 								disabled={locked}
 								onCheckedChange={() => toggleCheck(item)}
 							/>
-							<span class="min-w-0 flex-1 {item.done ? 'text-muted-foreground line-through' : ''}"
-								>{item.label}</span
-							>
+							<span class="min-w-0 flex-1 {item.done ? 'text-muted-foreground line-through' : ''}">
+								{item.label}
+							</span>
 							{#if !locked}
 								<Button
 									variant="ghost"
@@ -2239,9 +2267,9 @@
 				{#if !locked}
 					<form class="flex gap-2 border-t pt-3" onsubmit={addCheck}>
 						<Input placeholder="Add a step…" bind:value={newCheck} />
-						<Button type="submit" size="sm" variant="outline" disabled={!newCheck.trim()}
-							>Add</Button
-						>
+						<Button type="submit" size="sm" variant="outline" disabled={!newCheck.trim()}>
+							Add
+						</Button>
 					</form>
 				{/if}
 			</Card.Content>
@@ -2249,12 +2277,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between space-y-0">
-				<Card.Title class="flex items-center gap-2 text-base"
-					><BellPlus class="size-4" /> Follow-ups{#if j.followUps.filter((f) => !f.doneAt).length}
-						<span class="text-xs font-normal text-muted-foreground"
-							>({j.followUps.filter((f) => !f.doneAt).length} open)</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="flex items-center gap-2 text-base">
+					<BellPlus class="size-4" /> Follow-ups{#if j.followUps.filter((f) => !f.doneAt).length}
+						<span class="text-xs font-normal text-muted-foreground">
+							({j.followUps.filter((f) => !f.doneAt).length} open)
+						</span>{/if}
+				</Card.Title>
 				<Button size="sm" variant="outline" onclick={openFollowUp}>Add</Button>
 			</Card.Header>
 			<Card.Content class="space-y-2 px-4">
@@ -2276,8 +2304,9 @@
 											: f.dueOn === todayIso
 												? 'font-medium text-amber-600 dark:text-amber-400'
 												: 'text-muted-foreground'}
-										>due {f.dueOn}{f.dueOn < todayIso ? ' — overdue' : ''}</span
 									>
+										due {f.dueOn}{f.dueOn < todayIso ? ' — overdue' : ''}
+									</span>
 								{/if}
 								<span class="text-muted-foreground">· {f.assignee}</span>
 							</span>
@@ -2290,14 +2319,16 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="end">
 								{#if !f.doneAt}
-									<DropdownMenu.Item onclick={() => completeFollowUp(f.id).updates(getJob)}
-										>Mark done</DropdownMenu.Item
-									>
+									<DropdownMenu.Item onclick={() => completeFollowUp(f.id).updates(getJob)}>
+										Mark done
+									</DropdownMenu.Item>
 								{/if}
 								<DropdownMenu.Item
 									class="text-destructive"
-									onclick={() => removeFollowUp(f.id).updates(getJob)}>Remove</DropdownMenu.Item
+									onclick={() => removeFollowUp(f.id).updates(getJob)}
 								>
+									Remove
+								</DropdownMenu.Item>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
 					</div>
@@ -2330,8 +2361,10 @@
 											href="https://www.openstreetmap.org/?mlat={e.event.lat}&mlon={e.event
 												.lng}#map=17/{e.event.lat}/{e.event.lng}"
 											target="_blank"
-											rel="noreferrer">map</a
-										>{/if}
+											rel="noreferrer"
+										>
+											map
+										</a>{/if}
 								</p>
 							</div>
 						</li>
@@ -2355,8 +2388,10 @@
 								variant="outline"
 								title="Draft a customer-facing recap with AI"
 								disabled={aiPending}
-								onclick={draftRecap}><Sparkles /></Button
+								onclick={draftRecap}
 							>
+								<Sparkles />
+							</Button>
 						{/if}
 						<Button type="submit" variant="secondary" disabled={!note.trim()}>Add</Button>
 					</form>
@@ -2371,9 +2406,9 @@
 	<Modal.Content class="sm:max-w-sm">
 		<Modal.Header>
 			<Modal.Title>New follow-up</Modal.Title>
-			<Modal.Description
-				>A dated reminder linked to this job — it shows on the dashboard when due.</Modal.Description
-			>
+			<Modal.Description>
+				A dated reminder linked to this job — it shows on the dashboard when due.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveFollowUp}>
 			<Field.Field>
@@ -2388,9 +2423,9 @@
 				<Field.Field>
 					<Field.Label for="fup-member">Assign to</Field.Label>
 					<Select.Root type="single" bind:value={fupMember}>
-						<Select.Trigger id="fup-member" class="w-full"
-							>{staff.find((m) => m.id === fupMember)?.name ?? 'Me'}</Select.Trigger
-						>
+						<Select.Trigger id="fup-member" class="w-full">
+							{staff.find((m) => m.id === fupMember)?.name ?? 'Me'}
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="">Me</Select.Item>
 							{#each staff as m (m.id)}
@@ -2401,9 +2436,9 @@
 				</Field.Field>
 			</div>
 			<Modal.Footer>
-				<Button type="submit" disabled={fupPending || !fupNote.trim() || !fupDue}
-					>{fupPending ? 'Saving…' : 'Add follow-up'}</Button
-				>
+				<Button type="submit" disabled={fupPending || !fupNote.trim() || !fupDue}>
+					{fupPending ? 'Saving…' : 'Add follow-up'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2427,15 +2462,15 @@
 	<Modal.Content class="sm:max-w-xs">
 		<Modal.Header>
 			<Modal.Title>Text an ETA</Modal.Title>
-			<Modal.Description
-				>Text {j.customerName} that you're on the way — roughly how many minutes out?</Modal.Description
-			>
+			<Modal.Description>
+				Text {j.customerName} that you're on the way — roughly how many minutes out?
+			</Modal.Description>
 		</Modal.Header>
 		<div class="flex flex-wrap gap-2">
 			{#each [15, 30, 45, 60, 90] as m (m)}
-				<Button variant="outline" size="sm" disabled={etaPending} onclick={() => sendEta(m)}
-					>{m} min</Button
-				>
+				<Button variant="outline" size="sm" disabled={etaPending} onclick={() => sendEta(m)}>
+					{m} min
+				</Button>
 			{/each}
 		</div>
 	</Modal.Content>
@@ -2459,9 +2494,9 @@
 				/>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" variant="destructive" disabled={cancelling}
-					>{cancelling ? 'Cancelling…' : 'Cancel job'}</Button
-				>
+				<Button type="submit" variant="destructive" disabled={cancelling}>
+					{cancelling ? 'Cancelling…' : 'Cancel job'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2489,11 +2524,9 @@
 				</Field.Field>
 			</div>
 			<Modal.Footer>
-				<Button type="submit" disabled={repeating}
-					>{repeating
-						? 'Booking…'
-						: `Book ${repeatCount} visit${repeatCount > 1 ? 's' : ''}`}</Button
-				>
+				<Button type="submit" disabled={repeating}>
+					{repeating ? 'Booking…' : `Book ${repeatCount} visit${repeatCount > 1 ? 's' : ''}`}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2509,8 +2542,9 @@
 			/>
 			<p class="mt-2 flex items-center justify-between px-1 text-xs text-muted-foreground">
 				<span class="truncate">{lightbox.fileName}</span>
-				{#if lightbox.phase}<Badge variant="outline" class="capitalize">{lightbox.phase}</Badge
-					>{/if}
+				{#if lightbox.phase}<Badge variant="outline" class="capitalize">
+						{lightbox.phase}
+					</Badge>{/if}
 			</p>
 		{/if}
 	</Modal.Content>
@@ -2521,27 +2555,25 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>Suggested materials — J-{j.job.number}</Modal.Title>
-			<Modal.Description
-				>Picked from in-stock inventory. Applying logs them on the job.</Modal.Description
-			>
+			<Modal.Description>
+				Picked from in-stock inventory. Applying logs them on the job.
+			</Modal.Description>
 		</Modal.Header>
 		{#if aiMats.length}
 			<div class="divide-y">
 				{#each aiMats as m (m.inventoryItemId)}
 					<div class="flex items-center gap-2 py-2 text-sm">
 						<span class="font-medium whitespace-nowrap">{m.qty} × {m.name}</span>
-						<span class="flex-1 truncate text-xs text-muted-foreground" title={m.reason}
-							>{m.reason}</span
-						>
+						<span class="flex-1 truncate text-xs text-muted-foreground" title={m.reason}>
+							{m.reason}
+						</span>
 					</div>
 				{/each}
 			</div>
 			<Modal.Footer>
-				<Button disabled={aiMatApplying} onclick={applyAiMats}
-					>{aiMatApplying
-						? 'Adding…'
-						: `Add ${aiMats.length} item${aiMats.length === 1 ? '' : 's'}`}</Button
-				>
+				<Button disabled={aiMatApplying} onclick={applyAiMats}>
+					{aiMatApplying ? 'Adding…' : `Add ${aiMats.length} item${aiMats.length === 1 ? '' : 's'}`}
+				</Button>
 			</Modal.Footer>
 		{:else}
 			<p class="py-4 text-center text-sm text-muted-foreground">No suggestions.</p>
