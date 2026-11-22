@@ -816,8 +816,10 @@
 				size="sm"
 				variant="outline"
 				title="Summarize this customer's history with AI"
-				onclick={runBrief}><Sparkles /> Brief</Button
+				onclick={runBrief}
 			>
+				<Sparkles /> Brief
+			</Button>
 		{/if}
 		{#if dupes.length}
 			<Button
@@ -825,15 +827,19 @@
 				variant="outline"
 				class="border-amber-500/50 text-amber-600 dark:text-amber-400"
 				onclick={() => (mergeOpen = true)}
-				><TriangleAlert /> {dupes.length} possible duplicate{dupes.length > 1 ? 's' : ''}</Button
 			>
+				<TriangleAlert />
+				{dupes.length} possible duplicate{dupes.length > 1 ? 's' : ''}
+			</Button>
 		{:else}
 			<Button
 				size="sm"
 				variant="outline"
 				class="hidden md:inline-flex"
-				onclick={() => (mergeOpen = true)}><GitMerge /> Merge</Button
+				onclick={() => (mergeOpen = true)}
 			>
+				<GitMerge /> Merge
+			</Button>
 		{/if}
 		{#if c.customer.phone}
 			<Button
@@ -841,15 +847,19 @@
 				variant="outline"
 				class="hidden md:inline-flex"
 				href="tel:{c.customer.phone}"
-				title="Call"><Phone /></Button
+				title="Call"
 			>
+				<Phone />
+			</Button>
 			<Button
 				size="sm"
 				variant="outline"
 				class="hidden md:inline-flex"
 				href="sms:{c.customer.phone}"
-				title="Text"><MessageSquare /></Button
+				title="Text"
 			>
+				<MessageSquare />
+			</Button>
 		{/if}
 		{#if c.customer.email}
 			<Button
@@ -857,12 +867,14 @@
 				variant="outline"
 				class="hidden md:inline-flex"
 				href="mailto:{c.customer.email}"
-				title="Email"><Mail /></Button
+				title="Email"
 			>
+				<Mail />
+			</Button>
 		{/if}
-		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={copyPortal}
-			><Link2 /> Portal link</Button
-		>
+		<Button size="sm" variant="outline" class="hidden md:inline-flex" onclick={copyPortal}>
+			<Link2 /> Portal link
+		</Button>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
 				class="inline-flex size-8 items-center justify-center rounded-md border hover:bg-accent md:hidden"
@@ -872,30 +884,31 @@
 			<DropdownMenu.Content align="end">
 				<DropdownMenu.Item onclick={() => (mergeOpen = true)}><GitMerge /> Merge</DropdownMenu.Item>
 				{#if c.customer.phone}
-					<DropdownMenu.Item onclick={() => (window.location.href = `tel:${c.customer.phone}`)}
-						><Phone /> Call</DropdownMenu.Item
-					>
-					<DropdownMenu.Item onclick={() => (window.location.href = `sms:${c.customer.phone}`)}
-						><MessageSquare /> Text</DropdownMenu.Item
-					>
+					<DropdownMenu.Item onclick={() => (window.location.href = `tel:${c.customer.phone}`)}>
+						<Phone /> Call
+					</DropdownMenu.Item>
+					<DropdownMenu.Item onclick={() => (window.location.href = `sms:${c.customer.phone}`)}>
+						<MessageSquare /> Text
+					</DropdownMenu.Item>
 				{/if}
 				{#if c.customer.email}
-					<DropdownMenu.Item onclick={() => (window.location.href = `mailto:${c.customer.email}`)}
-						><Mail /> Email</DropdownMenu.Item
-					>
+					<DropdownMenu.Item onclick={() => (window.location.href = `mailto:${c.customer.email}`)}>
+						<Mail /> Email
+					</DropdownMenu.Item>
 				{/if}
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item onclick={copyPortal}><Link2 /> Portal link</DropdownMenu.Item>
 				{#if c.customer.portalUserId}
-					<DropdownMenu.Item disabled={revokePending} onclick={revokePortal}
-						>Revoke portal</DropdownMenu.Item
-					>
+					<DropdownMenu.Item disabled={revokePending} onclick={revokePortal}>
+						Revoke portal
+					</DropdownMenu.Item>
 				{/if}
 				<DropdownMenu.Item
 					onclick={() =>
 						(window.location.href = `/api/export/statement.csv?customer=${c.customer.id}`)}
-					><Download /> Statement</DropdownMenu.Item
 				>
+					<Download /> Statement
+				</DropdownMenu.Item>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 		{#if c.customer.portalUserId}
@@ -904,39 +917,50 @@
 				variant="outline"
 				class="hidden md:inline-flex"
 				onclick={revokePortal}
-				disabled={revokePending}>Revoke portal</Button
+				disabled={revokePending}
 			>
+				Revoke portal
+			</Button>
 		{/if}
 		<Button
 			size="sm"
 			variant="outline"
 			href="/customers/{id}/history"
 			target="_blank"
-			title="Printable service history"><Printer /></Button
+			title="Printable service history"
 		>
+			<Printer />
+		</Button>
 		<Button
 			size="sm"
 			variant="outline"
 			href="/customers/{id}/statement"
 			target="_blank"
-			title="Printable statement of open charges">Statement</Button
+			title="Printable statement of open charges"
 		>
+			Statement
+		</Button>
 		<Button size="sm" href="/jobs?new=1&customer={id}"><Wrench /> New job</Button>
 		<Button
 			size="sm"
 			variant="outline"
 			class="hidden md:inline-flex"
 			href="/api/export/statement.csv?customer={c.customer.id}"
-			download><Download /> Statement</Button
+			download
 		>
+			<Download /> Statement
+		</Button>
 		{#if c.customer.email}
 			<Button
 				size="sm"
 				variant="outline"
 				title="Email open-balance statement"
 				disabled={stmtPending}
-				onclick={emailStatementNow}><Mail /> {stmtPending ? 'Sending…' : 'Email statement'}</Button
+				onclick={emailStatementNow}
 			>
+				<Mail />
+				{stmtPending ? 'Sending…' : 'Email statement'}
+			</Button>
 		{/if}
 	{/snippet}
 </PageHeader>
@@ -964,10 +988,10 @@
 					<div
 						class="mb-3 flex items-center justify-between gap-2 rounded-md border border-dashed p-2 text-xs"
 					>
-						<span class="flex items-center gap-1.5 text-muted-foreground"
-							><CreditCard class="size-3.5" />
-							{c.customer.savedCardLabel} on file — recurring charges auto-collect</span
-						>
+						<span class="flex items-center gap-1.5 text-muted-foreground">
+							<CreditCard class="size-3.5" />
+							{c.customer.savedCardLabel} on file — recurring charges auto-collect
+						</span>
 						<span class="flex gap-1">
 							<Button
 								variant="ghost"
@@ -977,15 +1001,19 @@
 									!c.charges.some(
 										(ch) => ch.charge.status === 'open' && ch.charge.amount - ch.paid > 0
 									)}
-								onclick={chargeCard}>Charge now</Button
+								onclick={chargeCard}
 							>
+								Charge now
+							</Button>
 							<Button
 								variant="ghost"
 								size="sm"
 								class="h-6 px-2 text-xs"
 								disabled={cardPending}
-								onclick={removeCard}>Remove</Button
+								onclick={removeCard}
 							>
+								Remove
+							</Button>
 						</span>
 					</div>
 				{/if}
@@ -1054,10 +1082,9 @@
 					<Field.Field>
 						<Field.Label>Preferred technician</Field.Label>
 						<Select.Root type="single" bind:value={preferredMemberId}>
-							<Select.Trigger class="w-full"
-								>{technicians.find((t) => t.id === preferredMemberId)?.name ??
-									'No preference'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{technicians.find((t) => t.id === preferredMemberId)?.name ?? 'No preference'}
+							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="">No preference</Select.Item>
 								{#each technicians as t (t.id)}
@@ -1100,8 +1127,8 @@
 						<label class="flex items-center gap-2 text-sm">
 							Preferred contact
 							<Select.Root type="single" bind:value={contactPref}>
-								<Select.Trigger class="w-40"
-									>{contactPref === 'email'
+								<Select.Trigger class="w-40">
+									{contactPref === 'email'
 										? 'Email'
 										: contactPref === 'sms'
 											? 'Text message'
@@ -1128,8 +1155,9 @@
 								placeholder="org default"
 								aria-label="Sales tax rate %"
 							/>
-							<span class="text-xs text-muted-foreground">% — blank uses the workspace default</span
-							>
+							<span class="text-xs text-muted-foreground">
+								% — blank uses the workspace default
+							</span>
 						</label>
 						<p class="text-xs text-muted-foreground">
 							Suppresses appointment reminders, follow-ups, and invoices/estimate emails for this
@@ -1151,21 +1179,22 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Contacts{#if c.contacts.length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground">({c.contacts.length})</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="text-base">
+					Contacts{#if c.contacts.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({c.contacts.length})
+						</span>{/if}
+				</Card.Title>
 				<Button size="sm" variant="outline" onclick={() => openContact()}><Plus /> Add</Button>
 			</Card.Header>
 			<Card.Content class="space-y-2 px-4">
 				{#each c.contacts as ct (ct.id)}
 					<div class="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
 						<button class="min-w-0 flex-1 text-left" onclick={() => openContact(ct)}>
-							<span class="flex items-center gap-2 font-medium"
-								>{ct.name}
-								{#if ct.isPrimary}<StatusBadge status="active" label="primary" />{/if}</span
-							>
+							<span class="flex items-center gap-2 font-medium">
+								{ct.name}
+								{#if ct.isPrimary}<StatusBadge status="active" label="primary" />{/if}
+							</span>
 							<span class="mt-1 block truncate text-xs text-muted-foreground">
 								{[ct.role, ct.email, ct.phone].filter(Boolean).join(' · ') || 'No details'}
 							</span>
@@ -1185,12 +1214,14 @@
 												id: ct.id,
 												customerId: id,
 												isPrimary: true
-											}).updates(getCustomer)}>Set as primary</DropdownMenu.Item
+											}).updates(getCustomer)}
 									>
+										Set as primary
+									</DropdownMenu.Item>
 								{/if}
-								<DropdownMenu.Item class="text-destructive" onclick={() => deleteContact(ct)}
-									>Remove</DropdownMenu.Item
-								>
+								<DropdownMenu.Item class="text-destructive" onclick={() => deleteContact(ct)}>
+									Remove
+								</DropdownMenu.Item>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
 					</div>
@@ -1199,9 +1230,9 @@
 						<Empty.Header>
 							<Empty.Media><UserPlus /></Empty.Media>
 							<Empty.Title class="text-sm">No contacts</Empty.Title>
-							<Empty.Description class="text-xs"
-								>Track site leads, tenants and AP contacts.</Empty.Description
-							>
+							<Empty.Description class="text-xs">
+								Track site leads, tenants and AP contacts.
+							</Empty.Description>
 						</Empty.Header>
 					</Empty.Root>
 				{/each}
@@ -1210,12 +1241,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Follow-ups{#if c.followUps.filter((f) => !f.doneAt).length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>({c.followUps.filter((f) => !f.doneAt).length} open)</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="text-base">
+					Follow-ups{#if c.followUps.filter((f) => !f.doneAt).length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({c.followUps.filter((f) => !f.doneAt).length} open)
+						</span>{/if}
+				</Card.Title>
 				<Button size="sm" variant="outline" onclick={openFollowUp}><Plus /> Add</Button>
 			</Card.Header>
 			<Card.Content class="space-y-2 px-4">
@@ -1226,14 +1257,14 @@
 							: ''}"
 					>
 						<div class="min-w-0 flex-1">
-							<span class="flex items-center gap-2 font-medium"
-								>{f.note}
+							<span class="flex items-center gap-2 font-medium">
+								{f.note}
 								{#if f.jobNumber}
-									<a href="/jobs/{f.jobId}" class="shrink-0"
-										><Badge variant="outline" class="font-normal">J-{f.jobNumber}</Badge></a
-									>
-								{/if}</span
-							>
+									<a href="/jobs/{f.jobId}" class="shrink-0">
+										<Badge variant="outline" class="font-normal">J-{f.jobNumber}</Badge>
+									</a>
+								{/if}
+							</span>
 							<span class="mt-1 flex items-center gap-2 text-xs">
 								{#if f.doneAt}
 									<span class="text-muted-foreground">done {formatDate(f.doneAt)}</span>
@@ -1244,8 +1275,9 @@
 											: f.dueOn === todayIso
 												? 'font-medium text-amber-600 dark:text-amber-400'
 												: 'text-muted-foreground'}
-										>due {f.dueOn}{f.dueOn < todayIso ? ' — overdue' : ''}</span
 									>
+										due {f.dueOn}{f.dueOn < todayIso ? ' — overdue' : ''}
+									</span>
 								{/if}
 								<span class="text-muted-foreground">· {f.assignee}</span>
 							</span>
@@ -1258,23 +1290,26 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="end">
 								{#if !f.doneAt}
-									<DropdownMenu.Item onclick={() => completeFollowUp(f.id).updates(getCustomer)}
-										>Mark done</DropdownMenu.Item
-									>
+									<DropdownMenu.Item onclick={() => completeFollowUp(f.id).updates(getCustomer)}>
+										Mark done
+									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										onclick={() => snoozeFollowUp({ id: f.id, days: 1 }).updates(getCustomer)}
-										>Snooze 1 day</DropdownMenu.Item
 									>
+										Snooze 1 day
+									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										onclick={() => snoozeFollowUp({ id: f.id, days: 7 }).updates(getCustomer)}
-										>Snooze 1 week</DropdownMenu.Item
 									>
+										Snooze 1 week
+									</DropdownMenu.Item>
 								{/if}
 								<DropdownMenu.Item
 									class="text-destructive"
 									onclick={() => removeFollowUp(f.id).updates(getCustomer)}
-									>Remove</DropdownMenu.Item
 								>
+									Remove
+								</DropdownMenu.Item>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
 					</div>
@@ -1283,9 +1318,9 @@
 						<Empty.Header>
 							<Empty.Media><BellPlus /></Empty.Media>
 							<Empty.Title class="text-sm">No follow-ups</Empty.Title>
-							<Empty.Description class="text-xs"
-								>Remind yourself or a teammate to check back.</Empty.Description
-							>
+							<Empty.Description class="text-xs">
+								Remind yourself or a teammate to check back.
+							</Empty.Description>
 						</Empty.Header>
 					</Empty.Root>
 				{/each}
@@ -1294,12 +1329,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Documents{#if c.documents.length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>({c.documents.length})</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="text-base">
+					Documents{#if c.documents.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({c.documents.length})
+						</span>{/if}
+				</Card.Title>
 				<label
 					class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors hover:bg-accent {docUploading
 						? 'pointer-events-none opacity-60'
@@ -1319,17 +1354,18 @@
 								<a
 									href="/files/customer-document/{d.id}"
 									target="_blank"
-									class="block truncate font-medium hover:underline">{d.fileName}</a
+									class="block truncate font-medium hover:underline"
 								>
-								<span class="flex items-center gap-1 text-xs text-muted-foreground"
-									>{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
+									{d.fileName}
+								</a>
+								<span class="flex items-center gap-1 text-xs text-muted-foreground">
+									{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
 										? ` · ${d.uploadedBy}`
 										: ''}{#if d.shared}
 										<Badge variant="secondary">portal</Badge>{/if}{#if d.viaPortal}
 										<Badge variant="outline">from customer</Badge>{/if}{#if d.expiresOn}
-										<span class={docExpiryTone(d.expiresOn)}>· expires {d.expiresOn}</span
-										>{/if}</span
-								>
+										<span class={docExpiryTone(d.expiresOn)}>· expires {d.expiresOn}</span>{/if}
+								</span>
 							</div>
 						</div>
 						<DropdownMenu.Root>
@@ -1346,8 +1382,9 @@
 											customerId: id,
 											shared: !d.shared
 										}).updates(getCustomer)}
-									>{d.shared ? 'Unshare from portal' : 'Share to portal'}</DropdownMenu.Item
 								>
+									{d.shared ? 'Unshare from portal' : 'Share to portal'}
+								</DropdownMenu.Item>
 								<DropdownMenu.Item onclick={() => openDocExpiry(d)}>Set expiry…</DropdownMenu.Item>
 								{#if d.expiresOn}
 									<DropdownMenu.Item
@@ -1356,15 +1393,18 @@
 												id: d.id,
 												customerId: id,
 												expiresOn: null
-											}).updates(getCustomer)}>Clear expiry</DropdownMenu.Item
+											}).updates(getCustomer)}
 									>
+										Clear expiry
+									</DropdownMenu.Item>
 								{/if}
 								<DropdownMenu.Item
 									class="text-destructive"
 									onclick={() =>
 										removeCustomerDoc({ id: d.id, customerId: id }).updates(getCustomer)}
-									>Remove</DropdownMenu.Item
 								>
+									Remove
+								</DropdownMenu.Item>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
 					</div>
@@ -1373,9 +1413,9 @@
 						<Empty.Header>
 							<Empty.Media><Paperclip /></Empty.Media>
 							<Empty.Title class="text-sm">No documents</Empty.Title>
-							<Empty.Description class="text-xs"
-								>Contracts, permits and paperwork for this account.</Empty.Description
-							>
+							<Empty.Description class="text-xs">
+								Contracts, permits and paperwork for this account.
+							</Empty.Description>
 						</Empty.Header>
 					</Empty.Root>
 				{/each}
@@ -1384,12 +1424,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Service locations{#if c.locations.length > 1}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>({c.locations.length})</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="text-base">
+					Service locations{#if c.locations.length > 1}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({c.locations.length})
+						</span>{/if}
+				</Card.Title>
 				<Button size="sm" variant="outline" onclick={() => openLocation()}><MapPin /> Add</Button>
 			</Card.Header>
 			<Card.Content class="space-y-2 px-4">
@@ -1399,9 +1439,9 @@
 						onclick={() => openLocation(l)}
 					>
 						<div class="flex items-center justify-between">
-							<span class="font-medium"
-								>{l.label ? `${l.label} — ` : ''}{l.address1 || 'No address'}</span
-							>
+							<span class="font-medium">
+								{l.label ? `${l.label} — ` : ''}{l.address1 || 'No address'}
+							</span>
 							{#if l.isPrimary}<StatusBadge status="active" label="primary" />{/if}
 						</div>
 						<p class="mt-1 text-xs text-muted-foreground">
@@ -1427,25 +1467,25 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Equipment{#if c.equipment.filter((e) => e.equipment.active && e.equipment.warrantyUntil && !eqExpired(e.equipment.warrantyUntil)).length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>({c.equipment.filter(
+				<Card.Title class="text-base">
+					Equipment{#if c.equipment.filter((e) => e.equipment.active && e.equipment.warrantyUntil && !eqExpired(e.equipment.warrantyUntil)).length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({c.equipment.filter(
 								(e) =>
 									e.equipment.active &&
 									e.equipment.warrantyUntil &&
 									!eqExpired(e.equipment.warrantyUntil)
-							).length} in warranty)</span
-						>{/if}{#if c.equipment.filter((e) => e.equipment.active && e.equipment.nextServiceDue && eqExpired(e.equipment.nextServiceDue)).length}
-						<span class="ml-1 text-xs font-normal text-amber-600 dark:text-amber-400"
-							>· {c.equipment.filter(
+							).length} in warranty)
+						</span>{/if}{#if c.equipment.filter((e) => e.equipment.active && e.equipment.nextServiceDue && eqExpired(e.equipment.nextServiceDue)).length}
+						<span class="ml-1 text-xs font-normal text-amber-600 dark:text-amber-400">
+							· {c.equipment.filter(
 								(e) =>
 									e.equipment.active &&
 									e.equipment.nextServiceDue &&
 									eqExpired(e.equipment.nextServiceDue)
-							).length} service due</span
-						>{/if}</Card.Title
-				>
+							).length} service due
+						</span>{/if}
+				</Card.Title>
 				<Button size="sm" variant="outline" onclick={() => openEquipment()}>
 					<AirVent /> Add
 				</Button>
@@ -1518,11 +1558,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Maintenance schedules{#if schedules.length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground">({schedules.length})</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="text-base">
+					Maintenance schedules{#if schedules.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({schedules.length})
+						</span>{/if}
+				</Card.Title>
 				<Button size="sm" variant="outline" onclick={() => (addingSc = !addingSc)}>
 					<Repeat /> Add
 				</Button>
@@ -1566,10 +1607,9 @@
 				{#if addingSc}
 					<form class="grid gap-2 border-t pt-3" onsubmit={saveSchedule}>
 						<Select.Root type="single" bind:value={scType}>
-							<Select.Trigger class="w-full"
-								>{jobTypes.find((t) => t.id === scType)?.name ??
-									'Job type (optional)'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{jobTypes.find((t) => t.id === scType)?.name ?? 'Job type (optional)'}
+							</Select.Trigger>
 							<Select.Content>
 								{#each jobTypes.filter((t) => t.active) as t (t.id)}
 									<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -1594,9 +1634,9 @@
 						</div>
 						<div class="flex gap-2">
 							<Button type="submit" size="sm" disabled={!scDate}>Save</Button>
-							<Button type="button" size="sm" variant="ghost" onclick={() => (addingSc = false)}
-								>Cancel</Button
-							>
+							<Button type="button" size="sm" variant="ghost" onclick={() => (addingSc = false)}>
+								Cancel
+							</Button>
 						</div>
 					</form>
 				{/if}
@@ -1605,25 +1645,27 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Communications{#if c.communications.length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>({c.communications.length} logged)</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="text-base">
+					Communications{#if c.communications.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({c.communications.length} logged)
+						</span>{/if}
+				</Card.Title>
 				<div class="flex gap-1">
 					{#each [['all', 'All'], ['email', 'Email'], ['sms', 'SMS']] as [v, label] (v)}
 						<Button
 							size="sm"
 							variant={commFilter === v ? 'secondary' : 'ghost'}
-							onclick={() => (commFilter = v as typeof commFilter)}>{label}</Button
+							onclick={() => (commFilter = v as typeof commFilter)}
 						>
+							{label}
+						</Button>
 					{/each}
 				</div>
 				{#if c.customer.phone}
-					<Button size="sm" variant="outline" onclick={() => (textOpen = true)}
-						><MessageSquare /> Text</Button
-					>
+					<Button size="sm" variant="outline" onclick={() => (textOpen = true)}>
+						<MessageSquare /> Text
+					</Button>
 				{/if}
 			</Card.Header>
 			<Card.Content class="px-4">
@@ -1641,8 +1683,9 @@
 									: ''}
 							</p>
 						</div>
-						<span class="shrink-0 text-xs text-muted-foreground">{formatRelative(n.createdAt)}</span
-						>
+						<span class="shrink-0 text-xs text-muted-foreground">
+							{formatRelative(n.createdAt)}
+						</span>
 					</div>
 				{:else}
 					<Empty.Root class="border-0 py-2">
@@ -1660,11 +1703,11 @@
 	<div class="space-y-6 xl:col-span-2">
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between">
-				<Card.Title class="text-base"
-					>Jobs{#if c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>({c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length} open)</span
-						>{/if}{#if c.jobs
+				<Card.Title class="text-base">
+					Jobs{#if c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({c.jobs.filter((j) => !['done', 'cancelled'].includes(j.job.status)).length} open)
+						</span>{/if}{#if c.jobs
 						.filter((j) => j.job.status === 'done' && j.job.completedAt)
 						.map((j) => new Date(j.job.completedAt!).getTime())
 						.reduce((a, b) => Math.max(a, b), 0)}
@@ -1673,18 +1716,19 @@
 								.filter((j) => j.job.status === 'done' && j.job.completedAt)
 								.map((j) => new Date(j.job.completedAt!).getTime())
 						)}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>· last visit {Math.max(1, Math.floor((Date.now() - lastVisit) / 86400000))}d ago</span
-						>{/if}</Card.Title
-				>
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							· last visit {Math.max(1, Math.floor((Date.now() - lastVisit) / 86400000))}d ago
+						</span>{/if}
+				</Card.Title>
 				<div class="flex items-center gap-3">
 					{#if c.nextJob}
 						<a
 							href="/jobs/{c.nextJob.job.id}"
 							class="text-xs text-muted-foreground underline-offset-2 hover:underline"
-							>Next: {localDate(c.nextJob.job.startsAt!, tz)}
-							{localTime(c.nextJob.job.startsAt!, tz)}</a
 						>
+							Next: {localDate(c.nextJob.job.startsAt!, tz)}
+							{localTime(c.nextJob.job.startsAt!, tz)}
+						</a>
 					{/if}
 					<Button size="sm" variant="outline" href="/jobs?new=1&customer={id}"><Plus /> New</Button>
 				</div>
@@ -1698,19 +1742,19 @@
 									J-{j.job.number}
 									{j.job.summary || j.jobTypeName}
 								</Table.Cell>
-								<Table.Cell class="text-muted-foreground"
-									>{j.job.startsAt
+								<Table.Cell class="text-muted-foreground">
+									{j.job.startsAt
 										? `${localDate(j.job.startsAt, tz)} ${localTime(j.job.startsAt, tz)}`
-										: '—'}</Table.Cell
-								>
-								<Table.Cell class="pr-6 text-right"
-									><StatusBadge status={j.job.status} /></Table.Cell
-								>
+										: '—'}
+								</Table.Cell>
+								<Table.Cell class="pr-6 text-right">
+									<StatusBadge status={j.job.status} />
+								</Table.Cell>
 							</Table.Row>
 						{:else}
-							<Table.Row
-								><Table.Cell class="pl-6 text-muted-foreground">No jobs yet.</Table.Cell></Table.Row
-							>
+							<Table.Row>
+								<Table.Cell class="pl-6 text-muted-foreground">No jobs yet.</Table.Cell>
+							</Table.Row>
 						{/each}
 					</Table.Body>
 				</Table.Root>
@@ -1720,21 +1764,21 @@
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
-					<Card.Title class="text-base"
-						>Agreements{#if c.agreements.filter((a) => a.agreement.status === 'active').length}
-							<span class="ml-1 text-xs font-normal text-muted-foreground"
-								>({c.agreements.filter((a) => a.agreement.status === 'active').length} active)</span
-							>{/if}</Card.Title
-					>
+					<Card.Title class="text-base">
+						Agreements{#if c.agreements.filter((a) => a.agreement.status === 'active').length}
+							<span class="ml-1 text-xs font-normal text-muted-foreground">
+								({c.agreements.filter((a) => a.agreement.status === 'active').length} active)
+							</span>{/if}
+					</Card.Title>
 					<div class="flex gap-2">
 						{#if pendingVisits.length}
-							<Button size="sm" variant="outline" onclick={openVisits}
-								><CalendarPlus class="size-4" /> Schedule visits ({pendingVisits.length})</Button
-							>
+							<Button size="sm" variant="outline" onclick={openVisits}>
+								<CalendarPlus class="size-4" /> Schedule visits ({pendingVisits.length})
+							</Button>
 						{/if}
-						<Button size="sm" variant="outline" href="/agreements?new=1&customer={id}"
-							><Plus /> New</Button
-						>
+						<Button size="sm" variant="outline" href="/agreements?new=1&customer={id}">
+							<Plus /> New
+						</Button>
 					</div>
 				</Card.Header>
 				<Card.Content class="space-y-2 px-4">
@@ -1763,20 +1807,20 @@
 
 			<Card.Root>
 				<Card.Header class="flex-row items-center justify-between">
-					<Card.Title class="text-base"
-						>Estimates{#if c.estimates.filter( (e) => ['approved', 'converted'].includes(e.status) ).length}
-							<span class="ml-1 text-xs font-normal text-muted-foreground"
-								>({c.estimates.filter((e) => ['approved', 'converted'].includes(e.status)).length}
-								won)</span
-							>{/if}
+					<Card.Title class="text-base">
+						Estimates{#if c.estimates.filter( (e) => ['approved', 'converted'].includes(e.status) ).length}
+							<span class="ml-1 text-xs font-normal text-muted-foreground">
+								({c.estimates.filter((e) => ['approved', 'converted'].includes(e.status)).length}
+								won)
+							</span>{/if}
 						{#if c.openEstimates?.n}
-							<span class="ml-1 text-xs font-normal text-muted-foreground"
-								>({c.openEstimates.n} open · {formatMoney(c.openEstimates.total, currency)})</span
-							>{/if}</Card.Title
-					>
-					<Button size="sm" variant="outline" href="/estimates?new=1&customer={id}"
-						><Plus /> New</Button
-					>
+							<span class="ml-1 text-xs font-normal text-muted-foreground">
+								({c.openEstimates.n} open · {formatMoney(c.openEstimates.total, currency)})
+							</span>{/if}
+					</Card.Title>
+					<Button size="sm" variant="outline" href="/estimates?new=1&customer={id}">
+						<Plus /> New
+					</Button>
 				</Card.Header>
 				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
@@ -1788,10 +1832,9 @@
 									<Table.Cell class="pr-6 text-right"><StatusBadge status={e.status} /></Table.Cell>
 								</Table.Row>
 							{:else}
-								<Table.Row
-									><Table.Cell class="pl-6 text-muted-foreground">No estimates.</Table.Cell
-									></Table.Row
-								>
+								<Table.Row>
+									<Table.Cell class="pl-6 text-muted-foreground">No estimates.</Table.Cell>
+								</Table.Row>
 							{/each}
 						</Table.Body>
 					</Table.Root>
@@ -1810,8 +1853,9 @@
 							onclick={invoiceAllDone}
 							disabled={invoicingAll}
 							title="Draft an invoice for each completed job that isn't invoiced yet"
-							>Invoice {c.uninvoicedJobs} done job{c.uninvoicedJobs === 1 ? '' : 's'}</Button
 						>
+							Invoice {c.uninvoicedJobs} done job{c.uninvoicedJobs === 1 ? '' : 's'}
+						</Button>
 					{/if}
 					{#if c.customer.status === 'active'}
 						<Button
@@ -1820,16 +1864,20 @@
 							onclick={() => {
 								payDollars = '';
 								payOpen = true;
-							}}>Record payment</Button
+							}}
 						>
+							Record payment
+						</Button>
 						<Button
 							size="sm"
 							variant="outline"
 							onclick={() => {
 								creditDollars = '';
 								creditOpen = true;
-							}}>Add credit</Button
+							}}
 						>
+							Add credit
+						</Button>
 					{/if}
 					<Button size="sm" variant="ghost" href="/billing?customer={id}">All billing</Button>
 				</div>
@@ -1870,20 +1918,22 @@
 						.sort((a, b) => b.d.getTime() - a.d.getTime())
 						.slice(0, 10) as row (row.key)}
 						<li class="flex items-center justify-between">
-							<span class="truncate"
-								>{row.label}
+							<span class="truncate">
+								{row.label}
 								{#if row.disputed}<Button
 										variant="link"
 										type="button"
 										class="ml-1 h-auto p-0 text-xs font-medium text-amber-600 dark:text-amber-400"
 										title="Clear the dispute flag after following up with the customer"
-										onclick={() => resolveDispute(row.chargeId)}>disputed · resolve</Button
-									>{/if}
-								<span class="text-xs text-muted-foreground">{formatDate(row.d)}</span></span
-							>
-							<span class="tabular-nums {row.cents < 0 ? 'text-emerald-600' : ''}"
-								>{row.cents < 0 ? '−' : ''}{formatMoney(Math.abs(row.cents), currency)}</span
-							>
+										onclick={() => resolveDispute(row.chargeId)}
+									>
+										disputed · resolve
+									</Button>{/if}
+								<span class="text-xs text-muted-foreground">{formatDate(row.d)}</span>
+							</span>
+							<span class="tabular-nums {row.cents < 0 ? 'text-emerald-600' : ''}">
+								{row.cents < 0 ? '−' : ''}{formatMoney(Math.abs(row.cents), currency)}
+							</span>
 						</li>
 					{:else}
 						<li class="list-none">
@@ -1906,9 +1956,9 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>{locId ? 'Edit' : 'Add'} service location</Modal.Title>
-			<Modal.Description
-				>Where the work happens — an address plus optional on-site contact.</Modal.Description
-			>
+			<Modal.Description>
+				Where the work happens — an address plus optional on-site contact.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveLocation}>
 			<Field.Field>
@@ -1939,9 +1989,9 @@
 	<Modal.Content class="sm:max-w-sm">
 		<Modal.Header>
 			<Modal.Title>New follow-up</Modal.Title>
-			<Modal.Description
-				>A dated reminder — it shows here, on the dashboard when due, and in the assignee's inbox.</Modal.Description
-			>
+			<Modal.Description>
+				A dated reminder — it shows here, on the dashboard when due, and in the assignee's inbox.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveFollowUp}>
 			<Field.Field>
@@ -1956,9 +2006,9 @@
 				<Field.Field>
 					<Field.Label for="fup-member">Assign to</Field.Label>
 					<Select.Root type="single" bind:value={fupMember}>
-						<Select.Trigger id="fup-member" class="w-full"
-							>{staff.find((m) => m.id === fupMember)?.name ?? 'Me'}</Select.Trigger
-						>
+						<Select.Trigger id="fup-member" class="w-full">
+							{staff.find((m) => m.id === fupMember)?.name ?? 'Me'}
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="">Me</Select.Item>
 							{#each staff as m (m.id)}
@@ -1969,9 +2019,9 @@
 				</Field.Field>
 			</div>
 			<Modal.Footer>
-				<Button type="submit" disabled={fupPending || !fupNote.trim() || !fupDue}
-					>{fupPending ? 'Saving…' : 'Add follow-up'}</Button
-				>
+				<Button type="submit" disabled={fupPending || !fupNote.trim() || !fupDue}>
+					{fupPending ? 'Saving…' : 'Add follow-up'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2006,9 +2056,9 @@
 				<Switch bind:checked={contactPrimary} /> Primary contact
 			</label>
 			<Modal.Footer>
-				<Button type="submit" disabled={contactPending || !contactName.trim()}
-					>{contactPending ? 'Saving…' : 'Save contact'}</Button
-				>
+				<Button type="submit" disabled={contactPending || !contactName.trim()}>
+					{contactPending ? 'Saving…' : 'Save contact'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2040,11 +2090,11 @@
 				<Input id="cr-note" bind:value={creditNote} placeholder="Optional — e.g. goodwill" />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={creditPending || creditCents <= 0}
-					>{creditPending
+				<Button type="submit" disabled={creditPending || creditCents <= 0}>
+					{creditPending
 						? 'Saving…'
-						: `Add ${creditCents ? formatMoney(creditCents, currency) : 'credit'}`}</Button
-				>
+						: `Add ${creditCents ? formatMoney(creditCents, currency) : 'credit'}`}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2055,9 +2105,9 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>{eqId ? 'Edit' : 'Add'} equipment</Modal.Title>
-			<Modal.Description
-				>Installed equipment at a site — jobs can link to it for service history.</Modal.Description
-			>
+			<Modal.Description>
+				Installed equipment at a site — jobs can link to it for service history.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveEquipment}>
 			<Field.Field>
@@ -2067,16 +2117,16 @@
 			<Field.Field>
 				<Field.Label>Location</Field.Label>
 				<Select.Root type="single" bind:value={eqLocationId}>
-					<Select.Trigger class="w-full"
-						>{c.locations.find((l) => l.id === eqLocationId)
+					<Select.Trigger class="w-full">
+						{c.locations.find((l) => l.id === eqLocationId)
 							? `${c.locations.find((l) => l.id === eqLocationId)!.label ? `${c.locations.find((l) => l.id === eqLocationId)!.label} — ` : ''}${c.locations.find((l) => l.id === eqLocationId)!.address1}`
-							: 'Customer-wide'}</Select.Trigger
-					>
+							: 'Customer-wide'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each c.locations as l (l.id)}
-							<Select.Item value={l.id}
-								>{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}</Select.Item
-							>
+							<Select.Item value={l.id}>
+								{l.label ? `${l.label} — ` : ''}{l.address1}, {l.city}
+							</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
@@ -2157,11 +2207,13 @@
 										href="/jobs/{ej.job.id}"
 										class="truncate hover:underline"
 										data-sveltekit-preload-data="tap"
-										>J-{ej.job.number} {ej.job.summary || ej.jobTypeName || 'Visit'}</a
 									>
-									<span class="shrink-0 text-xs text-muted-foreground"
-										>{ej.job.startsAt ? formatDate(ej.job.startsAt) : ej.job.status}</span
-									>
+										J-{ej.job.number}
+										{ej.job.summary || ej.jobTypeName || 'Visit'}
+									</a>
+									<span class="shrink-0 text-xs text-muted-foreground">
+										{ej.job.startsAt ? formatDate(ej.job.startsAt) : ej.job.status}
+									</span>
 								</div>
 							{:else}
 								<Empty.Root class="border-0 py-3">
@@ -2176,9 +2228,9 @@
 				</div>
 				<div class="flex items-center gap-2 text-sm">
 					<Switch bind:checked={eqActive} id="eq-active" />
-					<Field.Label for="eq-active" class="font-normal"
-						>{eqActive ? 'Active' : 'Retired — hidden from job pickers'}</Field.Label
-					>
+					<Field.Label for="eq-active" class="font-normal">
+						{eqActive ? 'Active' : 'Retired — hidden from job pickers'}
+					</Field.Label>
 				</div>
 			{/if}
 			<Modal.Footer class="justify-between sm:justify-between">
@@ -2187,8 +2239,9 @@
 						variant="ghost"
 						type="button"
 						onclick={() => goto(`/jobs?new=1&customer=${id}&equipment=${eqId}`)}
-						><Wrench /> Book service</Button
 					>
+						<Wrench /> Book service
+					</Button>
 				{:else}
 					<span></span>
 				{/if}
@@ -2236,11 +2289,9 @@
 				<Input id="p-note" bind:value={payNote} placeholder="Optional" />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={payPending || payCents <= 0}
-					>{payPending
-						? 'Saving…'
-						: `Record ${payCents ? formatMoney(payCents, currency) : ''}`}</Button
-				>
+				<Button type="submit" disabled={payPending || payCents <= 0}>
+					{payPending ? 'Saving…' : `Record ${payCents ? formatMoney(payCents, currency) : ''}`}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2335,8 +2386,8 @@
 						<span class="font-normal text-muted-foreground">
 							· {j.jobTypeName ?? j.job.summary}{j.job.agreementPeriod
 								? ` · ${j.job.agreementPeriod}`
-								: ''}</span
-						>
+								: ''}
+						</span>
 					</p>
 					<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 						<Input
@@ -2345,10 +2396,9 @@
 							onchange={(e) => (v.startsAt = e.currentTarget.value)}
 						/>
 						<Select.Root type="single" bind:value={visitRows[i].technicianId}>
-							<Select.Trigger class="w-full"
-								>{technicians.find((t) => t.id === visitRows[i].technicianId)?.name ??
-									'Unassigned'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{technicians.find((t) => t.id === visitRows[i].technicianId)?.name ?? 'Unassigned'}
+							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="">Unassigned</Select.Item>
 								{#each technicians as t (t.id)}
@@ -2389,9 +2439,9 @@
 				/>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={textPending || !textMsg.trim()}
-					>{textPending ? 'Sending…' : 'Send text'}</Button
-				>
+				<Button type="submit" disabled={textPending || !textMsg.trim()}>
+					{textPending ? 'Sending…' : 'Send text'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -2429,9 +2479,9 @@
 	<Modal.Content class="sm:max-w-md">
 		<Modal.Header>
 			<Modal.Title>AI brief — {c.customer.name}</Modal.Title>
-			<Modal.Description
-				>Skim before the call. Drafted from jobs, invoices, and agreements.</Modal.Description
-			>
+			<Modal.Description>
+				Skim before the call. Drafted from jobs, invoices, and agreements.
+			</Modal.Description>
 		</Modal.Header>
 		{#if briefPending}
 			<p class="py-4 text-sm text-muted-foreground">Drafting…</p>

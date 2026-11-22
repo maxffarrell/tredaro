@@ -185,9 +185,10 @@
 			<Logo />
 			<span class="truncate font-semibold">{org.name}</span>
 			{#if settings?.address}
-				<span class="ml-auto hidden items-center gap-1 text-sm text-muted-foreground sm:flex"
-					><MapPin class="size-3.5" /> {settings.address}</span
-				>
+				<span class="ml-auto hidden items-center gap-1 text-sm text-muted-foreground sm:flex">
+					<MapPin class="size-3.5" />
+					{settings.address}
+				</span>
 			{/if}
 		</div>
 	</header>
@@ -197,21 +198,23 @@
 			<h1 class="text-3xl font-semibold tracking-tight">{org.name}</h1>
 			{#if settings?.tagline}<p class="text-lg text-muted-foreground">{settings.tagline}</p>{/if}
 			<div class="flex flex-wrap gap-3 text-sm text-muted-foreground">
-				{#if settings?.address}<span class="flex items-center gap-1"
-						><MapPin class="size-3.5" />{settings.address}</span
-					>{/if}
-				{#if settings?.phone}<span class="flex items-center gap-1"
-						><Phone class="size-3.5" />{settings.phone}</span
-					>{/if}
-				{#if settings?.businessHours}<span class="flex items-center gap-1"
-						><Clock class="size-3.5" />{settings.businessHours}</span
-					>{/if}
+				{#if settings?.address}<span class="flex items-center gap-1">
+						<MapPin class="size-3.5" />{settings.address}
+					</span>{/if}
+				{#if settings?.phone}<span class="flex items-center gap-1">
+						<Phone class="size-3.5" />{settings.phone}
+					</span>{/if}
+				{#if settings?.businessHours}<span class="flex items-center gap-1">
+						<Clock class="size-3.5" />{settings.businessHours}
+					</span>{/if}
 				{#if settings?.website}<a
 						class="flex items-center gap-1 underline-offset-4 hover:underline"
 						href={settings.website.startsWith('http')
 							? settings.website
-							: `https://${settings.website}`}><Globe class="size-3.5" />Website</a
-					>{/if}
+							: `https://${settings.website}`}
+					>
+						<Globe class="size-3.5" />Website
+					</a>{/if}
 			</div>
 		</div>
 
@@ -228,8 +231,10 @@
 							<Card.Content class="px-6">
 								<p class="text-2xl font-semibold tabular-nums">
 									{formatMoney(p.amount, currency)}<span
-										class="text-sm font-normal text-muted-foreground">/{p.interval}</span
+										class="text-sm font-normal text-muted-foreground"
 									>
+										/{p.interval}
+									</span>
 								</p>
 								<p class="mt-1 text-sm text-muted-foreground">
 									Ask about it when we call to schedule.
@@ -259,8 +264,10 @@
 								size="sm"
 								class="mt-3"
 								href={icsHref}
-								download="tredaro-booking.ics"><CalendarPlus /> Add to calendar</Button
+								download="tredaro-booking.ics"
 							>
+								<CalendarPlus /> Add to calendar
+							</Button>
 						{/if}
 					</Card.Content>
 				</Card.Root>
@@ -374,12 +381,13 @@
 												type="button"
 												class="h-auto p-0"
 												onclick={() => (preferredDate = data.earliestDay!)}
-												>{new Date(`${data.earliestDay}T00:00:00`).toLocaleDateString('en-US', {
+											>
+												{new Date(`${data.earliestDay}T00:00:00`).toLocaleDateString('en-US', {
 													weekday: 'short',
 													month: 'short',
 													day: 'numeric'
-												})}</Button
-											>
+												})}
+											</Button>
 										</p>
 									{:else if noticeDays > 0}
 										<p class="text-xs text-muted-foreground">
@@ -408,8 +416,9 @@
 												size="sm"
 												variant={preferredTime === slot ? 'default' : 'outline'}
 												onclick={() => (preferredTime = preferredTime === slot ? '' : slot)}
-												>{slot}</Button
 											>
+												{slot}
+											</Button>
 										{/each}
 									</div>
 									<Input
@@ -446,18 +455,18 @@
 								class="pointer-events-none absolute -left-[9999px] opacity-0"
 								aria-hidden="true"
 							/>
-							<Button type="submit" disabled={pending || dayFull || dayClosed}
-								>{pending ? 'Sending…' : 'Request service'}</Button
-							>
+							<Button type="submit" disabled={pending || dayFull || dayClosed}>
+								{pending ? 'Sending…' : 'Request service'}
+							</Button>
 						</form>
 					</Card.Content>
 				</Card.Root>
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="text-base">Can't find a time that works?</Card.Title>
-						<Card.Description
-							>Join the waitlist — we'll call or email you as soon as something opens up.</Card.Description
-						>
+						<Card.Description>
+							Join the waitlist — we'll call or email you as soon as something opens up.
+						</Card.Description>
 					</Card.Header>
 					<Card.Content class="px-6 pb-6">
 						{#if waitlistDone}
@@ -489,9 +498,9 @@
 									{/if}
 								</div>
 								<Input placeholder="Anything we should know? (optional)" bind:value={wlNote} />
-								<Button type="submit" variant="outline" disabled={wlPending}
-									>{wlPending ? 'Joining…' : 'Join the waitlist'}</Button
-								>
+								<Button type="submit" variant="outline" disabled={wlPending}>
+									{wlPending ? 'Joining…' : 'Join the waitlist'}
+								</Button>
 							</form>
 						{/if}
 					</Card.Content>

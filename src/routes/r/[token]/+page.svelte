@@ -62,9 +62,9 @@
 					)}
 				</p>
 			</div>
-			<Button variant="outline" size="sm" class="print:hidden" onclick={() => window.print()}
-				><Printer /> Print</Button
-			>
+			<Button variant="outline" size="sm" class="print:hidden" onclick={() => window.print()}>
+				<Printer /> Print
+			</Button>
 		</div>
 
 		<Card.Root>
@@ -134,12 +134,12 @@
 							{#each materials as m (m.name + m.qty)}
 								<Table.Row>
 									<Table.Cell class="pl-6 font-medium">{m.name}</Table.Cell>
-									<Table.Cell class="text-right tabular-nums"
-										>{m.qty}{m.unit ? ` ${m.unit}` : ''}</Table.Cell
-									>
-									<Table.Cell class="pr-6 text-right tabular-nums"
-										>{formatMoney(m.qty * m.unitPrice, currency)}</Table.Cell
-									>
+									<Table.Cell class="text-right tabular-nums">
+										{m.qty}{m.unit ? ` ${m.unit}` : ''}
+									</Table.Cell>
+									<Table.Cell class="pr-6 text-right tabular-nums">
+										{formatMoney(m.qty * m.unitPrice, currency)}
+									</Table.Cell>
 								</Table.Row>
 							{/each}
 						</Table.Body>
@@ -166,9 +166,9 @@
 									class="aspect-square w-full object-cover transition-transform group-hover:scale-105"
 								/>
 								{#if p.phase}
-									<Badge variant="secondary" class="absolute bottom-1 left-1 text-[10px]"
-										>{phaseLabel(p.phase)}</Badge
-									>
+									<Badge variant="secondary" class="absolute bottom-1 left-1 text-[10px]">
+										{phaseLabel(p.phase)}
+									</Badge>
 								{/if}
 							</a>
 						{/each}

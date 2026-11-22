@@ -138,9 +138,9 @@
 						<Empty.Header>
 							<Empty.Media><CalendarCheck /></Empty.Media>
 							<Empty.Title>Nothing scheduled today</Empty.Title>
-							<Empty.Description
-								><a href="/dispatch" class="underline">Check the dispatch board</a> to fill the day.</Empty.Description
-							>
+							<Empty.Description>
+								<a href="/dispatch" class="underline">Check the dispatch board</a> to fill the day.
+							</Empty.Description>
 						</Empty.Header>
 					</Empty.Root>
 				{:else}
@@ -152,13 +152,13 @@
 										<span class="mr-2 inline-block size-2 rounded-full" style:background={j.color}
 										></span>{j.summary || j.jobTypeName}
 										<span class="text-muted-foreground">· {j.customerName}</span>
-										{#if j.technicianName}<span class="text-muted-foreground"
-												>· {j.technicianName}</span
-											>{/if}
+										{#if j.technicianName}<span class="text-muted-foreground">
+												· {j.technicianName}
+											</span>{/if}
 									</Table.Cell>
-									<Table.Cell class="w-24 text-muted-foreground"
-										>{j.startsAt ? localTime(j.startsAt, d.timezone) : '—'}</Table.Cell
-									>
+									<Table.Cell class="w-24 text-muted-foreground">
+										{j.startsAt ? localTime(j.startsAt, d.timezone) : '—'}
+									</Table.Cell>
 									<Table.Cell class="w-28 text-right">
 										<StatusBadge status={j.status} />
 									</Table.Cell>
@@ -192,9 +192,9 @@
 											<span class="block truncate text-xs text-muted-foreground">{a.sub}</span>
 										</span>
 										{#if a.amountCents != null}
-											<span class="shrink-0 text-xs font-medium"
-												>{formatMoney(a.amountCents, d.currency)}</span
-											>
+											<span class="shrink-0 text-xs font-medium">
+												{formatMoney(a.amountCents, d.currency)}
+											</span>
 										{/if}
 									</a>
 								</li>
@@ -215,12 +215,13 @@
 								<li class="flex items-center gap-3 text-sm">
 									<span
 										class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
-										>{i + 1}</span
 									>
+										{i + 1}
+									</span>
 									<span class="min-w-0 flex-1 truncate">{t.name}</span>
-									<span class="shrink-0 text-xs text-muted-foreground"
-										>{t.done} job{t.done === 1 ? '' : 's'}{t.hours ? ` · ${t.hours}h` : ''}</span
-									>
+									<span class="shrink-0 text-xs text-muted-foreground">
+										{t.done} job{t.done === 1 ? '' : 's'}{t.hours ? ` · ${t.hours}h` : ''}
+									</span>
 								</li>
 							{/each}
 						</ul>

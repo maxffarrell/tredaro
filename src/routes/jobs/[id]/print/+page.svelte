@@ -100,8 +100,9 @@
 						<li class="flex items-center gap-2">
 							<span
 								class="inline-block size-4 border border-neutral-500 text-center text-xs leading-4"
-								>{item.done ? '✓' : ''}</span
 							>
+								{item.done ? '✓' : ''}
+							</span>
 							<span class={item.done ? 'line-through opacity-60' : ''}>{item.label}</span>
 						</li>
 					{/each}
@@ -114,9 +115,9 @@
 				<thead>
 					<tr class="border-b text-left">
 						<th class="py-1 font-semibold tracking-wide text-neutral-500 uppercase">Material</th>
-						<th class="py-1 text-right font-semibold tracking-wide text-neutral-500 uppercase"
-							>Qty</th
-						>
+						<th class="py-1 text-right font-semibold tracking-wide text-neutral-500 uppercase">
+							Qty
+						</th>
 						<th class="py-1 pl-4 font-semibold tracking-wide text-neutral-500 uppercase">Unit</th>
 					</tr>
 				</thead>

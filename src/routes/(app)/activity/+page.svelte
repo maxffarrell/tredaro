@@ -75,11 +75,9 @@
 	{/if}
 	{#if actors.length}
 		<Select.Root type="single" value={actorId} onValueChange={refilterActor}>
-			<Select.Trigger class="w-48"
-				>{actorId
-					? (actors.find((a) => a.actorId === actorId)?.name ?? 'Anyone')
-					: 'Anyone'}</Select.Trigger
-			>
+			<Select.Trigger class="w-48">
+				{actorId ? (actors.find((a) => a.actorId === actorId)?.name ?? 'Anyone') : 'Anyone'}
+			</Select.Trigger>
 			<Select.Content>
 				<Select.Item value="">Anyone</Select.Item>
 				{#each actors as a (a.actorId)}
@@ -124,12 +122,12 @@
 								{r.actorName ?? r.actorEmail ?? 'System'}
 							</Table.Cell>
 							<Table.Cell class="hidden md:table-cell">
-								<Badge variant="secondary" class="font-normal capitalize"
-									>{r.activity.entityType.replaceAll('_', ' ')} · {r.activity.action.replaceAll(
+								<Badge variant="secondary" class="font-normal capitalize">
+									{r.activity.entityType.replaceAll('_', ' ')} · {r.activity.action.replaceAll(
 										'_',
 										' '
-									)}</Badge
-								>
+									)}
+								</Badge>
 							</Table.Cell>
 						</Table.Row>
 					{:else}
@@ -139,9 +137,9 @@
 									<Empty.Header>
 										<Empty.Media><History /></Empty.Media>
 										<Empty.Title>No activity yet</Empty.Title>
-										<Empty.Description
-											>Jobs, invoices, and customer changes show up here as they happen.</Empty.Description
-										>
+										<Empty.Description>
+											Jobs, invoices, and customer changes show up here as they happen.
+										</Empty.Description>
 									</Empty.Header>
 								</Empty.Root>
 							</Table.Cell>
@@ -161,8 +159,10 @@
 								actorId: actorId || undefined,
 								limit
 							});
-						}}>Load more</Button
+						}}
 					>
+						Load more
+					</Button>
 				</div>
 			{/if}
 		</Card.Content>

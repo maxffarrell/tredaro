@@ -95,11 +95,11 @@
 				<p class="font-semibold tracking-wide text-neutral-500 uppercase">Pull list — materials</p>
 				<table class="mt-1 w-full">
 					<thead>
-						<tr class="border-b text-left"
-							><th class="py-1">Item</th><th class="py-1">SKU</th><th class="w-20 py-1 text-right"
-								>Qty</th
-							></tr
-						>
+						<tr class="border-b text-left">
+							<th class="py-1">Item</th><th class="py-1">SKU</th><th class="w-20 py-1 text-right">
+								Qty
+							</th>
+						</tr>
 					</thead>
 					<tbody>
 						{#each day.materials as m (m.name + (m.sku ?? ''))}

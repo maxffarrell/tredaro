@@ -168,9 +168,9 @@
 			new Date(a.agreement.nextChargeAt) <= new Date(Date.now() + 7 * 86400_000)
 	).length}
 	<p class="mb-4 text-sm text-muted-foreground">
-		Monthly recurring revenue: <span class="font-medium text-foreground"
-			>{formatMoney(mrr, currency)}</span
-		>
+		Monthly recurring revenue: <span class="font-medium text-foreground">
+			{formatMoney(mrr, currency)}
+		</span>
 		across {agreements.filter((a) => a.agreement.status === 'active').length} active agreement{agreements.filter(
 			(a) => a.agreement.status === 'active'
 		).length === 1
@@ -190,9 +190,9 @@
 		{#if fixedTerm}
 			· {fixedTerm} fixed-term{/if}
 		{#if agreements.filter((a) => a.agreement.status === 'paused').length}
-			· <span class="text-amber-600 dark:text-amber-400"
-				>{agreements.filter((a) => a.agreement.status === 'paused').length} paused</span
-			>{/if}
+			· <span class="text-amber-600 dark:text-amber-400">
+				{agreements.filter((a) => a.agreement.status === 'paused').length} paused
+			</span>{/if}
 	</p>
 {/if}
 
@@ -223,34 +223,30 @@
 							{#each agreements as a (a.agreement.id)}
 								<Table.Row>
 									<Table.Cell class="font-medium">
-										<a href="/customers/{a.agreement.customerId}" class="hover:underline"
-											>{a.customerName}</a
-										>
+										<a href="/customers/{a.agreement.customerId}" class="hover:underline">
+											{a.customerName}
+										</a>
 									</Table.Cell>
-									<Table.Cell
-										>{a.planName}
-										<span class="text-muted-foreground"
-											>{formatMoney(a.amount, currency)}/{a.interval}</span
-										></Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{formatDate(a.agreement.startsAt)}</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{a.agreement.status === 'active'
-											? formatDate(a.agreement.nextChargeAt)
-											: '—'}</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground md:table-cell"
-										>{a.includedVisits
-											? `${a.visitsUsed ?? 0} of ${a.includedVisits}`
-											: '—'}</Table.Cell
-									>
-									<Table.Cell class="hidden text-muted-foreground lg:table-cell"
-										>{a.agreement.maxPeriods
+									<Table.Cell>
+										{a.planName}
+										<span class="text-muted-foreground">
+											{formatMoney(a.amount, currency)}/{a.interval}
+										</span>
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{formatDate(a.agreement.startsAt)}
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{a.agreement.status === 'active' ? formatDate(a.agreement.nextChargeAt) : '—'}
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground md:table-cell">
+										{a.includedVisits ? `${a.visitsUsed ?? 0} of ${a.includedVisits}` : '—'}
+									</Table.Cell>
+									<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+										{a.agreement.maxPeriods
 											? `${a.agreement.termsCompleted ? `term ${a.agreement.termsCompleted + 1} · ` : ''}${(a.periodsBilled ?? 0) - (a.agreement.termsCompleted ?? 0) * a.agreement.maxPeriods} of ${a.agreement.maxPeriods}${a.agreement.autoRenew ? ' ↻' : ''}`
-											: '∞'}</Table.Cell
-									>
+											: '∞'}
+									</Table.Cell>
 									<Table.Cell><StatusBadge status={a.agreement.status} /></Table.Cell>
 									<Table.Cell class="text-right">
 										{#if a.agreement.status === 'active'}
@@ -259,24 +255,28 @@
 												size="icon"
 												class="size-8"
 												title="Charge next period now"
-												onclick={() => chargeNow(a.agreement.id)}><Zap class="size-4" /></Button
+												onclick={() => chargeNow(a.agreement.id)}
 											>
+												<Zap class="size-4" />
+											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
 												class="size-8"
 												title="Pause"
 												onclick={() => setStatus(a.agreement.id, 'paused')}
-												><Pause class="size-4" /></Button
 											>
+												<Pause class="size-4" />
+											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
 												class="size-8 text-destructive"
 												title="Cancel"
 												onclick={() => setStatus(a.agreement.id, 'cancelled')}
-												><Ban class="size-4" /></Button
 											>
+												<Ban class="size-4" />
+											</Button>
 										{:else if a.agreement.status === 'paused'}
 											<Button
 												variant="ghost"
@@ -284,17 +284,18 @@
 												class="size-8"
 												title="Resume"
 												onclick={() => setStatus(a.agreement.id, 'active')}
-												><Play class="size-4" /></Button
 											>
+												<Play class="size-4" />
+											</Button>
 										{/if}
 									</Table.Cell>
 								</Table.Row>
 							{:else}
-								<Table.Row
-									><Table.Cell colspan={6} class="text-center text-muted-foreground"
-										>No agreements yet.</Table.Cell
-									></Table.Row
-								>
+								<Table.Row>
+									<Table.Cell colspan={6} class="text-center text-muted-foreground">
+										No agreements yet.
+									</Table.Cell>
+								</Table.Row>
 							{/each}
 						</Table.Body>
 					</Table.Root>
@@ -317,8 +318,10 @@
 							<Card.Content>
 								<p class="text-2xl font-semibold tabular-nums">
 									{formatMoney(p.amount, currency)}<span
-										class="text-sm font-normal text-muted-foreground">/{p.interval}</span
+										class="text-sm font-normal text-muted-foreground"
 									>
+										/{p.interval}
+									</span>
 								</p>
 								{#if p.initialFee}
 									<p class="text-xs text-muted-foreground">
@@ -354,9 +357,9 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>{planId ? 'Edit' : 'New'} plan</Modal.Title>
-			<Modal.Description
-				>A recurring maintenance/contract tier customers subscribe to.</Modal.Description
-			>
+			<Modal.Description>
+				A recurring maintenance/contract tier customers subscribe to.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={savePlan}>
 			<Field.Field>
@@ -403,22 +406,23 @@
 			<Field.Field>
 				<Field.Label>Visit job type</Field.Label>
 				<Select.Root type="single" bind:value={planJobTypeId}>
-					<Select.Trigger class="w-full"
-						>{jobTypes.find((t) => t.id === planJobTypeId)?.name ?? 'None'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{jobTypes.find((t) => t.id === planJobTypeId)?.name ?? 'None'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each jobTypes.filter((t) => t.active) as t (t.id)}
 							<Select.Item value={t.id}>{t.name}</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
-				<Field.Description
-					>Each billing period auto-creates this many unscheduled jobs of this type for dispatch.</Field.Description
-				>
+				<Field.Description>
+					Each billing period auto-creates this many unscheduled jobs of this type for dispatch.
+				</Field.Description>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={planPending}>{planPending ? 'Saving…' : 'Save plan'}</Button
-				>
+				<Button type="submit" disabled={planPending}>
+					{planPending ? 'Saving…' : 'Save plan'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -429,16 +433,17 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>New agreement</Modal.Title>
-			<Modal.Description>Posts the initial fee plus the first billing period now.</Modal.Description
-			>
+			<Modal.Description>
+				Posts the initial fee plus the first billing period now.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={saveAgreement}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
 				<Select.Root type="single" bind:value={agCustomerId}>
-					<Select.Trigger class="w-full"
-						>{customers.find((c) => c.id === agCustomerId)?.name ?? 'Choose'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{customers.find((c) => c.id === agCustomerId)?.name ?? 'Choose'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each customers as c (c.id)}
 							<Select.Item value={c.id}>{c.name}</Select.Item>
@@ -449,14 +454,14 @@
 			<Field.Field>
 				<Field.Label>Plan</Field.Label>
 				<Select.Root type="single" bind:value={agPlanId}>
-					<Select.Trigger class="w-full"
-						>{plans.find((p) => p.id === agPlanId)?.name ?? 'Choose'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{plans.find((p) => p.id === agPlanId)?.name ?? 'Choose'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each plans.filter((p) => p.active) as p (p.id)}
-							<Select.Item value={p.id}
-								>{p.name} — {formatMoney(p.amount, currency)}/{p.interval}</Select.Item
-							>
+							<Select.Item value={p.id}>
+								{p.name} — {formatMoney(p.amount, currency)}/{p.interval}
+							</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
@@ -466,9 +471,9 @@
 				<Input id="ag-start" type="date" bind:value={agStart} />
 			</Field.Field>
 			<Field.Field>
-				<Field.Label for="ag-term"
-					>Fixed term <span class="text-muted-foreground">(optional)</span></Field.Label
-				>
+				<Field.Label for="ag-term">
+					Fixed term <span class="text-muted-foreground">(optional)</span>
+				</Field.Label>
 				<Input
 					id="ag-term"
 					type="number"
@@ -492,9 +497,9 @@
 				</p>
 			{/if}
 			<Modal.Footer>
-				<Button type="submit" disabled={agPending || !agCustomerId || !agPlanId}
-					>{agPending ? 'Creating…' : 'Create agreement'}</Button
-				>
+				<Button type="submit" disabled={agPending || !agCustomerId || !agPlanId}>
+					{agPending ? 'Creating…' : 'Create agreement'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>

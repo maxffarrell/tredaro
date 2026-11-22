@@ -65,9 +65,9 @@
 								{/if}
 								{#each jobsOn(tech.id, d) as j (j.job.id)}
 									<p class="mb-1">
-										<span class="font-medium"
-											>{localTime(new Date(j.job.startsAt!), tz)} J-{j.job.number}</span
-										><br />{j.job.summary || j.jobTypeName} — {j.customerName}
+										<span class="font-medium">
+											{localTime(new Date(j.job.startsAt!), tz)} J-{j.job.number}
+										</span><br />{j.job.summary || j.jobTypeName} — {j.customerName}
 									</p>
 								{/each}
 							</td>
@@ -76,16 +76,16 @@
 				{/each}
 				{#if hasUnassigned}
 					<tr>
-						<td class="border border-neutral-300 p-1.5 align-top font-medium text-neutral-500"
-							>Unassigned</td
-						>
+						<td class="border border-neutral-300 p-1.5 align-top font-medium text-neutral-500">
+							Unassigned
+						</td>
 						{#each days as d (d)}
 							<td class="border border-neutral-300 p-1.5 align-top">
 								{#each jobsOn(null, d) as j (j.job.id)}
 									<p class="mb-1">
-										<span class="font-medium"
-											>{localTime(new Date(j.job.startsAt!), tz)} J-{j.job.number}</span
-										><br />{j.job.summary || j.jobTypeName} — {j.customerName}
+										<span class="font-medium">
+											{localTime(new Date(j.job.startsAt!), tz)} J-{j.job.number}
+										</span><br />{j.job.summary || j.jobTypeName} — {j.customerName}
 									</p>
 								{/each}
 							</td>

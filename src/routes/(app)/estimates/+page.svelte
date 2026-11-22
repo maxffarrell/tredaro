@@ -222,12 +222,12 @@
 	{/if}
 	{#if tab === 'approved' && estimates.length}
 		<p class="text-sm text-muted-foreground">
-			Won: <span class="font-medium text-foreground"
-				>{formatMoney(
+			Won: <span class="font-medium text-foreground">
+				{formatMoney(
 					estimates.reduce((s, e) => s + e.total, 0),
 					currency
-				)}</span
-			>
+				)}
+			</span>
 			across {estimates.length} approved estimate{estimates.length === 1 ? '' : 's'} · avg {formatMoney(
 				estimates.length ? estimates.reduce((s, e) => s + e.total, 0) / estimates.length : 0,
 				currency
@@ -237,12 +237,12 @@
 
 	{#if tab === 'sent' && estimates.length}
 		<p class="text-sm text-muted-foreground">
-			Open pipeline: <span class="font-medium text-foreground"
-				>{formatMoney(
+			Open pipeline: <span class="font-medium text-foreground">
+				{formatMoney(
 					estimates.reduce((s, e) => s + e.total, 0),
 					currency
-				)}</span
-			>
+				)}
+			</span>
 			across {estimates.length} sent estimate{estimates.length === 1 ? '' : 's'} ·
 			{estimates.filter((e) => e.viewed).length} viewed{#if estimates.filter((e) => !e.viewed).length}
 				· {estimates.filter((e) => !e.viewed).length} not yet opened{/if}{#if expiringSoon}
@@ -252,36 +252,36 @@
 	{/if}
 	{#if tab === 'draft' && estimates.length}
 		<p class="text-sm text-muted-foreground">
-			Draft pipeline: <span class="font-medium text-foreground"
-				>{formatMoney(
+			Draft pipeline: <span class="font-medium text-foreground">
+				{formatMoney(
 					estimates.reduce((s, e) => s + e.total, 0),
 					currency
-				)}</span
-			>
+				)}
+			</span>
 			across {estimates.length} draft estimate{estimates.length === 1 ? '' : 's'} — send them to start
 			the pipeline
 		</p>
 	{/if}
 	{#if tab === 'declined' && estimates.length}
 		<p class="text-sm text-muted-foreground">
-			Lost pipeline: <span class="font-medium text-foreground"
-				>{formatMoney(
+			Lost pipeline: <span class="font-medium text-foreground">
+				{formatMoney(
 					estimates.reduce((s, e) => s + e.total, 0),
 					currency
-				)}</span
-			>
+				)}
+			</span>
 			across {estimates.length} declined estimate{estimates.length === 1 ? '' : 's'} · avg
 			{formatMoney(estimates.reduce((s, e) => s + e.total, 0) / estimates.length, currency)}
 		</p>
 	{/if}
 	{#if tab === 'expired' && estimates.length}
 		<p class="text-sm text-muted-foreground">
-			Stale pipeline: <span class="font-medium text-foreground"
-				>{formatMoney(
+			Stale pipeline: <span class="font-medium text-foreground">
+				{formatMoney(
 					estimates.reduce((s, e) => s + e.total, 0),
 					currency
-				)}</span
-			>
+				)}
+			</span>
 			across {estimates.length} expired estimate{estimates.length === 1 ? '' : 's'} — consider revising
 			or following up
 		</p>
@@ -308,14 +308,14 @@
 								{/if}
 							</Table.Cell>
 							<Table.Cell>{e.customerName}</Table.Cell>
-							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{e.estimate.sentAt
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{e.estimate.sentAt
 									? `sent ${formatDate(e.estimate.sentAt)}`
-									: formatDate(e.estimate.createdAt)}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(e.total, currency)}</Table.Cell
-							>
+									: formatDate(e.estimate.createdAt)}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(e.total, currency)}
+							</Table.Cell>
 							<Table.Cell>
 								<StatusBadge status={e.estimate.status} />
 								{#if e.viewed && e.estimate.status === 'sent'}
@@ -325,15 +325,18 @@
 									<Badge
 										variant="outline"
 										class="ml-1 text-amber-600 dark:text-amber-400"
-										title="Sent 7+ days ago, no decision — follow up">stale</Badge
+										title="Sent 7+ days ago, no decision — follow up"
 									>
+										stale
+									</Badge>
 								{/if}
 								{#if e.estimate.decisionNote?.includes('Changes requested')}
 									<Badge
 										variant="secondary"
 										class="ml-1 border-amber-200 bg-amber-100 font-normal text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-										>Changes</Badge
 									>
+										Changes
+									</Badge>
 								{/if}
 							</Table.Cell>
 						</Table.Row>
@@ -346,9 +349,9 @@
 										<Empty.Title>No estimates</Empty.Title>
 										<Empty.Description>Price out the first job.</Empty.Description>
 									</Empty.Header>
-									<Empty.Content
-										><Button onclick={() => (open = true)}>New estimate</Button></Empty.Content
-									>
+									<Empty.Content>
+										<Button onclick={() => (open = true)}>New estimate</Button>
+									</Empty.Content>
 								</Empty.Root>
 							</Table.Cell>
 						</Table.Row>
@@ -363,18 +366,17 @@
 	<Modal.Content class="sm:max-w-xl">
 		<Modal.Header>
 			<Modal.Title>New estimate</Modal.Title>
-			<Modal.Description
-				>Line items in {currency}. You can send it after it's created.</Modal.Description
-			>
+			<Modal.Description>
+				Line items in {currency}. You can send it after it's created.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={submit}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
 				<Select.Root type="single" bind:value={customerId}>
-					<Select.Trigger class="w-full"
-						>{customers.find((c) => c.id === customerId)?.name ??
-							'Choose a customer'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{customers.find((c) => c.id === customerId)?.name ?? 'Choose a customer'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each customers as c (c.id)}
 							<Select.Item value={c.id}>{c.name}</Select.Item>
@@ -385,9 +387,9 @@
 			<Field.Field>
 				<Field.Label>Job type</Field.Label>
 				<Select.Root type="single" bind:value={jobTypeId}>
-					<Select.Trigger class="w-full"
-						>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">None</Select.Item>
 						{#each jobTypes.filter((t) => t.active) as t (t.id)}
@@ -413,8 +415,10 @@
 										unitPrice: sg.price,
 										optionGroup: ''
 									}
-								])}>{sg.name}</Button
+								])}
 						>
+							{sg.name}
+						</Button>
 					{/each}
 				</div>
 			{/if}
@@ -443,8 +447,9 @@
 							class="size-8"
 							disabled={items.length === 1}
 							onclick={() => items.splice(i, 1) && (items = items)}
-							><Trash2 class="size-4" /></Button
 						>
+							<Trash2 class="size-4" />
+						</Button>
 					</div>
 				{/each}
 				<div class="flex items-center justify-between gap-2">
@@ -456,8 +461,10 @@
 								(items = [
 									...items,
 									{ pricebookItemId: null, name: '', qty: 1, unitPrice: 0, optionGroup: '' }
-								])}><Plus /> Add item</Button
+								])}
 						>
+							<Plus /> Add item
+						</Button>
 						{#if ai.available}
 							<Button
 								type="button"
@@ -473,11 +480,11 @@
 					</div>
 					<span class="text-sm font-medium tabular-nums">{formatMoney(totalCents, currency)}</span>
 					{#if estCostCents > 0 && totalCents > 0}
-						<span class="text-xs text-muted-foreground"
-							>~{formatMoney(totalCents - estCostCents, currency)} margin ({Math.round(
+						<span class="text-xs text-muted-foreground">
+							~{formatMoney(totalCents - estCostCents, currency)} margin ({Math.round(
 								((totalCents - estCostCents) / totalCents) * 100
-							)}%)</span
-						>
+							)}%)
+						</span>
 					{/if}
 				</div>
 			</div>
@@ -495,9 +502,9 @@
 				<Textarea id="e-notes" rows={3} bind:value={notes} placeholder="Terms, exclusions, etc." />
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={pending || !customerId}
-					>{pending ? 'Creating…' : 'Create estimate'}</Button
-				>
+				<Button type="submit" disabled={pending || !customerId}>
+					{pending ? 'Creating…' : 'Create estimate'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>

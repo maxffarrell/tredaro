@@ -76,8 +76,10 @@
 					Just need a different time?
 					<a
 						href="/book/reschedule/{page.params.token}"
-						class="font-medium text-foreground underline">Request a reschedule</a
-					> instead.
+						class="font-medium text-foreground underline"
+					>
+						Request a reschedule
+					</a> instead.
 				</p>
 			{/if}
 		</Card.Content>

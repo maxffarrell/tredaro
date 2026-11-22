@@ -173,8 +173,10 @@
 							class="hover:underline"
 							href={orgWebsite.startsWith('http') ? orgWebsite : `https://${orgWebsite}`}
 							target="_blank"
-							rel="noreferrer">{orgWebsite.replace(/^https?:\/\//, '')}</a
-						>{/if}
+							rel="noreferrer"
+						>
+							{orgWebsite.replace(/^https?:\/\//, '')}
+						</a>{/if}
 				</span>
 			{/if}
 		</div>
@@ -197,9 +199,9 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<StatusBadge status={decided ?? est.status} />
-				<Button size="sm" variant="outline" class="print:hidden" onclick={() => window.print()}
-					><Printer /> Print</Button
-				>
+				<Button size="sm" variant="outline" class="print:hidden" onclick={() => window.print()}>
+					<Printer /> Print
+				</Button>
 			</div>
 		</div>
 
@@ -225,8 +227,8 @@
 				<Table.Body>
 					{#each rows as i (i.id)}
 						<Table.Row>
-							<Table.Cell class="pl-6"
-								>{#if i.optional && !decided && est.status === 'sent'}
+							<Table.Cell class="pl-6">
+								{#if i.optional && !decided && est.status === 'sent'}
 									<label
 										class="mr-2 inline-flex cursor-pointer items-center gap-1.5 align-middle text-xs text-muted-foreground"
 									>
@@ -236,19 +238,17 @@
 										/>
 										include
 									</label>
-								{:else if i.optional}<Badge variant="secondary" class="mr-1 font-normal"
-										>{excluded.has(i.id) ? 'Skipped' : 'Optional'}</Badge
-									>{/if}{i.name}<span class="text-muted-foreground">
-									{i.description}</span
-								></Table.Cell
-							>
+								{:else if i.optional}<Badge variant="secondary" class="mr-1 font-normal">
+										{excluded.has(i.id) ? 'Skipped' : 'Optional'}
+									</Badge>{/if}{i.name}<span class="text-muted-foreground"> {i.description}</span>
+							</Table.Cell>
 							<Table.Cell class="text-right">{i.qty}</Table.Cell>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(i.unitPrice, currency)}</Table.Cell
-							>
-							<Table.Cell class="pr-6 text-right tabular-nums"
-								>{formatMoney(i.qty * i.unitPrice, currency)}</Table.Cell
-							>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(i.unitPrice, currency)}
+							</Table.Cell>
+							<Table.Cell class="pr-6 text-right tabular-nums">
+								{formatMoney(i.qty * i.unitPrice, currency)}
+							</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
@@ -258,9 +258,9 @@
 		{#if groups.length}
 			{#if baseItems.length}
 				<Card.Root>
-					<Card.Header
-						><Card.Title class="text-base">Included in every option</Card.Title></Card.Header
-					>
+					<Card.Header>
+						<Card.Title class="text-base">Included in every option</Card.Title>
+					</Card.Header>
 					<Card.Content class="overflow-x-auto px-0">
 						{@render itemsTable(baseItems)}
 					</Card.Content>
@@ -285,15 +285,15 @@
 									{#if decided && pickedOption === g}
 										<Badge>Accepted</Badge>
 									{/if}
-									<span class="font-semibold tabular-nums"
-										>{formatMoney(
+									<span class="font-semibold tabular-nums">
+										{formatMoney(
 											gItems.reduce(
 												(s, i) => s + (excluded.has(i.id) ? 0 : i.qty * i.unitPrice),
 												0
 											),
 											currency
-										)}</span
-									>
+										)}
+									</span>
 								</div>
 							</Card.Header>
 							<Card.Content class="overflow-x-auto px-0">
@@ -305,9 +305,9 @@
 			</div>
 			<Card.Root>
 				<Card.Content class="flex justify-between py-3 text-sm font-semibold tabular-nums">
-					<span>Total{pickedOption ? ` (base + ${pickedOption})` : ' — pick an option'}</span><span
-						>{formatMoney(total, currency)}</span
-					>
+					<span>Total{pickedOption ? ` (base + ${pickedOption})` : ' — pick an option'}</span><span>
+						{formatMoney(total, currency)}
+					</span>
 				</Card.Content>
 			</Card.Root>
 		{:else}
@@ -315,9 +315,9 @@
 				<Card.Content class="overflow-x-auto px-0">
 					{@render itemsTable(items)}
 					<div class="flex justify-between border-t px-6 py-3 text-sm font-semibold tabular-nums">
-						<span>Total{hasOptional ? ' (with selected options)' : ''}</span><span
-							>{formatMoney(total, currency)}</span
-						>
+						<span>Total{hasOptional ? ' (with selected options)' : ''}</span><span>
+							{formatMoney(total, currency)}
+						</span>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -353,9 +353,9 @@
 										placeholder="Weekday mornings, after Thursday, anytime…"
 									/>
 								</Field.Field>
-								<Button size="sm" class="mt-2" disabled={pending} onclick={sendPreference}
-									>Send</Button
-								>
+								<Button size="sm" class="mt-2" disabled={pending} onclick={sendPreference}>
+									Send
+								</Button>
 							</div>
 						{/if}
 					{/if}
@@ -390,9 +390,9 @@
 			<Card.Root class="print:hidden">
 				<Card.Header>
 					<Card.Title class="text-base">Your decision</Card.Title>
-					<Card.Description
-						>Approve to put this work on the schedule, or let {orgName} know you're passing.</Card.Description
-					>
+					<Card.Description>
+						Approve to put this work on the schedule, or let {orgName} know you're passing.
+					</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4 px-6">
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -407,9 +407,9 @@
 						<Field.Field>
 							<Field.Label>If declining — mind sharing why?</Field.Label>
 							<Select.Root type="single" bind:value={declineReason}>
-								<Select.Trigger class="w-full"
-									>{declineReasons[declineReason as keyof typeof declineReasons]}</Select.Trigger
-								>
+								<Select.Trigger class="w-full">
+									{declineReasons[declineReason as keyof typeof declineReasons]}
+								</Select.Trigger>
 								<Select.Content>
 									{#each Object.entries(declineReasons) as [key, label] (key)}
 										<Select.Item value={key}>{label}</Select.Item>
@@ -420,12 +420,12 @@
 					</div>
 					<div class="flex flex-wrap gap-2">
 						<Button onclick={() => decide(true)} disabled={pending}>Approve estimate</Button>
-						<Button variant="outline" onclick={() => decide(false)} disabled={pending}
-							>Decline</Button
-						>
-						<Button variant="ghost" onclick={requestChanges} disabled={pending}
-							>Request changes</Button
-						>
+						<Button variant="outline" onclick={() => decide(false)} disabled={pending}>
+							Decline
+						</Button>
+						<Button variant="ghost" onclick={requestChanges} disabled={pending}>
+							Request changes
+						</Button>
 					</div>
 				</Card.Content>
 			</Card.Root>

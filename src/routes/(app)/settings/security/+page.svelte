@@ -69,9 +69,9 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">Passkeys</Card.Title>
-			<Card.Description
-				>Sign in with Face ID, Touch ID, Windows Hello or a security key.</Card.Description
-			>
+			<Card.Description>
+				Sign in with Face ID, Touch ID, Windows Hello or a security key.
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="space-y-3">
 			{#each passkeys as pk (pk.id)}
@@ -90,10 +90,10 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">Single sign-on</Card.Title>
-				<Card.Description
-					>Connect Okta, Entra ID, Google Workspace or any SAML 2.0 / OIDC provider. New users are
-					added to this workspace as members.</Card.Description
-				>
+				<Card.Description>
+					Connect Okta, Entra ID, Google Workspace or any SAML 2.0 / OIDC provider. New users are
+					added to this workspace as members.
+				</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				<form class="space-y-4" onsubmit={registerSso}>
@@ -108,60 +108,60 @@
 					</ToggleGroup.Root>
 					<Field.Group class="gap-4">
 						<div class="grid gap-3 sm:grid-cols-2">
-							<Field.Field
-								><Field.Label for="sso-domain">Email domain</Field.Label><Input
+							<Field.Field>
+								<Field.Label for="sso-domain">Email domain</Field.Label><Input
 									id="sso-domain"
 									placeholder="acme.com"
 									required
 									bind:value={domain}
-								/></Field.Field
-							>
-							<Field.Field
-								><Field.Label for="sso-issuer">Issuer URL</Field.Label><Input
+								/>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="sso-issuer">Issuer URL</Field.Label><Input
 									id="sso-issuer"
 									type="url"
 									placeholder="https://acme.okta.com"
 									required
 									bind:value={issuer}
-								/></Field.Field
-							>
+								/>
+							</Field.Field>
 						</div>
 						{#if protocol === 'oidc'}
 							<div class="grid gap-3 sm:grid-cols-2">
-								<Field.Field
-									><Field.Label for="sso-cid">Client ID</Field.Label><Input
+								<Field.Field>
+									<Field.Label for="sso-cid">Client ID</Field.Label><Input
 										id="sso-cid"
 										required
 										bind:value={clientId}
-									/></Field.Field
-								>
-								<Field.Field
-									><Field.Label for="sso-secret">Client secret</Field.Label><Input
+									/>
+								</Field.Field>
+								<Field.Field>
+									<Field.Label for="sso-secret">Client secret</Field.Label><Input
 										id="sso-secret"
 										type="password"
 										required
 										bind:value={clientSecret}
-									/></Field.Field
-								>
+									/>
+								</Field.Field>
 							</div>
 						{:else}
-							<Field.Field
-								><Field.Label for="sso-entry">SSO URL (entry point)</Field.Label><Input
+							<Field.Field>
+								<Field.Label for="sso-entry">SSO URL (entry point)</Field.Label><Input
 									id="sso-entry"
 									type="url"
 									required
 									bind:value={entryPoint}
-								/></Field.Field
-							>
-							<Field.Field
-								><Field.Label for="sso-cert">X.509 certificate</Field.Label><Textarea
+								/>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="sso-cert">X.509 certificate</Field.Label><Textarea
 									id="sso-cert"
 									rows={4}
 									class="font-mono text-xs"
 									required
 									bind:value={cert}
-								/></Field.Field
-							>
+								/>
+							</Field.Field>
 						{/if}
 					</Field.Group>
 					<Button type="submit">Save connection</Button>

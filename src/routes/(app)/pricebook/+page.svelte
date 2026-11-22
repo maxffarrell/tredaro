@@ -230,14 +230,14 @@
 <PageHeader title="Pricebook">
 	{#snippet actions()}
 		{#if ai.available}
-			<Button size="sm" variant="outline" onclick={() => (aiOpen = true)}
-				><Sparkles /> Draft with AI</Button
-			>
+			<Button size="sm" variant="outline" onclick={() => (aiOpen = true)}>
+				<Sparkles /> Draft with AI
+			</Button>
 		{/if}
 		<Button size="sm" variant="outline" onclick={() => (adjustOpen = true)}>Adjust prices</Button>
-		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}
-			><Upload /> Import</Button
-		>
+		<Button size="sm" variant="outline" onclick={() => (importOpen = true)}>
+			<Upload /> Import
+		</Button>
 		<Button size="sm" variant="outline" href="/api/export/pricebook.csv" download>
 			<Download /> Export
 		</Button>
@@ -297,22 +297,24 @@
 				<Table.Body>
 					{#each shown as i (i.id)}
 						<Table.Row class="cursor-pointer" onclick={() => openItem(i)}>
-							<Table.Cell class="font-medium"
-								>{i.name}{#if i.jobTypeId}
-									<span class="text-muted-foreground"
-										>· {jobTypes.find((t) => t.id === i.jobTypeId)?.name ?? ''}</span
-									>{/if}</Table.Cell
-							>
+							<Table.Cell class="font-medium">
+								{i.name}{#if i.jobTypeId}
+									<span class="text-muted-foreground">
+										· {jobTypes.find((t) => t.id === i.jobTypeId)?.name ?? ''}
+									</span>{/if}
+							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground md:table-cell">{i.kind}</Table.Cell>
-							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{i.category || '—'}</Table.Cell
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{i.category || '—'}
+							</Table.Cell>
+							<Table.Cell
+								class="hidden text-right text-muted-foreground tabular-nums md:table-cell"
 							>
-							<Table.Cell class="hidden text-right text-muted-foreground tabular-nums md:table-cell"
-								>{i.cost ? formatMoney(i.cost, currency) : '—'}</Table.Cell
-							>
-							<Table.Cell class="text-right tabular-nums"
-								>{formatMoney(i.price, currency)}</Table.Cell
-							>
+								{i.cost ? formatMoney(i.cost, currency) : '—'}
+							</Table.Cell>
+							<Table.Cell class="text-right tabular-nums">
+								{formatMoney(i.price, currency)}
+							</Table.Cell>
 							<Table.Cell><StatusBadge status={i.active ? 'active' : 'inactive'} /></Table.Cell>
 						</Table.Row>
 					{:else}
@@ -322,12 +324,13 @@
 									<Empty.Header>
 										<Empty.Media><BookOpen /></Empty.Media>
 										<Empty.Title>Empty pricebook</Empty.Title>
-										<Empty.Description
-											>Add flat-rate services and materials you bill for.</Empty.Description
-										>
+										<Empty.Description>
+											Add flat-rate services and materials you bill for.
+										</Empty.Description>
 									</Empty.Header>
-									<Empty.Content><Button onclick={() => openItem()}>New item</Button></Empty.Content
-									>
+									<Empty.Content>
+										<Button onclick={() => openItem()}>New item</Button>
+									</Empty.Content>
 								</Empty.Root>
 							</Table.Cell>
 						</Table.Row>
@@ -381,9 +384,9 @@
 			<Field.Field>
 				<Field.Label>Job type</Field.Label>
 				<Select.Root type="single" bind:value={jobTypeId}>
-					<Select.Trigger class="w-full"
-						>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'None'}
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">None</Select.Item>
 						{#each jobTypes.filter((t) => t.active) as t (t.id)}
@@ -401,10 +404,10 @@
 				<label class="flex items-center gap-2 text-sm font-medium">
 					<Switch bind:checked={taxable} /> Taxable
 				</label>
-				<Field.Description
-					>Non-taxable items (e.g. labor in some states) are excluded from the sales-tax line on
-					invoices.</Field.Description
-				>
+				<Field.Description>
+					Non-taxable items (e.g. labor in some states) are excluded from the sales-tax line on
+					invoices.
+				</Field.Description>
 			</Field.Field>
 			{#if itemId}
 				<Field.Field>
@@ -454,9 +457,9 @@
 			{/if}
 		</div>
 		<Modal.Footer>
-			<Button disabled={importPending || !importRows.length} onclick={runImport}
-				>{importPending ? 'Importing…' : 'Import'}</Button
-			>
+			<Button disabled={importPending || !importRows.length} onclick={runImport}>
+				{importPending ? 'Importing…' : 'Import'}
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>
@@ -500,9 +503,9 @@
 			{/if}
 		</div>
 		<Modal.Footer>
-			<Button disabled={adjustPending || adjustPct === 0} onclick={submitAdjust}
-				>{adjustPending ? 'Applying…' : 'Apply'}</Button
-			>
+			<Button disabled={adjustPending || adjustPct === 0} onclick={submitAdjust}>
+				{adjustPending ? 'Applying…' : 'Apply'}
+			</Button>
 		</Modal.Footer>
 	</Modal.Content>
 </Modal.Root>
@@ -526,8 +529,11 @@
 			<Button
 				variant="secondary"
 				disabled={aiPending || aiPrompt.trim().length < 3}
-				onclick={runAiDraft}><Sparkles /> {aiPending ? 'Drafting…' : 'Draft items'}</Button
+				onclick={runAiDraft}
 			>
+				<Sparkles />
+				{aiPending ? 'Drafting…' : 'Draft items'}
+			</Button>
 			{#if aiRows.length}
 				<Table.Root>
 					<Table.Header>
@@ -544,11 +550,9 @@
 								<Table.Cell class="font-medium">{r.name}</Table.Cell>
 								<Table.Cell class="capitalize">{r.kind}</Table.Cell>
 								<Table.Cell>{r.category}</Table.Cell>
-								<Table.Cell class="text-right tabular-nums"
-									>{formatMoney(r.price, currency)}{r.durationMin
-										? ` · ${r.durationMin}m`
-										: ''}</Table.Cell
-								>
+								<Table.Cell class="text-right tabular-nums">
+									{formatMoney(r.price, currency)}{r.durationMin ? ` · ${r.durationMin}m` : ''}
+								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -557,11 +561,9 @@
 		</div>
 		{#if aiRows.length}
 			<Modal.Footer>
-				<Button disabled={aiAddPending} onclick={addAiRows}
-					>{aiAddPending
-						? 'Adding…'
-						: `Add ${aiRows.length} item${aiRows.length === 1 ? '' : 's'}`}</Button
-				>
+				<Button disabled={aiAddPending} onclick={addAiRows}>
+					{aiAddPending ? 'Adding…' : `Add ${aiRows.length} item${aiRows.length === 1 ? '' : 's'}`}
+				</Button>
 			</Modal.Footer>
 		{/if}
 	</Modal.Content>

@@ -241,13 +241,13 @@
 
 <PageHeader title="Jobs">
 	{#snippet actions()}
-		<Button size="sm" variant="outline" href="/api/export/jobs.csv" download
-			><Download /> Export</Button
-		>
+		<Button size="sm" variant="outline" href="/api/export/jobs.csv" download>
+			<Download /> Export
+		</Button>
 		{#if ai.available}
-			<Button size="sm" variant="outline" onclick={() => (intakeOpen = true)}
-				><Sparkles /> AI intake</Button
-			>
+			<Button size="sm" variant="outline" onclick={() => (intakeOpen = true)}>
+				<Sparkles /> AI intake
+			</Button>
 		{/if}
 		<Button size="sm" onclick={() => (open = true)}><Plus /> New job</Button>
 	{/snippet}
@@ -258,9 +258,9 @@
 		<Tabs.Root bind:value={tab} class="w-full min-w-0">
 			<Tabs.List class="w-full flex-nowrap overflow-x-auto">
 				{#each STATUS_TABS as [value, label] (value)}
-					<Tabs.Trigger {value}
-						>{label}{#if value !== 'all' && counts[value]}&nbsp;({counts[value]}){/if}</Tabs.Trigger
-					>
+					<Tabs.Trigger {value}>
+						{label}{#if value !== 'all' && counts[value]}&nbsp;({counts[value]}){/if}
+					</Tabs.Trigger>
 				{/each}
 			</Tabs.List>
 		</Tabs.Root>
@@ -270,11 +270,9 @@
 				value={techId || 'all'}
 				onValueChange={(v) => (techId = v === 'all' ? '' : v)}
 			>
-				<Select.Trigger class="h-8 w-44"
-					>{techId
-						? (technicians.find((t) => t.id === techId)?.name ?? 'Tech')
-						: 'All techs'}</Select.Trigger
-				>
+				<Select.Trigger class="h-8 w-44">
+					{techId ? (technicians.find((t) => t.id === techId)?.name ?? 'Tech') : 'All techs'}
+				</Select.Trigger>
 				<Select.Content>
 					<Select.Item value="all">All techs</Select.Item>
 					{#each technicians as t (t.id)}
@@ -288,8 +286,8 @@
 			value={period || 'any'}
 			onValueChange={(v) => (period = v === 'any' ? '' : v)}
 		>
-			<Select.Trigger class="h-8 w-36"
-				>{period === 'today'
+			<Select.Trigger class="h-8 w-36">
+				{period === 'today'
 					? 'Today'
 					: period === 'week'
 						? 'This week'
@@ -297,8 +295,8 @@
 							? 'This month'
 							: period === '30d'
 								? 'Last 30 days'
-								: 'Any time'}</Select.Trigger
-			>
+								: 'Any time'}
+			</Select.Trigger>
 			<Select.Content>
 				<Select.Item value="any">Any time</Select.Item>
 				<Select.Item value="today">Today</Select.Item>
@@ -308,14 +306,14 @@
 			</Select.Content>
 		</Select.Root>
 		{#if unassignedCount}
-			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
-				>{unassignedCount} unassigned</Badge
-			>
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400">
+				{unassignedCount} unassigned
+			</Badge>
 		{/if}
 		{#if counts.in_progress}
-			<Badge variant="outline" class="text-blue-600 dark:text-blue-400"
-				>{counts.in_progress} in progress</Badge
-			>
+			<Badge variant="outline" class="text-blue-600 dark:text-blue-400">
+				{counts.in_progress} in progress
+			</Badge>
 		{/if}
 		{#if todayCount}
 			<Badge variant="outline">{todayCount} today</Badge>
@@ -324,29 +322,29 @@
 			<Badge variant="outline">{counts.doneThisMonth} done this month</Badge>
 		{/if}
 		{#if unconfirmed}
-			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
-				>{unconfirmed} unconfirmed</Badge
-			>
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400">
+				{unconfirmed} unconfirmed
+			</Badge>
 		{/if}
 		{#if uninvoicedCount}
-			<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
-				>{uninvoicedCount} uninvoiced</Badge
-			>
+			<Badge variant="outline" class="text-amber-600 dark:text-amber-400">
+				{uninvoicedCount} uninvoiced
+			</Badge>
 		{/if}
 		{#if partsCount}
-			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
-				>{partsCount} waiting on parts</Badge
-			>
+			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500">
+				{partsCount} waiting on parts
+			</Badge>
 		{/if}
 		{#if urgentCount}
-			<Badge class="border-transparent bg-red-500/15 text-red-600 dark:text-red-400"
-				>{urgentCount} urgent</Badge
-			>
+			<Badge class="border-transparent bg-red-500/15 text-red-600 dark:text-red-400">
+				{urgentCount} urgent
+			</Badge>
 		{/if}
 		{#if overdueCount}
-			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
-				>{overdueCount} overdue</Badge
-			>
+			<Badge class="border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500">
+				{overdueCount} overdue
+			</Badge>
 		{/if}
 	</div>
 
@@ -357,8 +355,10 @@
 				<Badge
 					variant={tagFilter === t ? 'default' : 'outline'}
 					class="cursor-pointer"
-					onclick={() => (tagFilter = tagFilter === t ? '' : t)}>{t}</Badge
+					onclick={() => (tagFilter = tagFilter === t ? '' : t)}
 				>
+					{t}
+				</Badge>
 			{/each}
 		</div>
 	{/if}
@@ -392,8 +392,9 @@
 										class="ml-1 {j.job.priority === 'urgent'
 											? 'border-red-500/40 text-red-600 dark:text-red-400'
 											: 'border-amber-500/40 text-amber-600 dark:text-amber-400'}"
-										>{j.job.priority}</Badge
 									>
+										{j.job.priority}
+									</Badge>
 								{/if}
 								{#each j.job.tags ?? [] as t (t)}
 									<Badge variant="outline" class="ml-1 text-muted-foreground">{t}</Badge>
@@ -411,13 +412,14 @@
 									)}
 									<Badge
 										class="ml-1 border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
-										>{days}d overdue</Badge
 									>
+										{days}d overdue
+									</Badge>
 								{/if}
 							</Table.Cell>
-							<Table.Cell class="hidden text-muted-foreground md:table-cell"
-								>{j.technicianName ?? '—'}</Table.Cell
-							>
+							<Table.Cell class="hidden text-muted-foreground md:table-cell">
+								{j.technicianName ?? '—'}
+							</Table.Cell>
 							<Table.Cell>
 								<StatusBadge status={j.job.status} />
 								{#if j.job.blocked}
@@ -429,8 +431,9 @@
 								{#if j.job.status === 'done' && !j.invoiced}
 									<Badge
 										class="ml-1 border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-500"
-										>uninvoiced</Badge
 									>
+										uninvoiced
+									</Badge>
 								{/if}
 							</Table.Cell>
 						</Table.Row>
@@ -441,13 +444,13 @@
 									<Empty.Header>
 										<Empty.Media><Wrench /></Empty.Media>
 										<Empty.Title>No jobs</Empty.Title>
-										<Empty.Description
-											>Create the first job, or wait for one to come in from your booking page.</Empty.Description
-										>
+										<Empty.Description>
+											Create the first job, or wait for one to come in from your booking page.
+										</Empty.Description>
 									</Empty.Header>
-									<Empty.Content
-										><Button onclick={() => (open = true)}>New job</Button></Empty.Content
-									>
+									<Empty.Content>
+										<Button onclick={() => (open = true)}>New job</Button>
+									</Empty.Content>
 								</Empty.Root>
 							</Table.Cell>
 						</Table.Row>
@@ -462,18 +465,17 @@
 	<Modal.Content>
 		<Modal.Header>
 			<Modal.Title>New job</Modal.Title>
-			<Modal.Description
-				>Leave the time empty to park it in the unscheduled queue.</Modal.Description
-			>
+			<Modal.Description>
+				Leave the time empty to park it in the unscheduled queue.
+			</Modal.Description>
 		</Modal.Header>
 		<form class="space-y-4" onsubmit={submit}>
 			<Field.Field>
 				<Field.Label>Customer</Field.Label>
 				<Select.Root type="single" value={customerId} onValueChange={pickCustomer}>
-					<Select.Trigger class="w-full"
-						>{customers.find((c) => c.id === customerId)?.name ??
-							'Choose a customer'}</Select.Trigger
-					>
+					<Select.Trigger class="w-full">
+						{customers.find((c) => c.id === customerId)?.name ?? 'Choose a customer'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each customers as c (c.id)}
 							<Select.Item value={c.id}>{c.name}</Select.Item>
@@ -485,16 +487,16 @@
 				<Field.Field>
 					<Field.Label>Equipment</Field.Label>
 					<Select.Root type="single" bind:value={equipmentId}>
-						<Select.Trigger class="w-full"
-							>{customerEquipment.find((e) => e.equipment.id === equipmentId)?.equipment.name ??
-								'No unit'}</Select.Trigger
-						>
+						<Select.Trigger class="w-full">
+							{customerEquipment.find((e) => e.equipment.id === equipmentId)?.equipment.name ??
+								'No unit'}
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="none">No unit</Select.Item>
 							{#each customerEquipment.filter((e) => e.equipment.active) as e (e.equipment.id)}
-								<Select.Item value={e.equipment.id}
-									>{e.equipment.name}{e.locationLabel ? ` · ${e.locationLabel}` : ''}</Select.Item
-								>
+								<Select.Item value={e.equipment.id}>
+									{e.equipment.name}{e.locationLabel ? ` · ${e.locationLabel}` : ''}
+								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
@@ -508,21 +510,21 @@
 						value={effectiveLocation}
 						onValueChange={(v) => (locationId = v)}
 					>
-						<Select.Trigger class="w-full"
-							>{(() => {
+						<Select.Trigger class="w-full">
+							{(() => {
 								const l = customerLocations.find((x) => x.id === effectiveLocation);
 								return l
 									? `${l.label ? `${l.label} — ` : ''}${l.address1 || 'No address'}`
 									: 'Choose location';
-							})()}</Select.Trigger
-						>
+							})()}
+						</Select.Trigger>
 						<Select.Content>
 							{#each customerLocations as l (l.id)}
-								<Select.Item value={l.id}
-									>{l.label ? `${l.label} — ` : ''}{l.address1 || 'No address'}{l.isPrimary
+								<Select.Item value={l.id}>
+									{l.label ? `${l.label} — ` : ''}{l.address1 || 'No address'}{l.isPrimary
 										? ' · primary'
-										: ''}</Select.Item
-								>
+										: ''}
+								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
@@ -532,9 +534,9 @@
 				<Field.Field>
 					<Field.Label>Job type</Field.Label>
 					<Select.Root type="single" bind:value={jobTypeId}>
-						<Select.Trigger class="w-full"
-							>{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'Optional'}</Select.Trigger
-						>
+						<Select.Trigger class="w-full">
+							{jobTypes.find((t) => t.id === jobTypeId)?.name ?? 'Optional'}
+						</Select.Trigger>
 						<Select.Content>
 							{#each jobTypes.filter((t) => t.active) as t (t.id)}
 								<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -545,10 +547,9 @@
 				<Field.Field>
 					<Field.Label>Technician</Field.Label>
 					<Select.Root type="single" bind:value={technicianId}>
-						<Select.Trigger class="w-full"
-							>{technicians.find((t) => t.id === technicianId)?.name ??
-								'Unassigned'}</Select.Trigger
-						>
+						<Select.Trigger class="w-full">
+							{technicians.find((t) => t.id === technicianId)?.name ?? 'Unassigned'}
+						</Select.Trigger>
 						<Select.Content>
 							{#each technicians as t (t.id)}
 								<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -581,9 +582,9 @@
 				</Select.Root>
 			</Field.Field>
 			<Modal.Footer>
-				<Button type="submit" disabled={pending || !customerId}
-					>{pending ? 'Creating…' : 'Create job'}</Button
-				>
+				<Button type="submit" disabled={pending || !customerId}>
+					{pending ? 'Creating…' : 'Create job'}
+				</Button>
 			</Modal.Footer>
 		</form>
 	</Modal.Content>
@@ -608,38 +609,41 @@
 			<Button
 				variant="secondary"
 				disabled={intakePending || intakeNotes.trim().length < 5}
-				onclick={runIntake}><Sparkles /> {intakePending ? 'Parsing…' : 'Parse'}</Button
+				onclick={runIntake}
 			>
+				<Sparkles />
+				{intakePending ? 'Parsing…' : 'Parse'}
+			</Button>
 			{#if intakeDraft}
 				<div class="space-y-2 rounded-lg border p-3 text-sm">
 					{#if intakeMatchedId}
 						<p class="text-xs text-muted-foreground">
-							Matches existing customer <span class="font-medium text-foreground"
-								>{intakeMatchedName}</span
-							> — a new customer won't be created.
+							Matches existing customer <span class="font-medium text-foreground">
+								{intakeMatchedName}
+							</span> — a new customer won't be created.
 						</p>
 					{/if}
 					<div class="grid grid-cols-2 gap-x-3 gap-y-1">
 						<span class="text-muted-foreground">Customer</span>
-						<span class="font-medium"
-							>{intakeDraft.customer.name || intakeDraft.customer.companyName || '—'}</span
-						>
+						<span class="font-medium">
+							{intakeDraft.customer.name || intakeDraft.customer.companyName || '—'}
+						</span>
 						<span class="text-muted-foreground">Phone</span>
 						<span>{intakeDraft.customer.phone || '—'}</span>
 						<span class="text-muted-foreground">Email</span>
 						<span>{intakeDraft.customer.email || '—'}</span>
 						{#if intakeDraft.address}
 							<span class="text-muted-foreground">Address</span>
-							<span
-								>{[
+							<span>
+								{[
 									intakeDraft.address.line1,
 									intakeDraft.address.city,
 									intakeDraft.address.state,
 									intakeDraft.address.zip
 								]
 									.filter(Boolean)
-									.join(', ') || '—'}</span
-							>
+									.join(', ') || '—'}
+							</span>
 						{/if}
 					</div>
 					<Field.Field>
@@ -651,10 +655,9 @@
 								if (intakeDraft) intakeDraft.jobTypeId = v || null;
 							}}
 						>
-							<Select.Trigger class="w-full"
-								>{jobTypes.find((t) => t.id === intakeDraft?.jobTypeId)?.name ??
-									'No type'}</Select.Trigger
-							>
+							<Select.Trigger class="w-full">
+								{jobTypes.find((t) => t.id === intakeDraft?.jobTypeId)?.name ?? 'No type'}
+							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="">No type</Select.Item>
 								{#each jobTypes as t (t.id)}
@@ -670,9 +673,9 @@
 					<div class="flex items-center gap-2">
 						<Badge variant="outline" class="capitalize">{intakeDraft.priority}</Badge>
 						{#if intakeDraft.description}
-							<span class="truncate text-xs text-muted-foreground" title={intakeDraft.description}
-								>{intakeDraft.description}</span
-							>
+							<span class="truncate text-xs text-muted-foreground" title={intakeDraft.description}>
+								{intakeDraft.description}
+							</span>
 						{/if}
 					</div>
 				</div>
@@ -680,9 +683,9 @@
 		</div>
 		{#if intakeDraft && intakeUsable}
 			<Modal.Footer>
-				<Button disabled={intakeCreating} onclick={createIntakeJob}
-					>{intakeCreating ? 'Creating…' : 'Create job'}</Button
-				>
+				<Button disabled={intakeCreating} onclick={createIntakeJob}>
+					{intakeCreating ? 'Creating…' : 'Create job'}
+				</Button>
 			</Modal.Footer>
 		{/if}
 	</Modal.Content>

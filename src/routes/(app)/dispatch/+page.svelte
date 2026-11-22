@@ -556,93 +556,95 @@
 				</Select.Root>
 			{/if}
 			<Select.Root type="single" value={dayFilter} onValueChange={(v) => (dayFilter = v)}>
-				<Select.Trigger class="h-8 w-32"
-					>{dayFilter
+				<Select.Trigger class="h-8 w-32">
+					{dayFilter
 						? new Date(`${dayFilter}T12:00:00Z`).toLocaleDateString('en-US', {
 								weekday: 'short',
 								month: 'numeric',
 								day: 'numeric',
 								timeZone: 'UTC'
 							})
-						: 'All days'}</Select.Trigger
-				>
+						: 'All days'}
+				</Select.Trigger>
 				<Select.Content>
 					<Select.Item value="">All days</Select.Item>
 					{#each weekDays as d (d)}
-						<Select.Item value={d}
-							>{new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', {
+						<Select.Item value={d}>
+							{new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', {
 								weekday: 'short',
 								month: 'numeric',
 								day: 'numeric',
 								timeZone: 'UTC'
-							})}{d === todayStr ? ' · today' : ''}</Select.Item
-						>
+							})}{d === todayStr ? ' · today' : ''}
+						</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>
 			{#if peakDay}
-				<Badge class="hidden md:inline-flex" variant="outline"
-					>peak {new Date(`${peakDay[0]}T12:00:00Z`).toLocaleDateString('en-US', {
+				<Badge class="hidden md:inline-flex" variant="outline">
+					peak {new Date(`${peakDay[0]}T12:00:00Z`).toLocaleDateString('en-US', {
 						weekday: 'short',
 						timeZone: 'UTC'
-					})} ({peakDay[1]})</Badge
-				>
+					})} ({peakDay[1]})
+				</Badge>
 			{/if}
 			{#if weekCount}
 				<Badge class="hidden md:inline-flex" variant="outline">{weekCount} this week</Badge>
 			{/if}
 			{#if bookedOnline}
-				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex"
-					>{bookedOnline} booked online</Badge
-				>
+				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex">
+					{bookedOnline} booked online
+				</Badge>
 			{/if}
 			{#if doneThisWeek}
 				<Badge class="hidden md:inline-flex" variant="outline">{doneThisWeek} done</Badge>
 			{/if}
 			{#if onSiteNow}
-				<Badge variant="outline" class="hidden text-green-600 md:inline-flex dark:text-green-400"
-					>{onSiteNow} on site now</Badge
-				>
+				<Badge variant="outline" class="hidden text-green-600 md:inline-flex dark:text-green-400">
+					{onSiteNow} on site now
+				</Badge>
 			{/if}
 			{#if techsOn}
-				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex"
-					>{techsOn} tech{techsOn === 1 ? '' : 's'} on today</Badge
-				>
+				<Badge variant="outline" class="hidden text-muted-foreground md:inline-flex">
+					{techsOn} tech{techsOn === 1 ? '' : 's'} on today
+				</Badge>
 			{/if}
 			{#if schedTodayMin > 0}
-				<Badge class="hidden md:inline-flex" variant="outline"
-					>{Math.floor(schedTodayMin / 60)}h {Math.round(schedTodayMin % 60)}m sched today</Badge
-				>
+				<Badge class="hidden md:inline-flex" variant="outline">
+					{Math.floor(schedTodayMin / 60)}h {Math.round(schedTodayMin % 60)}m sched today
+				</Badge>
 			{/if}
 			{#if avgPerTechToday}
-				<Badge class="hidden md:inline-flex" variant="outline"
-					>avg {avgPerTechToday.toFixed(1)} jobs/tech today</Badge
-				>
+				<Badge class="hidden md:inline-flex" variant="outline">
+					avg {avgPerTechToday.toFixed(1)} jobs/tech today
+				</Badge>
 			{/if}
 			{#if unassignedToday}
-				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400"
-					>{unassignedToday} unassigned today</Badge
-				>
+				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400">
+					{unassignedToday} unassigned today
+				</Badge>
 			{/if}
 			{#if offThisWeek}
 				<Badge class="hidden md:inline-flex" variant="outline">{offThisWeek} off this week</Badge>
 			{/if}
 			{#if offToday}
-				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400"
-					>{offToday} off today</Badge
-				>
+				<Badge variant="outline" class="hidden text-amber-600 md:inline-flex dark:text-amber-400">
+					{offToday} off today
+				</Badge>
 			{/if}
-			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(-7)}
-				><ChevronLeft /></Button
-			>
+			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(-7)}>
+				<ChevronLeft />
+			</Button>
 			<Button
 				variant="ghost"
 				size="sm"
-				onclick={() => goto(`?from=${todayStr}`, { replaceState: true })}>Today</Button
+				onclick={() => goto(`?from=${todayStr}`, { replaceState: true })}
 			>
-			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(7)}
-				><ChevronRight /></Button
-			>
+				Today
+			</Button>
+			<Button variant="outline" size="icon" class="size-8" onclick={() => shift(7)}>
+				<ChevronRight />
+			</Button>
 			<div class="hidden lg:contents">
 				<Button
 					variant="outline"
@@ -650,24 +652,31 @@
 					onclick={textEtas}
 					disabled={etaPending}
 					title="Text every customer with a job that day their ETA"
-					><MessageSquare /> {etaPending ? 'Texting…' : 'Text ETAs'}</Button
 				>
+					<MessageSquare />
+					{etaPending ? 'Texting…' : 'Text ETAs'}
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"
 					onclick={copyThisWeek}
 					disabled={copyPending}
 					title="Duplicate this week's jobs onto the same weekdays next week"
-					><CalendarPlus /> {copyPending ? 'Copying…' : 'Copy week'}</Button
 				>
+					<CalendarPlus />
+					{copyPending ? 'Copying…' : 'Copy week'}
+				</Button>
 				{#if ai.available}
 					<Button
 						variant="outline"
 						size="sm"
 						title="Suggest tech assignments for {dayFilter || todayStr}"
 						disabled={suggestPending}
-						onclick={aiSuggest}><Sparkles /> {suggestPending ? 'Thinking…' : 'AI suggest'}</Button
+						onclick={aiSuggest}
 					>
+						<Sparkles />
+						{suggestPending ? 'Thinking…' : 'AI suggest'}
+					</Button>
 				{/if}
 				<Button
 					variant="outline"
@@ -675,15 +684,19 @@
 					class="size-8"
 					title="Print this week's schedule"
 					href="/dispatch/print?from={start}"
-					target="_blank"><Printer /></Button
+					target="_blank"
 				>
+					<Printer />
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"
 					title="Printable route sheet per tech for {dayFilter || todayStr}"
 					href="/dispatch/routesheets?day={dayFilter || todayStr}"
-					target="_blank">Sheets</Button
+					target="_blank"
 				>
+					Sheets
+				</Button>
 			</div>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
@@ -693,30 +706,36 @@
 							variant="outline"
 							size="icon"
 							class="size-8 lg:hidden"
-							title="More actions"><Ellipsis /></Button
+							title="More actions"
 						>
+							<Ellipsis />
+						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
-					<DropdownMenu.Item onclick={textEtas} disabled={etaPending}
-						><MessageSquare /> {etaPending ? 'Texting…' : 'Text ETAs'}</DropdownMenu.Item
-					>
-					<DropdownMenu.Item onclick={copyThisWeek} disabled={copyPending}
-						><CalendarPlus /> {copyPending ? 'Copying…' : 'Copy week'}</DropdownMenu.Item
-					>
+					<DropdownMenu.Item onclick={textEtas} disabled={etaPending}>
+						<MessageSquare />
+						{etaPending ? 'Texting…' : 'Text ETAs'}
+					</DropdownMenu.Item>
+					<DropdownMenu.Item onclick={copyThisWeek} disabled={copyPending}>
+						<CalendarPlus />
+						{copyPending ? 'Copying…' : 'Copy week'}
+					</DropdownMenu.Item>
 					{#if ai.available}
-						<DropdownMenu.Item onclick={aiSuggest} disabled={suggestPending}
-							><Sparkles /> {suggestPending ? 'Thinking…' : 'AI suggest'}</DropdownMenu.Item
-						>
+						<DropdownMenu.Item onclick={aiSuggest} disabled={suggestPending}>
+							<Sparkles />
+							{suggestPending ? 'Thinking…' : 'AI suggest'}
+						</DropdownMenu.Item>
 					{/if}
-					<DropdownMenu.Item onclick={() => window.open(`/dispatch/print?from=${start}`, '_blank')}
-						><Printer /> Print week</DropdownMenu.Item
-					>
+					<DropdownMenu.Item onclick={() => window.open(`/dispatch/print?from=${start}`, '_blank')}>
+						<Printer /> Print week
+					</DropdownMenu.Item>
 					<DropdownMenu.Item
 						onclick={() =>
 							window.open(`/dispatch/routesheets?day=${dayFilter || todayStr}`, '_blank')}
-						><StickyNote /> Route sheets</DropdownMenu.Item
 					>
+						<StickyNote /> Route sheets
+					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 		</div>
@@ -757,31 +776,33 @@
 					<span
 						class={waitingDays(j.job.createdAt) >= 3
 							? 'font-medium text-amber-600 dark:text-amber-400'
-							: ''}>waiting {waitingDays(j.job.createdAt)}d</span
+							: ''}
 					>
+						waiting {waitingDays(j.job.createdAt)}d
+					</span>
 					{#if j.job.blocked}· <span class="text-amber-600 dark:text-amber-400">parts</span>{/if}
-					{#if j.depOpen}· <span class="text-amber-600 dark:text-amber-400"
-							>dep J-{j.depNumber}</span
-						>{/if}
+					{#if j.depOpen}· <span class="text-amber-600 dark:text-amber-400">
+							dep J-{j.depNumber}
+						</span>{/if}
 					{#if j.job.source === 'booking' && waitingDays(j.job.createdAt) === 0}· <span
-							class="text-blue-600 dark:text-blue-400">new request</span
-						>{/if}
-					{#if j.job.needsReview}· <span class="font-medium text-amber-600 dark:text-amber-400"
-							>needs review</span
-						>{/if}
+							class="text-blue-600 dark:text-blue-400"
+						>
+							new request
+						</span>{/if}
+					{#if j.job.needsReview}· <span class="font-medium text-amber-600 dark:text-amber-400">
+							needs review
+						</span>{/if}
 					{#if !j.customerPhone}· <span class="text-red-500">no phone</span>{/if}
 					{#if j.city}· {j.city}{/if}
 					{#if j.job.preferredTime}
 						{#if j.job.preferredTime.startsWith('Reschedule requested:')}
-							<br /><span class="font-medium text-orange-600 dark:text-orange-400"
-								>reschedule asked: {j.job.preferredTime
-									.slice('Reschedule requested:'.length)
-									.trim()}</span
-							>
+							<br /><span class="font-medium text-orange-600 dark:text-orange-400">
+								reschedule asked: {j.job.preferredTime.slice('Reschedule requested:'.length).trim()}
+							</span>
 						{:else}
-							<br /><span class="text-amber-600 dark:text-amber-400"
-								>Asked: {j.job.preferredTime}</span
-							>
+							<br /><span class="text-amber-600 dark:text-amber-400">
+								Asked: {j.job.preferredTime}
+							</span>
 						{/if}
 					{/if}
 				</p>
@@ -793,20 +814,24 @@
 					class="size-7"
 					title="Bump priority ({j.job.priority} → higher)"
 					disabled={j.job.priority === 'urgent'}
-					onclick={() => bumpPriority(j)}><ChevronsUp /></Button
+					onclick={() => bumpPriority(j)}
 				>
+					<ChevronsUp />
+				</Button>
 				<Select.Root type="single" onValueChange={(v) => quickAssign(j, v)}>
 					<Select.Trigger
 						class="h-7 w-[4.5rem] shrink-0 px-1.5 text-xs"
-						title="Assign to a tech on {dayFilter || todayStr}">Assign</Select.Trigger
+						title="Assign to a tech on {dayFilter || todayStr}"
 					>
+						Assign
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="__auto__">Auto (best fit)</Select.Item>
 						{#each board.technicians as t (t.id)}
-							<Select.Item value={t.id}
-								>{t.name}{#if !qualifiedFor(t, j.job.jobTypeId)}
-									<span class="text-amber-600"> · not tagged</span>{/if}</Select.Item
-							>
+							<Select.Item value={t.id}>
+								{t.name}{#if !qualifiedFor(t, j.job.jobTypeId)}
+									<span class="text-amber-600"> · not tagged</span>{/if}
+							</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
@@ -818,15 +843,19 @@
 						variant="outline"
 						class="h-7 px-2 text-xs"
 						disabled={reviewBusy === j.job.id}
-						onclick={() => review(j.job.id, true)}>Accept</Button
+						onclick={() => review(j.job.id, true)}
 					>
+						Accept
+					</Button>
 					<Button
 						size="sm"
 						variant="ghost"
 						class="h-7 px-2 text-xs text-destructive"
 						disabled={reviewBusy === j.job.id}
-						onclick={() => review(j.job.id, false)}>Decline</Button
+						onclick={() => review(j.job.id, false)}
 					>
+						Decline
+					</Button>
 				</div>
 			{/if}
 		</div>
@@ -841,21 +870,21 @@
 	>
 		<Card.Header class="flex-row flex-wrap items-center gap-2">
 			<Inbox class="size-4 text-muted-foreground" />
-			<Card.Title class="min-w-0 truncate text-base"
-				>Unscheduled ({board.unscheduled.length})</Card.Title
-			>
+			<Card.Title class="min-w-0 truncate text-base">
+				Unscheduled ({board.unscheduled.length})
+			</Card.Title>
 			{#if queueRequests.length}
-				<Badge variant="outline" class="text-blue-600 dark:text-blue-400"
-					>{queueRequests.length} request{queueRequests.length === 1 ? '' : 's'}</Badge
-				>
+				<Badge variant="outline" class="text-blue-600 dark:text-blue-400">
+					{queueRequests.length} request{queueRequests.length === 1 ? '' : 's'}
+				</Badge>
 			{/if}
 			{@const urgentCount = board.unscheduled.filter(
 				(j) => j.job.priority === 'urgent' || j.job.priority === 'high'
 			).length}
 			{#if urgentCount}
-				<Badge variant="outline" class="text-amber-600 dark:text-amber-400"
-					>{urgentCount} urgent/high</Badge
-				>
+				<Badge variant="outline" class="text-amber-600 dark:text-amber-400">
+					{urgentCount} urgent/high
+				</Badge>
 			{/if}
 			{#if board.unscheduled.length}
 				{@const oldestWait = Math.max(
@@ -865,8 +894,9 @@
 					<Badge
 						variant="outline"
 						class={oldestWait >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}
-						>oldest {oldestWait}d</Badge
 					>
+						oldest {oldestWait}d
+					</Badge>
 				{/if}
 			{/if}
 			<div class="ml-auto flex items-center gap-1.5">
@@ -875,9 +905,9 @@
 					value={queueSort}
 					onValueChange={(v) => (queueSort = v as 'priority' | 'oldest')}
 				>
-					<Select.Trigger class="h-7 w-28 px-2 text-xs" title="Queue order"
-						>{queueSort === 'oldest' ? 'Oldest first' : 'Priority'}</Select.Trigger
-					>
+					<Select.Trigger class="h-7 w-28 px-2 text-xs" title="Queue order">
+						{queueSort === 'oldest' ? 'Oldest first' : 'Priority'}
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="priority">Priority</Select.Item>
 						<Select.Item value="oldest">Oldest first</Select.Item>
@@ -890,10 +920,9 @@
 			<div class="flex items-center gap-2 border-b px-4 py-2">
 				<span class="text-xs text-muted-foreground">{selected.size} selected</span>
 				<Select.Root type="single" bind:value={bulkTech}>
-					<Select.Trigger class="h-7 w-32 text-xs"
-						>{board.technicians.find((t) => t.id === bulkTech)?.name ||
-							'Technician'}</Select.Trigger
-					>
+					<Select.Trigger class="h-7 w-32 text-xs">
+						{board.technicians.find((t) => t.id === bulkTech)?.name || 'Technician'}
+					</Select.Trigger>
 					<Select.Content>
 						{#each board.technicians as t (t.id)}
 							<Select.Item value={t.id}>{t.name}</Select.Item>
@@ -904,11 +933,13 @@
 					size="sm"
 					class="h-7 text-xs"
 					disabled={bulkBusy || !bulkTech}
-					onclick={assignSelected}>Assign</Button
+					onclick={assignSelected}
 				>
-				<Button size="sm" variant="ghost" class="h-7 text-xs" onclick={() => selected.clear()}
-					>Clear</Button
-				>
+					Assign
+				</Button>
+				<Button size="sm" variant="ghost" class="h-7 text-xs" onclick={() => selected.clear()}>
+					Clear
+				</Button>
 			</div>
 		{/if}
 		<Card.Content class="space-y-2 px-4">
@@ -947,9 +978,9 @@
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="text-base">Waitlist ({board.waitlist.length})</Card.Title>
-					<Card.Description
-						>Asked for a call back from the booking page — reach out and book them in.</Card.Description
-					>
+					<Card.Description>
+						Asked for a call back from the booking page — reach out and book them in.
+					</Card.Description>
 				</Card.Header>
 				<Card.Content class="overflow-x-auto px-0">
 					<Table.Root>
@@ -977,14 +1008,16 @@
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="text-sm">{w.jobTypeName ?? '—'}</Table.Cell>
-									<Table.Cell class="max-w-48 truncate text-sm text-muted-foreground"
-										>{w.note || '—'}</Table.Cell
-									>
+									<Table.Cell class="max-w-48 truncate text-sm text-muted-foreground">
+										{w.note || '—'}
+									</Table.Cell>
 									<Table.Cell
 										class="text-sm whitespace-nowrap {waitingDays(w.createdAt) >= 2
 											? 'font-medium text-amber-600 dark:text-amber-400'
-											: 'text-muted-foreground'}">{formatRelative(w.createdAt)}</Table.Cell
+											: 'text-muted-foreground'}"
 									>
+										{formatRelative(w.createdAt)}
+									</Table.Cell>
 									<Table.Cell class="pr-6">
 										<div class="flex justify-end gap-1.5">
 											{#if w.status === 'new'}
@@ -992,21 +1025,27 @@
 													size="sm"
 													variant="outline"
 													disabled={waitlistBusy === w.id}
-													onclick={() => setWaitlist(w.id, 'contacted')}>Contacted</Button
+													onclick={() => setWaitlist(w.id, 'contacted')}
 												>
+													Contacted
+												</Button>
 											{/if}
 											<Button
 												size="sm"
 												disabled={waitlistBusy === w.id}
 												title="Create a customer + unscheduled job for them"
-												onclick={() => bookWaitlist(w.id)}>Book</Button
+												onclick={() => bookWaitlist(w.id)}
 											>
+												Book
+											</Button>
 											<Button
 												size="sm"
 												variant="ghost"
 												disabled={waitlistBusy === w.id}
-												onclick={() => setWaitlist(w.id, 'closed')}>Close</Button
+												onclick={() => setWaitlist(w.id, 'closed')}
 											>
+												Close
+											</Button>
 										</div>
 									</Table.Cell>
 								</Table.Row>
@@ -1062,8 +1101,8 @@
 							</a>
 						{/if}
 						{#if group.jobs.length}
-							<Badge variant="outline" class="font-normal text-muted-foreground"
-								>{group.jobs.length} job{group.jobs.length === 1 ? '' : 's'} ·
+							<Badge variant="outline" class="font-normal text-muted-foreground">
+								{group.jobs.length} job{group.jobs.length === 1 ? '' : 's'} ·
 								{(
 									group.jobs.reduce(
 										(m, j) =>
@@ -1074,8 +1113,8 @@
 												: 0),
 										0
 									) / 60
-								).toFixed(1)}h</Badge
-							>
+								).toFixed(1)}h
+							</Badge>
 						{/if}
 						{#each board.timeOff.filter((t) => t.memberId === techId) as t (t.id)}
 							<Badge variant="secondary" class="font-normal text-amber-700 dark:text-amber-400">
@@ -1109,17 +1148,19 @@
 												class="inline-block size-2 shrink-0 rounded-full"
 												style:background={j.color}
 											></span>
-											<span class="truncate text-sm font-medium"
-												>{j.job.summary || j.jobTypeName}</span
-											>
+											<span class="truncate text-sm font-medium">
+												{j.job.summary || j.jobTypeName}
+											</span>
 											{#if techSkills && j.job.jobTypeId && !techSkills
 													.split(',')
 													.includes(j.job.jobTypeId)}
 												<Badge
 													variant="outline"
 													class="shrink-0 text-amber-600 dark:text-amber-400"
-													title="Tech isn't tagged for this job type">unqualified</Badge
+													title="Tech isn't tagged for this job type"
 												>
+													unqualified
+												</Badge>
 											{/if}
 											<StatusBadge status={j.job.status} class="ml-auto" />
 										</div>
@@ -1139,26 +1180,28 @@
 												· <span>warranty</span>
 											{/if}
 											{#if j.depOpen}
-												· <span class="text-amber-600 dark:text-amber-400">dep J-{j.depNumber}</span
-												>
+												· <span class="text-amber-600 dark:text-amber-400">
+													dep J-{j.depNumber}
+												</span>
 											{/if}
 											{#if j.typeRequiresHelper && !j.job.helperId}
 												<span class="text-amber-600 dark:text-amber-400">· needs 2 techs</span>
 											{/if}
 											{#if j.job.helperId}
-												· <span title="Second tech on the job"
-													>+{board.technicians.find((t) => t.id === j.job.helperId)?.name ??
-														'helper'}</span
-												>
+												· <span title="Second tech on the job">
+													+{board.technicians.find((t) => t.id === j.job.helperId)?.name ??
+														'helper'}
+												</span>
 											{/if}
 											{#if j.job.preferredTime?.startsWith('Reschedule requested:')}
 												· <span
 													class="font-medium text-orange-600 dark:text-orange-400"
 													title="Customer asked to reschedule — move the visit to clear"
-													>reschedule: {j.job.preferredTime
-														.slice('Reschedule requested:'.length)
-														.trim()}</span
 												>
+													reschedule: {j.job.preferredTime
+														.slice('Reschedule requested:'.length)
+														.trim()}
+												</span>
 											{/if}
 										</p>
 									</button>
@@ -1225,12 +1268,14 @@
 						variant="ghost"
 						onclick={() => {
 							noteText = '';
-						}}>Clear</Button
+						}}
 					>
+						Clear
+					</Button>
 				{/if}
-				<Button type="submit" size="sm" disabled={notePending}
-					>{notePending ? 'Saving…' : 'Save'}</Button
-				>
+				<Button type="submit" size="sm" disabled={notePending}>
+					{notePending ? 'Saving…' : 'Save'}
+				</Button>
 			</div>
 		</form>
 	</Modal.Content>
@@ -1251,16 +1296,21 @@
 					{@const job = board.unscheduled.find((r) => r.job.id === s.jobId)}
 					{@const tech = board.technicians.find((t) => t.id === s.memberId)}
 					<div class="flex items-center gap-2 py-2 text-sm">
-						<span class="font-medium whitespace-nowrap"
-							>J-{job?.job.number ?? '?'} {job?.job.summary || job?.jobTypeName}</span
-						>
+						<span class="font-medium whitespace-nowrap">
+							J-{job?.job.number ?? '?'}
+							{job?.job.summary || job?.jobTypeName}
+						</span>
 						<span class="text-muted-foreground">→ {tech?.name ?? '?'}</span>
-						<span class="flex-1 truncate text-xs text-muted-foreground" title={s.reason}
-							>{s.reason}</span
+						<span class="flex-1 truncate text-xs text-muted-foreground" title={s.reason}>
+							{s.reason}
+						</span>
+						<Button
+							size="sm"
+							variant="outline"
+							onclick={() => applySuggestion(s.jobId, s.memberId)}
 						>
-						<Button size="sm" variant="outline" onclick={() => applySuggestion(s.jobId, s.memberId)}
-							>Assign</Button
-						>
+							Assign
+						</Button>
 					</div>
 				{/each}
 			</div>

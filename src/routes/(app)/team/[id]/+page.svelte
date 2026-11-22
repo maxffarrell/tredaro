@@ -128,8 +128,9 @@
 		{/if}
 		<Badge
 			variant={p.member.role === 'owner' || p.member.role === 'admin' ? 'default' : 'secondary'}
-			>{p.member.role}</Badge
 		>
+			{p.member.role}
+		</Badge>
 	{/snippet}
 </PageHeader>
 
@@ -139,9 +140,9 @@
 			<Card.Header><Card.Title class="text-base">Profile</Card.Title></Card.Header>
 			<Card.Content class="space-y-2 text-sm">
 				<div class="flex justify-between gap-2">
-					<span class="text-muted-foreground">Email</span><span class="truncate"
-						>{p.member.email}</span
-					>
+					<span class="text-muted-foreground">Email</span><span class="truncate">
+						{p.member.email}
+					</span>
 				</div>
 				{#if p.member.phone}
 					<div class="flex justify-between gap-2">
@@ -149,50 +150,53 @@
 					</div>
 				{/if}
 				<div class="flex justify-between gap-2">
-					<span class="text-muted-foreground">Member since</span><span
-						>{formatDate(p.member.createdAt)}</span
-					>
+					<span class="text-muted-foreground">Member since</span><span>
+						{formatDate(p.member.createdAt)}
+					</span>
 				</div>
 				<div class="flex justify-between gap-2">
-					<span class="text-muted-foreground">Commission</span><span class="tabular-nums"
-						>{p.member.commissionPct}%</span
-					>
+					<span class="text-muted-foreground">Commission</span><span class="tabular-nums">
+						{p.member.commissionPct}%
+					</span>
 				</div>
 				<div class="flex justify-between gap-2">
-					<span class="text-muted-foreground">Loaded labor cost</span><span class="tabular-nums"
-						>{formatMoney(p.member.laborCostCents, currency)}/hr · OT {p.member.overtimePct}%</span
-					>
+					<span class="text-muted-foreground">Loaded labor cost</span><span class="tabular-nums">
+						{formatMoney(p.member.laborCostCents, currency)}/hr · OT {p.member.overtimePct}%
+					</span>
 				</div>
 				{#if p.member.licenseNo || p.member.licenseExpiry}
 					<div class="flex justify-between gap-2">
 						<span class="text-muted-foreground">License</span>
-						<span class="flex items-center gap-1"
-							>{p.member.licenseNo || '—'}
+						<span class="flex items-center gap-1">
+							{p.member.licenseNo || '—'}
 							{#if p.member.licenseExpiry}
 								<Badge
 									variant={p.member.licenseExpiry < todayStr ? 'destructive' : 'secondary'}
-									class="font-normal">{p.member.licenseExpiry}</Badge
+									class="font-normal"
 								>
+									{p.member.licenseExpiry}
+								</Badge>
 							{/if}
 						</span>
 					</div>
 				{/if}
 				<div class="flex justify-between gap-2">
-					<span class="text-muted-foreground">Dispatch board</span><span
-						>{p.member.dispatchVisible ? 'visible' : 'hidden'}</span
-					>
+					<span class="text-muted-foreground">Dispatch board</span><span>
+						{p.member.dispatchVisible ? 'visible' : 'hidden'}
+					</span>
 				</div>
 				<div class="flex justify-between gap-2">
-					<span class="text-muted-foreground">Staff alerts</span><span
-						>{p.member.staffAlerts ? 'on' : 'off'}</span
-					>
+					<span class="text-muted-foreground">Staff alerts</span><span>
+						{p.member.staffAlerts ? 'on' : 'off'}
+					</span>
 				</div>
 				{#if skillNames.length}
 					<div>
 						<p class="mb-1 text-muted-foreground">Qualified job types</p>
 						<div class="flex flex-wrap gap-1">
-							{#each skillNames as n (n)}<Badge variant="outline" class="font-normal">{n}</Badge
-								>{/each}
+							{#each skillNames as n (n)}<Badge variant="outline" class="font-normal">
+									{n}
+								</Badge>{/each}
 						</div>
 					</div>
 				{:else}
@@ -242,8 +246,10 @@
 									: t.status === 'denied'
 										? 'destructive'
 										: 'outline'}
-								class="font-normal">{t.status}</Badge
+								class="font-normal"
 							>
+								{t.status}
+							</Badge>
 						</div>
 						{#if t.reason}<p class="text-xs text-muted-foreground">{t.reason}</p>{/if}
 					{/each}
@@ -253,12 +259,12 @@
 
 		<Card.Root>
 			<Card.Header class="flex-row items-center justify-between gap-2">
-				<Card.Title class="text-base"
-					>Documents{#if p.documents.length}
-						<span class="ml-1 text-xs font-normal text-muted-foreground"
-							>({p.documents.length})</span
-						>{/if}</Card.Title
-				>
+				<Card.Title class="text-base">
+					Documents{#if p.documents.length}
+						<span class="ml-1 text-xs font-normal text-muted-foreground">
+							({p.documents.length})
+						</span>{/if}
+				</Card.Title>
 				<div class="flex items-center gap-2">
 					<Input class="h-8 w-28 text-xs" placeholder="Label" bind:value={docLabel} />
 					<label
@@ -282,16 +288,16 @@
 									href="/files/member-document/{d.id}"
 									target="_blank"
 									class="block truncate font-medium hover:underline"
-									>{#if d.label}{d.label} ·
-									{/if}{d.fileName}</a
 								>
-								<span class="flex items-center gap-1 text-xs text-muted-foreground"
-									>{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
+									{#if d.label}{d.label} ·
+									{/if}{d.fileName}
+								</a>
+								<span class="flex items-center gap-1 text-xs text-muted-foreground">
+									{docSize(d.size)} · {formatDate(d.createdAt)}{d.uploadedBy
 										? ` · ${d.uploadedBy}`
 										: ''}{#if d.expiresOn}
-										<span class={docExpiryTone(d.expiresOn)}>· expires {d.expiresOn}</span
-										>{/if}</span
-								>
+										<span class={docExpiryTone(d.expiresOn)}>· expires {d.expiresOn}</span>{/if}
+								</span>
 							</div>
 						</div>
 						<DropdownMenu.Root>
@@ -309,15 +315,18 @@
 												id: d.id,
 												memberId: id,
 												expiresOn: null
-											}).updates(getMemberProfile)}>Clear expiry</DropdownMenu.Item
+											}).updates(getMemberProfile)}
 									>
+										Clear expiry
+									</DropdownMenu.Item>
 								{/if}
 								<DropdownMenu.Item
 									class="text-destructive"
 									onclick={() =>
 										removeMemberDoc({ id: d.id, memberId: id }).updates(getMemberProfile)}
-									>Remove</DropdownMenu.Item
 								>
+									Remove
+								</DropdownMenu.Item>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
 					</div>
@@ -326,9 +335,9 @@
 						<Empty.Header>
 							<Empty.Media><Paperclip /></Empty.Media>
 							<Empty.Title class="text-sm">No documents</Empty.Title>
-							<Empty.Description class="text-xs"
-								>Licenses, certifications and insurance for this tech.</Empty.Description
-							>
+							<Empty.Description class="text-xs">
+								Licenses, certifications and insurance for this tech.
+							</Empty.Description>
 						</Empty.Header>
 					</Empty.Root>
 				{/each}
@@ -356,25 +365,25 @@
 					<Table.Body>
 						{#each p.upcoming as j (j.job.id)}
 							<Table.Row>
-								<Table.Cell class="pl-6 whitespace-nowrap"
-									>{formatDate(j.job.startsAt)}
-									{j.job.startsAt ? localTime(j.job.startsAt, tz) : ''}</Table.Cell
-								>
-								<Table.Cell
-									><a class="font-medium underline-offset-2 hover:underline" href="/jobs/{j.job.id}"
-										>J-{j.job.number}</a
-									>
-									<span class="ml-1 text-muted-foreground">{j.job.summary}</span></Table.Cell
-								>
+								<Table.Cell class="pl-6 whitespace-nowrap">
+									{formatDate(j.job.startsAt)}
+									{j.job.startsAt ? localTime(j.job.startsAt, tz) : ''}
+								</Table.Cell>
+								<Table.Cell>
+									<a class="font-medium underline-offset-2 hover:underline" href="/jobs/{j.job.id}">
+										J-{j.job.number}
+									</a>
+									<span class="ml-1 text-muted-foreground">{j.job.summary}</span>
+								</Table.Cell>
 								<Table.Cell>{j.customerName}</Table.Cell>
 								<Table.Cell>{j.jobTypeName ?? '—'}</Table.Cell>
 								<Table.Cell class="pr-6"><StatusBadge status={j.job.status} /></Table.Cell>
 							</Table.Row>
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan={5} class="py-6 text-center text-muted-foreground"
-									>No scheduled jobs in the next two weeks.</Table.Cell
-								>
+								<Table.Cell colspan={5} class="py-6 text-center text-muted-foreground">
+									No scheduled jobs in the next two weeks.
+								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -400,24 +409,25 @@
 					<Table.Body>
 						{#each p.entries as e (e.id)}
 							<Table.Row>
-								<Table.Cell class="pl-6 whitespace-nowrap">{formatRelative(e.startedAt)}</Table.Cell
-								>
-								<Table.Cell
-									><a class="underline-offset-2 hover:underline" href="/jobs/{e.jobId}"
-										>J-{e.jobNumber}</a
-									>
-									<span class="ml-1 text-muted-foreground">{e.jobSummary}</span></Table.Cell
-								>
-								<Table.Cell class="text-right tabular-nums"
-									>{fmtHours(entryMin(e))}{e.endedAt ? '' : ' · open'}</Table.Cell
-								>
+								<Table.Cell class="pl-6 whitespace-nowrap">
+									{formatRelative(e.startedAt)}
+								</Table.Cell>
+								<Table.Cell>
+									<a class="underline-offset-2 hover:underline" href="/jobs/{e.jobId}">
+										J-{e.jobNumber}
+									</a>
+									<span class="ml-1 text-muted-foreground">{e.jobSummary}</span>
+								</Table.Cell>
+								<Table.Cell class="text-right tabular-nums">
+									{fmtHours(entryMin(e))}{e.endedAt ? '' : ' · open'}
+								</Table.Cell>
 								<Table.Cell class="pr-6 text-muted-foreground">{e.note || '—'}</Table.Cell>
 							</Table.Row>
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan={4} class="py-6 text-center text-muted-foreground"
-									>No time entries yet.</Table.Cell
-								>
+								<Table.Cell colspan={4} class="py-6 text-center text-muted-foreground">
+									No time entries yet.
+								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -443,23 +453,23 @@
 					<Table.Body>
 						{#each p.recentDone as j (j.id)}
 							<Table.Row>
-								<Table.Cell class="pl-6"
-									><a class="font-medium underline-offset-2 hover:underline" href="/jobs/{j.id}"
-										>J-{j.number}</a
-									>
-									<span class="ml-1 text-muted-foreground">{j.summary}</span></Table.Cell
-								>
+								<Table.Cell class="pl-6">
+									<a class="font-medium underline-offset-2 hover:underline" href="/jobs/{j.id}">
+										J-{j.number}
+									</a>
+									<span class="ml-1 text-muted-foreground">{j.summary}</span>
+								</Table.Cell>
 								<Table.Cell>{j.customerName}</Table.Cell>
-								<Table.Cell class="whitespace-nowrap"
-									>{j.completedAt ? formatDate(j.completedAt) : '—'}</Table.Cell
-								>
+								<Table.Cell class="whitespace-nowrap">
+									{j.completedAt ? formatDate(j.completedAt) : '—'}
+								</Table.Cell>
 								<Table.Cell class="pr-6 text-right tabular-nums">{j.rating ?? '—'}</Table.Cell>
 							</Table.Row>
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan={4} class="py-6 text-center text-muted-foreground"
-									>No completed jobs yet.</Table.Cell
-								>
+								<Table.Cell colspan={4} class="py-6 text-center text-muted-foreground">
+									No completed jobs yet.
+								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
