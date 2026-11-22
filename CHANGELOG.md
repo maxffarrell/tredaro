@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.3.4
+
+### Patch Changes
+
+- e9fb02a: Restore "Try the live demo" copy on the demo sign-in card so the installed deploy helper's login verification matches again.
+
 ## 0.3.3
 
 ### Patch Changes
