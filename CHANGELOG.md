@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.3.5
+
+### Patch Changes
+
+- d53acaa: Update dependencies to latest versions and patch security vulnerabilities.
+
 ## 0.3.4
 
 ### Patch Changes
