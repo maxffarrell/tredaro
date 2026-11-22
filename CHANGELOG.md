@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.3.3
+
+### Patch Changes
+
+- 0ea8a5a: Fix deploy verify: check the login page for the current "Explore a seeded demo" copy instead of the removed "Try the live demo" text.
+
 ## 0.3.2
 
 ### Patch Changes
