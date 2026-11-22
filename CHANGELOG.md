@@ -1,5 +1,11 @@
 # tredaro
 
+## 0.3.2
+
+### Patch Changes
+
+- 6a0d0ba: Restore the full-width sticky demo banner so it stays visible while scrolling.
+
 ## 0.3.1
 
 ### Patch Changes
