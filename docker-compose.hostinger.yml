@@ -1,0 +1,50 @@
+# Hostinger VPS deployment candidate. See docs/deploy-hostinger.md for validation status.
+# Set POSTGRES_PASSWORD, BETTER_AUTH_SECRET and APP_DOMAIN in the project environment.
+services:
+  proxy:
+    image: caddy:2-alpine
+    command:
+      [
+        'caddy',
+        'reverse-proxy',
+        '--from',
+        '${APP_DOMAIN:?set the public DNS hostname}',
+        '--to',
+        'app:3000'
+      ]
+    ports: ['80:80', '443:443']
+    volumes: ['caddy_data:/data', 'caddy_config:/config']
+    depends_on: [app]
+    restart: unless-stopped
+  app:
+    # A raw Compose download has no local checkout. Build this reviewed revision.
+    build: https://github.com/maxffarrell/tredaro.git#9683da3ad9e6d1e52a6d8ace08e44f6afa7eb810
+    pull_policy: build
+    volumes: ['uploads:/app/data']
+    environment:
+      DATABASE_URL: postgres://tredaro:${POSTGRES_PASSWORD:?set a persistent URL-safe POSTGRES_PASSWORD}@db:5432/tredaro
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      ORIGIN: https://${APP_DOMAIN:?set the public DNS hostname}
+      TREDARO_ENTERPRISE_KEY: ${TREDARO_ENTERPRISE_KEY:-}
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+  db:
+    image: postgres:18-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
+    environment:
+      POSTGRES_USER: tredaro
+      # The fallback is local-development only. Set a persistent URL-safe random
+      # POSTGRES_PASSWORD before creating a production database volume.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set a persistent URL-safe POSTGRES_PASSWORD}
+      POSTGRES_DB: tredaro
+    volumes: ['pgdata:/var/lib/postgresql']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tredaro']
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:
+  uploads:
